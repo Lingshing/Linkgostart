@@ -2141,60 +2141,61 @@ input[type="number"]::-webkit-inner-spin-button {
     <script>
         // 核心数据
         let APP_DATA = JSON.parse(localStorage.getItem('AI_PHONE_APP_DATA')) || {
-            contacts: [
-                { 
-                  id: 1, 
-                  name: '心理导师', 
-                  prompt: '你是一位专业的心理导师，以温暖、同情和专业的态度回复用户的问题。', 
-                  history: [], 
-                  longMemories: [], // 改为数组
-                  shortTermMemory: [],
-                  summaryCount: 0,
-                  summaryThreshold: 30
- },
-                { 
-                  id: 2, 
-                  name: '英语陪练', 
-                  prompt: '你是一位只说英语的口语陪练，每句话都必须是英语。', 
-                  history: [], 
-                  longMemories: [], // 改为数组
-                  shortTermMemory: [],
-                  summaryCount: 0,
-                  summaryThreshold: 30
-                 }
-            ],
-            settings: {
-                apiUrl: 'https://api.siliconflow.cn/v1/chat/completions',
-                apiKey: '',
-                aiModel: 'qwen-72b-chat',
-                temperature: 0.7,
-                aiAvatarBase64: 'AI',
-                contextLimit: 20, // 默认携带20轮历史
-                diaryInterval: 20 // 默认20轮写一次日记
-            },
-            currentTheme: 'light',
-            currentChatId: null,
-            activeModalContext: null,
-            presets: [], 
-            currentPresetId: null, // 当前预设ID
-            deepPresets: [],        // 深预设数组
-             regexPatterns: [],      // 正则表达式数组
-             currentDeepPresetId: null,  // 当前选中的深预设ID
-             currentRegexId: null,       // 当前选中的正则ID
-             deepPresetEnabled: false,   // 深预设是否启用
-             regexEnabled: false         // 正则是否启用
-        };
+    contacts: [
+        { 
+            id: 1, 
+            name: '心理导师', 
+            prompt: '你是一位专业的心理导师，以温暖、同情和专业的态度回复用户的问题。', 
+            history: [], 
+            longMemories: [], // 改为数组
+            shortTermMemory: [],
+            summaryCount: 0,
+            summaryThreshold: 30
+        },
+        { 
+            id: 2, 
+            name: '英语陪练', 
+            prompt: '你是一位只说英语的口语陪练，每句话都必须是英语。', 
+            history: [], 
+            longMemories: [], // 改为数组
+            shortTermMemory: [],
+            summaryCount: 0,
+            summaryThreshold: 30
+        }
+    ],
+    settings: {
+        apiUrl: 'https://api.siliconflow.cn/v1/chat/completions',
+        apiKey: '',
+        aiModel: 'qwen-72b-chat',
+        temperature: 0.7,
+        aiAvatarBase64: 'AI',
+        contextLimit: 20, // 默认携带20轮历史
+        diaryInterval: 20 // 默认20轮写一次日记
+    },
+    currentTheme: 'light',
+    currentChatId: null,
+    activeModalContext: null,
+    presets: [], 
+    currentPresetId: null, // 当前预设ID
+    // 新增：深预设和正则数据
+    deepPresets: [],        // 深预设数组
+    regexPatterns: [],      // 正则表达式数组
+    currentDeepPresetId: null,  // 当前选中的深预设ID
+    currentRegexId: null,       // 当前选中的正则ID
+    deepPresetEnabled: false,   // 深预设是否启用
+    regexEnabled: false         // 正则是否启用
+};  // <-- 确保这里的分号
 
-        let currentContact = null;
-        let isManageMode = false; // 管理模式状态
-        let batchMode = false; // 批量删除模式
-        let selectedContacts = new Set(); // 选择的联系人ID集合
-        let isTyping = false; // AI是否正在输入
-        let currentAIRequest = null; // 新增：存储当前AI请求
-        let currentController = null; // 新增：用于取消请求的控制器
-        let currentStartIndex = 0;
-        const PAGE_SIZE = 10; 
-        let isLoadingMore = false; 
+let currentContact = null;
+let isManageMode = false; // 管理模式状态
+let batchMode = false; // 批量删除模式
+let selectedContacts = new Set(); // 选择的联系人ID集合
+let isTyping = false; // AI是否正在输入
+let currentAIRequest = null; // 新增：存储当前AI请求
+let currentController = null; // 新增：用于取消请求的控制器
+let currentStartIndex = 0;
+const PAGE_SIZE = 10; 
+let isLoadingMore = false; 
         
         // ----------------------- 数据存储和加载 -----------------------
         function saveData() {
