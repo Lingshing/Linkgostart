@@ -3689,12 +3689,24 @@ async function sendMessage() {
 
     isTyping = false;
     
-    // 每次发送消息都尝试触发检查（检查逻辑在函数内部）
-    await simulateMemorySummary(currentContact);
+    // 每次发送消息都尝试触发检查
+    await simulateMemorySummary(currentContact); 
 
-    saveData();
-}       
+    saveData(); 
+
+    // 【新增逻辑】
+    // 如果 AI 有回复 (aiReply) 且你现在没有开着网页 (document.hidden)
+    if (aiReply && document.hidden) {
+        // 去掉 AI 回复里难看的反斜线
+        const cleanReply = aiReply.replace(/\\/g, ' '); 
+        // 限制通知长度，取前 60 个字
+        const notifyText = cleanReply.length > 60 ? cleanReply.substring(0, 60) + "..." : cleanReply;
         
+        // 执行发送！
+        sendPushNotification(notifyText);
+    }
+}
+    
 async function mockAIResponse(userMessage, contact) {
     console.log("开始调用AI API...");
     
@@ -7363,6 +7375,34 @@ function applyRegexToText(text) {
         return text;
     }
 }
+    // 【新增】定义发送通知的函数
+async function sendPushNotification(messageText) {
+    const appId = "377df80f-5fd9-4c68-8b0d-9fae568761b8"; [span_0](start_span)// 你的 App ID[span_0](end_span)
+    const apiKey = "os_v2_org_2cc36wc34rgalgmsiv4lfgeyavr7g4tmqxqe5bvjwuhpkqk6mko2cdov4fleaxdgcvl5jfxphxho5wbjlsollmgij54e26gqds4zbha"; // 填入你的秘钥
+
+    try {
+        await fetch("https://onesignal.com/api/v1/notifications", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                "Authorization": "Basic " + apiKey
+            },
+            body: JSON.stringify({
+                app_id: appId,
+                included_segments: ["All Users"], 
+                headings: {"zh": "Linkgo ⭐"}, 
+                contents: {"zh": messageText}, // 这里会显示 AI 的回复内容
+                ios_badgeType: "Increase",
+                ios_badgeCount: 1
+            })
+        });
+        console.log("后台通知已尝试发送");
+    } catch (error) {
+        console.error("通知发送失败:", error);
+    }
+}
+
+    
 </script>
 
 <!-- 预设管理弹窗 -->
