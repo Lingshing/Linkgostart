@@ -1,16 +1,22 @@
 {
   "name": "Linkgo",
   "short_name": "Linkgo",
-  "description": "我的轻量级链接管理工具",
-  "start_url": "./",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f0f0f5",
   "theme_color": "#7B9E6D",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/555/555635.png",
+      "src": "https://i.postimg.cc/cHNb4gXc/IMG-2047.jpg",
       "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "https://i.postimg.cc/cHNb4gXc/IMG-2047.jpg",
+      "sizes": "192x192",
       "type": "image/png"
     }
   ]
 }
+
+
