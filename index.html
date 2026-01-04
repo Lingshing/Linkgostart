@@ -2962,15 +2962,7 @@ item.onclick = () => {
     const contactsPage = document.getElementById('contacts-page');
     const chatWindow = document.getElementById('chat-window');
     
-    // 1. 停止AI生成（关键）
-    if (currentController) {
-        currentController.abort();
-        currentController = null;
-    }
-    
-    // 2. 重置所有状态
-    currentContact = null;
-    APP_DATA.currentChatId = null;
+ 
     currentAIRequest = null;
     isTyping = false;
     
