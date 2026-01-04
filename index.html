@@ -1784,8 +1784,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
     <div class="phone-frame" id="phone-frame">
         <div class="phone-screen" id="phone-screen">
-            
-            <div class="status-bar">
+                        <div class="status-bar">
                 <!-- 需求4: 时间/信号/电量都去掉 -->
             </div>
             
@@ -1825,16 +1824,34 @@ input[type="number"]::-webkit-inner-spin-button {
                 </div>
                 <div class="content">
                     
-<div style="display: flex; align-items: center; padding: 15px; background-color: var(--input-bg); border-radius: var(--radius-default); border: 1px solid var(--input-border); margin-bottom: 30px;">
-    <h4 style="margin: 0; margin-right: 10px;">主题模式</h4>
-    <div class="theme-switch-container">
-        <div class="theme-switch-track clickable" onclick="toggleThemeAuto()" id="theme-switch">
-            <div class="theme-switch-thumb"></div>
-            <i class="fas fa-sun theme-icon-left"></i>
-            <i class="fas fa-moon theme-icon-right"></i>
+<div style="display: flex; justify-content: space-between; gap: 10px; margin-bottom: 20px;">
+    
+    <div style="flex: 1; display: flex; align-items: center; justify-content: space-between; padding: 15px; background-color: var(--input-bg); border-radius: var(--radius-default); border: 1px solid var(--input-border);">
+        <h4 style="font-size: 16px;">主题模式</h4>
+        <div class="theme-switch-container" style="margin: 0;">
+            <div class="theme-switch-track clickable" onclick="toggleThemeAuto()">
+                <div class="theme-switch-thumb"></div>
+                <i class="fas fa-sun theme-icon-left"></i>
+                <i class="fas fa-moon theme-icon-right"></i>
+            </div>
         </div>
     </div>
-</div>                    
+
+    <div style="flex: 1; display: flex; align-items: center; justify-content: space-between; padding: 15px; background-color: var(--input-bg); border-radius: var(--radius-default); border: 1px solid var(--input-border);">
+        <h4 style="font-size: 16px;">后台保活</h4>
+        <div class="theme-switch-container" style="margin: 0;">
+            <div class="theme-switch-track clickable" onclick="toggleKeepAlive()" id="keep-alive-switch" style="background: var(--input-border);">
+                <div class="theme-switch-thumb" style="left: 2px;"></div>
+                <i class="fas fa-lock theme-icon-left" style="color: #888; font-size: 10px; left: 8px;"></i>
+                <i class="fas fa-infinity theme-icon-right" style="color: #ffd700; font-size: 10px; right: 8px;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<audio id="silent-audio" loop playsinline style="display:none;">
+    <source src="data:audio/mp3;base64,SUQzBAAAAAABEVRYWFhYAAAAWAAAAEEAbwBvAG0AcwBlAHIAdgBlAHIAIABSAGUAYwBvAHIAZABpAG4AZwAgAFMAZQB0AHQAaQBuAGcAcwAgAFMAaQBsAGUAbgB0ACAAQQB1AGQAaQBvAAAA//uQZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCAAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC2">
+</audio>                  
 
 <div class="settings-group">
     <h4>API 配置</h4>
@@ -7430,6 +7447,50 @@ async function sendPushNotification(messageText) {
         console.error("推送请求失败", error);
     }
 }    
+
+	// 控制静音音频播放的函数
+function toggleSilentAudio(shouldPlay) {
+    const audio = document.getElementById('silent-audio');
+    if (!audio) return;
+    
+    if (shouldPlay) {
+        audio.play().catch(e => console.log("音频播放被拦截:", e));
+    } else {
+        audio.pause();
+    }
+}
+
+// 确保变量在全局范围内
+let isKeepAliveEnabled = false;
+
+function toggleKeepAlive() {
+    const track = document.getElementById('keep-alive-switch');
+    const thumb = track.querySelector('.theme-switch-thumb');
+    const audio = document.getElementById('silent-audio');
+    
+    if (!audio) return;
+
+    isKeepAliveEnabled = !isKeepAliveEnabled;
+    
+    if (isKeepAliveEnabled) {
+        // 开启：滑块右移，背景变蓝
+        thumb.style.left = 'calc(100% - 28px)'; 
+        track.style.background = 'var(--accent-color)';
+        
+        // 尝试播放，如果失败则静默失败，不弹出 alert
+        audio.play().catch(e => {
+            console.warn("保活启动受限:", e);
+        });
+    } else {
+        // 关闭：滑块左移，背景变灰
+        thumb.style.left = '2px';
+        track.style.background = 'var(--input-border)';
+        
+        // 关键修改：直接暂停，不执行任何 catch/alert 逻辑
+        audio.pause();
+        audio.currentTime = 0;
+    }
+}
 </script>
 
 <!-- 预设管理弹窗 -->
