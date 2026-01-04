@@ -3804,8 +3804,8 @@ async function mockAIResponse(userMessage, contact) {
 所以绝对不要使用正斜线（/）！
 
 【正确的分隔方式】
-使用反斜线（\\）来分隔不同的回复部分，像这样：
-（动作1）内容1\\（动作2）内容2\\（动作3）内容3
+使用反斜线（\）来分隔不同的回复部分，像这样：
+（动作1）内容1\（动作2）内容2\（动作3）内容3
 
 【错误的分隔方式】
 （动作1）内容1/（动作2）内容2/（动作3）内容3  ← 这样会被系统删除斜线，变成：
@@ -7418,34 +7418,35 @@ function applyRegexToText(text) {
 }
     // 【新增】定义发送通知的函数
 async function sendPushNotification(messageText) {
-    const appId = "377df80f-5fd9-4c68-8b0d-9fae568761b8";
-    // 从你刚才保存的设置中读取密钥
-    const apiKey = APP_DATA.settings.oneSignalKey; 
+    const appId = "377df80f-5fd9-4c68-8b0d-9fae568761b8"; [cite: 1421]
+    const apiKey = APP_DATA.settings.oneSignalKey; [cite: 1422]
 
     if (!apiKey) {
-        console.log("未填写推送密钥，跳过发送");
+        console.log("未填写推送密钥，跳过发送"); [cite: 1422]
         return;
     }
 
     try {
         await fetch("https://onesignal.com/api/v1/notifications", {
             method: "POST",
+            // 保持 keepalive [cite: 1423]
             keepalive: true,
             headers: {
                 "Content-Type": "application/json; charset=utf-8",
-                "Authorization": "Basic " + apiKey
+                // 确保 API Key 前面有 "Basic " 且后面没有空格 [cite: 1423]
+                "Authorization": "Basic " + apiKey.trim() 
             },
             body: JSON.stringify({
-                app_id: appId,
-                included_segments: ["All Users"], 
-                headings: {"zh": "Linkgo ⭐"}, 
-                contents: {"zh": messageText}
+                app_id: appId, [cite: 1424]
+                included_segments: ["All Users"], [cite: 1424]
+                headings: {"zh": "Linkgo ⭐"}, [cite: 1424]
+                contents: {"zh": messageText} [cite: 1424]
             })
         });
     } catch (error) {
-        console.error("推送请求失败", error);
+        console.error("推送请求失败", error); [cite: 1426]
     }
-}    
+}  
 
 	// 控制静音音频播放的函数
 function toggleSilentAudio(shouldPlay) {
