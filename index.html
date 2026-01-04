@@ -17,9 +17,16 @@
   OneSignalDeferred.push(function(OneSignal) {
     OneSignal.init({
       appId: "377df80f-5fd9-4c68-8b0d-9fae568761b8",
+      // 关键：必须匹配你的仓库名 Linkgostart
+      serviceWorkerPath: "OneSignalSDKWorker.js",
+      serviceWorkerParam: { scope: "/Linkgostart/" },
+      // 允许在非根域名下运行
+      allowLocalhostAsSecureOrigin: true 
     });
   });
 </script>
+
+
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
