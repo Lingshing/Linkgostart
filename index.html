@@ -1871,6 +1871,9 @@ input[type="number"]::-webkit-inner-spin-button {
         <label for="api-key">API Key:</label>
         <input type="password" id="api-key" placeholder="输入您的 API Key">
         
+	<label for="onesignal-key">OneSignal REST API Key:</label>
+<input type="password" id="onesignal-key" placeholder="输入以 os_ 开头的推送密钥">
+
         <!-- 【修改】模型选择（用于新建预设） -->
         <label for="ai-model" style="margin-top: 15px;">AI 模型:</label>
         <div style="display: flex; gap: 10px; align-items: center;">
@@ -2229,6 +2232,7 @@ let isLoadingMore = false;
         function loadSettings() {
     document.getElementById('api-url').value = APP_DATA.settings.apiUrl;
     document.getElementById('api-key').value = APP_DATA.settings.apiKey;
+    document.getElementById('onesignal-key').value = APP_DATA.settings.oneSignalKey || '';
     document.getElementById('ai-model').value = APP_DATA.settings.aiModel;
     // 新增：加载记忆设置
     document.getElementById('context-limit').value = APP_DATA.settings.contextLimit || 20;
@@ -2529,11 +2533,13 @@ async function fetchModels() {
     // 保存到APP_DATA.settings
     APP_DATA.settings.apiUrl = document.getElementById('api-url').value;
     APP_DATA.settings.apiKey = document.getElementById('api-key').value;
+    APP_DATA.settings.oneSignalKey = document.getElementById('onesignal-key').value.trim();
     APP_DATA.settings.aiModel = document.getElementById('ai-model').value;
     APP_DATA.settings.temperature = parseFloat(document.getElementById('temperature').value) || 0.7;
     // 新增：保存记忆设置
     APP_DATA.settings.contextLimit = parseInt(document.getElementById('context-limit').value) || 20;
     APP_DATA.settings.diaryInterval = parseInt(document.getElementById('diary-interval').value) || 10;
+APP_DATA.settings.oneSignalKey = document.getElementById('onesignal-key').value;
 
     const avatarBase64 = document.getElementById('ai-avatar-base64').value;
     APP_DATA.settings.aiAvatarBase64 = avatarBase64 || 'AI';
@@ -3687,22 +3693,23 @@ async function sendMessage() {
         currentContact.history.push({ role: 'ai', content: fullReply });
     }
 
-    isTyping = false;
+   isTyping = false;
     
-    // 每次发送消息都尝试触发检查
+    // 1. 每次发送消息后先触发记忆检查
     await simulateMemorySummary(currentContact); 
 
+    // 2. 统一保存一次数据
     saveData(); 
 
-    // 【新增逻辑】
-    // 如果 AI 有回复 (aiReply) 且你现在没有开着网页 (document.hidden)
+    // 3. 触发通知逻辑（合并后的版本）
+    // 只有当 AI 有回复 (aiReply) 且当前网页处于后台 (document.hidden) 时发送
     if (aiReply && document.hidden) {
-        // 去掉 AI 回复里难看的反斜线
+        // 去掉 AI 回复里难看的反斜线，让通知显示更美观
         const cleanReply = aiReply.replace(/\\/g, ' '); 
-        // 限制通知长度，取前 60 个字
+        // 限制通知长度，取前 60 个字，防止通知弹窗过长
         const notifyText = cleanReply.length > 60 ? cleanReply.substring(0, 60) + "..." : cleanReply;
         
-        // 执行发送！
+        // 调用你之前定义的发送函数
         sendPushNotification(notifyText);
     }
 }
@@ -7377,12 +7384,19 @@ function applyRegexToText(text) {
 }
     // 【新增】定义发送通知的函数
 async function sendPushNotification(messageText) {
-    const appId = "377df80f-5fd9-4c68-8b0d-9fae568761b8"; [span_0](start_span)// 你的 App ID[span_0](end_span)
-    const apiKey = "os_v2_org_2cc36wc34rgalgmsiv4lfgeyavr7g4tmqxqe5bvjwuhpkqk6mko2cdov4fleaxdgcvl5jfxphxho5wbjlsollmgij54e26gqds4zbha"; // 填入你的秘钥
+    const appId = "377df80f-5fd9-4c68-8b0d-9fae568761b8";
+    // 从你刚才保存的设置中读取密钥
+    const apiKey = APP_DATA.settings.oneSignalKey; 
+
+    if (!apiKey) {
+        console.log("未填写推送密钥，跳过发送");
+        return;
+    }
 
     try {
         await fetch("https://onesignal.com/api/v1/notifications", {
             method: "POST",
+            keepalive: true,
             headers: {
                 "Content-Type": "application/json; charset=utf-8",
                 "Authorization": "Basic " + apiKey
@@ -7391,18 +7405,13 @@ async function sendPushNotification(messageText) {
                 app_id: appId,
                 included_segments: ["All Users"], 
                 headings: {"zh": "Linkgo ⭐"}, 
-                contents: {"zh": messageText}, // 这里会显示 AI 的回复内容
-                ios_badgeType: "Increase",
-                ios_badgeCount: 1
+                contents: {"zh": messageText}
             })
         });
-        console.log("后台通知已尝试发送");
     } catch (error) {
-        console.error("通知发送失败:", error);
+        console.error("推送请求失败", error);
     }
-}
-
-    
+}    
 </script>
 
 <!-- 预设管理弹窗 -->
