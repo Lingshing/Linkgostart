@@ -7418,33 +7418,38 @@ function applyRegexToText(text) {
 }
     // 【新增】定义发送通知的函数
 async function sendPushNotification(messageText) {
-    const appId = "377df80f-5fd9-4c68-8b0d-9fae568761b8"; //
-    const apiKey = APP_DATA.settings.oneSignalKey; //
+    const appId = "377df80f-5fd9-4c68-8b0d-9fae568761b8";
+    const apiKey = APP_DATA.settings.oneSignalKey;
 
-    if (!apiKey) {
-        console.log("未填写推送密钥，跳过发送"); //
-        return;
-    }
+    if (!apiKey || !messageText) return;
 
     try {
-        await fetch("https://onesignal.com/api/v1/notifications", {
-            method: "POST", //
-            keepalive: true, //
+        const response = await fetch("https://onesignal.com/api/v1/notifications", {
+            method: "POST",
             headers: {
-                "Content-Type": "application/json; charset=utf-8", //
-                "Authorization": "Basic " + apiKey.trim() //
+                "Content-Type": "application/json; charset=utf-8",
+                "Authorization": "Basic " + apiKey.trim()
             },
             body: JSON.stringify({
-                app_id: appId, //
-                included_segments: ["Total Subscriptions"], //
-                headings: {"zh": "Linkgo ⭐"}, //
-                contents: {"zh": messageText} //
+                app_id: appId,
+                // 确保至少包含英文 en，这是 OneSignal 的强制要求
+                contents: { "en": messageText, "zh": messageText },
+                headings: { "en": "Linkgo", "zh": "Linkgo ⭐" },
+                // 尝试改用更稳妥的受众选择方式
+                included_segments: ["Total Subscriptions"] 
             })
         });
-    } catch (error) {
-        console.error("推送请求失败", error); //
+
+        const result = await response.json();
+        if (response.ok) {
+            console.log("推送成功！ID:", result.id);
+        } else {
+            console.error("服务器报错内容:", result);
+        }
+    } catch (e) {
+        console.error("请求过程出错:", e);
     }
-} // <--- 重点检查：这里必须有一个大括号结束函数
+}
 
 	// 控制静音音频播放的函数
 function toggleSilentAudio(shouldPlay) {
