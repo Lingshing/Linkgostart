@@ -1849,10 +1849,9 @@ input[type="number"]::-webkit-inner-spin-button {
     </div>
 </div>
 
-<audio id="silent-audio" loop playsinline style="display:none;">
+<audio id="silent-audio" loop playsinline preload="auto" style="display:none;">
     <source src="https://raw.githubusercontent.com/anars/blank-audio/master/10-seconds-of-silence.mp3" type="audio/mpeg">
-</audio>                  
-
+</audio>
 <div class="settings-group">
     <h4>API 配置</h4>
     
@@ -3738,7 +3737,7 @@ async function sendMessage() {
 
     // 3. 触发通知逻辑（合并后的版本）
     // 只有当 AI 有回复 (aiReply) 且当前网页处于后台 (document.hidden) 时发送
-    if (aiReply && document.hidden) {
+   if (aiReply) {
         // 去掉 AI 回复里难看的反斜线，让通知显示更美观
         const cleanReply = aiReply.replace(/\\/g, ' '); 
         // 限制通知长度，取前 60 个字，防止通知弹窗过长
@@ -7463,7 +7462,7 @@ function toggleSilentAudio(shouldPlay) {
 // 确保变量在全局范围内
 let isKeepAliveEnabled = false;
 
-function toggleKeepAlive() {
+async function toggleKeepAlive() {
     const track = document.getElementById('keep-alive-switch');
     const thumb = track.querySelector('.theme-switch-thumb');
     const audio = document.getElementById('silent-audio');
@@ -7473,24 +7472,38 @@ function toggleKeepAlive() {
     isKeepAliveEnabled = !isKeepAliveEnabled;
     
     if (isKeepAliveEnabled) {
-        // 开启：滑块右移，背景变蓝
+        // UI 表现
         thumb.style.left = 'calc(100% - 28px)'; 
         track.style.background = 'var(--accent-color)';
         
-        // 尝试播放，如果失败则静默失败，不弹出 alert
-        audio.play().catch(e => {
-            console.warn("保活启动受限:", e);
-        });
+        // 强制开启循环模式
+        audio.loop = true;
+        audio.volume = 0.5; 
+        
+        try {
+            await audio.play();
+            console.log("✅ 后台保活已启动并设置为循环模式");
+        } catch (e) {
+            console.warn("❌ 播放失败:", e);
+            isKeepAliveEnabled = false;
+            thumb.style.left = '2px';
+            track.style.background = 'var(--input-border)';
+        }
     } else {
-        // 关闭：滑块左移，背景变灰
+        // 关闭
         thumb.style.left = '2px';
         track.style.background = 'var(--input-border)';
-        
-        // 关键修改：直接暂停，不执行任何 catch/alert 逻辑
         audio.pause();
-        audio.currentTime = 0;
     }
 }
+
+// --- 新增：双重保险，确保音频结束时自动重新播放 ---
+document.getElementById('silent-audio').addEventListener('ended', function() {
+    if (isKeepAliveEnabled) {
+        this.play();
+    }
+}, false);
+
 </script>
 
 <!-- 预设管理弹窗 -->
