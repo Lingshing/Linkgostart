@@ -3742,7 +3742,7 @@ async function sendMessage() {
         const cleanReply = aiReply.replace(/\\/g, ' '); 
         // 限制通知长度，取前 60 个字，防止通知弹窗过长
         const notifyText = cleanReply.length > 60 ? cleanReply.substring(0, 60) + "..." : cleanReply;
-        
+        console.log("正在尝试发送通知内容:", aiReply); // 加入这行看是否有输出
         // 调用你之前定义的发送函数
         sendPushNotification(notifyText);
     }
@@ -7436,7 +7436,7 @@ async function sendPushNotification(messageText) {
             },
             body: JSON.stringify({
                 app_id: appId, //
-                included_segments: ["All Users"], //
+                included_segments: ["Total Subscriptions"], //
                 headings: {"zh": "Linkgo ⭐"}, //
                 contents: {"zh": messageText} //
             })
