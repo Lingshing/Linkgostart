@@ -1870,9 +1870,6 @@ input[type="number"]::-webkit-inner-spin-button {
         <!-- API Key -->
         <label for="api-key">API Key:</label>
         <input type="password" id="api-key" placeholder="输入您的 API Key">
-        
-	<label for="onesignal-key">OneSignal REST API Key:</label>
-<input type="password" id="onesignal-key" placeholder="输入以 os_ 开头的推送密钥">
 
         <!-- 【修改】模型选择（用于新建预设） -->
         <label for="ai-model" style="margin-top: 15px;">AI 模型:</label>
@@ -2026,6 +2023,13 @@ input[type="number"]::-webkit-inner-spin-button {
                         </div>
                     </div>
                     
+<div class="settings-group">
+    <h4>通知服务</h4>
+    <p style="font-size: 12px; color: var(--text-color-secondary); margin-bottom: 10px;">配置 OneSignal 后台推送密钥</p>
+    <button onclick="showPushKeyModal()" style="width: 100%; padding: 10px; background: var(--accent-color); color: white; border: none; border-radius: 10px; cursor: pointer;">
+        配置通知 API
+    </button>
+</div>
                                         <!-- 数据管理 -->
 <div class="settings-group">
     <h4>数据管理</h4>
@@ -2232,7 +2236,6 @@ let isLoadingMore = false;
         function loadSettings() {
     document.getElementById('api-url').value = APP_DATA.settings.apiUrl;
     document.getElementById('api-key').value = APP_DATA.settings.apiKey;
-    document.getElementById('onesignal-key').value = APP_DATA.settings.oneSignalKey || '';
     document.getElementById('ai-model').value = APP_DATA.settings.aiModel;
     // 新增：加载记忆设置
     document.getElementById('context-limit').value = APP_DATA.settings.contextLimit || 20;
@@ -2518,6 +2521,8 @@ async function fetchModels() {
         }
     }
 }
+
+
        
         function saveSettings() {
     // 【重要修改】如果当前在"新建预设"状态，不要更新任何预设
@@ -2533,7 +2538,6 @@ async function fetchModels() {
     // 保存到APP_DATA.settings
     APP_DATA.settings.apiUrl = document.getElementById('api-url').value;
     APP_DATA.settings.apiKey = document.getElementById('api-key').value;
-    APP_DATA.settings.oneSignalKey = document.getElementById('onesignal-key').value.trim();
     APP_DATA.settings.aiModel = document.getElementById('ai-model').value;
     APP_DATA.settings.temperature = parseFloat(document.getElementById('temperature').value) || 0.7;
     // 新增：保存记忆设置
@@ -2549,6 +2553,28 @@ APP_DATA.settings.oneSignalKey = document.getElementById('onesignal-key').value;
     renderContacts(); 
 }
         
+// 显示弹窗并加载已保存的 Key
+function showPushKeyModal() {
+    // 确保从 APP_DATA 读取
+    const savedKey = APP_DATA.settings.oneSignalKey || '';
+    document.getElementById('onesignal-key-input').value = savedKey;
+    showModal('push-key-modal');
+}
+
+// 专门保存推送 Key 的函数
+function savePushKey() {
+    const keyVal = document.getElementById('onesignal-key-input').value.trim();
+    
+    // 存入设置对象
+    APP_DATA.settings.oneSignalKey = keyVal;
+    
+    // 立即存入本地数据库
+    saveData(); 
+    
+    hideModal('push-key-modal');
+    alert('通知 API 已配置成功！');
+}
+
         function resetAvatar() {
             APP_DATA.settings.aiAvatarBase64 = 'AI';
             document.getElementById('ai-avatar-base64').value = 'AI';
@@ -7434,6 +7460,18 @@ async function sendPushNotification(messageText) {
                 <i class="fas fa-plus-circle"></i> 新建预设
             </button>
           
+        </div>
+    </div>
+</div>
+<div id="push-key-modal" class="overlay">
+    <div class="modal-content" style="width: 85%; max-width: 300px;">
+        <h4>通知 API 设置</h4>
+        <label style="font-size: 14px;">OneSignal REST API Key:</label>
+        <input type="password" id="onesignal-key-input" placeholder="os_v2_app_..." 
+               style="width: 100%; padding: 12px; margin: 15px 0; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary);">
+        <div class="modal-footer">
+            <button class="save-btn" onclick="savePushKey()">保存</button>
+            <button class="cancel-btn" onclick="hideModal('push-key-modal')">取消</button>
         </div>
     </div>
 </div>
