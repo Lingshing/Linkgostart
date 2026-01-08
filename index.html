@@ -7244,52 +7244,60 @@ function importDeepPresetFile() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json,.txt';
-    
     input.onchange = function(event) {
         const file = event.target.files[0];
         if (!file) return;
-        
+
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
                 const fileContent = e.target.result;
-                
-                // 尝试解析为JSON
-                let presetData;
+                let presetName = file.name.replace(/\.[^/.]+$/, "");
+                let presetContent = "";
+
                 try {
-                    presetData = JSON.parse(fileContent);
+                    // 尝试解析为 JSON
+                    const presetData = JSON.parse(fileContent);
+                    
+                    // 自动寻找可能的字段名
+                    presetContent = presetData.content || presetData.text || presetData.value || 
+                                    (typeof presetData === 'string' ? presetData : JSON.stringify(presetData));
+                    
+                    if (presetData.name) {
+                        presetName = presetData.name;
+                    }
                 } catch (jsonError) {
-                    // 如果不是JSON，作为纯文本处理
-                    presetData = {
-                        name: file.name.replace(/\.[^/.]+$/, ""), // 去掉扩展名
-                        content: fileContent
-                    };
+                    // 如果不是 JSON，直接作为纯文本
+                    presetContent = fileContent;
                 }
                 
-                // 创建预设对象
+                if (!presetContent || presetContent.trim() === "") {
+                    alert("文件内容为空，无法导入");
+                    return;
+                }
+
+                // 创建预设对象并保存
                 const newPreset = {
                     id: Date.now(),
-                    name: presetData.name || `预设_${new Date().toLocaleDateString()}`,
-                    content: presetData.content || presetData,
+                    name: presetName,
+                    content: presetContent,
                     lastUsedTime: Date.now()
                 };
-                
-                // 添加到预设数组
+
+                if (!APP_DATA.deepPresets) APP_DATA.deepPresets = [];
                 APP_DATA.deepPresets.push(newPreset);
                 saveData();
                 
-                // 刷新列表并自动选择
                 refreshDeepPresetList();
                 selectDeepPreset(newPreset.id);
                 
                 alert('预设导入成功！');
             } catch (error) {
-                alert('文件格式错误：' + error.message);
+                alert('导入过程中出错：' + error.message);
             }
         };
         reader.readAsText(file);
     };
-    
     input.click();
 }
 
@@ -7298,57 +7306,60 @@ function importRegexFile() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json,.txt';
-    
     input.onchange = function(event) {
         const file = event.target.files[0];
         if (!file) return;
-        
+
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
                 const fileContent = e.target.result;
-                
-                // 尝试解析为JSON
                 let regexData;
+                
                 try {
                     regexData = JSON.parse(fileContent);
                 } catch (jsonError) {
-                    // 如果不是JSON，提示用户手动输入
-                    alert('请提供JSON格式的正则文件，格式：{"name":"正则名称","pattern":"正则表达式","replacement":"替换内容"}');
+                    alert('请提供有效的 JSON 格式文件。');
                     return;
                 }
+
+                // --- 智能识别逻辑 ---
+                // 1. 找名称
+                let name = regexData.name || regexData.title || file.name.replace(/\.[^/.]+$/, "");
                 
-                // 验证必需字段
-                if (!regexData.name || !regexData.pattern) {
-                    alert('正则文件必须包含"name"和"pattern"字段');
+                // 2. 找匹配模式 (Pattern)
+                let pattern = regexData.pattern || regexData.regex || regexData.match;
+                
+                // 3. 找替换内容 (Replacement)
+                let replacement = regexData.replacement || regexData.replace || regexData.result || "";
+
+                if (!pattern) {
+                    alert('导入失败：未在文件中找到“pattern”或“regex”匹配规则。');
                     return;
                 }
-                
-                // 创建正则对象
+
                 const newRegex = {
                     id: Date.now(),
-                    name: regexData.name,
-                    pattern: regexData.pattern,
-                    replacement: regexData.replacement || '',
+                    name: name,
+                    pattern: pattern,
+                    replacement: String(replacement), // 确保是字符串
                     lastUsedTime: Date.now()
                 };
-                
-                // 添加到正则数组
+
+                if (!APP_DATA.regexPatterns) APP_DATA.regexPatterns = [];
                 APP_DATA.regexPatterns.push(newRegex);
                 saveData();
                 
-                // 刷新列表并自动选择
                 refreshRegexList();
                 selectRegex(newRegex.id);
                 
-                alert('正则导入成功！');
+                alert('正则规则导入成功！');
             } catch (error) {
-                alert('文件格式错误：' + error.message);
+                alert('导入出错：' + error.message);
             }
         };
         reader.readAsText(file);
     };
-    
     input.click();
 }
 
