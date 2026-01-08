@@ -7455,45 +7455,64 @@ function applyRegexToText(text) {
  async function sendPushNotification(messageText) {
     const appId = "377df80f-5fd9-4c68-8b0d-9fae568761b8";
     const apiKey = APP_DATA.settings.oneSignalKey;
-
-    console.log("【推送调试】准备发送通知...");
-    console.log("【推送调试】使用的 Key (前5位):", apiKey ? apiKey.substring(0, 5) : "无Key");
-
-    if (!apiKey) {
-        console.error("【推送中止】APP_DATA 中没有找到 oneSignalKey，请在设置中配置。");
+    
+    // 调试日志：清晰打印关键信息
+    console.log("【推送调试】开始执行推送逻辑");
+    console.log("【推送调试】OneSignal App ID:", appId);
+    console.log("【推送调试】API Key 存在:", !!apiKey);
+    console.log("【推送调试】消息内容:", messageText);
+    
+    // 校验必填参数
+    if (!apiKey || apiKey.trim() === "") {
+        console.error("【推送失败】OneSignal API Key 未配置！请在设置页填写");
+        alert("通知弹窗未发送：请先在「设置」→「通知服务」中配置 OneSignal API Key");
         return;
     }
-
-    // 调试日志：检查 Key 是否读取成功
-    console.log("【推送检查】Key是否存在:", !!apiKey);
-    console.log("【推送检查】发送内容:", messageText);
-
-    if (!apiKey || !messageText) {
-        console.error("【推送失败】缺少 API Key 或消息内容");
+    if (!messageText || messageText.trim() === "") {
+        console.error("【推送失败】消息内容为空");
         return;
     }
-
+    
     try {
         const response = await fetch("https://onesignal.com/api/v1/notifications", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json; charset=utf-8",
-                "Authorization": "Basic " + apiKey.trim()
+                "Authorization": "Basic " + apiKey.trim() // 确保 Key 无多余空格
             },
             body: JSON.stringify({
                 app_id: appId,
-                contents: { "en": messageText },
-                headings: { "en": "Linkgo ⭐" },
-                // 尝试添加这个：强制推送到所有已订阅设备
-                included_segments: ["All"] 
+                contents: { 
+                    "en": messageText,
+                    "zh-Hans": messageText // 新增中文支持，确保中文设备正常显示
+                },
+                headings: { 
+                    "en": "Linkgo ⭐",
+                    "zh-Hans": "Linkgo ⭐" // 中文标题
+                },
+                included_segments: ["All"], // 推送给所有订阅用户
+                isChromeWeb: true,
+                isFirefox: true,
+                isSafari: true,
+                web_url: window.location.href // 点击通知跳转回当前页面
             })
         });
         
         const result = await response.json();
-        console.log("【OneSignal 响应】", result);
-    } catch (e) {
-        console.error("【网络异常】", e);
+        console.log("【推送响应】OneSignal 返回结果:", result);
+        
+        // 处理接口错误
+        if (result.errors && result.errors.length > 0) {
+            console.error("【推送接口错误】", result.errors);
+            alert("通知发送失败：" + result.errors[0]);
+        } else {
+            console.log("【推送成功】通知已发送，ID:", result.id);
+        }
+    } catch (error) {
+        console.error("【推送网络错误】", error);
+        alert("通知发送失败：网络连接异常");
     }
+}
 }
 
 	// 控制静音音频播放的函数
@@ -7553,37 +7572,83 @@ document.getElementById('silent-audio').addEventListener('ended', function() {
     }
 }, false);
 
-// 确保只保留这一个版本的函数
 async function checkAndReactivateSubscription() {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     OneSignalDeferred.push(async function(OneSignal) {
-        console.log("【OneSignal】正在检查订阅状态 (v16)...");
-
+        console.log("【OneSignal】开始检查订阅状态（v16 SDK）");
         try {
-            // v16 检查权限的正确方式
-            const permission = OneSignal.Notifications.permission;
-            console.log("【OneSignal】当前权限状态:", permission);
-
-            const isSubscribed = OneSignal.User.PushSubscription.optedIn;
-            const pushToken = OneSignal.User.PushSubscription.id;
-
-            if (isSubscribed && pushToken) {
-                console.log("✅ 【OneSignal】订阅处于活跃状态。ID:", pushToken);
-            } else {
-                console.warn("❌ 【OneSignal】当前未订阅或已失效。");
-                if (permission === "default") {
-                    await OneSignal.Notifications.request();
+            // 1. 检查通知权限
+            const permission = await OneSignal.Notifications.getPermissionStatus();
+            console.log("【OneSignal】权限状态:", permission);
+            
+            // 2. 申请权限（若未授权）
+            if (permission === "denied") {
+                console.warn("【OneSignal】权限已被拒绝，请手动开启");
+                alert("通知权限已被拒绝，请在浏览器设置中允许通知");
+                return;
+            }
+            if (permission === "default") {
+                console.log("【OneSignal】正在请求通知权限");
+                const permissionResult = await OneSignal.Notifications.requestPermission();
+                console.log("【OneSignal】权限请求结果:", permissionResult);
+                if (permissionResult !== "granted") {
+                    alert("通知权限申请失败，无法接收弹窗通知");
+                    return;
                 }
             }
-        } catch (err) {
-            console.error("【OneSignal】逻辑执行出错:", err);
+            
+            // 3. 检查订阅状态
+            const pushSubscription = OneSignal.User.PushSubscription;
+            const isSubscribed = await pushSubscription.optedIn();
+            const pushToken = await pushSubscription.getId();
+            
+            if (isSubscribed && pushToken) {
+                console.log("【OneSignal】订阅状态正常，Token:", pushToken);
+            } else {
+                console.log("【OneSignal】未订阅，尝试重新订阅");
+                await pushSubscription.subscribe();
+                const newIsSubscribed = await pushSubscription.optedIn();
+                if (newIsSubscribed) {
+                    console.log("【OneSignal】重新订阅成功");
+                } else {
+                    console.warn("【OneSignal】重新订阅失败");
+                }
+            }
+        } catch (error) {
+            console.error("【OneSignal】订阅校验失败:", error);
         }
     });
 }
-// 页面加载完成后运行
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(checkAndReactivateSubscription, 2000); // 延迟2秒确保SDK加载完成
-});
+
+// 初始化 OneSignal 通知（确保订阅状态正常）
+function initOneSignal() {
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    try {
+      // 1. 检查并请求通知权限
+      const permission = await OneSignal.Notifications.getPermissionStatus();
+      if (permission === "default") {
+        // 未授权时请求权限
+        await OneSignal.Notifications.requestPermission();
+      } else if (permission === "denied") {
+        console.warn("通知权限已被拒绝，无法接收弹窗通知");
+        return;
+      }
+
+      // 2. 确保用户已订阅推送
+      const pushSubscription = OneSignal.User.PushSubscription;
+      const isSubscribed = await pushSubscription.optedIn();
+      if (!isSubscribed) {
+        await pushSubscription.subscribe();
+        console.log("OneSignal 订阅成功");
+      }
+
+      console.log("OneSignal 初始化完成，已就绪接收通知");
+    } catch (error) {
+      console.error("OneSignal 初始化失败：", error);
+    }
+  });
+}
 
 </script>
 
