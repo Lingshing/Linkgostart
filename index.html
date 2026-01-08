@@ -17,13 +17,11 @@
   OneSignalDeferred.push(function(OneSignal) {
     OneSignal.init({
       appId: "377df80f-5fd9-4c68-8b0d-9fae568761b8",
-      // 关键：必须匹配你的仓库名 Linkgostart
-      serviceWorkerPath: "OneSignalSDKWorker.js",
-      serviceWorkerParam: { scope: "/Linkgostart/" },
-      // 允许在非根域名下运行
+      serviceWorkerPath: "OneSignalSDKWorker.js", // 确认文件就在根目录 
+      serviceWorkerParam: { scope: "/" }, // 改为根路径尝试 
       allowLocalhostAsSecureOrigin: true 
     });
-  });
+});
 </script>
 
 
@@ -3711,34 +3709,28 @@ async function sendMessage() {
     chatTextarea.value = '';
     chatTextarea.style.height = '36px';
     
-    // 显示AI正在输入
     isTyping = true;
     const {msgDiv, bubble} = appendMessageToDOM('', 'ai', true);
-    
-    // ========== 【新增】保存当前聊天状态，用于后续检查 ==========
     const currentChatIdAtRequest = APP_DATA.currentChatId;
     const currentContactIdAtRequest = currentContact.id;
     
+    // --- 1. 获取 AI 回复 ---
+    const aiReply = await mockAIResponse(text, currentContact);
     
-   const aiReply = await mockAIResponse(text, currentContact);
-    
-    // 【点火位置：AI刚开口，还没打字就开始推送】
-    if (aiReply) {
-        console.log("【推送系统】检测到 AI 内容，开始预备推送...");
-        // 清理特殊符号并截断
-        const cleanReply = aiReply.replace(/\\/g, ' ').replace(/\n/g, ' ');
-        const notifyText = cleanReply.length > 60 ? cleanReply.substring(0, 60) + "..." : cleanReply;
-        
-        // 关键：不要加 await，让它在后台默默发送，不耽误前面的打字机效果
-        sendPushNotification(notifyText); 
+    // --- 2. 【核心修复：立即点火】 ---
+    // 不等打字机效果，不等保存，只要拿到词立刻推送
+    if (aiReply && aiReply.length > 0) {
+        console.log("AI 已回复，正在强行触发推送...");
+        try {
+            const cleanText = aiReply.replace(/\\/g, ' ').substring(0, 60);
+            // 注意：这里不要加 await，让它异步去跑，不要阻塞下面的打字
+            sendPushNotification(cleanText); 
+        } catch (e) {
+            console.error("推送点火失败:", e);
+        }
     }
-    
-    // ========== 【新增】检查是否还在同一个聊天 ========== (保持后面代码不变)
 
-    // ========== 检查是否还在同一个聊天 ==========
-    if (!currentContact || 
-        currentContact.id !== currentContactIdAtRequest ||
-        APP_DATA.currentChatId !== currentChatIdAtRequest) {
+    if (!currentContact || currentContact.id !== currentContactIdAtRequest || APP_DATA.currentChatId !== currentChatIdAtRequest) {
         isTyping = false;
         if (msgDiv && msgDiv.parentNode) msgDiv.remove();
         return;
@@ -3747,18 +3739,12 @@ async function sendMessage() {
     bubble.classList.remove('typing-indicator');
     bubble.innerHTML = '';
     
-    // 这里是耗时最长的地方，所以通知必须在它之前发
+    // --- 3. 这里的逐句显示非常慢，通知必须在它之前 ---
     const { sentences, fullReply } = await typeMessageInMultipleBubbles(aiReply, bubble, msgDiv);
     
-    // 保存记录逻辑
     if (sentences && sentences.length > 1) {
         sentences.forEach((sentence, index) => {
-            currentContact.history.push({ 
-                role: 'ai', 
-                content: sentence,
-                isSegment: true,
-                segmentIndex: index 
-            });
+            currentContact.history.push({ role: 'ai', content: sentence, isSegment: true, segmentIndex: index });
         });
     } else {
         currentContact.history.push({ role: 'ai', content: fullReply });
@@ -3766,14 +3752,10 @@ async function sendMessage() {
 
     isTyping = false;
     
-    // 耗时任务：记忆和保存
-    try {
-        await simulateMemorySummary(currentContact);
-        saveData(); 
-    } catch(e) {
-        console.log("后台保存任务略过");
-    }
-} 
+    // --- 4. 耗时操作移到最后 ---
+    saveData(); 
+    simulateMemorySummary(currentContact).catch(e => console.log("记忆摘要跳过"));
+}
     
 async function mockAIResponse(userMessage, contact) {
     console.log("开始调用AI API...");
