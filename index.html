@@ -3719,20 +3719,17 @@ async function sendMessage() {
     const {msgDiv, bubble} = appendMessageToDOM('', 'ai', true);
     const currentChatIdAtRequest = APP_DATA.currentChatId;
     const currentContactIdAtRequest = currentContact.id;
-    
+
     // 1. 获取 AI 回复
     const aiReply = await mockAIResponse(text, currentContact);
     
-    // 2. 【核心修复：抢跑推送】只要拿到 aiReply，立刻触发通知，不要等后面的打字动画
-    if (aiReply) {
-        console.log("【推送系统】拿到回复，正在抢跑发送...");
-        // 清理正斜杠，截取前60个字符 [cite: 735, 768]
+    // 【关键修复：抢跑推送】
+    if (aiReply && aiReply.length > 0 && !aiReply.startsWith("[API错误]")) {
+        console.log("【推送流程】准备发送推送...");
         const cleanReply = aiReply.replace(/\\/g, ' ').substring(0, 60);
-        // 这里不要加 await，让它在后台发，不影响前面的打字机效果
-        sendPushNotification(cleanReply); 
+        sendPushNotification(cleanReply); // 确保这一行存在！
     }
 
-    // 检查是否还在同一个聊天
     if (!currentContact || currentContact.id !== currentContactIdAtRequest || APP_DATA.currentChatId !== currentChatIdAtRequest) {
         isTyping = false;
         if (msgDiv && msgDiv.parentNode) msgDiv.remove();
@@ -3741,11 +3738,10 @@ async function sendMessage() {
     
     bubble.classList.remove('typing-indicator');
     bubble.innerHTML = '';
-    
-    // 3. 执行非常耗时的逐句打字效果 [cite: 631, 729]
+
+    // 2. 执行逐句显示效果
     const { sentences, fullReply } = await typeMessageInMultipleBubbles(aiReply, bubble, msgDiv);
-    
-    // 4. 保存记录逻辑 [cite: 730, 731]
+
     if (sentences && sentences.length > 1) {
         sentences.forEach((sentence, index) => {
             currentContact.history.push({ 
@@ -3760,11 +3756,10 @@ async function sendMessage() {
     }
 
     isTyping = false;
-    
-    // 5. 所有的保存和耗时总结都放在通知成功发出之后执行 
     saveData(); 
-    simulateMemorySummary(currentContact).catch(e => console.log("记忆摘要任务跳过"));
+    simulateMemorySummary(currentContact).catch(e => console.log("记忆摘要跳过"));
 }
+
 
 async function mockAIResponse(userMessage, contact) {
     console.log("开始调用AI API...");
