@@ -3903,41 +3903,51 @@ ${recentHistory}
 
         console.log("API响应状态:", response.status, response.statusText);
         
-        if (response.ok) {
-            const data = await response.json();
-            console.log("API响应数据:", data);
-            
-            let result = "";
-            // 多种可能的响应格式
-            if (data.choices && data.choices[0]?.message?.content) {
-                result = data.choices[0].message.content;
-            } else if (data.choices && data.choices[0]?.text) {
-                result = data.choices[0].text; // 有些用text字段
-            } else if (data.result) {
-                result = data.result;
-            } else if (data.response) {
-                result = data.response;
-            } else if (data.message && data.message.content) {
-                result = data.message.content;
-            } else if (data.content) {
-                result = data.content;
-            } else {
-                console.warn("未知的响应格式:", data);
-                result = JSON.stringify(data).substring(0, 200) + "...";
-            }
-            
-            // 强力删除所有正斜线
-            result = result.replace(/\//g, '');
-            
-            // 新增：应用正则处理
-                result = applyRegexToText(result);
+       if (response.ok) {
+            const rawText = await response.text(); 
+            console.log("服务器返回的原始数据:", rawText);
 
+            let result = "";
+
+            // 检查服务器是否强行返回了带 "data:" 的流格式 [cite: 723, 724]
+            if (rawText.includes('data:')) {
+                const lines = rawText.split('\n');
+                for (let line of lines) {
+                    let cleanLine = line.trim();
+                    if (cleanLine.startsWith('data:') && !cleanLine.includes('[DONE]')) {
+                        try {
+                            const json = JSON.parse(cleanLine.replace('data:', '').trim());
+                            // 兼容流式(delta)和非流式(message)格式 [cite: 748, 749]
+                            const content = json.choices?.[0]?.delta?.content || json.choices?.[0]?.message?.content || "";
+                            result += content;
+                        } catch (e) {
+                            console.error("解析单行流数据失败", e);
+                        }
+                    }
+                }
+            } else {
+                // 如果是正常的 JSON 格式 [cite: 748]
+                try {
+                    const data = JSON.parse(rawText);
+                    if (data.choices && data.choices[0]?.message?.content) {
+                        result = data.choices[0].message.content;
+                    } else {
+                        result = rawText;
+                    }
+                } catch (e) {
+                    result = rawText;
+                }
+            }
+
+            // 强力删除所有正斜线并应用正则 [cite: 755, 756]
+            result = result.replace(/\//g, '');
+            result = applyRegexToText(result); 
+            
             if (currentContact) {
-                saveData(); // 立即保存到本地存储
+                saveData(); // [cite: 757]
             }
             
-            console.log("处理后的AI回复:", result.substring(0, 100) + "...");
-            return result;
+            return result || "AI 返回了空内容";
             
         } else {
             const errorText = await response.text();
