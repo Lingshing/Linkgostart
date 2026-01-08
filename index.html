@@ -2604,7 +2604,8 @@ async function fetchModels() {
     // 新增：保存记忆设置
     APP_DATA.settings.contextLimit = parseInt(document.getElementById('context-limit').value) || 20;
     APP_DATA.settings.diaryInterval = parseInt(document.getElementById('diary-interval').value) || 10;
-APP_DATA.settings.oneSignalKey = document.getElementById('onesignal-key').value;
+// 修改此行，指向正确的 ID
+APP_DATA.settings.oneSignalKey = document.getElementById('onesignal-key-input')?.value || APP_DATA.settings.oneSignalKey;
 
     const avatarBase64 = document.getElementById('ai-avatar-base64').value;
     APP_DATA.settings.aiAvatarBase64 = avatarBase64 || 'AI';
