@@ -22,40 +22,6 @@
       allowLocalhostAsSecureOrigin: true 
     });
 });
-
-// 适配 v16 SDK 的正确检测逻辑
-async function checkAndReactivateSubscription() {
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    OneSignalDeferred.push(async function(OneSignal) {
-        console.log("【OneSignal】正在检查订阅状态 (v16)...");
-
-        try {
-            // 1. 检查通知权限（v16 使用 .permission 属性）
-            const permission = OneSignal.Notifications.permission;
-            console.log("【OneSignal】当前权限状态:", permission);
-
-            // 2. 检查订阅状态（v16 路径已变更）
-            const isSubscribed = OneSignal.User.PushSubscription.optedIn;
-            const pushToken = OneSignal.User.PushSubscription.id;
-
-            if (isSubscribed && pushToken) {
-                console.log("✅ 【OneSignal】订阅处于活跃状态。ID:", pushToken);
-            } else {
-                console.warn("❌ 【OneSignal】未订阅或已失效，尝试请求权限...");
-                // 如果是默认状态，则请求权限
-                if (permission === "default") {
-                    await OneSignal.Notifications.request();
-                    console.log("🚀 【OneSignal】已弹出订阅请求窗口");
-                } else if (permission === "denied") {
-                    console.error("【OneSignal】通知权限已被拒绝，请在浏览器设置中手动开启。");
-                }
-            }
-        } catch (err) {
-            console.error("【OneSignal】检测逻辑执行出错:", err);
-        }
-    });
-}
-
 </script>
 
 
@@ -7591,37 +7557,33 @@ document.getElementById('silent-audio').addEventListener('ended', function() {
     }
 }, false);
 
-// 自动检测并激活 OneSignal 订阅
+// 确保只保留这一个版本的函数
 async function checkAndReactivateSubscription() {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     OneSignalDeferred.push(async function(OneSignal) {
-        console.log("【OneSignal】正在检查订阅状态...");
+        console.log("【OneSignal】正在检查订阅状态 (v16)...");
 
-        // 1. 检查浏览器是否支持通知
-        if (!OneSignal.Notifications.canRequest()) {
-            console.warn("【OneSignal】当前浏览器不支持或已禁用通知。");
-            return;
-        }
+        try {
+            // v16 检查权限的正确方式
+            const permission = OneSignal.Notifications.permission;
+            console.log("【OneSignal】当前权限状态:", permission);
 
-        // 2. 检查当前是否已订阅
-        const isSubscribed = OneSignal.User.PushSubscription.optedIn;
-        const pushToken = OneSignal.User.PushSubscription.id;
+            const isSubscribed = OneSignal.User.PushSubscription.optedIn;
+            const pushToken = OneSignal.User.PushSubscription.id;
 
-        if (isSubscribed && pushToken) {
-            console.log("✅ 【OneSignal】订阅处于活跃状态。ID:", pushToken);
-        } else {
-            console.warn("❌ 【OneSignal】未订阅或订阅已失效，尝试重新激活...");
-            try {
-                // 强制弹出订阅提示或静默激活
-                await OneSignal.Notifications.request();
-                console.log("🚀 【OneSignal】已触发重新订阅请求。");
-            } catch (err) {
-                console.error("【OneSignal】重新激活失败:", err);
+            if (isSubscribed && pushToken) {
+                console.log("✅ 【OneSignal】订阅处于活跃状态。ID:", pushToken);
+            } else {
+                console.warn("❌ 【OneSignal】当前未订阅或已失效。");
+                if (permission === "default") {
+                    await OneSignal.Notifications.request();
+                }
             }
+        } catch (err) {
+            console.error("【OneSignal】逻辑执行出错:", err);
         }
     });
 }
-
 // 页面加载完成后运行
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(checkAndReactivateSubscription, 2000); // 延迟2秒确保SDK加载完成
