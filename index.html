@@ -23,18 +23,18 @@
     });
 });
 
-// 适配 v16 SDK 的检测与激活逻辑
+// 适配 v16 SDK 的自动检测逻辑
 function checkAndReactivateSubscription() {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     OneSignalDeferred.push(async function(OneSignal) {
         console.log("【OneSignal】正在检查订阅状态 (v16)...");
 
         try {
-            // 1. 获取当前通知权限状态 [cite: 1443]
+            // 1. 检查通知权限状态
             const permission = OneSignal.Notifications.permission;
             console.log("【OneSignal】当前权限状态:", permission);
 
-            // 2. 检查订阅状态 [cite: 1443, 1444]
+            // 2. 检查订阅状态
             const isOptedIn = OneSignal.User.PushSubscription.optedIn;
             const subscriptionId = OneSignal.User.PushSubscription.id;
 
@@ -44,12 +44,11 @@ function checkAndReactivateSubscription() {
             } else {
                 console.warn("❌ 【OneSignal】当前未订阅或已退订。");
                 
-                // 如果用户还没决定过，尝试弹出提示 [cite: 1443]
                 if (permission === "default") {
                     console.log("【OneSignal】尝试请求订阅权限...");
                     await OneSignal.Notifications.request();
                 } else if (permission === "denied") {
-                    console.error("【OneSignal】权限被拒绝，请点击浏览器地址栏左侧锁头手动开启通知。");
+                    console.error("【OneSignal】权限被拒绝，请在浏览器地址栏手动开启通知。");
                 }
             }
         } catch (err) {
@@ -58,11 +57,10 @@ function checkAndReactivateSubscription() {
     });
 }
 
-// 确保在页面加载后运行 [cite: 1039]
+// 页面加载完成后延迟运行
 window.addEventListener('load', () => {
     setTimeout(checkAndReactivateSubscription, 1000); 
 });
-
 </script>
 
 
@@ -2665,23 +2663,15 @@ function showPushKeyModal() {
 
 function savePushKey() {
     const keyVal = document.getElementById('onesignal-key-input').value.trim();
-    if (!keyVal) {
-        alert("请输入有效的 Key");
-        return;
-    }
+    if (!keyVal) return;
     
-    // 核心修复：确保两个地方都同步
+    // 强制更新到 settings 对象中，防止被 saveSettings 覆盖
     APP_DATA.settings.oneSignalKey = keyVal;
     
-    // 如果设置页面有这个隐藏域，也同步过去防止被 saveSettings 覆盖
-    const settingInput = document.getElementById('onesignal-key');
-    if (settingInput) settingInput.value = keyVal;
-
-    saveData(); // 存入本地存储 [cite: 496]
+    saveData(); // 保存到本地存储 [cite: 496]
     hideModal('push-key-modal');
-    alert('通知 API Key 已更新，请尝试与 AI 聊天测试。');
+    alert('通知 API 配置已成功同步！');
 }
-
         // ----------------------- 页面切换 -----------------------
         function showPage(pageId) {
             document.querySelectorAll('.page').forEach(page => {
