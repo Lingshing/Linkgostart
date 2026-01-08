@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -4652,32 +4653,28 @@ function scrollToElement(element) {
         const scrollTop = container.scrollTop + (elementRect.bottom - containerRect.bottom) + 120;
         container.scrollTop = scrollTop;
     }
-}       
-document.addEventListener('DOMContentLoaded', () => {
-    // 原有逻辑
+}        document.addEventListener('DOMContentLoaded', () => {
+            // 数据迁移：为已有的预设添加lastUsedTime字段
     if (APP_DATA.presets) {
         let needsMigration = false;
         APP_DATA.presets.forEach(preset => {
             if (!preset.lastUsedTime) {
-                preset.lastUsedTime = Date.now();
+                preset.lastUsedTime = Date.now(); // 设置为当前时间
                 needsMigration = true;
             }
         });
+        
         if (needsMigration) {
             saveData();
             console.log('预设数据已迁移，添加了最后使用时间字段');
         }
     }
-    migrateHistoryData(); 
-    renderContacts();
-    toggleTheme(APP_DATA.currentTheme); 
-    loadSettings();
-    initPresetSystem();
-    initOneSignal(); // 初始化通知
-    
-    // 合并：延迟 2 秒执行订阅检查（确保 OneSignal SDK 加载完成）
-    setTimeout(checkAndReactivateSubscription, 2000);
-});
+            migrateHistoryData(); 
+            renderContacts();
+            toggleTheme(APP_DATA.currentTheme); 
+            loadSettings();
+            initPresetSystem();
+         });
      
 // 记忆弹窗返回按钮
     function goBackInMemoryModal() {
@@ -7485,12 +7482,12 @@ function applyRegexToText(text) {
                 "Authorization": "Basic " + apiKey.trim()
             },
             body: JSON.stringify({
-    app_id: appId,
-    contents: { "en": messageText },
-    headings: { "en": "Linkgo ⭐" },
-    included_segments: ["All"],
-    target_channel: "push" // 新增：明确指定推送渠道为 Push 通知
-})
+                app_id: appId,
+                contents: { "en": messageText },
+                headings: { "en": "Linkgo ⭐" },
+                // 尝试添加这个：强制推送到所有已订阅设备
+                included_segments: ["All"] 
+            })
         });
         
         const result = await response.json();
@@ -7584,36 +7581,11 @@ async function checkAndReactivateSubscription() {
         }
     });
 }
+// 页面加载完成后运行
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(checkAndReactivateSubscription, 2000); // 延迟2秒确保SDK加载完成
+});
 
-// 初始化 OneSignal 通知（确保订阅状态正常）
-function initOneSignal() {
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  OneSignalDeferred.push(async function(OneSignal) {
-    try {
-      // 1. 检查并请求通知权限
-      const permission = await OneSignal.Notifications.getPermissionStatus();
-      if (permission === "default") {
-        // 未授权时请求权限
-        await OneSignal.Notifications.requestPermission();
-      } else if (permission === "denied") {
-        console.warn("通知权限已被拒绝，无法接收弹窗通知");
-        return;
-      }
-
-      // 2. 确保用户已订阅推送
-      const pushSubscription = OneSignal.User.PushSubscription;
-      const isSubscribed = await pushSubscription.optedIn();
-      if (!isSubscribed) {
-        await pushSubscription.subscribe();
-        console.log("OneSignal 订阅成功");
-      }
-
-      console.log("OneSignal 初始化完成，已就绪接收通知");
-    } catch (error) {
-      console.error("OneSignal 初始化失败：", error);
-    }
-  });
-}
 </script>
 
 <!-- 预设管理弹窗 -->
