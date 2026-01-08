@@ -3720,68 +3720,55 @@ async function sendMessage() {
     const currentContactIdAtRequest = currentContact.id;
     
     
-    const aiReply = await mockAIResponse(text, currentContact);
+   const aiReply = await mockAIResponse(text, currentContact);
     
-    // ========== 【新增】检查是否还在同一个聊天 ==========
+    // 【点火位置 1：AI 刚拿回回复，立即推送！】
+    if (aiReply) {
+        console.log("AI 响应已就绪，正在准备推送...");
+        const cleanReply = aiReply.replace(/\\/g, ' ');
+        const notifyText = cleanReply.length > 60 ? cleanReply.substring(0, 60) + "..." : cleanReply;
+        sendPushNotification(notifyText); 
+    }
+
+    // ========== 检查是否还在同一个聊天 ==========
     if (!currentContact || 
         currentContact.id !== currentContactIdAtRequest ||
         APP_DATA.currentChatId !== currentChatIdAtRequest) {
-        console.log('已离开聊天，丢弃AI回复');
         isTyping = false;
-        // 移除刚刚创建的加载气泡
-        if (msgDiv && msgDiv.parentNode) {
-            msgDiv.remove();
-        }
+        if (msgDiv && msgDiv.parentNode) msgDiv.remove();
         return;
     }
     
-    // 移除打字效果
     bubble.classList.remove('typing-indicator');
     bubble.innerHTML = '';
     
-    // 在不同气泡中逐句显示，并获取分割后的句子数组
+    // 这里是耗时最长的地方，所以通知必须在它之前发
     const { sentences, fullReply } = await typeMessageInMultipleBubbles(aiReply, bubble, msgDiv);
     
-    // 保存分割后的每个句子到历史记录
+    // 保存记录逻辑
     if (sentences && sentences.length > 1) {
-        // 如果有多个句子，保存为多个消息
         sentences.forEach((sentence, index) => {
             currentContact.history.push({ 
                 role: 'ai', 
                 content: sentence,
-                isSegment: true, // 标记这是分割后的部分
-                segmentIndex: index // 标记这是第几个部分
+                isSegment: true,
+                segmentIndex: index 
             });
         });
     } else {
-        // 如果只有一个句子，正常保存
         currentContact.history.push({ role: 'ai', content: fullReply });
     }
 
-   isTyping = false;
-
-    // --- 【关键点火：先发通知】 ---
-    if (aiReply) {
-        console.log("检测到回复，立即推送通知...");
-        // 将 AI 的反斜线替换为空格，取前 60 个字符防止弹窗溢出
-        const cleanReply = aiReply.replace(/\\/g, ' ');
-        const notifyText = cleanReply.length > 60 ? cleanReply.substring(0, 60) + "..." : cleanReply;
-        
-        // 核心：直接发送，不要等后面的保存和总结
-        sendPushNotification(notifyText); 
-    }
-
-    // --- 【第二步：保存数据】 ---
-    saveData(); 
-
-    // --- 【第三步：耗时任务移至末尾】 ---
-    // 记忆检查需要再次请求 AI 接口，非常慢，所以放在通知之后
+    isTyping = false;
+    
+    // 耗时任务：记忆和保存
     try {
         await simulateMemorySummary(currentContact);
+        saveData(); 
     } catch(e) {
-        console.log("记忆检查暂时跳过:", e);
+        console.log("后台保存任务略过");
     }
-}
+} 
     
 async function mockAIResponse(userMessage, contact) {
     console.log("开始调用AI API...");
