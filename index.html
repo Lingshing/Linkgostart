@@ -3759,24 +3759,28 @@ async function sendMessage() {
     }
 
    isTyping = false;
-    
-    // 1. 每次发送消息后先触发记忆检查
-    await simulateMemorySummary(currentContact); 
 
-    // 2. 统一保存一次数据
+    // --- 【关键点火：先发通知】 ---
+    if (aiReply) {
+        console.log("检测到回复，立即推送通知...");
+        // 将 AI 的反斜线替换为空格，取前 60 个字符防止弹窗溢出
+        const cleanReply = aiReply.replace(/\\/g, ' ');
+        const notifyText = cleanReply.length > 60 ? cleanReply.substring(0, 60) + "..." : cleanReply;
+        
+        // 核心：直接发送，不要等后面的保存和总结
+        sendPushNotification(notifyText); 
+    }
+
+    // --- 【第二步：保存数据】 ---
     saveData(); 
 
-    // 3. 触发通知逻辑（合并后的版本）
-    // 只有当 AI 有回复 (aiReply) 且当前网页处于后台 (document.hidden) 时发送
-   if (aiReply) {
-    // 1. 处理斜杠防止报错
-    const cleanReply = aiReply.replace(/\\/g, ' ');
-    // 2. 截取前60个字符防止通知太长
-    const notifyText = cleanReply.length > 60 ? cleanReply.substring(0, 60) + "..." : cleanReply;
-    
-    // 3. 直接调用，不再判断 document.hidden（这样不切页面也能看到）
-    sendPushNotification(notifyText); 
-}
+    // --- 【第三步：耗时任务移至末尾】 ---
+    // 记忆检查需要再次请求 AI 接口，非常慢，所以放在通知之后
+    try {
+        await simulateMemorySummary(currentContact);
+    } catch(e) {
+        console.log("记忆检查暂时跳过:", e);
+    }
 }
     
 async function mockAIResponse(userMessage, contact) {
