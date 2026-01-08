@@ -23,42 +23,42 @@
     });
 });
 
-// 适配 v16 SDK 的自动检测逻辑
+// 适配 v16 SDK 的检测与激活逻辑
 function checkAndReactivateSubscription() {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     OneSignalDeferred.push(async function(OneSignal) {
         console.log("【OneSignal】正在检查订阅状态 (v16)...");
 
         try {
-            // 1. 检查通知权限状态
+            // 1. 获取当前通知权限状态 [cite: 1443]
             const permission = OneSignal.Notifications.permission;
             console.log("【OneSignal】当前权限状态:", permission);
 
-            // 2. 检查订阅状态
-            // v16 中使用 OneSignal.User.PushSubscription
+            // 2. 检查订阅状态 [cite: 1443, 1444]
             const isOptedIn = OneSignal.User.PushSubscription.optedIn;
             const subscriptionId = OneSignal.User.PushSubscription.id;
 
             if (isOptedIn && subscriptionId) {
                 console.log("✅ 【OneSignal】订阅处于活跃状态。");
-                console.log("【OneSignal】Subscription ID:", subscriptionId);
+                console.log("【OneSignal】ID:", subscriptionId);
             } else {
-                console.warn("❌ 【OneSignal】当前未订阅。");
+                console.warn("❌ 【OneSignal】当前未订阅或已退订。");
                 
+                // 如果用户还没决定过，尝试弹出提示 [cite: 1443]
                 if (permission === "default") {
-                    console.log("【OneSignal】尝试弹出订阅窗口...");
+                    console.log("【OneSignal】尝试请求订阅权限...");
                     await OneSignal.Notifications.request();
                 } else if (permission === "denied") {
-                    console.error("【OneSignal】通知权限被拒绝，请在浏览器地址栏手动开启。");
+                    console.error("【OneSignal】权限被拒绝，请点击浏览器地址栏左侧锁头手动开启通知。");
                 }
             }
         } catch (err) {
-            console.error("【OneSignal】检测逻辑执行出错:", err);
+            console.error("【OneSignal】检测出错:", err);
         }
     });
 }
 
-// 页面加载完成后延迟运行
+// 确保在页面加载后运行 [cite: 1039]
 window.addEventListener('load', () => {
     setTimeout(checkAndReactivateSubscription, 1000); 
 });
