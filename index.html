@@ -2600,8 +2600,8 @@ async function fetchModels() {
     APP_DATA.settings.apiUrl = document.getElementById('api-url').value;
     APP_DATA.settings.apiKey = document.getElementById('api-key').value;
     APP_DATA.settings.aiModel = document.getElementById('ai-model').value;
-   APP_DATA.settings.temperature = parseFloat(document.getElementById('temperature').value) || 0.7; [cite_start]// [cite: 488, 955]
-    APP_DATA.settings.maxTokens = parseInt(document.getElementById('maxTokens-input').value) || 2048; // 新增保存项
+   APP_DATA.settings.temperature = parseFloat(document.getElementById('temperature').value) || 0.7;
+APP_DATA.settings.maxTokens = parseInt(document.getElementById('maxTokens-input').value) || 2048;
     // 新增：保存记忆设置
     APP_DATA.settings.contextLimit = parseInt(document.getElementById('context-limit').value) || 20;
     APP_DATA.settings.diaryInterval = parseInt(document.getElementById('diary-interval').value) || 10;
@@ -4915,9 +4915,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// 模型参数（温度与Token）滑块初始化
 function initParamSliders() {
-    // 确保获取正确的 HTML 元素
     const tempTrack = document.getElementById('temp-track');
     const tempThumb = document.getElementById('temp-slider-thumb');
     const tempValue = document.getElementById('temperature-value');
@@ -4934,51 +4932,48 @@ function initParamSliders() {
 
         const update = (clientX) => {
             const rect = track.getBoundingClientRect();
-            // 计算百分比
             let percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-            // 计算数值
             let value = min + (percent / 100) * (max - min);
             
             if (isFloat) {
-                value = parseFloat(value.toFixed(1)); // 温度保留一位小数
+                value = parseFloat(value.toFixed(1));
             } else {
-                value = Math.round(value / 256) * 256; // Token按128步进
+                // 修改点：改为更平滑的 128 步进，避免大跨度跳回
+                value = Math.round(value / 128) * 128;
+                if (value > max) value = max;
+                if (value < min) value = min;
             }
             
-            // 重新计算百分比以对齐步进后的位置
             const finalPercent = ((value - min) / (max - min)) * 100;
             thumb.style.left = finalPercent + '%';
             display.textContent = value;
             input.value = value;
         };
 
-        // 鼠标事件
         const onMouseDown = (e) => { isDragging = true; update(e.clientX); };
         const onMouseMove = (e) => { if (isDragging) update(e.clientX); };
         const onMouseUp = () => { isDragging = false; };
-
-        // 触摸事件 (适配手机)
         const onTouchStart = (e) => { isDragging = true; update(e.touches[0].clientX); e.preventDefault(); };
         const onTouchMove = (e) => { if (isDragging) update(e.touches[0].clientX); };
 
         track.addEventListener('mousedown', onMouseDown);
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
-
         thumb.addEventListener('touchstart', onTouchStart, {passive: false});
         document.addEventListener('touchmove', onTouchMove, {passive: false});
         document.addEventListener('touchend', onMouseUp);
 
-        // 初始位置设置
-        const initVal = isFloat ? (parseFloat(input.value) || 0.7) : (parseInt(input.value) || 2048);
-        const initPercent = ((initVal - min) / (max - min)) * 100;
+        // 初始化位置：直接从现有数据读取
+        const currentVal = isFloat ? (parseFloat(input.value) || 0.7) : (parseInt(input.value) || 2048);
+        const initPercent = ((currentVal - min) / (max - min)) * 100;
         thumb.style.left = initPercent + '%';
-        display.textContent = initVal;
+        display.textContent = currentVal;
     }
 
     setupSlider(tempTrack, tempThumb, tempValue, tempInput, 0.1, 2.0, true);
     setupSlider(tokenTrack, tokenThumb, tokenValue, tokenInput, 256, 4096, false);
 }
+
 // 页面加载后立即启动
 document.addEventListener('DOMContentLoaded', initParamSliders);
 
