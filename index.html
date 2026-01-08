@@ -22,6 +22,47 @@
       allowLocalhostAsSecureOrigin: true 
     });
 });
+
+// 适配 v16 SDK 的自动检测逻辑
+function checkAndReactivateSubscription() {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function(OneSignal) {
+        console.log("【OneSignal】正在检查订阅状态 (v16)...");
+
+        try {
+            // 1. 检查通知权限状态
+            const permission = OneSignal.Notifications.permission;
+            console.log("【OneSignal】当前权限状态:", permission);
+
+            // 2. 检查订阅状态
+            // v16 中使用 OneSignal.User.PushSubscription
+            const isOptedIn = OneSignal.User.PushSubscription.optedIn;
+            const subscriptionId = OneSignal.User.PushSubscription.id;
+
+            if (isOptedIn && subscriptionId) {
+                console.log("✅ 【OneSignal】订阅处于活跃状态。");
+                console.log("【OneSignal】Subscription ID:", subscriptionId);
+            } else {
+                console.warn("❌ 【OneSignal】当前未订阅。");
+                
+                if (permission === "default") {
+                    console.log("【OneSignal】尝试弹出订阅窗口...");
+                    await OneSignal.Notifications.request();
+                } else if (permission === "denied") {
+                    console.error("【OneSignal】通知权限被拒绝，请在浏览器地址栏手动开启。");
+                }
+            }
+        } catch (err) {
+            console.error("【OneSignal】检测逻辑执行出错:", err);
+        }
+    });
+}
+
+// 页面加载完成后延迟运行
+window.addEventListener('load', () => {
+    setTimeout(checkAndReactivateSubscription, 1000); 
+});
+
 </script>
 
 
