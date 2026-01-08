@@ -1905,20 +1905,34 @@ input[type="number"]::-webkit-inner-spin-button {
             保存为预设
         </button>
     </div>
+</div>
     
-    <!-- 温度滑块（独立部分，始终显示） -->
-    <label for="temperature" style="margin-top: 25px; display: block;">温度: 
+    <div class="settings-group">
+    <h4>模型参数</h4>
+    
+    <label style="margin-top: 10px; display: block;">温度 (Temperature): 
         <span id="temperature-value" style="font-weight: bold; color: var(--accent-color);">0.7</span>
     </label>
     <div class="temp-slider-container" style="margin: 12px 0 8px;">
-        <div class="temp-slider-track">
+        <div class="temp-slider-track" id="temp-track">
             <div class="temp-slider-thumb" id="temp-slider-thumb"></div>
         </div>
     </div>
-    <p style="font-size: 12px; color: var(--text-color-secondary); margin-top: 2px;">
-        拖动调节创造性
-    </p>
     <input type="hidden" id="temperature" value="0.7">
+
+    <div style="height: 15px;"></div> <label style="display: block;">最大回复长度 (Max Tokens): 
+        <span id="maxTokens-value" style="font-weight: bold; color: var(--accent-color);">2048</span>
+    </label>
+    <div class="temp-slider-container" style="margin: 12px 0 8px;">
+        <div class="temp-slider-track" id="maxTokens-track">
+            <div class="temp-slider-thumb" id="maxTokens-thumb"></div>
+        </div>
+    </div>
+    <input type="hidden" id="maxTokens-input" value="2048">
+    
+    <p style="font-size: 11px; color: var(--text-color-secondary); margin-top: 10px;">
+        提示：温度影响创造力，Token 影响回复长度。
+    </p>
 </div>
 
     <!-- 新增：预设与正则管理模块 -->
@@ -2282,7 +2296,8 @@ let isLoadingMore = false;
     document.getElementById('api-url').value = APP_DATA.settings.apiUrl;
     document.getElementById('api-key').value = APP_DATA.settings.apiKey;
     document.getElementById('ai-model').value = APP_DATA.settings.aiModel;
-    // 新增：加载记忆设置
+    document.getElementById('temperature').value = APP_DATA.settings.temperature || 0.7;
+    document.getElementById('maxTokens-input').value = APP_DATA.settings.maxTokens || 2048; // 新增加载项
     document.getElementById('context-limit').value = APP_DATA.settings.contextLimit || 20;
     document.getElementById('diary-interval').value = APP_DATA.settings.diaryInterval || 10;
     
@@ -2584,7 +2599,8 @@ async function fetchModels() {
     APP_DATA.settings.apiUrl = document.getElementById('api-url').value;
     APP_DATA.settings.apiKey = document.getElementById('api-key').value;
     APP_DATA.settings.aiModel = document.getElementById('ai-model').value;
-    APP_DATA.settings.temperature = parseFloat(document.getElementById('temperature').value) || 0.7;
+   APP_DATA.settings.temperature = parseFloat(document.getElementById('temperature').value) || 0.7; [cite_start]// [cite: 488, 955]
+    APP_DATA.settings.maxTokens = parseInt(document.getElementById('maxTokens-input').value) || 2048; // 新增保存项
     // 新增：保存记忆设置
     APP_DATA.settings.contextLimit = parseInt(document.getElementById('context-limit').value) || 20;
     APP_DATA.settings.diaryInterval = parseInt(document.getElementById('diary-interval').value) || 10;
@@ -2606,27 +2622,24 @@ function showPushKeyModal() {
     showModal('push-key-modal');
 }
 
-// 专门保存推送 Key 的函数
 function savePushKey() {
     const keyVal = document.getElementById('onesignal-key-input').value.trim();
+    if (!keyVal) {
+        alert("请输入有效的 Key");
+        return;
+    }
     
-    // 存入设置对象
+    // 核心修复：确保两个地方都同步
     APP_DATA.settings.oneSignalKey = keyVal;
     
-    // 立即存入本地数据库
-    saveData(); 
-    
-    hideModal('push-key-modal');
-    alert('通知 API 已配置成功！');
-}
+    // 如果设置页面有这个隐藏域，也同步过去防止被 saveSettings 覆盖
+    const settingInput = document.getElementById('onesignal-key');
+    if (settingInput) settingInput.value = keyVal;
 
-        function resetAvatar() {
-            APP_DATA.settings.aiAvatarBase64 = 'AI';
-            document.getElementById('ai-avatar-base64').value = 'AI';
-            loadAvatarPreview('AI', 'current-ai-avatar-preview');
-            saveData();
-            alert('头像已重置为文字');
-        }
+    saveData(); // 存入本地存储 [cite: 496]
+    hideModal('push-key-modal');
+    alert('通知 API Key 已更新，请尝试与 AI 聊天测试。');
+}
 
         // ----------------------- 页面切换 -----------------------
         function showPage(pageId) {
@@ -3714,18 +3727,19 @@ async function sendMessage() {
     const currentChatIdAtRequest = APP_DATA.currentChatId;
     const currentContactIdAtRequest = currentContact.id;
     
-    // 1. 先拿 AI 回复
+    // 1. 获取 AI 回复
     const aiReply = await mockAIResponse(text, currentContact);
     
-    // 2. 【核心修复】拿到回复的第一秒就“抢跑”推送通知，不等打字效果，不等保存
+    // 2. 【核心修复：抢跑推送】只要拿到 aiReply，立刻触发通知，不要等后面的打字动画
     if (aiReply) {
-        console.log("检测到 AI 回复，立即发起推送请求...");
-        const cleanReply = aiReply.replace(/\\/g, ' ').replace(/\n/g, ' ');
-        const notifyText = cleanReply.length > 60 ? cleanReply.substring(0, 60) + "..." : cleanReply;
-        // 注意：不使用 await，让它在后台发送，不影响前台显示
-        sendPushNotification(notifyText); 
+        console.log("【推送系统】拿到回复，正在抢跑发送...");
+        // 清理正斜杠，截取前60个字符 [cite: 735, 768]
+        const cleanReply = aiReply.replace(/\\/g, ' ').substring(0, 60);
+        // 这里不要加 await，让它在后台发，不影响前面的打字机效果
+        sendPushNotification(cleanReply); 
     }
 
+    // 检查是否还在同一个聊天
     if (!currentContact || currentContact.id !== currentContactIdAtRequest || APP_DATA.currentChatId !== currentChatIdAtRequest) {
         isTyping = false;
         if (msgDiv && msgDiv.parentNode) msgDiv.remove();
@@ -3735,12 +3749,18 @@ async function sendMessage() {
     bubble.classList.remove('typing-indicator');
     bubble.innerHTML = '';
     
-    // 3. 执行打字效果（这个函数里有随机延迟，很慢）
+    // 3. 执行非常耗时的逐句打字效果 [cite: 631, 729]
     const { sentences, fullReply } = await typeMessageInMultipleBubbles(aiReply, bubble, msgDiv);
     
+    // 4. 保存记录逻辑 [cite: 730, 731]
     if (sentences && sentences.length > 1) {
         sentences.forEach((sentence, index) => {
-            currentContact.history.push({ role: 'ai', content: sentence, isSegment: true, segmentIndex: index });
+            currentContact.history.push({ 
+                role: 'ai', 
+                content: sentence,
+                isSegment: true,
+                segmentIndex: index 
+            });
         });
     } else {
         currentContact.history.push({ role: 'ai', content: fullReply });
@@ -3748,11 +3768,10 @@ async function sendMessage() {
 
     isTyping = false;
     
-    // 4. 将最不重要、最慢的“记忆总结”和“保存”放在最后
+    // 5. 所有的保存和耗时总结都放在通知成功发出之后执行 
     saveData(); 
-    simulateMemorySummary(currentContact).catch(e => console.log("记忆摘要任务后台运行中"));
-}    
-
+    simulateMemorySummary(currentContact).catch(e => console.log("记忆摘要任务跳过"));
+}
 
 async function mockAIResponse(userMessage, contact) {
     console.log("开始调用AI API...");
@@ -3916,13 +3935,13 @@ ${recentHistory}
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${settings.apiKey}`
             },
-            body: JSON.stringify({
-                model: settings.aiModel,
-                messages: messages,
-                temperature: settings.temperature || 0.7,
-                max_tokens: 1024,
-                stream: false
-            }),
+           body: JSON.stringify({
+        model: settings.aiModel,
+        messages: messages,
+        temperature: settings.temperature || 0.7,
+        max_tokens: settings.maxTokens || 2048, // 使用你滑块保存的变量
+        stream: false
+    }),
             signal: currentController.signal
         });
 
@@ -4907,89 +4926,72 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// 温度滑块交互
-function initTemperatureSlider() {
-    const track = document.querySelector('.temp-slider-track');
-    const thumb = document.getElementById('temp-slider-thumb');
+// 模型参数（温度与Token）滑块初始化
+function initParamSliders() {
+    // 确保获取正确的 HTML 元素
+    const tempTrack = document.getElementById('temp-track');
+    const tempThumb = document.getElementById('temp-slider-thumb');
     const tempValue = document.getElementById('temperature-value');
     const tempInput = document.getElementById('temperature');
-    
-    if (!track || !thumb) return;
-    
-    let isDragging = false;
-    
-    // 计算温度值对应的位置 (0.1-2.0 对应 0%-100%)
-    function valueToPercent(value) {
-        return ((value - 0.1) / 1.9) * 100;
-    }
-    
-    // 计算位置对应的温度值
-    function percentToValue(percent) {
-        return 0.1 + (percent / 100) * 1.9;
-    }
-    
-    // 更新滑块位置和显示
-    function updateSlider(value) {
-        const percent = valueToPercent(value);
-        thumb.style.left = percent + '%';
-        tempValue.textContent = value.toFixed(1);
-        tempInput.value = value;
-    }
-    
-    // 初始化位置
-    const initialValue = parseFloat(tempInput.value) || 0.7;
-    updateSlider(initialValue);
-    
-    // 点击轨道跳转
-    track.addEventListener('click', function(e) {
-        const rect = track.getBoundingClientRect();
-        const percent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-        const value = parseFloat(percentToValue(percent).toFixed(1));
-        updateSlider(value);
-    });
-    
-    // 拖动小球
-    thumb.addEventListener('mousedown', function(e) {
-        isDragging = true;
-        e.preventDefault();
-    });
-    
-    document.addEventListener('mousemove', function(e) {
-        if (!isDragging) return;
-        
-        const rect = track.getBoundingClientRect();
-        const percent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-        const value = parseFloat(percentToValue(percent).toFixed(1));
-        updateSlider(value);
-    });
-    
-    document.addEventListener('mouseup', function() {
-        isDragging = false;
-    });
-    
-    // 触摸屏支持
-    thumb.addEventListener('touchstart', function(e) {
-        isDragging = true;
-        e.preventDefault();
-    });
-    
-    document.addEventListener('touchmove', function(e) {
-        if (!isDragging || !e.touches[0]) return;
-        
-        const rect = track.getBoundingClientRect();
-        const touch = e.touches[0];
-        const percent = Math.max(0, Math.min(100, ((touch.clientX - rect.left) / rect.width) * 100));
-        const value = parseFloat(percentToValue(percent).toFixed(1));
-        updateSlider(value);
-    });
-    
-    document.addEventListener('touchend', function() {
-        isDragging = false;
-    });
-}
 
-// 页面加载时初始化
-document.addEventListener('DOMContentLoaded', initTemperatureSlider);
+    const tokenTrack = document.getElementById('maxTokens-track');
+    const tokenThumb = document.getElementById('maxTokens-thumb');
+    const tokenValue = document.getElementById('maxTokens-value');
+    const tokenInput = document.getElementById('maxTokens-input');
+
+    function setupSlider(track, thumb, display, input, min, max, isFloat) {
+        if (!track || !thumb) return;
+        let isDragging = false;
+
+        const update = (clientX) => {
+            const rect = track.getBoundingClientRect();
+            // 计算百分比
+            let percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+            // 计算数值
+            let value = min + (percent / 100) * (max - min);
+            
+            if (isFloat) {
+                value = parseFloat(value.toFixed(1)); // 温度保留一位小数
+            } else {
+                value = Math.round(value / 256) * 256; // Token按128步进
+            }
+            
+            // 重新计算百分比以对齐步进后的位置
+            const finalPercent = ((value - min) / (max - min)) * 100;
+            thumb.style.left = finalPercent + '%';
+            display.textContent = value;
+            input.value = value;
+        };
+
+        // 鼠标事件
+        const onMouseDown = (e) => { isDragging = true; update(e.clientX); };
+        const onMouseMove = (e) => { if (isDragging) update(e.clientX); };
+        const onMouseUp = () => { isDragging = false; };
+
+        // 触摸事件 (适配手机)
+        const onTouchStart = (e) => { isDragging = true; update(e.touches[0].clientX); e.preventDefault(); };
+        const onTouchMove = (e) => { if (isDragging) update(e.touches[0].clientX); };
+
+        track.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+
+        thumb.addEventListener('touchstart', onTouchStart, {passive: false});
+        document.addEventListener('touchmove', onTouchMove, {passive: false});
+        document.addEventListener('touchend', onMouseUp);
+
+        // 初始位置设置
+        const initVal = isFloat ? (parseFloat(input.value) || 0.7) : (parseInt(input.value) || 2048);
+        const initPercent = ((initVal - min) / (max - min)) * 100;
+        thumb.style.left = initPercent + '%';
+        display.textContent = initVal;
+    }
+
+    setupSlider(tempTrack, tempThumb, tempValue, tempInput, 0.1, 2.0, true);
+    setupSlider(tokenTrack, tokenThumb, tokenValue, tokenInput, 256, 4096, false);
+}
+// 页面加载后立即启动
+document.addEventListener('DOMContentLoaded', initParamSliders);
 
 // 计算缓存大小并更新显示
 function updateCacheSize() {
@@ -7462,12 +7464,26 @@ function applyRegexToText(text) {
         return text;
     }
 }
-    // 【新增】定义发送通知的函数
-async function sendPushNotification(messageText) {
+ async function sendPushNotification(messageText) {
     const appId = "377df80f-5fd9-4c68-8b0d-9fae568761b8";
     const apiKey = APP_DATA.settings.oneSignalKey;
 
-    if (!apiKey || !messageText) return;
+    console.log("【推送调试】准备发送通知...");
+    console.log("【推送调试】使用的 Key (前5位):", apiKey ? apiKey.substring(0, 5) : "无Key");
+
+    if (!apiKey) {
+        console.error("【推送中止】APP_DATA 中没有找到 oneSignalKey，请在设置中配置。");
+        return;
+    }
+
+    // 调试日志：检查 Key 是否读取成功
+    console.log("【推送检查】Key是否存在:", !!apiKey);
+    console.log("【推送检查】发送内容:", messageText);
+
+    if (!apiKey || !messageText) {
+        console.error("【推送失败】缺少 API Key 或消息内容");
+        return;
+    }
 
     try {
         const response = await fetch("https://onesignal.com/api/v1/notifications", {
@@ -7478,22 +7494,17 @@ async function sendPushNotification(messageText) {
             },
             body: JSON.stringify({
                 app_id: appId,
-                // 确保至少包含英文 en，这是 OneSignal 的强制要求
-                contents: { "en": messageText, "zh": messageText },
-                headings: { "en": "Linkgo", "zh": "Linkgo ⭐" },
-                // 尝试改用更稳妥的受众选择方式
-                included_segments: ["Total Subscriptions"] 
+                contents: { "en": messageText },
+                headings: { "en": "Linkgo ⭐" },
+                // 尝试添加这个：强制推送到所有已订阅设备
+                included_segments: ["All"] 
             })
         });
-
+        
         const result = await response.json();
-        if (response.ok) {
-            console.log("推送成功！ID:", result.id);
-        } else {
-            console.error("服务器报错内容:", result);
-        }
+        console.log("【OneSignal 响应】", result);
     } catch (e) {
-        console.error("请求过程出错:", e);
+        console.error("【网络异常】", e);
     }
 }
 
@@ -7553,6 +7564,42 @@ document.getElementById('silent-audio').addEventListener('ended', function() {
         this.play();
     }
 }, false);
+
+// 自动检测并激活 OneSignal 订阅
+async function checkAndReactivateSubscription() {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function(OneSignal) {
+        console.log("【OneSignal】正在检查订阅状态...");
+
+        // 1. 检查浏览器是否支持通知
+        if (!OneSignal.Notifications.canRequest()) {
+            console.warn("【OneSignal】当前浏览器不支持或已禁用通知。");
+            return;
+        }
+
+        // 2. 检查当前是否已订阅
+        const isSubscribed = OneSignal.User.PushSubscription.optedIn;
+        const pushToken = OneSignal.User.PushSubscription.id;
+
+        if (isSubscribed && pushToken) {
+            console.log("✅ 【OneSignal】订阅处于活跃状态。ID:", pushToken);
+        } else {
+            console.warn("❌ 【OneSignal】未订阅或订阅已失效，尝试重新激活...");
+            try {
+                // 强制弹出订阅提示或静默激活
+                await OneSignal.Notifications.request();
+                console.log("🚀 【OneSignal】已触发重新订阅请求。");
+            } catch (err) {
+                console.error("【OneSignal】重新激活失败:", err);
+            }
+        }
+    });
+}
+
+// 页面加载完成后运行
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(checkAndReactivateSubscription, 2000); // 延迟2秒确保SDK加载完成
+});
 
 </script>
 
