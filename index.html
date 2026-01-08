@@ -2186,6 +2186,37 @@ input[type="number"]::-webkit-inner-spin-button {
     </div>
 
     <script>
+	// 初始化分词器，指定中文环境 
+	const segmenter = new Intl.Segmenter('zh-Hans', { granularity: 'word' });
+
+	// 简单的停用词表（可以根据需要增加）
+	const stopWords = new Set(['的', '了', '是', '我', '你', '他', '在', '不', '有', '个', '也', '就']);
+
+function extractKeywords(text) {
+    // 1. 使用浏览器原生能力进行分词 
+    const segments = segmenter.segment(text);
+    const keywords = [];
+
+    for (const segment of segments) {
+        // 只保留“词语”类型，且长度大于1，且不是废词 
+        if (segment.isWordLike && segment.segment.length > 1 && !stopWords.has(segment.segment)) {
+            keywords.push(segment.segment);
+        }
+    }
+    return keywords;
+}
+
+	function calculateMemoryScore(queryKeywords, memoryKeywords) {
+    let score = 0;
+    queryKeywords.forEach(qKey => {
+        if (memoryKeywords.includes(qKey)) {
+            // 匹配到的词越长，分数越高（加权评分）
+            score += qKey.length; 
+        }
+    });
+    return score;
+}
+
         // 核心数据
         let APP_DATA = JSON.parse(localStorage.getItem('AI_PHONE_APP_DATA')) || {
     contacts: [
@@ -3765,12 +3796,31 @@ async function mockAIResponse(userMessage, contact) {
         return "[系统提示]：请先在设置页填写 API Key 和 API URL！";
     }
 
-    // 1. 获取长期记忆 (日记)
+    // 1. 提取当前用户说话的关键词
+    const queryKeywords = extractKeywords(userMessage);
+    console.log("当前对话关键词:", queryKeywords);
+
+    // 2. 匹配与算分
+    let scoredMemories = [];
+    if (contact.longMemories) {
+        scoredMemories = contact.longMemories.map(m => {
+            const score = calculateMemoryScore(queryKeywords, m.keywords || []);
+            return { ...m, score: score };
+        });
+    }
+
+    // 3. 挑选得分最高的前 15 条
+    const topMemories = scoredMemories
+        .filter(m => m.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 15);
+
+    // 4. 将这些“往事”转化成文本
     let longTermMemoryText = "";
-    if (contact.longMemories && contact.longMemories.length > 0) {
-        longTermMemoryText = contact.longMemories.map(m => `[${m.date}] ${m.content}`).join('\n');
+    if (topMemories.length > 0) {
+        longTermMemoryText = topMemories.map((m, i) => `${i+1}. ${m.content}`).join('\n');
     } else {
-        longTermMemoryText = "暂无日记。";
+        longTermMemoryText = "（脑海中没有相关的特定往事）";
     }
 
     // 2. 获取临时记忆 (修改为：按轮数截取)
@@ -4008,28 +4058,25 @@ ${recentHistory}
     const apiKey = APP_DATA.settings.apiKey;
     const model = APP_DATA.settings.aiModel;
 
-    // 专门用于总结的 Prompt
-    const summaryMessages = [
+  const summaryMessages = [
         {
             role: "system",
-            content: `你现在需要暂停一下对话，作为"${contact.name}"写一篇简短的日记。
-【当前人设】：${contact.prompt}
-【任务】：
-1. 阅读最近的对话记录。
-2. 以第一人称（我）写一段简短的日记（80字以内）。
-3. 记录对话中的重要信息（行为、事件、人物）。
-4. 【重要】请使用正常的标点符号（逗号、句号），像写日记一样自然分段，绝对不要使用反斜线 \\ 分隔。
-5. 不要写成对话，只是平实地叙述。`
+            content: `你现在是${contact.name}的记忆提取器。
+【任务】：阅读对话，提取出关于用户或你们之间发生过的“核心事实碎片”。
+【要求】：
+1. 每一条事实必须独立、具体。例如：用户喜欢吃辣、去年送了法拉利模型。
+2. 绝对不要写感受（如：我们聊得很开心），只写事实。
+3. 保持第一人称“我”。
+4. 每次提取 3-5 条，用换行分隔。`
         },
         {
             role: "user",
-            content: `这是最近的对话记录：\n${recentChat}\n\n请写下这篇日记：`
+            content: `这是最近的对话记录：\n${recentChat}\n\n请提取事实碎片：`
         }
     ];
 
-    try {
-        console.log("发送日记总结请求到:", apiUrl);
-        
+       try {
+        console.log("发送日记总结请求到:", apiUrl); 
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -4067,22 +4114,25 @@ ${recentHistory}
                 diaryContent = data.content;
             }
             
-            if (diaryContent) {
+           if (diaryContent) {
                 const now = new Date();
-                const dateStr = `${now.getMonth()+1}月${now.getDate()}日 ${now.getHours()}:${now.getMinutes()}`;
+                const dateStr = `${now.getMonth()+1}月${now.getDate()}日`;
                 
+                // 提取关键词
+                const keywords = extractKeywords(diaryContent);
+
                 if (!contact.longMemories) contact.longMemories = [];
-                
                 contact.longMemories.push({
                     id: Date.now(),
                     date: dateStr,
                     content: diaryContent,
+                    keywords: keywords,
                     type: 'ai_generated'
                 });
                 
                 // 保持日记在一定数量
-                if (contact.longMemories.length > 20) {
-                    contact.longMemories = contact.longMemories.slice(-20);
+                if (contact.longMemories.length > 30) {
+                    contact.longMemories = contact.longMemories.slice(-30);
                 }
                 
                 saveData();
