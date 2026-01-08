@@ -23,44 +23,39 @@
     });
 });
 
-// 适配 v16 SDK 的自动检测逻辑
-function checkAndReactivateSubscription() {
+// 适配 v16 SDK 的正确检测逻辑
+async function checkAndReactivateSubscription() {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     OneSignalDeferred.push(async function(OneSignal) {
         console.log("【OneSignal】正在检查订阅状态 (v16)...");
 
         try {
-            // 1. 检查通知权限状态
+            // 1. 检查通知权限（v16 使用 .permission 属性）
             const permission = OneSignal.Notifications.permission;
             console.log("【OneSignal】当前权限状态:", permission);
 
-            // 2. 检查订阅状态
-            const isOptedIn = OneSignal.User.PushSubscription.optedIn;
-            const subscriptionId = OneSignal.User.PushSubscription.id;
+            // 2. 检查订阅状态（v16 路径已变更）
+            const isSubscribed = OneSignal.User.PushSubscription.optedIn;
+            const pushToken = OneSignal.User.PushSubscription.id;
 
-            if (isOptedIn && subscriptionId) {
-                console.log("✅ 【OneSignal】订阅处于活跃状态。");
-                console.log("【OneSignal】ID:", subscriptionId);
+            if (isSubscribed && pushToken) {
+                console.log("✅ 【OneSignal】订阅处于活跃状态。ID:", pushToken);
             } else {
-                console.warn("❌ 【OneSignal】当前未订阅或已退订。");
-                
+                console.warn("❌ 【OneSignal】未订阅或已失效，尝试请求权限...");
+                // 如果是默认状态，则请求权限
                 if (permission === "default") {
-                    console.log("【OneSignal】尝试请求订阅权限...");
                     await OneSignal.Notifications.request();
+                    console.log("🚀 【OneSignal】已弹出订阅请求窗口");
                 } else if (permission === "denied") {
-                    console.error("【OneSignal】权限被拒绝，请在浏览器地址栏手动开启通知。");
+                    console.error("【OneSignal】通知权限已被拒绝，请在浏览器设置中手动开启。");
                 }
             }
         } catch (err) {
-            console.error("【OneSignal】检测出错:", err);
+            console.error("【OneSignal】检测逻辑执行出错:", err);
         }
     });
 }
 
-// 页面加载完成后延迟运行
-window.addEventListener('load', () => {
-    setTimeout(checkAndReactivateSubscription, 1000); 
-});
 </script>
 
 
