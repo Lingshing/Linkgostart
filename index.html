@@ -3722,13 +3722,18 @@ async function sendMessage() {
     
    const aiReply = await mockAIResponse(text, currentContact);
     
-    // 【点火位置 1：AI 刚拿回回复，立即推送！】
+    // 【点火位置：AI刚开口，还没打字就开始推送】
     if (aiReply) {
-        console.log("AI 响应已就绪，正在准备推送...");
-        const cleanReply = aiReply.replace(/\\/g, ' ');
+        console.log("【推送系统】检测到 AI 内容，开始预备推送...");
+        // 清理特殊符号并截断
+        const cleanReply = aiReply.replace(/\\/g, ' ').replace(/\n/g, ' ');
         const notifyText = cleanReply.length > 60 ? cleanReply.substring(0, 60) + "..." : cleanReply;
+        
+        // 关键：不要加 await，让它在后台默默发送，不耽误前面的打字机效果
         sendPushNotification(notifyText); 
     }
+    
+    // ========== 【新增】检查是否还在同一个聊天 ========== (保持后面代码不变)
 
     // ========== 检查是否还在同一个聊天 ==========
     if (!currentContact || 
