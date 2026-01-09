@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -17,13 +18,11 @@
   OneSignalDeferred.push(function(OneSignal) {
     OneSignal.init({
       appId: "377df80f-5fd9-4c68-8b0d-9fae568761b8",
-      // 关键：必须匹配你的仓库名 Linkgostart
-      serviceWorkerPath: "OneSignalSDKWorker.js",
-      serviceWorkerParam: { scope: "/Linkgostart/" },
-      // 允许在非根域名下运行
+      serviceWorkerPath: "OneSignalSDKWorker.js", // 确认文件就在根目录 
+      serviceWorkerParam: { scope: "/" }, // 改为根路径尝试 
       allowLocalhostAsSecureOrigin: true 
     });
-  });
+});
 </script>
 
 
@@ -1657,39 +1656,6 @@ input[type="number"]::-webkit-inner-spin-button {
     animation: modalFadeIn 0.3s ease;
 }
 
-@keyframes modalFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes modalFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes modalFadeOut {
-    from {
-        opacity: 1;
-        transform: translateY(0);
-    }
-    to {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-}
-
 /* 弹窗动画 */
 @keyframes modalFadeIn {
     from {
@@ -1907,20 +1873,34 @@ input[type="number"]::-webkit-inner-spin-button {
             保存为预设
         </button>
     </div>
+</div>
     
-    <!-- 温度滑块（独立部分，始终显示） -->
-    <label for="temperature" style="margin-top: 25px; display: block;">温度: 
+    <div class="settings-group">
+    <h4>模型参数</h4>
+    
+    <label style="margin-top: 10px; display: block;">温度 (Temperature): 
         <span id="temperature-value" style="font-weight: bold; color: var(--accent-color);">0.7</span>
     </label>
     <div class="temp-slider-container" style="margin: 12px 0 8px;">
-        <div class="temp-slider-track">
+        <div class="temp-slider-track" id="temp-track">
             <div class="temp-slider-thumb" id="temp-slider-thumb"></div>
         </div>
     </div>
-    <p style="font-size: 12px; color: var(--text-color-secondary); margin-top: 2px;">
-        拖动调节创造性
-    </p>
     <input type="hidden" id="temperature" value="0.7">
+
+    <div style="height: 15px;"></div> <label style="display: block;">最大回复长度 (Max Tokens): 
+        <span id="maxTokens-value" style="font-weight: bold; color: var(--accent-color);">2048</span>
+    </label>
+    <div class="temp-slider-container" style="margin: 12px 0 8px;">
+        <div class="temp-slider-track" id="maxTokens-track">
+            <div class="temp-slider-thumb" id="maxTokens-thumb"></div>
+        </div>
+    </div>
+    <input type="hidden" id="maxTokens-input" value="2048">
+    
+    <p style="font-size: 11px; color: var(--text-color-secondary); margin-top: 10px;">
+        提示：温度影响创造力，Token 影响回复长度。
+    </p>
 </div>
 
     <!-- 新增：预设与正则管理模块 -->
@@ -2284,7 +2264,8 @@ let isLoadingMore = false;
     document.getElementById('api-url').value = APP_DATA.settings.apiUrl;
     document.getElementById('api-key').value = APP_DATA.settings.apiKey;
     document.getElementById('ai-model').value = APP_DATA.settings.aiModel;
-    // 新增：加载记忆设置
+    document.getElementById('temperature').value = APP_DATA.settings.temperature || 0.7;
+    document.getElementById('maxTokens-input').value = APP_DATA.settings.maxTokens || 2048; // 新增加载项
     document.getElementById('context-limit').value = APP_DATA.settings.contextLimit || 20;
     document.getElementById('diary-interval').value = APP_DATA.settings.diaryInterval || 10;
     
@@ -2586,11 +2567,13 @@ async function fetchModels() {
     APP_DATA.settings.apiUrl = document.getElementById('api-url').value;
     APP_DATA.settings.apiKey = document.getElementById('api-key').value;
     APP_DATA.settings.aiModel = document.getElementById('ai-model').value;
-    APP_DATA.settings.temperature = parseFloat(document.getElementById('temperature').value) || 0.7;
+   APP_DATA.settings.temperature = parseFloat(document.getElementById('temperature').value) || 0.7;
+APP_DATA.settings.maxTokens = parseInt(document.getElementById('maxTokens-input').value) || 2048;
     // 新增：保存记忆设置
     APP_DATA.settings.contextLimit = parseInt(document.getElementById('context-limit').value) || 20;
     APP_DATA.settings.diaryInterval = parseInt(document.getElementById('diary-interval').value) || 10;
-APP_DATA.settings.oneSignalKey = document.getElementById('onesignal-key').value;
+// 修改此行，指向正确的 ID
+APP_DATA.settings.oneSignalKey = document.getElementById('onesignal-key-input')?.value || APP_DATA.settings.oneSignalKey;
 
     const avatarBase64 = document.getElementById('ai-avatar-base64').value;
     APP_DATA.settings.aiAvatarBase64 = avatarBase64 || 'AI';
@@ -2608,28 +2591,17 @@ function showPushKeyModal() {
     showModal('push-key-modal');
 }
 
-// 专门保存推送 Key 的函数
 function savePushKey() {
     const keyVal = document.getElementById('onesignal-key-input').value.trim();
+    if (!keyVal) return;
     
-    // 存入设置对象
+    // 强制更新到 settings 对象中，防止被 saveSettings 覆盖
     APP_DATA.settings.oneSignalKey = keyVal;
     
-    // 立即存入本地数据库
-    saveData(); 
-    
+    saveData(); // 保存到本地存储 [cite: 496]
     hideModal('push-key-modal');
-    alert('通知 API 已配置成功！');
+    alert('通知 API 配置已成功同步！');
 }
-
-        function resetAvatar() {
-            APP_DATA.settings.aiAvatarBase64 = 'AI';
-            document.getElementById('ai-avatar-base64').value = 'AI';
-            loadAvatarPreview('AI', 'current-ai-avatar-preview');
-            saveData();
-            alert('头像已重置为文字');
-        }
-
         // ----------------------- 页面切换 -----------------------
         function showPage(pageId) {
             document.querySelectorAll('.page').forEach(page => {
@@ -3379,109 +3351,6 @@ async function typeMessageInMultipleBubbles(fullText, firstBubble, firstMsgDiv) 
     return { fullReply: fullText, sentences: [fullText] };
 }
 
-// 显示句子的通用函数
-async function displaySentences(sentences, originalText, firstBubble, firstMsgDiv) {
-    // 清理句子
-    sentences = sentences.map(s => s.trim()).filter(s => s.length > 0);
-    
-    // 如果没有有效的句子，直接显示
-    if (sentences.length === 0) {
-        firstBubble.textContent = originalText;
-        return { fullReply: originalText, sentences: [] };
-    }
-    
-    // 如果只有一个句子，直接显示
-    if (sentences.length === 1) {
-        firstBubble.textContent = sentences[0];
-        return { fullReply: originalText, sentences: [sentences[0]] };
-    }
-    
-    // 多个句子：逐句在不同气泡中显示
-    let fullReply = '';
-    for (let i = 0; i < sentences.length; i++) {
-        const sentence = sentences[i];
-        fullReply += (i > 0 ? '\\' : '') + sentence;
-        
-        if (i === 0) {
-            // 第一句使用原来的气泡
-            firstBubble.textContent = sentence;
-        } else {
-            // 后续句子创建新的气泡
-            createNewBubble(sentence, firstMsgDiv);
-        }
-        
-        // 随机延迟1-2秒
-        const delay = 1000 + Math.random() * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
-        // 修改点：每次内容更新后，强制滚动到底部
-        scrollToBottom();
-    }
-    
-    return { fullReply, sentences };
-}      
-
-  // 【新增】给气泡添加点击事件的辅助函数
-function addClickToBubble(bubble) {
-    if (!bubble) return;
-    
-    bubble.style.cursor = 'pointer';
-    bubble.onclick = function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-        showAIContextMenu(this);
-    };
-}
-     function splitByBackslash(text) {
-    let sentences = [];
-    let currentSegment = '';
-    
-    for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        
-        if (char === '\\') {
-            // 检查下一个字符
-            if (i + 1 < text.length && text[i + 1] === '\\') {
-                // 双反斜线表示一个真正的反斜线字符
-                currentSegment += '\\';
-                i++; // 跳过下一个字符
-            } else {
-                // 单反斜线表示分割
-                if (currentSegment.trim()) {
-                    sentences.push(currentSegment.trim());
-                }
-                currentSegment = '';
-            }
-        } else {
-            currentSegment += char;
-        }
-    }
-    
-    // 添加最后一段
-    if (currentSegment.trim()) {
-        sentences.push(currentSegment.trim());
-    }
-    
-    // 合并括号和内容
-    const mergedSentences = [];
-    for (let i = 0; i < sentences.length; i++) {
-        const current = sentences[i];
-        
-        // 检查是否是括号开头
-        if ((current.startsWith('（') || current.startsWith('(')) && 
-            (current.endsWith('）') || current.endsWith(')')) &&
-            i + 1 < sentences.length) {
-            // 合并这个括号和下一个句子
-            const next = sentences[i + 1];
-            mergedSentences.push(current + ' ' + next);
-            i++; // 跳过下一个，因为已经合并了
-        } else {
-            mergedSentences.push(current);
-        }
-    }
-    
-    return mergedSentences;
-}
 
 // 【修改】按中文标点分割，防止切断中文省略号
 function splitByChinesePunctuation(text) {
@@ -3703,82 +3572,60 @@ function scrollToBottom() {
 }
 
 async function sendMessage() {
-    const text = chatTextarea.value.trim();
+    const text = document.getElementById('chat-textarea').value.trim();
     if (!text || !currentContact || isTyping) return;
 
     appendMessageToDOM(text, 'user');
     currentContact.history.push({ role: 'user', content: text });
-    chatTextarea.value = '';
-    chatTextarea.style.height = '36px';
-    
-    // 显示AI正在输入
+    document.getElementById('chat-textarea').value = '';
+    document.getElementById('chat-textarea').style.height = '36px';
+
     isTyping = true;
     const {msgDiv, bubble} = appendMessageToDOM('', 'ai', true);
-    
-    // ========== 【新增】保存当前聊天状态，用于后续检查 ==========
     const currentChatIdAtRequest = APP_DATA.currentChatId;
     const currentContactIdAtRequest = currentContact.id;
-    
-    
+
+    // 1. 获取 AI 回复
     const aiReply = await mockAIResponse(text, currentContact);
     
-    // ========== 【新增】检查是否还在同一个聊天 ==========
-    if (!currentContact || 
-        currentContact.id !== currentContactIdAtRequest ||
-        APP_DATA.currentChatId !== currentChatIdAtRequest) {
-        console.log('已离开聊天，丢弃AI回复');
+    // 【关键修复：抢跑推送】
+    if (aiReply && aiReply.length > 0 && !aiReply.startsWith("[API错误]")) {
+        console.log("【推送流程】准备发送推送...");
+        const cleanReply = aiReply.replace(/\\/g, ' ').substring(0, 60);
+        sendPushNotification(cleanReply); // 确保这一行存在！
+    }
+
+    if (!currentContact || currentContact.id !== currentContactIdAtRequest || APP_DATA.currentChatId !== currentChatIdAtRequest) {
         isTyping = false;
-        // 移除刚刚创建的加载气泡
-        if (msgDiv && msgDiv.parentNode) {
-            msgDiv.remove();
-        }
+        if (msgDiv && msgDiv.parentNode) msgDiv.remove();
         return;
     }
     
-    // 移除打字效果
     bubble.classList.remove('typing-indicator');
     bubble.innerHTML = '';
-    
-    // 在不同气泡中逐句显示，并获取分割后的句子数组
+
+    // 2. 执行逐句显示效果
     const { sentences, fullReply } = await typeMessageInMultipleBubbles(aiReply, bubble, msgDiv);
-    
-    // 保存分割后的每个句子到历史记录
+
     if (sentences && sentences.length > 1) {
-        // 如果有多个句子，保存为多个消息
         sentences.forEach((sentence, index) => {
             currentContact.history.push({ 
                 role: 'ai', 
                 content: sentence,
-                isSegment: true, // 标记这是分割后的部分
-                segmentIndex: index // 标记这是第几个部分
+                isSegment: true,
+                segmentIndex: index 
             });
         });
     } else {
-        // 如果只有一个句子，正常保存
         currentContact.history.push({ role: 'ai', content: fullReply });
     }
 
-   isTyping = false;
-    
-    // 1. 每次发送消息后先触发记忆检查
-    await simulateMemorySummary(currentContact); 
-
-    // 2. 统一保存一次数据
+    isTyping = false;
     saveData(); 
+    simulateMemorySummary(currentContact).catch(e => console.log("记忆摘要跳过"));
+}
 
-    // 3. 触发通知逻辑（合并后的版本）
-    // 只有当 AI 有回复 (aiReply) 且当前网页处于后台 (document.hidden) 时发送
-   if (aiReply) {
-    // 1. 处理斜杠防止报错
-    const cleanReply = aiReply.replace(/\\/g, ' ');
-    // 2. 截取前60个字符防止通知太长
-    const notifyText = cleanReply.length > 60 ? cleanReply.substring(0, 60) + "..." : cleanReply;
-    
-    // 3. 直接调用，不再判断 document.hidden（这样不切页面也能看到）
-    sendPushNotification(notifyText); 
-}
-}
-    
+
 async function mockAIResponse(userMessage, contact) {
     console.log("开始调用AI API...");
     
@@ -3941,13 +3788,13 @@ ${recentHistory}
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${settings.apiKey}`
             },
-            body: JSON.stringify({
-                model: settings.aiModel,
-                messages: messages,
-                temperature: settings.temperature || 0.7,
-                max_tokens: 1024,
-                stream: false
-            }),
+           body: JSON.stringify({
+        model: settings.aiModel,
+        messages: messages,
+        temperature: settings.temperature || 0.7,
+        max_tokens: settings.maxTokens || 2048, // 使用你滑块保存的变量
+        stream: false
+    }),
             signal: currentController.signal
         });
 
@@ -4518,89 +4365,6 @@ function migrateHistoryData() {
 }
 
 
-function regenerateAIReply() {
-    if (!currentContact) return;
-    
-    // 1. 立即关闭菜单
-    const menu = document.getElementById('ai-context-menu');
-    if (menu) menu.style.display = 'none';
-    
-    const history = currentContact.history;
-    
-    // 2. 找到最后一条用户消息
-    let lastUserIndex = -1;
-    let userMessage = '';
-    
-    for (let i = history.length - 1; i >= 0; i--) {
-        if (history[i].role === 'user') {
-            lastUserIndex = i;
-            userMessage = history[i].content;
-            break;
-        }
-    }
-    
-    if (lastUserIndex === -1) return;
-    
-    // 3. 删除这个用户消息之后的所有AI消息
-    for (let i = history.length - 1; i > lastUserIndex; i--) {
-        if (history[i].role === 'ai') {
-            history.splice(i, 1);
-        }
-    }
-    
-    // 4. 保存并重新渲染
-    saveData();
-    renderMessages(history);
-    
-    // 5. 【关键】立即创建加载气泡（不要等待）
-    isTyping = true;
-    const {msgDiv, bubble} = appendMessageToDOM('', 'ai', true);
-    
-    // 6. 清除输入框
-    const textarea = document.getElementById('chat-textarea');
-    if (textarea) {
-        textarea.value = '';
-        textarea.style.height = '36px';
-    }
-    
-    // 7. 稍微延迟后生成AI回复
-    setTimeout(() => {
-        mockAIResponse(userMessage, currentContact).then(aiReply => {
-            // 移除打字效果
-            bubble.classList.remove('typing-indicator');
-            bubble.innerHTML = '';
-            
-            typeMessageInMultipleBubbles(aiReply, bubble, msgDiv).then(({sentences, fullReply}) => {
-                if (sentences && sentences.length > 1) {
-                    sentences.forEach((sentence, index) => {
-                       // ========== 额外清理 ==========
-        sentence = sentence.replace(/\//g, '');
-        // =============================
-                        currentContact.history.push({ 
-                            role: 'ai', 
-                            content: sentence,
-                            isSegment: true,
-                            segmentIndex: index
-                        });
-                    });
-                } else {
-                    // ========== 额外清理 ==========
-    fullReply = fullReply.replace(/\//g, '');
-    // =============================
-                    currentContact.history.push({ role: 'ai', content: fullReply });
-                }
-                
-                isTyping = false;
-                simulateMemorySummary(currentContact);
-                saveData();
-            });
-        }).catch(error => {
-            console.error('AI生成失败:', error);
-            isTyping = false;
-            bubble.textContent = '重新生成失败，请重试';
-        });
-    }, 300);
-}
 
 // 从点击的气泡重新生成
 function regenerateFromBubble() {
@@ -4711,48 +4475,9 @@ function updateSummaryThreshold() {
         alert('请输入5-100的数字');
     }
 }
-// 导出数据
-function exportData() {
-    const dataStr = JSON.stringify(APP_DATA, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = 'ai_chat_data.json';
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-    
-    alert('数据已导出为 JSON 文件');
-}
 
-// 导入数据
-function importData() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    
-    input.onchange = function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const importedData = JSON.parse(e.target.result);
-                APP_DATA = importedData;
-                saveData();
-                alert('数据导入成功！页面将刷新');
-                location.reload();
-            } catch (error) {
-                alert('文件格式错误，请选择正确的JSON文件');
-            }
-        };
-        reader.readAsText(file);
-    };
-    
-    input.click();
-}
+
+
 // 删除记忆
 function deleteMemory(memoryId) {
     if (!confirm('删除这条记忆？')) return;
@@ -4932,89 +4657,67 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// 温度滑块交互
-function initTemperatureSlider() {
-    const track = document.querySelector('.temp-slider-track');
-    const thumb = document.getElementById('temp-slider-thumb');
+function initParamSliders() {
+    const tempTrack = document.getElementById('temp-track');
+    const tempThumb = document.getElementById('temp-slider-thumb');
     const tempValue = document.getElementById('temperature-value');
     const tempInput = document.getElementById('temperature');
-    
-    if (!track || !thumb) return;
-    
-    let isDragging = false;
-    
-    // 计算温度值对应的位置 (0.1-2.0 对应 0%-100%)
-    function valueToPercent(value) {
-        return ((value - 0.1) / 1.9) * 100;
+
+    const tokenTrack = document.getElementById('maxTokens-track');
+    const tokenThumb = document.getElementById('maxTokens-thumb');
+    const tokenValue = document.getElementById('maxTokens-value');
+    const tokenInput = document.getElementById('maxTokens-input');
+
+    function setupSlider(track, thumb, display, input, min, max, isFloat) {
+        if (!track || !thumb) return;
+        let isDragging = false;
+
+        const update = (clientX) => {
+            const rect = track.getBoundingClientRect();
+            let percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+            let value = min + (percent / 100) * (max - min);
+            
+            if (isFloat) {
+                value = parseFloat(value.toFixed(1));
+            } else {
+                // 修改点：改为更平滑的 128 步进，避免大跨度跳回
+                value = Math.round(value / 128) * 128;
+                if (value > max) value = max;
+                if (value < min) value = min;
+            }
+            
+            const finalPercent = ((value - min) / (max - min)) * 100;
+            thumb.style.left = finalPercent + '%';
+            display.textContent = value;
+            input.value = value;
+        };
+
+        const onMouseDown = (e) => { isDragging = true; update(e.clientX); };
+        const onMouseMove = (e) => { if (isDragging) update(e.clientX); };
+        const onMouseUp = () => { isDragging = false; };
+        const onTouchStart = (e) => { isDragging = true; update(e.touches[0].clientX); e.preventDefault(); };
+        const onTouchMove = (e) => { if (isDragging) update(e.touches[0].clientX); };
+
+        track.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        thumb.addEventListener('touchstart', onTouchStart, {passive: false});
+        document.addEventListener('touchmove', onTouchMove, {passive: false});
+        document.addEventListener('touchend', onMouseUp);
+
+        // 初始化位置：直接从现有数据读取
+        const currentVal = isFloat ? (parseFloat(input.value) || 0.7) : (parseInt(input.value) || 2048);
+        const initPercent = ((currentVal - min) / (max - min)) * 100;
+        thumb.style.left = initPercent + '%';
+        display.textContent = currentVal;
     }
-    
-    // 计算位置对应的温度值
-    function percentToValue(percent) {
-        return 0.1 + (percent / 100) * 1.9;
-    }
-    
-    // 更新滑块位置和显示
-    function updateSlider(value) {
-        const percent = valueToPercent(value);
-        thumb.style.left = percent + '%';
-        tempValue.textContent = value.toFixed(1);
-        tempInput.value = value;
-    }
-    
-    // 初始化位置
-    const initialValue = parseFloat(tempInput.value) || 0.7;
-    updateSlider(initialValue);
-    
-    // 点击轨道跳转
-    track.addEventListener('click', function(e) {
-        const rect = track.getBoundingClientRect();
-        const percent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-        const value = parseFloat(percentToValue(percent).toFixed(1));
-        updateSlider(value);
-    });
-    
-    // 拖动小球
-    thumb.addEventListener('mousedown', function(e) {
-        isDragging = true;
-        e.preventDefault();
-    });
-    
-    document.addEventListener('mousemove', function(e) {
-        if (!isDragging) return;
-        
-        const rect = track.getBoundingClientRect();
-        const percent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-        const value = parseFloat(percentToValue(percent).toFixed(1));
-        updateSlider(value);
-    });
-    
-    document.addEventListener('mouseup', function() {
-        isDragging = false;
-    });
-    
-    // 触摸屏支持
-    thumb.addEventListener('touchstart', function(e) {
-        isDragging = true;
-        e.preventDefault();
-    });
-    
-    document.addEventListener('touchmove', function(e) {
-        if (!isDragging || !e.touches[0]) return;
-        
-        const rect = track.getBoundingClientRect();
-        const touch = e.touches[0];
-        const percent = Math.max(0, Math.min(100, ((touch.clientX - rect.left) / rect.width) * 100));
-        const value = parseFloat(percentToValue(percent).toFixed(1));
-        updateSlider(value);
-    });
-    
-    document.addEventListener('touchend', function() {
-        isDragging = false;
-    });
+
+    setupSlider(tempTrack, tempThumb, tempValue, tempInput, 0.1, 2.0, true);
+    setupSlider(tokenTrack, tokenThumb, tokenValue, tokenInput, 256, 4096, false);
 }
 
-// 页面加载时初始化
-document.addEventListener('DOMContentLoaded', initTemperatureSlider);
+// 页面加载后立即启动
+document.addEventListener('DOMContentLoaded', initParamSliders);
 
 // 计算缓存大小并更新显示
 function updateCacheSize() {
@@ -7487,12 +7190,26 @@ function applyRegexToText(text) {
         return text;
     }
 }
-    // 【新增】定义发送通知的函数
-async function sendPushNotification(messageText) {
+ async function sendPushNotification(messageText) {
     const appId = "377df80f-5fd9-4c68-8b0d-9fae568761b8";
     const apiKey = APP_DATA.settings.oneSignalKey;
 
-    if (!apiKey || !messageText) return;
+    console.log("【推送调试】准备发送通知...");
+    console.log("【推送调试】使用的 Key (前5位):", apiKey ? apiKey.substring(0, 5) : "无Key");
+
+    if (!apiKey) {
+        console.error("【推送中止】APP_DATA 中没有找到 oneSignalKey，请在设置中配置。");
+        return;
+    }
+
+    // 调试日志：检查 Key 是否读取成功
+    console.log("【推送检查】Key是否存在:", !!apiKey);
+    console.log("【推送检查】发送内容:", messageText);
+
+    if (!apiKey || !messageText) {
+        console.error("【推送失败】缺少 API Key 或消息内容");
+        return;
+    }
 
     try {
         const response = await fetch("https://onesignal.com/api/v1/notifications", {
@@ -7503,22 +7220,17 @@ async function sendPushNotification(messageText) {
             },
             body: JSON.stringify({
                 app_id: appId,
-                // 确保至少包含英文 en，这是 OneSignal 的强制要求
-                contents: { "en": messageText, "zh": messageText },
-                headings: { "en": "Linkgo", "zh": "Linkgo ⭐" },
-                // 尝试改用更稳妥的受众选择方式
-                included_segments: ["Total Subscriptions"] 
+                contents: { "en": messageText },
+                headings: { "en": "Linkgo ⭐" },
+                // 尝试添加这个：强制推送到所有已订阅设备
+                included_segments: ["All"] 
             })
         });
-
+        
         const result = await response.json();
-        if (response.ok) {
-            console.log("推送成功！ID:", result.id);
-        } else {
-            console.error("服务器报错内容:", result);
-        }
+        console.log("【OneSignal 响应】", result);
     } catch (e) {
-        console.error("请求过程出错:", e);
+        console.error("【网络异常】", e);
     }
 }
 
@@ -7578,6 +7290,38 @@ document.getElementById('silent-audio').addEventListener('ended', function() {
         this.play();
     }
 }, false);
+
+// 确保只保留这一个版本的函数
+async function checkAndReactivateSubscription() {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function(OneSignal) {
+        console.log("【OneSignal】正在检查订阅状态 (v16)...");
+
+        try {
+            // v16 检查权限的正确方式
+            const permission = OneSignal.Notifications.permission;
+            console.log("【OneSignal】当前权限状态:", permission);
+
+            const isSubscribed = OneSignal.User.PushSubscription.optedIn;
+            const pushToken = OneSignal.User.PushSubscription.id;
+
+            if (isSubscribed && pushToken) {
+                console.log("✅ 【OneSignal】订阅处于活跃状态。ID:", pushToken);
+            } else {
+                console.warn("❌ 【OneSignal】当前未订阅或已失效。");
+                if (permission === "default") {
+                    await OneSignal.Notifications.request();
+                }
+            }
+        } catch (err) {
+            console.error("【OneSignal】逻辑执行出错:", err);
+        }
+    });
+}
+// 页面加载完成后运行
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(checkAndReactivateSubscription, 2000); // 延迟2秒确保SDK加载完成
+});
 
 </script>
 
