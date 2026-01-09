@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -7220,8 +7221,7 @@ function applyRegexToText(text) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
-                message: messageText,
-                title: currentContact ? currentContact.name : "Linkgo"
+                message: messageText
             })
         });
         
@@ -7337,7 +7337,12 @@ async function requestPushPermission() {
             
             if (isSubscribed) {
                 btn.textContent = '已开启';
+                btn.style.flex = '1';
+                btn.style.padding = '10px';
                 btn.style.background = 'var(--accent-color)';
+                btn.style.color = 'white';
+                btn.style.border = 'none';
+                btn.style.borderRadius = '10px';
                 btn.disabled = true;
             } else {
                 btn.textContent = '授权失败，请重试';
@@ -7357,7 +7362,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const isSubscribed = OneSignal.User.PushSubscription.optedIn;
             const btn = document.getElementById('push-auth-btn');
             if (btn && isSubscribed) {
-                btn.textContent = '已授权 ✓';
+                btn.textContent = '已开启';
                 btn.style.background = 'var(--accent-color)';
                 btn.disabled = true;
             }
