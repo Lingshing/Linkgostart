@@ -4911,8 +4911,16 @@ function initChatInput() {
                     isTyping = true;
                     const {msgDiv, bubble} = appendMessageToDOM('', 'ai', true);
                     
-                    mockAIResponse(messageText, currentContact).then(aiReply => {
-                        bubble.classList.remove('typing-indicator');
+        mockAIResponse(messageText, currentContact).then(aiReply => {
+            // 发送推送通知
+            if (aiReply && aiReply.length > 0 && !aiReply.startsWith("[API错误]")) {
+                console.log("【推送流程】准备发送推送...");
+                const cleanReply = aiReply.replace(/\\/g, ' ').substring(0, 60);
+                sendPushNotification(cleanReply);
+             }
+    
+            bubble.classList.remove('typing-indicator');
+
                         bubble.innerHTML = '';
                         
                         typeMessageInMultipleBubbles(aiReply, bubble, msgDiv).then(({sentences, fullReply}) => {
