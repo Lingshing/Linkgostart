@@ -3476,7 +3476,21 @@ function splitByLength(text) {
 }
 
 async function displaySentences(sentences, originalText, firstBubble, firstMsgDiv) {
-    // ... 现有代码 ...
+    // 清理句子
+    sentences = sentences.map(s => s.trim()).filter(s => s.length > 0);
+    
+    // 如果没有有效的句子，直接显示
+    if (sentences.length === 0) {
+        firstBubble.textContent = originalText;
+        return { fullReply: originalText, sentences: [] };
+    }
+    
+    // 如果只有一个句子，直接显示
+    if (sentences.length === 1) {
+        firstBubble.textContent = sentences[0];
+        return { fullReply: originalText, sentences: [sentences[0]] };
+    }
+
     
     // 多个句子：逐句在不同气泡中显示
     let fullReply = '';
@@ -3485,16 +3499,19 @@ async function displaySentences(sentences, originalText, firstBubble, firstMsgDi
         fullReply += (i > 0 ? '\\' : '') + sentence;
         
         if (i === 0) {
-            // 第一句使用原来的气泡
+             // 第一句使用原来的气泡
             firstBubble.textContent = sentence;
-            // 【修复】给第一个气泡添加点击事件
             addClickToBubble(firstBubble);
+            // 发送第一句的通知
+            sendPushNotification(sentence.substring(0, 60));
         } else {
             // 后续句子创建新的气泡
             const newBubble = createNewBubble(sentence, firstMsgDiv);
-            // 【修复】给新气泡添加点击事件
             addClickToBubble(newBubble);
+            // 发送后续句子的通知
+             sendPushNotification(sentence.substring(0, 60));
         }
+
         
         // 随机延迟1-2秒
         const delay = 1000 + Math.random() * 1000;
@@ -3588,13 +3605,6 @@ async function sendMessage() {
     const aiReply = await mockAIResponse(text, currentContact);
     
     console.log("【调试】AI回复内容:", aiReply);
-
-    // 【关键修复：抢跑推送】
-    if (aiReply && aiReply.length > 0 && !aiReply.startsWith("[API错误]")) {
-        console.log("【推送流程】准备发送推送...");
-        const cleanReply = aiReply.replace(/\\/g, ' ').substring(0, 60);
-        sendPushNotification(cleanReply); // 确保这一行存在！
-    }
 
     if (!currentContact || currentContact.id !== currentContactIdAtRequest || APP_DATA.currentChatId !== currentChatIdAtRequest) {
         isTyping = false;
@@ -4912,13 +4922,6 @@ function initChatInput() {
                     const {msgDiv, bubble} = appendMessageToDOM('', 'ai', true);
                     
         mockAIResponse(messageText, currentContact).then(aiReply => {
-            // 发送推送通知
-            if (aiReply && aiReply.length > 0 && !aiReply.startsWith("[API错误]")) {
-                console.log("【推送流程】准备发送推送...");
-                const cleanReply = aiReply.replace(/\\/g, ' ').substring(0, 60);
-                sendPushNotification(cleanReply);
-             }
-    
             bubble.classList.remove('typing-indicator');
 
                         bubble.innerHTML = '';
