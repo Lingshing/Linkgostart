@@ -7232,8 +7232,8 @@ function applyRegexToText(text) {
         return;
     }
     
-    // 你的 Cloudflare Worker URL（替换成你自己的）
-    const WORKER_URL = "https://lkgo-push.ginkgo-yinxing.workers.dev";
+    // 你的 Cloudflare Worker URL（末尾加斜杠确保正确路由）
+    const WORKER_URL = "https://lkgo-push.ginkgo-yinxing.workers.dev/";
     
     try {
         const response = await fetch(WORKER_URL, {
