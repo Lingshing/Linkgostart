@@ -3719,6 +3719,7 @@ async function mockAIResponse(userMessage, contact) {
 （动作1）内容1/（动作2）内容2/（动作3）内容3  ← 这样会被系统删除斜线，变成：
 （动作1）内容1（动作2）内容2（动作3）内容3
 
+
 【严格人称规范】
 1. 用户消息中所有括号()内的内容，都是对你的客观描述或你执行的动作
 2. 例如："（你困了）" → 表示你现在困了
@@ -3755,7 +3756,7 @@ async function mockAIResponse(userMessage, contact) {
 【你的设定】
 ${contact.prompt}
 
-${applyDeepPresetToPrompt()}  // 新增这一行
+${applyDeepPresetToPrompt()}  
 
 【你的私人日记（长期记忆）】
 这是你过去写下的日记，记录了你和用户的过往，请参考这些记忆来保持人设连贯：
@@ -3920,12 +3921,18 @@ ${recentHistory}
         {
             role: "system",
             content: `你现在是${contact.name}的记忆提取器。
-【任务】：阅读对话，提取出关于用户或你们之间发生过的“核心事实碎片”。
-【要求】：
-1. 每一条事实必须独立、具体。例如：用户喜欢吃辣、去年送了法拉利模型。
-2. 绝对不要写感受（如：我们聊得很开心），只写事实。
-3. 保持第一人称“我”。
-4. 每次提取 3-5 条，用换行分隔。`
+            【重要人称规则】
+            - 对话中括号()内的"你"指的是${contact.name}（AI角色）
+            - 对话中括号()内的"我"指的是用户
+            - 总结时必须正确区分：AI角色用"我"，用户用"用户"或"对方"
+
+            【任务】：阅读对话，提取关于用户或你们之间发生过的核心事实。
+            【要求】：
+            1. 每条事实必须独立、具体
+            2. 保持第一人称"我"代表${contact.name}
+            3. 用"用户"或"对方"指代用户
+            4. 每次提取3-5条，用换行分隔`
+
         },
         {
             role: "user",
@@ -7203,6 +7210,11 @@ function applyRegexToText(text) {
     }
 }
  async function sendPushNotification(messageText) {
+    // 如果页面在前台，不发送通知
+    if (document.visibilityState === 'visible') {
+        console.log('页面在前台，跳过推送通知');
+        return;
+    }
     const appId = "377df80f-5fd9-4c68-8b0d-9fae568761b8";
     const apiKey = APP_DATA.settings.oneSignalKey;
 
@@ -7233,7 +7245,6 @@ function applyRegexToText(text) {
             body: JSON.stringify({
                 app_id: appId,
                 contents: { "en": messageText },
-                headings: { "en": "Linkgo ⭐" },
                 // 尝试添加这个：强制推送到所有已订阅设备
                 included_segments: ["All"] 
             })
