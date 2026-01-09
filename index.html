@@ -2552,7 +2552,7 @@ async function fetchModels() {
 
 
        
-        function saveSettings() {
+function saveSettings() {
     // 【重要修改】如果当前在"新建预设"状态，不要更新任何预设
     if (APP_DATA.currentPresetId) {
         const preset = APP_DATA.presets.find(p => p.id == APP_DATA.currentPresetId);
@@ -2567,13 +2567,12 @@ async function fetchModels() {
     APP_DATA.settings.apiUrl = document.getElementById('api-url').value;
     APP_DATA.settings.apiKey = document.getElementById('api-key').value;
     APP_DATA.settings.aiModel = document.getElementById('ai-model').value;
-   APP_DATA.settings.temperature = parseFloat(document.getElementById('temperature').value) || 0.7;
-APP_DATA.settings.maxTokens = parseInt(document.getElementById('maxTokens-input').value) || 2048;
+    APP_DATA.settings.temperature = parseFloat(document.getElementById('temperature').value) || 0.7;
+    APP_DATA.settings.maxTokens = parseInt(document.getElementById('maxTokens-input').value) || 2048;
     // 新增：保存记忆设置
     APP_DATA.settings.contextLimit = parseInt(document.getElementById('context-limit').value) || 20;
     APP_DATA.settings.diaryInterval = parseInt(document.getElementById('diary-interval').value) || 10;
-// 修改此行，指向正确的 ID
-APP_DATA.settings.oneSignalKey = document.getElementById('onesignal-key-input')?.value || APP_DATA.settings.oneSignalKey;
+    // 【重要】OneSignal Key 不在这里保存，它有专门的保存函数
 
     const avatarBase64 = document.getElementById('ai-avatar-base64').value;
     APP_DATA.settings.aiAvatarBase64 = avatarBase64 || 'AI';
@@ -3588,6 +3587,8 @@ async function sendMessage() {
     // 1. 获取 AI 回复
     const aiReply = await mockAIResponse(text, currentContact);
     
+    console.log("【调试】AI回复内容:", aiReply);
+
     // 【关键修复：抢跑推送】
     if (aiReply && aiReply.length > 0 && !aiReply.startsWith("[API错误]")) {
         console.log("【推送流程】准备发送推送...");
