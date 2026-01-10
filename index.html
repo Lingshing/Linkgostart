@@ -7420,7 +7420,14 @@ function emergencyFix() {
                     padding: 14px; border-radius: 10px; border: none;
                     background: var(--accent-color); color: white;
                     font-size: 15px; cursor: pointer;">
-                    🔄 解除卡死状态（推荐）
+                    🔄 解除卡死状态
+                </button>
+                
+                <button onclick="showForcePagedLoadSelector()" style="
+                    padding: 14px; border-radius: 10px; border: none;
+                    background: #FF6B6B; color: white;
+                    font-size: 15px; cursor: pointer;">
+                    ⚡ 强制分页加载（消息过多卡死用这个）
                 </button>
                 
                 <button onclick="fixAndRerender()" style="
@@ -7583,6 +7590,114 @@ function clearChatHistory(contactId) {
     if (modal) modal.remove();
     
     alert(`✅ 已清空「${contact.name}」的聊天记录！`);
+}
+
+// 修复4：显示强制分页加载选择器
+function showForcePagedLoadSelector() {
+    const modal = document.getElementById('emergency-fix-modal');
+    if (!modal) return;
+    
+    // 更新弹窗内容为聊天列表
+    const content = modal.querySelector('div');
+    if (!content) return;
+    
+    let chatListHTML = '';
+    APP_DATA.contacts.forEach(contact => {
+        const msgCount = contact.history.length;
+        const isLarge = msgCount > 100;
+        chatListHTML += `
+            <button onclick="forcePagedLoad(${contact.id})" style="
+                padding: 12px; border-radius: 8px; border: none;
+                background: ${isLarge ? 'rgba(255, 107, 107, 0.1)' : 'var(--input-bg)'}; 
+                color: var(--text-color-primary);
+                border: 1px solid ${isLarge ? '#FF6B6B' : 'var(--input-border)'};
+                font-size: 14px; cursor: pointer; text-align: left;
+                display: flex; justify-content: space-between; align-items: center;">
+                <span>${contact.name}</span>
+                <span style="color: ${isLarge ? '#FF6B6B' : 'var(--text-color-secondary)'}; font-size: 12px; font-weight: ${isLarge ? 'bold' : 'normal'};">
+                    ${msgCount} 条消息 ${isLarge ? '⚠️' : ''}
+                </span>
+            </button>
+        `;
+    });
+    
+    content.innerHTML = `
+        <h4 style="margin: 0 0 15px 0; color: #FF6B6B; text-align: center;">
+            ⚡ 强制分页加载
+        </h4>
+        
+        <p style="color: var(--text-color-secondary); font-size: 13px; margin-bottom: 15px; text-align: center; line-height: 1.5;">
+            选择卡死的聊天，系统将只加载最近20条消息。<br>
+            <span style="color: #FF6B6B;">红色标记的聊天消息过多，建议处理。</span>
+        </p>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px; max-height: 45vh; overflow-y: auto;">
+            ${chatListHTML || '<p style="text-align: center; color: var(--text-color-secondary);">没有聊天记录</p>'}
+        </div>
+        
+        <button onclick="emergencyFix()" style="
+            width: 100%; padding: 14px; border-radius: 10px; border: none;
+            background: var(--input-bg); color: var(--text-color-secondary);
+            font-size: 15px; cursor: pointer; margin-top: 15px;">
+            返回
+        </button>
+    `;
+}
+
+// 强制分页加载指定聊天
+function forcePagedLoad(contactId) {
+    const contact = APP_DATA.contacts.find(c => c.id === contactId);
+    if (!contact) return;
+    
+    const msgCount = contact.history.length;
+    
+    // 关闭修复弹窗
+    const modal = document.getElementById('emergency-fix-modal');
+    if (modal) modal.remove();
+    
+    // 重置所有状态
+    isTyping = false;
+    currentAIRequest = null;
+    if (currentController) {
+        currentController.abort();
+        currentController = null;
+    }
+    
+    // 设置当前聊天
+    APP_DATA.currentChatId = contactId;
+    currentContact = contact;
+    
+    // 强制只渲染最后20条
+    currentStartIndex = Math.max(0, contact.history.length - 20);
+    
+    // 显示聊天窗口
+    document.querySelectorAll('.page').forEach(page => {
+        page.style.display = 'none';
+    });
+    
+    const chatWindow = document.getElementById('chat-window');
+    chatWindow.style.display = 'flex';
+    document.getElementById('chat-role-name').textContent = contact.name;
+    
+    // 清空消息容器
+    const container = document.getElementById('chat-messages');
+    if (container) {
+        container.innerHTML = '<div id="loading-more" style="display:none; text-align:center; padding:10px; color:var(--text-color-secondary);">加载中...</div>';
+    }
+    
+    // 只渲染最后20条消息
+    const recentMessages = contact.history.slice(-20);
+    
+    // 延迟渲染，确保DOM已更新
+    setTimeout(() => {
+        recentMessages.forEach(msg => {
+            appendMessageToDOM(msg.content, msg.role, false);
+        });
+        
+        scrollToBottomInstant();
+        
+        alert(`✅ 已强制分页加载「${contact.name}」！\n\n原有 ${msgCount} 条消息，当前只显示最近 20 条。\n\n向上滚动可以加载更多历史消息。`);
+    }, 100);
 }
 
 
