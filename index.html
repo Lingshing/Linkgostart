@@ -3407,6 +3407,12 @@ function splitByChinesePunctuation(text) {
     return sentences;
 }
 
+function splitByBackslash(text) {
+    if (!text) return [];
+    // 常见的逻辑是按 \ 符号分割，并过滤掉空字符串
+    return text.split('\\').map(item => item.trim()).filter(item => item !== "");
+}
+
 // 【修改】按英文标点分割，但智能识别省略号
 function splitByEnglishPunctuation(text) {
     const sentences = [];
