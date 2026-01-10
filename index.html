@@ -1759,8 +1759,11 @@ input[type="number"]::-webkit-inner-spin-button {
         <div class="app-icon clickable" onclick="showPage('settings-page')" title="设置" style="margin-left: -15px; margin-right: -15px;">
     <i class="fas fa-cog"></i>
 </div>
-        <div class="refresh-btn clickable" onclick="refreshAllData();" title="刷新所有数据">
+<div class="refresh-btn clickable" onclick="refreshAllData();" title="刷新所有数据">
             <i class="fa-solid fa-rotate"></i>
+        </div>
+        <div class="refresh-btn clickable" onclick="emergencyFix();" title="紧急修复" style="color: var(--danger-color);">
+            <i class="fa-solid fa-wrench"></i>
         </div>
     </div>
     <h3 class="small-title" style="position: static; transform: none; left: auto; width: auto;">聊天室</h3>
@@ -7388,6 +7391,199 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }, 2000);
 });
+
+// ==================== 紧急修复功能 ====================
+function emergencyFix() {
+    // 显示修复选项弹窗
+    const fixModal = document.createElement('div');
+    fixModal.id = 'emergency-fix-modal';
+    fixModal.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        display: flex; justify-content: center; align-items: center;
+        padding: 20px;
+    `;
+    
+    fixModal.innerHTML = `
+        <div style="background: var(--bg-color-secondary); border-radius: 16px; 
+                    width: 90%; max-width: 320px; padding: 24px;">
+            <h4 style="margin: 0 0 20px 0; color: var(--danger-color); text-align: center;">
+                🔧 紧急修复
+            </h4>
+            
+            <p style="color: var(--text-color-secondary); font-size: 14px; margin-bottom: 20px; text-align: center;">
+                如果某个聊天卡死了，请选择修复方式：
+            </p>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button onclick="fixTypingState()" style="
+                    padding: 14px; border-radius: 10px; border: none;
+                    background: var(--accent-color); color: white;
+                    font-size: 15px; cursor: pointer;">
+                    🔄 解除卡死状态（推荐）
+                </button>
+                
+                <button onclick="fixAndRerender()" style="
+                    padding: 14px; border-radius: 10px; border: none;
+                    background: var(--warning-color); color: white;
+                    font-size: 15px; cursor: pointer;">
+                    🔃 重新渲染聊天界面
+                </button>
+                
+                <button onclick="showChatSelector()" style="
+                    padding: 14px; border-radius: 10px; border: none;
+                    background: var(--input-bg); color: var(--text-color-primary);
+                    border: 1px solid var(--input-border);
+                    font-size: 15px; cursor: pointer;">
+                    🗑️ 清空某个聊天的历史
+                </button>
+                
+                <button onclick="document.getElementById('emergency-fix-modal').remove()" style="
+                    padding: 14px; border-radius: 10px; border: none;
+                    background: var(--input-bg); color: var(--text-color-secondary);
+                    font-size: 15px; cursor: pointer; margin-top: 10px;">
+                    取消
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(fixModal);
+    
+    // 点击外部关闭
+    fixModal.addEventListener('click', function(e) {
+        if (e.target === fixModal) {
+            fixModal.remove();
+        }
+    });
+}
+
+// 修复1：解除卡死状态
+function fixTypingState() {
+    // 重置所有状态变量
+    isTyping = false;
+    currentAIRequest = null;
+    
+    // 取消正在进行的网络请求
+    if (currentController) {
+        currentController.abort();
+        currentController = null;
+    }
+    
+    // 移除所有正在加载的气泡
+    document.querySelectorAll('.typing-indicator').forEach(el => {
+        const msgDiv = el.closest('.chat-message');
+        if (msgDiv) msgDiv.remove();
+    });
+    
+    // 关闭修复弹窗
+    const modal = document.getElementById('emergency-fix-modal');
+    if (modal) modal.remove();
+    
+    alert('✅ 已解除卡死状态！\n\n现在可以继续聊天了。');
+}
+
+// 修复2：重新渲染聊天界面
+function fixAndRerender() {
+    // 先解除卡死状态
+    isTyping = false;
+    currentAIRequest = null;
+    if (currentController) {
+        currentController.abort();
+        currentController = null;
+    }
+    
+    // 如果当前有聊天，重新渲染
+    if (currentContact) {
+        const container = document.getElementById('chat-messages');
+        if (container) {
+            container.innerHTML = '';
+            renderMessages(currentContact.history);
+        }
+    }
+    
+    // 关闭修复弹窗
+    const modal = document.getElementById('emergency-fix-modal');
+    if (modal) modal.remove();
+    
+    alert('✅ 已重新渲染聊天界面！');
+}
+
+// 修复3：显示聊天选择器（清空历史）
+function showChatSelector() {
+    const modal = document.getElementById('emergency-fix-modal');
+    if (!modal) return;
+    
+    // 更新弹窗内容为聊天列表
+    const content = modal.querySelector('div');
+    if (!content) return;
+    
+    let chatListHTML = '';
+    APP_DATA.contacts.forEach(contact => {
+        chatListHTML += `
+            <button onclick="clearChatHistory(${contact.id})" style="
+                padding: 12px; border-radius: 8px; border: none;
+                background: var(--input-bg); color: var(--text-color-primary);
+                border: 1px solid var(--input-border);
+                font-size: 14px; cursor: pointer; text-align: left;
+                display: flex; justify-content: space-between; align-items: center;">
+                <span>${contact.name}</span>
+                <span style="color: var(--text-color-secondary); font-size: 12px;">
+                    ${contact.history.length} 条消息
+                </span>
+            </button>
+        `;
+    });
+    
+    content.innerHTML = `
+        <h4 style="margin: 0 0 20px 0; color: var(--text-color-primary); text-align: center;">
+            选择要清空的聊天
+        </h4>
+        
+        <p style="color: var(--danger-color); font-size: 13px; margin-bottom: 15px; text-align: center;">
+            ⚠️ 清空后无法恢复！
+        </p>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px; max-height: 50vh; overflow-y: auto;">
+            ${chatListHTML || '<p style="text-align: center; color: var(--text-color-secondary);">没有聊天记录</p>'}
+        </div>
+        
+        <button onclick="document.getElementById('emergency-fix-modal').remove()" style="
+            width: 100%; padding: 14px; border-radius: 10px; border: none;
+            background: var(--input-bg); color: var(--text-color-secondary);
+            font-size: 15px; cursor: pointer; margin-top: 15px;">
+            返回
+        </button>
+    `;
+}
+
+// 清空指定聊天的历史
+function clearChatHistory(contactId) {
+    const contact = APP_DATA.contacts.find(c => c.id === contactId);
+    if (!contact) return;
+    
+    if (!confirm(`确定要清空「${contact.name}」的所有聊天记录吗？\n\n此操作无法撤销！`)) {
+        return;
+    }
+    
+    // 清空历史
+    contact.history = [];
+    saveData();
+    
+    // 如果当前正在这个聊天中，重新渲染
+    if (currentContact && currentContact.id === contactId) {
+        const container = document.getElementById('chat-messages');
+        if (container) {
+            container.innerHTML = '';
+        }
+    }
+    
+    // 关闭弹窗
+    const modal = document.getElementById('emergency-fix-modal');
+    if (modal) modal.remove();
+    
+    alert(`✅ 已清空「${contact.name}」的聊天记录！`);
+}
 
 
 </script>
