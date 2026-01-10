@@ -3865,7 +3865,8 @@ async function mockAIResponse(userMessage, contact) {
         console.log("使用模型:", settings.aiModel);
         console.log("消息长度:", JSON.stringify(messages).length);
         
-        const response = await fetch(settings.apiUrl, {
+        const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
+
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
