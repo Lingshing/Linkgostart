@@ -1879,7 +1879,20 @@ input[type="number"]::-webkit-inner-spin-button {
     
     <div class="settings-group">
     <h4>模型参数</h4>
-    
+
+    <!-- 流式输出开关 -->
+    <div style="margin-bottom: 20px;">
+    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+        <label style="font-weight: bold; font-size: 14px; color: var(--text-color-primary); margin-right: 10px;">流式输出</label>
+        <div class="theme-switch-track clickable" 
+             style="width: 40px; height: 20px; background: var(--input-border); margin-top: 9px;" 
+             onclick="toggleStream()" 
+             id="stream-switch">
+            <div class="theme-switch-thumb" style="width: 18px; height: 18px; top: 1px; left: 1px;"></div>
+        </div>
+     </div>
+    </div>
+
     <label style="margin-top: 10px; display: block;">温度 (Temperature): 
         <span id="temperature-value" style="font-weight: bold; color: var(--accent-color);">0.7</span>
     </label>
@@ -2228,39 +2241,40 @@ function extractKeywords(text) {
             summaryThreshold: 30
         }
     ],
-    settings: {
-        apiUrl: 'https://api.siliconflow.cn/v1/chat/completions',
-        apiKey: '',
-        aiModel: 'qwen-72b-chat',
-        temperature: 0.7,
-        aiAvatarBase64: 'AI',
-        contextLimit: 20, // 默认携带20轮历史
-        diaryInterval: 20 // 默认20轮写一次日记
-    },
-    currentTheme: 'light',
-    currentChatId: null,
-    activeModalContext: null,
-    presets: [], 
-    currentPresetId: null, // 当前预设ID
-    // 新增：深预设和正则数据
-    deepPresets: [],        // 深预设数组
-    regexPatterns: [],      // 正则表达式数组
-    currentDeepPresetId: null,  // 当前选中的深预设ID
-    currentRegexId: null,       // 当前选中的正则ID
-    deepPresetEnabled: false,   // 深预设是否启用
-    regexEnabled: false         // 正则是否启用
-};  // <-- 确保这里的分号
+            settings: {
+            apiUrl: 'https://api.siliconflow.cn/v1/chat/completions',
+            apiKey: '',
+            aiModel: 'qwen-72b-chat',
+            temperature: 0.7,
+            aiAvatarBase64: 'AI',
+            contextLimit: 20,
+            diaryInterval: 20,
+            stream: false  
+        },
+            currentTheme: 'light',
+            currentChatId: null,
+            activeModalContext: null,
+            presets: [], 
+            currentPresetId: null, // 当前预设ID
+            // 新增：深预设和正则数据
+            deepPresets: [],        // 深预设数组
+            regexPatterns: [],      // 正则表达式数组
+            currentDeepPresetId: null,  // 当前选中的深预设ID
+            currentRegexId: null,       // 当前选中的正则ID
+            deepPresetEnabled: false,   // 深预设是否启用
+            regexEnabled: false         // 正则是否启用
+        };  // <-- 确保这里的分号
 
-let currentContact = null;
-let isManageMode = false; // 管理模式状态
-let batchMode = false; // 批量删除模式
-let selectedContacts = new Set(); // 选择的联系人ID集合
-let isTyping = false; // AI是否正在输入
-let currentAIRequest = null; // 新增：存储当前AI请求
-let currentController = null; // 新增：用于取消请求的控制器
-let currentStartIndex = 0;
-const PAGE_SIZE = 10; 
-let isLoadingMore = false; 
+            let currentContact = null;
+            let isManageMode = false; // 管理模式状态
+            let batchMode = false; // 批量删除模式
+            let selectedContacts = new Set(); // 选择的联系人ID集合
+            let isTyping = false; // AI是否正在输入
+            let currentAIRequest = null; // 新增：存储当前AI请求
+            let currentController = null; // 新增：用于取消请求的控制器
+            let currentStartIndex = 0;
+            const PAGE_SIZE = 10; 
+            let isLoadingMore = false; 
         
         // ----------------------- 数据存储和加载 -----------------------
         function saveData() {
@@ -2268,29 +2282,32 @@ let isLoadingMore = false;
         }
 
         function loadSettings() {
-    document.getElementById('api-url').value = APP_DATA.settings.apiUrl;
-    document.getElementById('api-key').value = APP_DATA.settings.apiKey;
-    document.getElementById('ai-model').value = APP_DATA.settings.aiModel;
-    document.getElementById('temperature').value = APP_DATA.settings.temperature || 0.7;
-    document.getElementById('maxTokens-input').value = APP_DATA.settings.maxTokens || 2048; // 新增加载项
-    document.getElementById('context-limit').value = APP_DATA.settings.contextLimit || 20;
-    document.getElementById('diary-interval').value = APP_DATA.settings.diaryInterval || 10;
-    
-    loadAvatarPreview(APP_DATA.settings.aiAvatarBase64, 'current-ai-avatar-preview');
-    document.getElementById('ai-avatar-base64').value = APP_DATA.settings.aiAvatarBase64;
-    
-    // 【新增】加载当前配置的显示
-    if (APP_DATA.currentPresetId) {
-        const preset = APP_DATA.presets.find(p => p.id == APP_DATA.currentPresetId);
-        if (preset) {
-            document.getElementById('api-preset-display').value = preset.name;
-            document.getElementById('save-preset-btn').style.display = 'none';
-            document.getElementById('api-fields-container').style.display = 'none';
-        // 新增：加载深预设和正则设置
-             loadDeepPresetAndRegexSettings();
+            document.getElementById('api-url').value = APP_DATA.settings.apiUrl;
+            document.getElementById('api-key').value = APP_DATA.settings.apiKey;
+            document.getElementById('ai-model').value = APP_DATA.settings.aiModel;
+            document.getElementById('temperature').value = APP_DATA.settings.temperature || 0.7;
+            document.getElementById('maxTokens-input').value = APP_DATA.settings.maxTokens || 2048; // 新增加载项
+            document.getElementById('context-limit').value = APP_DATA.settings.contextLimit || 20;
+            document.getElementById('diary-interval').value = APP_DATA.settings.diaryInterval || 10;
+            
+            loadAvatarPreview(APP_DATA.settings.aiAvatarBase64, 'current-ai-avatar-preview');
+            document.getElementById('ai-avatar-base64').value = APP_DATA.settings.aiAvatarBase64;
+            
+            // 【新增】加载当前配置的显示
+            if (APP_DATA.currentPresetId) {
+                const preset = APP_DATA.presets.find(p => p.id == APP_DATA.currentPresetId);
+                if (preset) {
+                    document.getElementById('api-preset-display').value = preset.name;
+                    document.getElementById('save-preset-btn').style.display = 'none';
+                    document.getElementById('api-fields-container').style.display = 'none';
+                    // 新增：加载深预设和正则设置
+                    loadDeepPresetAndRegexSettings();
+                    // 加载流式开关状态
+                    updateSwitchState('stream-switch', APP_DATA.settings.stream || false);
+
+                }
+            }
         }
-    }
-}
         
         // 新增：初始化预设系统
 function initPresetSystem() {
@@ -3855,11 +3872,11 @@ async function mockAIResponse(userMessage, contact) {
                 'Authorization': `Bearer ${settings.apiKey}`
             },
            body: JSON.stringify({
-        model: settings.aiModel,
-        messages: messages,
-        temperature: settings.temperature || 0.7,
-        max_tokens: settings.maxTokens || 2048, // 使用你滑块保存的变量
-        stream: false
+            model: settings.aiModel,
+            messages: messages,
+            temperature: settings.temperature || 0.7,
+            max_tokens: settings.maxTokens || 2048, // 使用你滑块保存的变量
+            stream: settings.stream || false
     }),
             signal: currentController.signal
         });
@@ -6166,14 +6183,14 @@ function savePresetEdit(presetId) {
             
             // 显示成功消息
             setTimeout(() => {
-                alert(isNewPreset ? '预设创建成功！' : '预设已更新');
+                alert(isNewPreset ? '配置创建成功！' : '配置已更新');
             }, 100);
             
         }, 300);
     } else {
         refreshPresetList();
         showModal('preset-modal');
-        alert(isNewPreset ? '预设创建成功！' : '预设已更新');
+        alert(isNewPreset ? '配置创建成功！' : '配置已更新');
     }
 }
 
@@ -6182,7 +6199,7 @@ function deletePreset(presetId) {
     const preset = APP_DATA.presets.find(p => p.id == presetId);
     if (!preset) return;
     
-    if (!confirm(`确定要删除预设 "${preset.name}" 吗？此操作不可撤销。`)) {
+    if (!confirm(`确定要删除配置 "${preset.name}" 吗？此操作不可撤销。`)) {
         return;
     }
     
@@ -6216,7 +6233,7 @@ function deletePreset(presetId) {
     // 刷新预设列表
     refreshPresetList();
     
-    alert('预设已删除');
+    alert('配置已删除');
 }
 
 async function openModelSelectorForEdit() {
@@ -7759,6 +7776,12 @@ function forcePagedLoad(contactId) {
     }, 100);
 }
 
+// 切换流式输出开关
+function toggleStream() {
+    APP_DATA.settings.stream = !APP_DATA.settings.stream;
+    updateSwitchState('stream-switch', APP_DATA.settings.stream);
+    saveData();
+}
 
 </script>
 
