@@ -7482,9 +7482,10 @@ function urlBase64ToUint8Array(base64String) {
     return outputArray;
 }
 
-// 发送订阅信息到服务器
+
 async function sendSubscriptionToServer(subscription) {
     try {
+        console.log("准备发送订阅信息...");
         const response = await fetch('https://lkgo-push.ginkgo-yinxing.workers.dev/', {
             method: 'POST',
             headers: {
@@ -7492,17 +7493,23 @@ async function sendSubscriptionToServer(subscription) {
             },
             body: JSON.stringify({
                 subscription: subscription,
-                action: 'subscribe'  // ← 检查是否有这个字段
+                action: 'subscribe' // 告诉 worker 这是订阅动作
             })
         });
-        
+
         if (!response.ok) {
-            throw new Error('订阅失败');
+            // 获取服务器返回的详细错误文字
+            const errorText = await response.text();
+            console.error("Worker 返回错误:", errorText); 
+            throw new Error(`服务器拒绝: ${response.status} - ${errorText}`);
         }
         
-        return await response.json();
+        const json = await response.json();
+        console.log("订阅成功，服务器响应:", json);
+        return json;
     } catch (error) {
         console.error('发送订阅失败:', error);
+        alert(`订阅失败: ${error.message}`); // 弹窗提示具体错误
         throw error;
     }
 }
