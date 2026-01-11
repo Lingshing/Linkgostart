@@ -13,7 +13,8 @@ self.addEventListener('activate', (event) => {
 
 // 处理推送事件
 self.addEventListener('push', (event) => {
-  console.log('收到推送消息:', event);
+    console.log('🔔 收到push事件！', event);
+    console.log('收到推送消息:', event);
   
   let notificationData = {
     title: '新消息',
@@ -124,3 +125,4 @@ function getVapidPublicKey() {
   // TODO: 替换为您的 VAPID 公钥
   return 'BB0Y_7xT1-C-_I-TgXqFPUrgi2iuo5gkgkUbtuwBn5ganWvdraCOniES3ocdaTDEWVFqrAw5jGvJuKrskKuFY00';
 }
+
