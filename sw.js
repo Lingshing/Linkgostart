@@ -122,8 +122,8 @@ function urlBase64ToUint8Array(base64String) {
 
 // 获取 VAPID 公钥（需要替换为您自己的公钥）
 function getVapidPublicKey() {
-  // TODO: 替换为您的 VAPID 公钥
   return 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEoN_DV2L5hDeE8BIOIzY-cIQFDt3EtCvbGKazuNn6JTsnQhfgAEkeLeePgKYhxsgx2rbg7ifZjRRJUciup3yOAw';
 }
+
 
 
