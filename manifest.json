@@ -2,7 +2,7 @@
   "name": "Linkgo",
   "short_name": "Linkgo",
   "description": "LINK AND GO",
-  "start_url": "/",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
@@ -51,3 +51,4 @@
     }
   ]
 }
+
