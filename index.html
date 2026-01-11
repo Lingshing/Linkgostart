@@ -4,29 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Linkgo⭐</title>
-    <link rel="manifest" href="manifest.json">
-
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Linkgo">
-<link rel="apple-touch-icon" href="https://i.postimg.cc/cHNb4gXc/IMG-2047.jpg">
-    
-<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-<script>
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  OneSignalDeferred.push(function(OneSignal) {
-    OneSignal.init({
-      appId: "377df80f-5fd9-4c68-8b0d-9fae568761b8",
-      serviceWorkerPath: "OneSignalSDKWorker.js", // 确认文件就在根目录 
-      serviceWorkerParam: { scope: "/" }, // 改为根路径尝试 
-      allowLocalhostAsSecureOrigin: true 
-    });
-});
-</script>
-
-
-
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Linkgo">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ----------------------- 全局与主题样式 ----------------------- */
         :root {
@@ -2186,36 +2169,40 @@ input[type="number"]::-webkit-inner-spin-button {
     </div>
 
     <script>
+     // Web Push 配置
+        const VAPID_PUBLIC_KEY = 'BB0Y_7xT1-C-_I-TgXqFPUrgi2iuo5gkgkUbtuwBn5ganWvdraCOniES3ocdaTDEWVFqrAw5jGvJuKrskKuFY00'; // 替换为您生成的公钥
+        const WORKER_URL = 'https://lkgo-push.ginkgo-yinxing.workers.dev';
+
 	// 初始化分词器，指定中文环境 
 	const segmenter = new Intl.Segmenter('zh-Hans', { granularity: 'word' });
 
 	// 简单的停用词表（可以根据需要增加）
 	const stopWords = new Set(['的', '了', '是', '我', '你', '他', '在', '不', '有', '个', '也', '就']);
 
-function extractKeywords(text) {
-    // 1. 使用浏览器原生能力进行分词 
-    const segments = segmenter.segment(text);
-    const keywords = [];
+    function extractKeywords(text) {
+        // 1. 使用浏览器原生能力进行分词 
+        const segments = segmenter.segment(text);
+        const keywords = [];
 
-    for (const segment of segments) {
-        // 只保留“词语”类型，且长度大于1，且不是废词 
-        if (segment.isWordLike && segment.segment.length > 1 && !stopWords.has(segment.segment)) {
-            keywords.push(segment.segment);
+        for (const segment of segments) {
+            // 只保留“词语”类型，且长度大于1，且不是废词 
+            if (segment.isWordLike && segment.segment.length > 1 && !stopWords.has(segment.segment)) {
+                keywords.push(segment.segment);
+            }
         }
+        return keywords;
     }
-    return keywords;
-}
 
-	function calculateMemoryScore(queryKeywords, memoryKeywords) {
-    let score = 0;
-    queryKeywords.forEach(qKey => {
-        if (memoryKeywords.includes(qKey)) {
-            // 匹配到的词越长，分数越高（加权评分）
-            score += qKey.length; 
-        }
-    });
-    return score;
-}
+        function calculateMemoryScore(queryKeywords, memoryKeywords) {
+        let score = 0;
+        queryKeywords.forEach(qKey => {
+            if (memoryKeywords.includes(qKey)) {
+                // 匹配到的词越长，分数越高（加权评分）
+                score += qKey.length; 
+            }
+        });
+        return score;
+    }
 
         // 核心数据
         let APP_DATA = JSON.parse(localStorage.getItem('AI_PHONE_APP_DATA')) || {
@@ -7329,6 +7316,7 @@ function applyRegexToText(text) {
             mode: "cors",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
+                action: 'send',
                 message: messageText
             })
         });
@@ -7399,66 +7387,120 @@ document.getElementById('silent-audio').addEventListener('ended', function() {
     }
 }, false);
 
-// 确保只保留这一个版本的函数
 async function checkAndReactivateSubscription() {
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    OneSignalDeferred.push(async function(OneSignal) {
-        console.log("【OneSignal】正在检查订阅状态 (v16)...");
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.log('浏览器不支持 Push API');
+        return;
+    }
 
-        try {
-            // v16 检查权限的正确方式
-            const permission = OneSignal.Notifications.permission;
-            console.log("【OneSignal】当前权限状态:", permission);
-
-            const isSubscribed = OneSignal.User.PushSubscription.optedIn;
-            const pushToken = OneSignal.User.PushSubscription.id;
-
-            if (isSubscribed && pushToken) {
-                console.log("✅ 【OneSignal】订阅处于活跃状态。ID:", pushToken);
-            } else {
-                console.warn("❌ 【OneSignal】当前未订阅或已失效。");
-                if (permission === "default") {
-                    await OneSignal.Notifications.request();
-                }
-            }
-        } catch (err) {
-            console.error("【OneSignal】逻辑执行出错:", err);
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        
+        if (subscription) {
+            console.log('已存在推送订阅');
+            // 将订阅信息发送到服务器
+            await sendSubscriptionToServer(subscription);
+        } else {
+            console.log('尚未订阅推送');
         }
-    });
+    } catch (error) {
+        console.error('检查订阅状态失败:', error);
+    }
 }
+
 // 页面加载完成后运行
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(checkAndReactivateSubscription, 2000); // 延迟2秒确保SDK加载完成
 });
 
 async function requestPushPermission() {
-    const btn = document.getElementById('push-auth-btn');
-    
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    OneSignalDeferred.push(async function(OneSignal) {
-        try {
-            // 请求通知权限
-            await OneSignal.Notifications.requestPermission();
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('您的浏览器不支持推送通知');
+        return;
+    }
+
+    try {
+        // 请求通知权限
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+            // 注册 Service Worker
+            const registration = await navigator.serviceWorker.register('/sw.js');
+            await navigator.serviceWorker.ready;
             
-            // 检查是否已订阅
-            const isSubscribed = OneSignal.User.PushSubscription.optedIn;
+            console.log('Service Worker 已注册');
             
-            if (isSubscribed) {
-                btn.textContent = '已开启';
-                btn.style.flex = '1';
-                btn.style.padding = '10px';
-                btn.style.background = 'var(--accent-color)';
-                btn.style.color = 'white';
-                btn.style.border = 'none';
-                btn.style.borderRadius = '10px';
-                btn.disabled = true;
+            // 订阅推送
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+            
+            console.log('推送订阅成功:', subscription);
+            
+            // 发送订阅到服务器
+            const sent = await sendSubscriptionToServer(subscription);
+            
+            if (sent) {
+                alert('推送通知已启用！');
             } else {
-                btn.textContent = '授权失败，请重试';
+                alert('推送通知启用失败，请重试');
             }
-        } catch (e) {
-            console.error('授权失败:', e);
-            btn.textContent = '授权失败';
+        } else {
+            alert('您拒绝了推送通知权限');
         }
+    } catch (error) {
+        console.error('启用推送通知失败:', error);
+        alert('启用推送通知失败: ' + error.message);
+    }
+}
+
+
+// 辅助函数：Base64 转换
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+// 发送订阅信息到服务器
+async function sendSubscriptionToServer(subscription) {
+    try {
+        const response = await fetch('您的服务器端点/subscribe', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(subscription)
+        });
+        
+        if (!response.ok) {
+            throw new Error('发送订阅信息失败');
+        }
+        
+        console.log('订阅信息已发送到服务器');
+    } catch (error) {
+        console.error('发送订阅信息失败:', error);
+    }
+}
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('Service Worker 注册成功:', registration);
+            })
+            .catch(error => {
+                console.error('Service Worker 注册失败:', error);
+            });
     });
 }
 
@@ -7792,6 +7834,45 @@ function toggleStream() {
     updateSwitchState('stream-switch', APP_DATA.settings.stream);
     saveData();
 }
+
+// Base64 转换函数
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+// 发送订阅到服务器
+async function sendSubscriptionToServer(subscription) {
+    try {
+        const response = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'subscribe',
+                subscription: subscription
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('订阅失败');
+        }
+        
+        console.log('订阅成功发送到服务器');
+        return true;
+    } catch (error) {
+        console.error('发送订阅失败:', error);
+        return false;
+    }
+}
+
 
 </script>
 
