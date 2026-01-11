@@ -7426,7 +7426,7 @@ async function requestPushPermission() {
         
         if (permission === 'granted') {
             // 注册 Service Worker
-            const swPath = '/Linkgostart/sw.js';
+            const swPath = 'https://lingshing.github.io/Linkgostart/sw.js';
             const registration = await navigator.serviceWorker.register(swPath);
             await navigator.serviceWorker.ready;
             
