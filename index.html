@@ -7302,12 +7302,6 @@ function applyRegexToText(text) {
 }
  
 async function sendPushNotification(messageText) {
-    // 如果页面在前台，不发送通知
-    if (document.visibilityState === 'visible') {
-        console.log('应用在前台，不发送系统级推送通知');
-        return; 
-    }
-
     const WORKER_URL = "https://lkgo-push.ginkgo-yinxing.workers.dev/";
     
     try {
@@ -7315,21 +7309,22 @@ async function sendPushNotification(messageText) {
         const registration = await navigator.serviceWorker.ready;
         
         // 2. 获取推送订阅
-        const subscription = await registration.pushManager.getSubscription();
+        let subscription = await registration.pushManager.getSubscription();
         
+        // 如果没有订阅，先订阅
         if (!subscription) {
-            console.log('没有推送订阅');
-            return;
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
         }
         
-        // 3. 发送推送请求
+        // 3. 发送推送请求到 Cloudflare Worker
         const response = await fetch(WORKER_URL, {
             method: "POST",
-            mode: "cors",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
-                action: 'send',
-                subscription: subscription,
+                subscription: subscription.toJSON(),
                 message: messageText
             })
         });
@@ -7341,6 +7336,7 @@ async function sendPushNotification(messageText) {
         console.error("【推送失败】", e);
     }
 }
+
 
 
 
@@ -7891,24 +7887,6 @@ async function sendSubscriptionToServer(subscription) {
         console.error('发送订阅失败:', error);
         return false;
     }
-}
-async function subscribeToPush() {
-  const registration = await navigator.serviceWorker.ready;
-  
-  const permission = await Notification.requestPermission();
-  if (permission !== 'granted') return;
-
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: 'BB0Y_7xT1-C-_I-TgXqFPUrgi2iuo5gkgkUbtuwBn5ganWvdraCOniES3ocdaTDEWVFqrAw5jGvJuKrskKuFY00RE'
-  });
-
-  // 将subscription发送到服务器
-  await fetch('/api/subscribe', {
-    method: 'POST',
-    body: JSON.stringify(subscription),
-    headers: { 'Content-Type': 'application/json' }
-  });
 }
 
 
