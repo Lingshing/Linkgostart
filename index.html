@@ -7,7 +7,7 @@
     <link rel="manifest" href="https://lingshing.github.io/Linkgostart/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Linkgo⭐">
+    <meta name="apple-mobile-web-app-title" content="Linkgo">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -7300,11 +7300,13 @@ function applyRegexToText(text) {
         return text;
     }
 }
- async function sendPushNotification(messageText) {
+ 
+async function sendPushNotification(messageText) {
+    const appInBackground = document.visibilityState === 'hidden';
     // 如果页面在前台，不发送通知
-    if (!document.hidden && !appInBackground) {
-    console.log('应用在前台，不发送推送通知');
-    // 不要return，继续执行下面的推送逻辑
+    if (document.visibilityState === 'visible') {
+        console.log('应用在前台，不发送系统级推送通知');
+        return; 
     }
 
     
