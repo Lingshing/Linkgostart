@@ -26,7 +26,7 @@
             --input-bg: #f7f7f7;
             --input-border: #e0e0e0; 
             --radius-default: 16px; 
-            --bubble-radius: 6px; /* 需求4: 气泡圆角不要那么圆 */
+            --bubble-radius: 4px; /* 需求4: 气泡圆角不要那么圆 */
 
             --phone-width: 100%;
             --phone-height: 100vh;
@@ -7302,10 +7302,11 @@ function applyRegexToText(text) {
 }
  async function sendPushNotification(messageText) {
     // 如果页面在前台，不发送通知
-    if (document.visibilityState === 'visible') {
-        console.log('页面在前台，跳过推送通知');
-        return;
+    if (!document.hidden && !appInBackground) {
+    console.log('应用在前台，不发送推送通知');
+    // 不要return，继续执行下面的推送逻辑
     }
+
     
     // 你的 Cloudflare Worker URL（末尾加斜杠确保正确路由）
     const WORKER_URL = "https://lkgo-push.ginkgo-yinxing.workers.dev/";
@@ -7872,6 +7873,24 @@ async function sendSubscriptionToServer(subscription) {
         console.error('发送订阅失败:', error);
         return false;
     }
+}
+async function subscribeToPush() {
+  const registration = await navigator.serviceWorker.ready;
+  
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') return;
+
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: 'BB0Y_7xT1-C-_I-TgXqFPUrgi2iuo5gkgkUbtuwBn5ganWvdraCOniES3ocdaTDEWVFqrAw5jGvJuKrskKuFY00RE'
+  });
+
+  // 将subscription发送到服务器
+  await fetch('/api/subscribe', {
+    method: 'POST',
+    body: JSON.stringify(subscription),
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
 
 
