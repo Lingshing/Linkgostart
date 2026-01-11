@@ -7481,20 +7481,25 @@ async function sendSubscriptionToServer(subscription) {
         const response = await fetch('https://lkgo-push.ginkgo-yinxing.workers.dev/', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
-            body: JSON.stringify(subscription)
+            body: JSON.stringify({
+                subscription: subscription,
+                action: 'subscribe'  // ← 检查是否有这个字段
+            })
         });
         
         if (!response.ok) {
-            throw new Error('发送订阅信息失败');
+            throw new Error('订阅失败');
         }
         
-        console.log('订阅信息已发送到服务器');
+        return await response.json();
     } catch (error) {
-        console.error('发送订阅信息失败:', error);
+        console.error('发送订阅失败:', error);
+        throw error;
     }
 }
+
 
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
