@@ -6,7 +6,7 @@
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
-  "orientation": "portrait"
+  "orientation": "portrait",
   "icons": [
     {
       "src": "https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg",
@@ -15,6 +15,7 @@
     }
   ]
 }
+
 
 
 
