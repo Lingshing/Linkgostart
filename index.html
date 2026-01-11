@@ -7426,7 +7426,8 @@ async function requestPushPermission() {
         
         if (permission === 'granted') {
             // 注册 Service Worker
-            const registration = await navigator.serviceWorker.register('/Linkgostart/sw.js');
+            const swPath = '/Linkgostart/sw.js';
+            const registration = await navigator.serviceWorker.register(swPath);
             await navigator.serviceWorker.ready;
             
             console.log('Service Worker 已注册');
