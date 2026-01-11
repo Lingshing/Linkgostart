@@ -18,7 +18,7 @@ self.addEventListener('push', (event) => {
   let notificationData = {
     title: '新消息',
     body: '您有一条新消息',
-    icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg', // 替换为您的图标路径
+    icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg',
     tag: 'notification-tag',
     requireInteraction: false,
     data: {
@@ -122,6 +122,5 @@ function urlBase64ToUint8Array(base64String) {
 // 获取 VAPID 公钥（需要替换为您自己的公钥）
 function getVapidPublicKey() {
   // TODO: 替换为您的 VAPID 公钥
-  return 'BB0Y_7xT1-C-_I-TgXqFPUrgi2iuo5gkgkUbtuwBn5ganWvdraCOniES3ocdaTDEWVFqrAw5jGvJuKrskKuFY00RE';
+  return 'BB0Y_7xT1-C-_I-TgXqFPUrgi2iuo5gkgkUbtuwBn5ganWvdraCOniES3ocdaTDEWVFqrAw5jGvJuKrskKuFY00';
 }
-
