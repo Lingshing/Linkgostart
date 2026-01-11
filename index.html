@@ -7302,18 +7302,27 @@ function applyRegexToText(text) {
 }
  
 async function sendPushNotification(messageText) {
-    const appInBackground = document.visibilityState === 'hidden';
     // 如果页面在前台，不发送通知
     if (document.visibilityState === 'visible') {
         console.log('应用在前台，不发送系统级推送通知');
         return; 
     }
 
-    
-    // 你的 Cloudflare Worker URL（末尾加斜杠确保正确路由）
     const WORKER_URL = "https://lkgo-push.ginkgo-yinxing.workers.dev/";
     
     try {
+        // 1. 获取 Service Worker 注册对象
+        const registration = await navigator.serviceWorker.ready;
+        
+        // 2. 获取推送订阅
+        const subscription = await registration.pushManager.getSubscription();
+        
+        if (!subscription) {
+            console.log('没有推送订阅');
+            return;
+        }
+        
+        // 3. 发送推送请求
         const response = await fetch(WORKER_URL, {
             method: "POST",
             mode: "cors",
@@ -7332,6 +7341,7 @@ async function sendPushNotification(messageText) {
         console.error("【推送失败】", e);
     }
 }
+
 
 
 	// 控制静音音频播放的函数
