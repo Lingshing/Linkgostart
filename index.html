@@ -7320,6 +7320,7 @@ async function sendPushNotification(messageText) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 action: 'send',
+                subscription: subscription,
                 message: messageText
             })
         });
