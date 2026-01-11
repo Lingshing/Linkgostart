@@ -7493,17 +7493,17 @@ async function sendSubscriptionToServer(subscription) {
     }
 }
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-                console.log('Service Worker 注册成功:', registration);
-            })
-            .catch(error => {
-                console.error('Service Worker 注册失败:', error);
-            });
-    });
-}
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('https://lingshing.github.io/Linkgostart/sw.js')
+                .then(registration => {
+                    console.log('Service Worker 注册成功:', registration);
+                })
+                .catch(error => {
+                    console.error('Service Worker 注册失败:', error);
+                });
+        });
+    }
 
 // 页面加载时检查授权状态
 document.addEventListener('DOMContentLoaded', function() {
