@@ -7478,7 +7478,7 @@ function urlBase64ToUint8Array(base64String) {
 // 发送订阅信息到服务器
 async function sendSubscriptionToServer(subscription) {
     try {
-        const response = await fetch('您的服务器端点/subscribe', {
+        const response = await fetch('https://lkgo-push.ginkgo-yinxing.workers.dev/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
