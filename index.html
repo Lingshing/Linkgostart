@@ -3979,8 +3979,8 @@ async function mockAIResponse(userMessage, contact) {
     // 计算纯对话消息数量
     const userMessagesCount = contact.history.filter(m => m.role === 'user').length;
     
-    // 只有在用户消息数量是频率的倍数时才触发
-    if (userMessagesCount % interval !== 0 || contact.history.length < 5) {
+    // 改为：大于等于频率就触发（更宽松）
+    if (userMessagesCount < interval || contact.history.length < 5) {
         return;
     }
 
@@ -4039,12 +4039,14 @@ async function mockAIResponse(userMessage, contact) {
 
        try {
         console.log("发送日记总结请求到:", apiUrl); 
-        const response = await fetch(apiUrl, {
+        const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'Authorization': `Bearer ${apiKey}`,
+                'X-Target-API': apiUrl  // 使用你的代理
             },
+
             body: JSON.stringify({
                 model: model,
                 messages: summaryMessages,
