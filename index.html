@@ -7376,15 +7376,15 @@ function applyRegexToText(text) {
     }
 }
  
-// === 2. 发送函数 (带防空拦截) ===
+// === 2. 发送函数 (读取全局状态 + 防空拦截) ===
 async function sendPushNotification(messageText) {
-    // 【核心拦截】如果内容是空的，或者不是字符串，直接不发！
+    // 【拦截空消息】如果内容为空，绝对不发送，防止出现“新消息”占位符
     if (!messageText || typeof messageText !== 'string' || messageText.trim() === "") {
-        console.log("拦截到空推送，已取消发送");
         return;
     }
 
-    const WORKER_URL = "https://my-push-worker.ginkgo-yinxing.workers.dev"; // 确认这是你的地址
+    // 请确认这是你的 Worker 地址
+    const WORKER_URL = "https://my-push-worker.ginkgo-yinxing.workers.dev";
     
     try {
         if (!('serviceWorker' in navigator)) return;
@@ -7398,21 +7398,17 @@ async function sendPushNotification(messageText) {
             });
         }
         
-        // 读取全局开关状态
-        const shouldShow = window.isNotificationContentEnabled;
+        // 【关键修复】读取 window 上的全局变量
+        // 这样发第二条、第三条消息时，它依然能记得开关的状态
+        const shouldShowContent = window.isNotificationContentEnabled;
         
-        // 如果开关开了 -> 发原文
-        // 如果开关关了 -> 发固定文案
-        let finalContent = shouldShow ? messageText : "收到一条新消息";
+        // 决定发送内容
+        let finalContent = shouldShowContent ? messageText : "收到一条新消息";
         
-        // 再次兜底：如果 finalContent 还是空的（几乎不可能），设为默认值
-        if (!finalContent) finalContent = "新消息";
-
         // 截取前100字
         finalContent = String(finalContent).substring(0, 100);
 
-        console.log(`正在推送 (开关:${shouldShow}):`, finalContent);
-
+        // 发送
         await fetch(WORKER_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -7423,7 +7419,7 @@ async function sendPushNotification(messageText) {
         });
         
     } catch (e) {
-        console.error("推送出错:", e);
+        console.error("推送失败", e);
     }
 }
 
