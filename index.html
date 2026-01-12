@@ -2018,7 +2018,23 @@ input[type="number"]::-webkit-inner-spin-button {
                     </div>
                     
 <div class="settings-group">
-    <h4>通知服务</h4>
+    <h4 style="margin-bottom: 5px;">通知服务</h4>
+    <div style="margin-bottom: 20px">
+    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+        <label style="font-weight: bold; font-size: 14px; color: var(--text-color-primary); margin-right: 10px;">通知显示内容</label>
+        
+        <div class="theme-switch-track clickable" 
+             style="width: 40px; height: 20px; background: var(--accent-color); margin-top: 9px;" 
+             onclick="toggleNotificationContent()" 
+             id="notification-content-switch">
+             
+            <div class="theme-switch-thumb" style="width: 18px; height: 18px; top: 1px; left: 1px; transform: translateX(20px);"></div>
+        </div>
+     </div>
+     <p style="font-size: 12px; color: #666; margin-top: -5px;">
+         关闭后通知仅显示“收到新消息”，保护隐私。
+     </p>
+</div>
     <div style="display: flex; justify-content: center;">
         <button id="push-auth-btn" onclick="requestPushPermission()" 
                 style="flex: 1; padding: 12px; background: var(--accent-color); color: white; 
@@ -2027,6 +2043,7 @@ input[type="number"]::-webkit-inner-spin-button {
             允许接收通知
         </button>
     </div>
+    
 </div>
 
                                         <!-- 数据管理 -->
@@ -7311,16 +7328,18 @@ function applyRegexToText(text) {
 }
  
 async function sendPushNotification(messageText) {
+    // 你的 Worker 地址
     const WORKER_URL = "https://my-push-worker.ginkgo-yinxing.workers.dev";
     
     try {
-        // 1. 获取 Service Worker 注册对象
+        // 1. 基础检查
+        if (!('serviceWorker' in navigator)) return;
         const registration = await navigator.serviceWorker.ready;
         
-        // 2. 获取推送订阅
+        // 2. 获取订阅
         let subscription = await registration.pushManager.getSubscription();
         
-        // 如果没有订阅，先订阅
+        // 如果没有订阅，尝试自动订阅 (使用你的 VAPID key)
         if (!subscription) {
             subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
@@ -7328,13 +7347,21 @@ async function sendPushNotification(messageText) {
             });
         }
         
-        // 3. 发送推送请求到 Cloudflare Worker
+        // 3. 【关键修改】根据开关状态决定发送什么文字
+        // 如果开关是 true，发送 AI 的原话 (messageText)
+        // 如果开关是 false，发送 "收到一条新消息"
+        let finalContent = isNotificationContentEnabled ? messageText : "收到一条新消息";
+        
+        // 截取前100字，防止太长
+        finalContent = String(finalContent).substring(0, 100);
+
+        // 4. 发送给 Worker
         const response = await fetch(WORKER_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 subscription: subscription.toJSON(),
-                message: messageText
+                message: finalContent 
             })
         });
         
@@ -7345,7 +7372,6 @@ async function sendPushNotification(messageText) {
         console.error("【推送失败】", e);
     }
 }
-
 
 
 
@@ -7901,8 +7927,29 @@ async function sendSubscriptionToServer(subscription) {
         return false;
     }
 }
+// === 通知内容开关逻辑 ===
 
+// === 最终修正版 JS：完全使用你的 CSS 变量 ===
+let isNotificationContentEnabled = true; // 默认开启
 
+function toggleNotificationContent() {
+    isNotificationContentEnabled = !isNotificationContentEnabled; // 切换状态
+    
+    const switchEl = document.getElementById('notification-content-switch');
+    const thumbEl = switchEl.querySelector('.theme-switch-thumb');
+    
+    if (isNotificationContentEnabled) {
+        // 开启状态：使用你的主色变量
+        switchEl.style.background = 'var(--accent-color)'; 
+        thumbEl.style.transform = 'translateX(20px)';
+    } else {
+        // 关闭状态：使用你的边框变量 (灰色)
+        switchEl.style.background = 'var(--input-border)';
+        thumbEl.style.transform = 'translateX(0px)';
+    }
+    
+    console.log("通知内容显示:", isNotificationContentEnabled);
+}
 </script>
 
 <!-- 配置管理弹窗 -->
