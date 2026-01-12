@@ -3543,11 +3543,19 @@ async function displaySentences(sentences, originalText, firstBubble, firstMsgDi
         if (i === 0) {
              // 第一句使用原来的气泡
             firstBubble.textContent = sentence;
+            if (window.isNotificationContentEnabled) {
+                await sendPushNotification(sentence);
+            }
+
             addClickToBubble(firstBubble);
         } else {
             // 后续句子创建新的气泡
             const newBubble = createNewBubble(sentence, firstMsgDiv);
             addClickToBubble(newBubble);
+            if (window.isNotificationContentEnabled) {
+                await sendPushNotification(sentence);
+            }
+
         }
 
         
@@ -3942,7 +3950,6 @@ async function mockAIResponse(userMessage, contact) {
         console.log("API响应状态:", response.status, response.statusText);
         
        if (response.ok) {
-            sendPushNotification("新消息");
             const rawText = await response.text(); 
             console.log("服务器返回的原始数据:", rawText);
 
@@ -3981,18 +3988,6 @@ async function mockAIResponse(userMessage, contact) {
             // 强力删除所有正斜线并应用正则 [cite: 755, 756]
             result = result.replace(/\//g, '');
             result = applyRegexToText(result); 
-            
-            // =========== 👇 最终版代码 👇 ===========
-            if (result && result.length > 0) {
-                // 将 AI 的回复截取前 100 个字
-                const textToSend = result.substring(0, 100);
-                
-                // 把“真实文字”传给后端，让后端加密发回来
-                // 注意：这里我们只保留 sendPushNotification，删掉 navigator.serviceWorker.ready...
-                // 因为现在后端发的通知里已经有字了，不需要前端自己弹了，避免弹两次。
-                sendPushNotification(textToSend); 
-            }
-            // =========== 👆 结束 👆 ===========
 
             if (currentContact) {
                 saveData(); // [cite: 757]
