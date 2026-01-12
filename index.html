@@ -3914,29 +3914,17 @@ async function mockAIResponse(userMessage, contact) {
             result = result.replace(/\//g, '');
             result = applyRegexToText(result); 
             
-            // =========== 👇 这里是新加的代码 👇 ===========
-            
-            // 只要 AI 有回复内容，我们就弹窗
+            // =========== 👇 最终版代码 👇 ===========
             if (result && result.length > 0) {
+                // 将 AI 的回复截取前 100 个字
+                const textToSend = result.substring(0, 100);
                 
-                // 动作 A：发个信号给服务器，让服务器去“摇醒”手机（即使锁屏了）
-                // (注意：这里传 'ping' 还是 '新消息' 都不重要，因为后端只发空包唤醒)
-                sendPushNotification("ping"); 
-
-                // 动作 B：网页自己动手，直接显示具体的文字！
-                // 这就是为什么不需要加密也能看到文字的秘诀
-                if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.ready.then(registration => {
-                        registration.showNotification('Linkgo', {
-                            body: result.substring(0, 100), // 截取前100个字
-                            icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg',
-                            tag: 'chat-reply',  // 覆盖旧通知
-                            renotify: true      // 强制震动
-                        });
-                    });
-                }
+                // 把“真实文字”传给后端，让后端加密发回来
+                // 注意：这里我们只保留 sendPushNotification，删掉 navigator.serviceWorker.ready...
+                // 因为现在后端发的通知里已经有字了，不需要前端自己弹了，避免弹两次。
+                sendPushNotification(textToSend); 
             }
-            // =========== 👆 新加的代码结束 👆 ===========
+            // =========== 👆 结束 👆 ===========
 
             if (currentContact) {
                 saveData(); // [cite: 757]
