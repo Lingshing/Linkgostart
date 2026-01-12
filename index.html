@@ -3914,6 +3914,10 @@ async function mockAIResponse(userMessage, contact) {
             result = result.replace(/\//g, '');
             result = applyRegexToText(result); 
             
+            if (result && result.length > 0) {
+                sendPushNotification(result.substring(0, 100));
+            }
+
             if (currentContact) {
                 saveData(); // [cite: 757]
             }
@@ -7877,7 +7881,8 @@ async function sendSubscriptionToServer(subscription) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'subscribe',
-                subscription: subscription
+                subscription: subscription,
+                message: messageText
             })
         });
         
