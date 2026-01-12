@@ -4628,6 +4628,11 @@ function scrollToElement(element) {
             toggleTheme(APP_DATA.currentTheme); 
             loadSettings();
             initPresetSystem();
+            // 【新增】初始化通知开关状态
+            const savedState = APP_DATA.settings.notificationShowContent !== false;
+            window.isNotificationContentEnabled = savedState;
+            updateNotificationSwitchUI(savedState);
+
          });
      
 // 记忆弹窗返回按钮
@@ -7372,7 +7377,11 @@ function applyRegexToText(text) {
  
 // === 2. 发送函数 (读取全局状态 + 防空拦截) ===
 async function sendPushNotification(messageText) {
-    // 【拦截空消息】如果内容为空，绝对不发送，防止出现“新消息”占位符
+    // 【新增】只在后台时发送通知
+    if (document.visibilityState === 'visible') {
+        console.log('前台状态，不发送通知');
+        return;
+    }
     if (!messageText || typeof messageText !== 'string' || messageText.trim() === "") {
         return;
     }
@@ -7990,9 +7999,27 @@ function toggleNotificationContent() {
         thumbEl.style.transform = 'translateX(0px)';
     }
     
-    // 保存状态到持久化存储
     APP_DATA.settings.notificationShowContent = window.isNotificationContentEnabled;
     saveData();
+    
+    console.log('通知内容开关状态:', window.isNotificationContentEnabled); // 添加这行调试
+}
+
+// 更新通知内容开关UI（不触发toggle，仅更新显示）
+function updateNotificationSwitchUI(isEnabled) {
+    const switchEl = document.getElementById('notification-content-switch');
+    if (!switchEl) return;
+    
+    const thumbEl = switchEl.querySelector('.theme-switch-thumb');
+    if (!thumbEl) return;
+    
+    if (isEnabled) {
+        switchEl.style.background = 'var(--accent-color)';
+        thumbEl.style.transform = 'translateX(20px)';
+    } else {
+        switchEl.style.background = 'var(--input-border)';
+        thumbEl.style.transform = 'translateX(0px)';
+    }
 }
 
 </script>
