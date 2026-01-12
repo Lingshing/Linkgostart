@@ -3525,14 +3525,10 @@ async function displaySentences(sentences, originalText, firstBubble, firstMsgDi
              // 第一句使用原来的气泡
             firstBubble.textContent = sentence;
             addClickToBubble(firstBubble);
-            // 发送第一句的通知
-            sendPushNotification(sentence.substring(0, 60));
         } else {
             // 后续句子创建新的气泡
             const newBubble = createNewBubble(sentence, firstMsgDiv);
             addClickToBubble(newBubble);
-            // 发送后续句子的通知
-             sendPushNotification(sentence.substring(0, 60));
         }
 
         
@@ -3878,7 +3874,19 @@ async function mockAIResponse(userMessage, contact) {
         console.log("API响应状态:", response.status, response.statusText);
         
        if (response.ok) {
-            const rawText = await response.text(); 
+            const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
+            // ... headers 和 body ...
+            signal: currentController.signal
+        });
+
+        console.log("API响应状态:", response.status, response.statusText);
+        
+        if (response.ok) {
+            // 【在这里插入】一收到服务器响应，立刻发通知！
+            // 不用等 await response.text() 读完，直接发
+            sendPushNotification("新消息"); 
+
+            const rawText = await response.text(); // 这行是原本最耗时的等待
             console.log("服务器返回的原始数据:", rawText);
 
             let result = "";
