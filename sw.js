@@ -12,48 +12,24 @@ self.addEventListener('activate', (event) => {
 });
 
 // 处理推送事件
+// 处理推送事件
 self.addEventListener('push', (event) => {
-    console.log('🔔 收到push事件！', event);
-    console.log('收到推送消息:', event);
-  
-  let notificationData = {
-    title: '新消息',
-    body: '您有一条新消息',
-    icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg',
-    tag: 'notification-tag',
-    requireInteraction: false,
-    data: {
-      url: self.registration.scope
-    }
-  };
+    console.log('🔔 收到后端发来的信号 (空包)');
+    
+    // 因为后端发来的是空包，所以我们在前端“写死”提示文案
+    const title = 'Linkgo';
+    const options = {
+        body: '✨ 你有一条新消息', // 这里是可以修改的提示语
+        icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg',
+        tag: 'chat-reply',    // 标签：多条消息会折叠或覆盖
+        renotify: true,       // 即使标签一样，新消息到了也要震动/响铃
+        requireInteraction: false // 不需要用户手动关闭，几秒后自动消失
+    };
 
-  // 如果推送包含数据，解析它
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      notificationData = {
-        ...notificationData,
-        ...data
-      };
-    } catch (e) {
-      console.log('推送数据不是 JSON 格式，使用文本:', event.data.text());
-      notificationData.body = event.data.text();
-    }
-  }
+    // 强制显示通知
+    const promiseChain = self.registration.showNotification(title, options);
 
-  const promiseChain = self.registration.showNotification(
-    notificationData.title,
-    {
-      body: notificationData.body,
-      icon: notificationData.icon,
-      badge: notificationData.badge,
-      tag: notificationData.tag,
-      requireInteraction: notificationData.requireInteraction,
-      data: notificationData.data
-    }
-  );
-
-  event.waitUntil(promiseChain);
+    event.waitUntil(promiseChain);
 });
 
 // 处理通知点击事件
@@ -124,7 +100,6 @@ function urlBase64ToUint8Array(base64String) {
 function getVapidPublicKey() {
   return 'BKXLKgheQ0pGxeVUifzMecruF3o7OkniEkNSbBUM9sKIeUKn2M8NGG5h3YUV2YrHxzAoHS9-ILmz2MlrSoHt4NU';
 }
-
 
 
 
