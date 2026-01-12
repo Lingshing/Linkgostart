@@ -7440,39 +7440,36 @@ async function requestPushPermission() {
     }
 
     try {
-        // 请求通知权限
         const permission = await Notification.requestPermission();
-        
         if (permission === 'granted') {
-            // 注册 Service Worker
-            const swPath = 'https://lingshing.github.io/Linkgostart/sw.js';
+            // 【重要修改】使用相对路径 ./sw.js
+            // 请确保 sw.js 文件和你的 index.html 文件在同一个文件夹里！
+            const swPath = './sw.js'; 
+            
             const registration = await navigator.serviceWorker.register(swPath);
             await navigator.serviceWorker.ready;
             
             console.log('Service Worker 已注册');
             
-            // 订阅推送
+            // 订阅
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
             });
             
-            console.log('推送订阅成功:', subscription);
-            
-            // 发送订阅到服务器
+            // 发送给服务器
             const sent = await sendSubscriptionToServer(subscription);
-            
             if (sent) {
-                alert('推送通知已启用！');
+                alert('通知已开启！\n如果是iPhone，请确保已点击分享按钮“添加到主屏幕”。');
             } else {
-                alert('推送通知启用失败，请重试');
+                alert('通知开启失败：无法连接服务器');
             }
         } else {
-            alert('您拒绝了推送通知权限');
+            alert('您拒绝了通知权限，无法接收消息。');
         }
     } catch (error) {
-        console.error('启用推送通知失败:', error);
-        alert('启用推送通知失败: ' + error.message);
+        console.error('注册失败:', error);
+        alert('出错啦: ' + error.message);
     }
 }
 
