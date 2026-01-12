@@ -59,25 +59,29 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// 处理推送订阅变化
-self.addEventListener('pushsubscriptionchange', (event) => {
-  console.log('推送订阅发生变化');
+// 处理推送事件
+self.addEventListener('push', (event) => {
+  console.log('🔔 收到加密推送！');
   
-  event.waitUntil(
-    self.registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(getVapidPublicKey())
-    })
-    .then((subscription) => {
-      console.log('重新订阅成功:', subscription);
-      // 这里应该将新的订阅信息发送到服务器
-      return fetch('/api/update-subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(subscription)
-      });
-    })
-  );
+  let bodyText = '收到新消息'; // 默认值
+
+  if (event.data) {
+    // 因为后端加密了，所以这里可以直接用 .text() 拿到解密后的明文！
+    // 没错，浏览器会自动帮你解密 AES-GCM
+    bodyText = event.data.text(); 
+  }
+
+  const title = 'Linkgo'; // 或者 '新回复'
+  const options = {
+      body: bodyText, // 【重点】这里显示的就是 AI 真实说的话了
+      icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg',
+      tag: 'chat-reply',
+      renotify: true,
+      requireInteraction: false
+  };
+
+  const promiseChain = self.registration.showNotification(title, options);
+  event.waitUntil(promiseChain);
 });
 
 // 辅助函数：将 VAPID 公钥从 Base64 转换为 Uint8Array
@@ -100,9 +104,3 @@ function urlBase64ToUint8Array(base64String) {
 function getVapidPublicKey() {
   return 'BKXLKgheQ0pGxeVUifzMecruF3o7OkniEkNSbBUM9sKIeUKn2M8NGG5h3YUV2YrHxzAoHS9-ILmz2MlrSoHt4NU';
 }
-
-
-
-
-
-
