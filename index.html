@@ -7376,19 +7376,21 @@ function applyRegexToText(text) {
     }
 }
  
+// === 2. 发送函数 (带防空拦截) ===
 async function sendPushNotification(messageText) {
-    // 你的 Worker 地址
-    const WORKER_URL = "https://my-push-worker.ginkgo-yinxing.workers.dev";
+    // 【核心拦截】如果内容是空的，或者不是字符串，直接不发！
+    if (!messageText || typeof messageText !== 'string' || messageText.trim() === "") {
+        console.log("拦截到空推送，已取消发送");
+        return;
+    }
+
+    const WORKER_URL = "https://my-push-worker.ginkgo-yinxing.workers.dev"; // 确认这是你的地址
     
     try {
-        // 1. 基础检查
         if (!('serviceWorker' in navigator)) return;
         const registration = await navigator.serviceWorker.ready;
-        
-        // 2. 获取订阅
         let subscription = await registration.pushManager.getSubscription();
         
-        // 如果没有订阅，尝试自动订阅 (使用你的 VAPID key)
         if (!subscription) {
             subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
@@ -7396,16 +7398,22 @@ async function sendPushNotification(messageText) {
             });
         }
         
-        // 3. 【关键修改】根据开关状态决定发送什么文字
-        // 如果开关是 true，发送 AI 的原话 (messageText)
-        // 如果开关是 false，发送 "收到一条新消息"
-        let finalContent = isNotificationContentEnabled ? messageText : "收到一条新消息";
+        // 读取全局开关状态
+        const shouldShow = window.isNotificationContentEnabled;
         
-        // 截取前100字，防止太长
+        // 如果开关开了 -> 发原文
+        // 如果开关关了 -> 发固定文案
+        let finalContent = shouldShow ? messageText : "收到一条新消息";
+        
+        // 再次兜底：如果 finalContent 还是空的（几乎不可能），设为默认值
+        if (!finalContent) finalContent = "新消息";
+
+        // 截取前100字
         finalContent = String(finalContent).substring(0, 100);
 
-        // 4. 发送给 Worker
-        const response = await fetch(WORKER_URL, {
+        console.log(`正在推送 (开关:${shouldShow}):`, finalContent);
+
+        await fetch(WORKER_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
@@ -7414,11 +7422,8 @@ async function sendPushNotification(messageText) {
             })
         });
         
-        const result = await response.json();
-        console.log("【推送结果】", result);
-        
     } catch (e) {
-        console.error("【推送失败】", e);
+        console.error("推送出错:", e);
     }
 }
 
@@ -7982,22 +7987,23 @@ async function sendSubscriptionToServer(subscription) {
 let isNotificationContentEnabled = true; // 默认开启
 
 function toggleNotificationContent() {
-    isNotificationContentEnabled = !isNotificationContentEnabled; // 切换状态
+    // 切换全局状态
+    window.isNotificationContentEnabled = !window.isNotificationContentEnabled;
     
     const switchEl = document.getElementById('notification-content-switch');
     const thumbEl = switchEl.querySelector('.theme-switch-thumb');
     
-    if (isNotificationContentEnabled) {
-        // 开启状态：使用你的主色变量
+    if (window.isNotificationContentEnabled) {
+        // 开启状态：使用你的强调色变量
         switchEl.style.background = 'var(--accent-color)'; 
         thumbEl.style.transform = 'translateX(20px)';
     } else {
-        // 关闭状态：使用你的边框变量 (灰色)
+        // 关闭状态：使用灰色边框变量
         switchEl.style.background = 'var(--input-border)';
         thumbEl.style.transform = 'translateX(0px)';
     }
     
-    console.log("通知内容显示:", isNotificationContentEnabled);
+    console.log("全局通知开关状态:", window.isNotificationContentEnabled);
 }
 </script>
 
