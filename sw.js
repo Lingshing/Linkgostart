@@ -1,5 +1,5 @@
 // Web Push Service Worker
-// 最终版：只保留一个监听器，处理加密文字
+// 作用：当网页被杀后台时，接收空包唤醒手机，提示“有新消息”
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -9,61 +9,41 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// 【唯一的】推送事件处理
+// 处理推送事件
 self.addEventListener('push', (event) => {
-  console.log('🔔 收到推送信号');
+  console.log('🔔 收到后台唤醒信号');
   
-  // 1. 设置默认文案（万一解密失败，至少显示这个）
-  let msgBody = '✨ 你有一条新消息'; 
-  
-  // 2. 尝试提取加密内容
-  if (event.data) {
-    try {
-      // 这一步会自动解密 AES-GCM 数据
-      msgBody = event.data.text();
-      console.log('✅ 解密成功:', msgBody);
-    } catch (e) {
-      console.error('❌ 解密失败 (可能是密钥不匹配):', e);
-      // 解密失败时不覆盖 msgBody，保持默认文案，确保至少能弹窗
-    }
-  } else {
-    console.log('⚠️ 收到空包 (无数据)');
-  }
-
-  // 3. 弹窗配置
-  const title = 'Linkgo'; 
+  // 这里只显示通用的提示，作为“保底”
+  // 如果你的网页在前台，网页自己会弹详细文字；
+  // 如果网页被杀后台了，这里负责叫醒用户，提示有消息。
   const options = {
-      body: msgBody, 
+      body: '✨ 你有一条新消息', 
       icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg',
-      badge: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg',
-      tag: 'chat-reply', // 相同的 tag 会覆盖旧通知
-      renotify: true,    // 强制震动/响铃
+      tag: 'chat-reply',
+      renotify: true,
       requireInteraction: false
   };
 
-  // 4. 显示通知
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(self.registration.showNotification('Linkgo', options));
 });
 
-// 通知的点击事件
+// 处理点击事件
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  // 点击后打开主页
-  const urlToOpen = self.registration.scope; 
-
+  // 点击通知，打开网页
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
         // 如果已有窗口，聚焦它
         for (let i = 0; i < clientList.length; i++) {
           const client = clientList[i];
-          if (client.url === urlToOpen && 'focus' in client) {
+          if (client.url === self.registration.scope && 'focus' in client) {
             return client.focus();
           }
         }
         // 否则打开新窗口
         if (self.clients.openWindow) {
-          return self.clients.openWindow(urlToOpen);
+          return self.clients.openWindow(self.registration.scope);
         }
       })
   );
