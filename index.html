@@ -3543,18 +3543,15 @@ async function displaySentences(sentences, originalText, firstBubble, firstMsgDi
         if (i === 0) {
              // 第一句使用原来的气泡
             firstBubble.textContent = sentence;
-            if (window.isNotificationContentEnabled) {
-                await sendPushNotification(sentence);
-            }
+            await sendPushNotification(sentence);
+
 
             addClickToBubble(firstBubble);
         } else {
             // 后续句子创建新的气泡
             const newBubble = createNewBubble(sentence, firstMsgDiv);
             addClickToBubble(newBubble);
-            if (window.isNotificationContentEnabled) {
                 await sendPushNotification(sentence);
-            }
 
         }
 
