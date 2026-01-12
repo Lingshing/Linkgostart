@@ -2171,7 +2171,7 @@ input[type="number"]::-webkit-inner-spin-button {
     <script>
      // Web Push 配置
         const VAPID_PUBLIC_KEY = 'BKXLKgheQ0pGxeVUifzMecruF3o7OkniEkNSbBUM9sKIeUKn2M8NGG5h3YUV2YrHxzAoHS9-ILmz2MlrSoHt4NU'; // 替换为您生成的公钥
-        const WORKER_URL = 'https://lkgo-push.ginkgo-yinxing.workers.dev';
+        const WORKER_URL = 'https://my-push-worker.ginkgo-yinxing.workers.dev';
 
 	// 初始化分词器，指定中文环境 
 	const segmenter = new Intl.Segmenter('zh-Hans', { granularity: 'word' });
@@ -7311,7 +7311,7 @@ function applyRegexToText(text) {
 }
  
 async function sendPushNotification(messageText) {
-    const WORKER_URL = "https://lkgo-push.ginkgo-yinxing.workers.dev/";
+    const WORKER_URL = "https://my-push-worker.ginkgo-yinxing.workers.dev";
     
     try {
         // 1. 获取 Service Worker 注册对象
@@ -7492,7 +7492,7 @@ function urlBase64ToUint8Array(base64String) {
 async function sendSubscriptionToServer(subscription) {
     try {
         console.log("准备发送订阅信息...");
-        const response = await fetch('https://lkgo-push.ginkgo-yinxing.workers.dev/', {
+        const response = await fetch('https://my-push-worker.ginkgo-yinxing.workers.dev', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
