@@ -3914,9 +3914,29 @@ async function mockAIResponse(userMessage, contact) {
             result = result.replace(/\//g, '');
             result = applyRegexToText(result); 
             
+            // =========== 👇 这里是新加的代码 👇 ===========
+            
+            // 只要 AI 有回复内容，我们就弹窗
             if (result && result.length > 0) {
-                sendPushNotification(result.substring(0, 100));
+                
+                // 动作 A：发个信号给服务器，让服务器去“摇醒”手机（即使锁屏了）
+                // (注意：这里传 'ping' 还是 '新消息' 都不重要，因为后端只发空包唤醒)
+                sendPushNotification("ping"); 
+
+                // 动作 B：网页自己动手，直接显示具体的文字！
+                // 这就是为什么不需要加密也能看到文字的秘诀
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.ready.then(registration => {
+                        registration.showNotification('Linkgo', {
+                            body: result.substring(0, 100), // 截取前100个字
+                            icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg',
+                            tag: 'chat-reply',  // 覆盖旧通知
+                            renotify: true      // 强制震动
+                        });
+                    });
+                }
             }
+            // =========== 👆 新加的代码结束 👆 ===========
 
             if (currentContact) {
                 saveData(); // [cite: 757]
