@@ -7983,24 +7983,24 @@ async function sendSubscriptionToServer(subscription) {
 let isNotificationContentEnabled = true; // 默认开启
 
 function toggleNotificationContent() {
-    // 切换全局状态
     window.isNotificationContentEnabled = !window.isNotificationContentEnabled;
     
     const switchEl = document.getElementById('notification-content-switch');
     const thumbEl = switchEl.querySelector('.theme-switch-thumb');
     
     if (window.isNotificationContentEnabled) {
-        // 开启状态：使用你的强调色变量
         switchEl.style.background = 'var(--accent-color)'; 
         thumbEl.style.transform = 'translateX(20px)';
     } else {
-        // 关闭状态：使用灰色边框变量
         switchEl.style.background = 'var(--input-border)';
         thumbEl.style.transform = 'translateX(0px)';
     }
     
-    console.log("全局通知开关状态:", window.isNotificationContentEnabled);
+    // 保存状态到持久化存储
+    APP_DATA.settings.notificationShowContent = window.isNotificationContentEnabled;
+    saveData();
 }
+
 </script>
 
 <!-- 配置管理弹窗 -->
