@@ -1,42 +1,50 @@
-// Web Push Service Worker - 解密版
-
+// Service Worker - 接收推送通知
 self.addEventListener('install', (e) => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
 self.addEventListener('push', (event) => {
-  console.log('🔔 收到推送');
+  console.log('🔔 收到推送信号');
   
-  let msgBody = '✨ 你有一条新消息'; // 默认值
+  let msgBody = '收到一条新消息'; // 默认内容
 
-  // 尝试读取后端发来的加密文字
   if (event.data) {
     try {
-      // 这一步会自动解密，拿到我们在 Worker 里发的 textToSend
-      msgBody = event.data.text(); 
+      // 尝试把加密数据转成文字
+      const text = event.data.text();
+      console.log('解密内容:', text);
+      if (text) {
+        msgBody = text; // 如果有字，就用解密出来的字
+      }
     } catch (e) {
-      console.error('解密失败:', e);
+      console.error('解密出错了:', e);
+      msgBody = '收到一条新消息 (内容解密失败)';
     }
   }
 
-  // 弹窗
+  // 手机通知的配置
   const options = {
-      body: msgBody, // 这里显示的就是真实文字！
-      icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg',
-      tag: 'chat-reply',
-      renotify: true,
+      body: msgBody, 
+      icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg', // 你的图标
+      tag: 'chat-msg', // 相同的tag会覆盖上一条
+      renotify: true,  // 强制震动
       requireInteraction: false
   };
 
   event.waitUntil(self.registration.showNotification('Linkgo', options));
 });
 
+// 点击通知时的操作
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  // 点击后打开或回到聊天页面
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then(list => {
-        if (list.length > 0) return list[0].focus();
-        return self.clients.openWindow(self.registration.scope);
-      })
+    clients.matchAll({ type: 'window' }).then(clientList => {
+      for (const client of clientList) {
+        if (client.url.includes('Linkgo') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow('./');
+    })
   );
 });
