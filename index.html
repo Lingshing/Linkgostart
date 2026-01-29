@@ -462,45 +462,16 @@
 
 .chat-message.user .avatar { display: none; } /* 用户无头像 */
 
- /* --- 开始：替换后的样式 --- */
-
-/* 1. 新增：定义上滑淡入动画 */
-@keyframes bubbleSlideUp {
-    0% {
-        opacity: 0;
-        transform: translateY(20px) scale(0.95); /* 从下方20像素、稍微缩小一点开始 */
-    }
-    100% {
-        opacity: 1;
-        transform: translateY(0) scale(1); /* 回到正常位置和大小 */
-    }
-}
-
-/* 1. 定义整体上滑动画 (去掉缩放，只保留位移和透明度) */
-@keyframes messageSlideUp {
-    0% {
-        opacity: 0;
-        transform: translateY(20px); /* 整体从下方20像素处滑上来 */
-    }
-    100% {
-        opacity: 1;
-        transform: translateY(0);    /* 到位 */
-    }
-}
-
-/* 2. 修改父容器：把动画加在这里，让头像和气泡一起动 */
+/* 消息容器：干干净净，没有任何 animation */
 .chat-message {
     margin-bottom: 15px;
     display: flex;
     align-items: flex-start;
     width: 100%;
-    
-    /* 核心修改：动画加在整行上 */
-    animation: messageSlideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-    will-change: transform, opacity;
+    /* 删除了 animation 属性，确保气泡生成时是静止的 */
 }
 
-/* 3. 气泡样式：去掉之前的动画 */
+/* 3. 气泡样式：去掉之前的禁用代码，保持干净 */
 .chat-message .bubble {
     max-width: 70%;
     padding: 10px 12px;
@@ -511,10 +482,10 @@
     word-wrap: break-word;
     position: relative;
     
-    /* 核心修改：这里不需要动画了，也不要缩放 */
-    animation: none !important; 
-    transform: none !important;
+    /* 核心修改：这里不要再写 animation: none !important 了 */
 }
+
+/* --- 结束：替换代码 --- */
 
 /* 4. 保持 AI 气泡的特定样式 */
 .chat-message.ai .bubble {
@@ -562,7 +533,7 @@
     right: 0;
     bottom: 0;
     overflow-y: auto;
-    padding: 15px 0 10px 0;
+    padding: 15px 0 5px 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
     scroll-behavior: auto !important;
@@ -3038,7 +3009,7 @@ item.onclick = () => {
     // 【关键修改】在动画开始前就渲染消息
    renderMessages(currentContact.history.slice(-20));
   
-   scrollToBottom();
+   scrollToBottomInstant();
 }
         
        function exitChatWindow() {
@@ -3066,26 +3037,21 @@ item.onclick = () => {
     }, 300);
 }
 
-       function renderMessages(history, startFromEnd = true) {
+       /* --- 4. 修复：加载历史时彻底禁止动画，只在最后瞬间置底 --- */
+function renderMessages(history, startFromEnd = true) {
     const container = document.getElementById('chat-messages');
-    
     if (startFromEnd) {
-        // 从最后开始显示
         currentStartIndex = Math.max(0, history.length - PAGE_SIZE);
     }
     
     const messagesToShow = history.slice(currentStartIndex);
-    
-    // 清空容器但保留加载提示
     const loadingElement = document.getElementById('loading-more');
     container.innerHTML = '';
     if (loadingElement) {
         container.appendChild(loadingElement);
     }
     
-    // 渲染消息
     let segmentGroup = [];
-    
     messagesToShow.forEach((msg, index) => {
         if (msg.role === 'ai' && msg.isSegment && msg.segmentIndex !== undefined) {
             if (msg.segmentIndex === 0) {
@@ -3101,7 +3067,8 @@ item.onclick = () => {
                 displaySegmentGroup(segmentGroup, container);
                 segmentGroup = [];
             }
-            appendMessageToDOM(msg.content, msg.role, false);
+            // 【关键】：这里传入 true，加载历史时不要做动画！
+            appendMessageToDOM(msg.content, msg.role, false, true);
         }
     });
     
@@ -3109,6 +3076,7 @@ item.onclick = () => {
         displaySegmentGroup(segmentGroup, container);
     }
     
+    // 最后一步：0秒瞬间置底
     scrollToBottomInstant();
 }
 
@@ -3139,29 +3107,78 @@ function loadMoreMessages() {
     }, 300);
 }
 
-// 新增：立即滚动到底部（不使用动画）
+
+/* --- 最终版：0.2秒整体平滑上移 --- */
+function scrollToBottom() {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+
+    // 1. 设定动画时长：0.2秒
+    const duration = 200; // 单位是毫秒，200ms = 0.2s
+
+    // 2. 锁定“看不见的地方”作为起点
+    // container.scrollTop 就是当前画面的位置。
+    // 因为新气泡刚加进去还在下面藏着，所以这就是“气泡看不见”的起点。
+    const start = container.scrollTop;
+
+    // 3. 锁定“终点”
+    // scrollHeight 是加了新气泡后的总高度，减去 clientHeight 就是最新的底部位置
+    const target = container.scrollHeight - container.clientHeight;
+    
+    // 计算要滑多远
+    const distance = target - start;
+
+    // 如果距离太小（比如已经在底了），就不动了，防止抖动
+    if (Math.abs(distance) < 2) {
+        container.scrollTop = target;
+        return;
+    }
+
+    let startTime = null;
+
+    // 4. 执行平滑移动动画
+    function animation(currentTime) {
+        if (startTime === null) startTime = currentTime;
+        const timeElapsed = currentTime - startTime;
+        
+        // 计算进度 (0.0 到 1.0)
+        let progress = timeElapsed / duration;
+        if (progress > 1) progress = 1;
+
+        // 使用线性匀速 (Linear)，这能带来最稳的“整体上移感”
+        // 视觉效果：整个列表像一块板子一样匀速往上推，没有加速减速的“漂浮感”
+        const ease = progress; 
+
+        // 移动到当前帧的位置
+        container.scrollTop = start + (distance * ease);
+
+        // 如果还没到时间，继续下一帧
+        if (timeElapsed < duration) {
+            requestAnimationFrame(animation);
+        } else {
+            // 时间到了，强制修正到终点，确保严丝合缝
+            container.scrollTop = target; 
+        }
+    }
+
+    // 启动引擎
+    requestAnimationFrame(animation);
+}
+/* --- 结束 --- */
+
+/* --- 1. 修复：0秒瞬间置底（进场专用，加了双重保险） --- */
 function scrollToBottomInstant() {
     const container = document.getElementById('chat-messages');
     if (!container) return;
     
-    const messages = container.querySelectorAll('.chat-message');
-    if (messages.length === 0) return;
-    
-    const lastMessage = messages[messages.length - 1];
-    const desiredSpacing = 15;
-    
-    // 计算目标滚动位置
-    const lastMessageBottom = lastMessage.offsetTop + lastMessage.offsetHeight;
-    const containerHeight = container.clientHeight;
-    
-    // 目标位置：最后一条消息底部 + 期望的间距
-    const targetScroll = lastMessageBottom - containerHeight + desiredSpacing;
-    
-    // 立即滚动，不使用平滑效果
-    container.scrollTop = targetScroll;
+    // 第一下：立刻执行
+    container.scrollTop = container.scrollHeight;
+
+    // 第二下：防止图片加载撑开高度，10毫秒后再按一次
+    setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+    }, 10);
 }
-
-
 function showAIContextMenu(bubbleElement) {
     // 检查是否是正在输入的气泡
     const isTypingBubble = bubbleElement.classList.contains('typing-indicator');
@@ -3249,94 +3266,89 @@ function closeAIMenu() {
     }
 }
 
-// 显示分组的分割消息
+/* --- 3. 修复：调用时传入 true，禁止滚动 --- */
 function displaySegmentGroup(segmentGroup, container) {
     if (segmentGroup.length === 0) return;
-    
     // 按segmentIndex排序
     segmentGroup.sort((a, b) => a.segmentIndex - b.segmentIndex);
-    
     // 显示每个分割消息
     segmentGroup.forEach((msg, index) => {
-        const {msgDiv, bubble} = appendMessageToDOM(msg.content, msg.role, false);
-        // 可以添加一些标记，表明这是分割的一部分
+        // 【关键】：这里传入 true，表示不要滚动
+        const {msgDiv, bubble} = appendMessageToDOM(msg.content, msg.role, false, true);
+        
         if (index > 0) {
             bubble.style.marginTop = '5px';
         }
     });
-}
+}        
+       /* --- 2. 修复：添加 skipScroll 参数 --- */
+function appendMessageToDOM(text, role, isTypingEffect = false, skipScroll = false) {
+    const container = document.getElementById('chat-messages');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `chat-message ${role}`;
+    
+    if (role === 'ai') {
+        const avatarDiv = document.createElement('div');
+        avatarDiv.className = 'avatar';
         
-        function appendMessageToDOM(text, role, isTypingEffect = false) {
-            const container = document.getElementById('chat-messages');
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `chat-message ${role}`;
-            
-                                    if (role === 'ai') {
-                const avatarDiv = document.createElement('div');
-                avatarDiv.className = 'avatar';
-                
-                // 原来的头像内容
-                if (APP_DATA.settings.aiAvatarBase64 && APP_DATA.settings.aiAvatarBase64.startsWith('data:image')) {
-                    const img = document.createElement('img');
-                    img.src = APP_DATA.settings.aiAvatarBase64;
-                    img.style.width = '100%'; 
-                    img.style.height = '100%'; 
-                    img.style.objectFit = 'cover';
-                    avatarDiv.appendChild(img);
-                } else {
-                    avatarDiv.textContent = currentContact ? currentContact.name.charAt(0) : 'AI';
-                    avatarDiv.style.backgroundColor = 'var(--accent-color)';
-                    avatarDiv.style.color = 'white';
-                    avatarDiv.style.display = 'flex';
-                    avatarDiv.style.justifyContent = 'center';
-                    avatarDiv.style.alignItems = 'center';
-                }
-                msgDiv.appendChild(avatarDiv); 
-            }
+        // 头像逻辑
+        if (APP_DATA.settings.aiAvatarBase64 && APP_DATA.settings.aiAvatarBase64.startsWith('data:image')) {
+            const img = document.createElement('img');
+            img.src = APP_DATA.settings.aiAvatarBase64;
+            img.style.width = '100%'; 
+            img.style.height = '100%'; 
+            img.style.objectFit = 'cover';
+            avatarDiv.appendChild(img);
+        } else {
+            avatarDiv.textContent = currentContact ? currentContact.name.charAt(0) : 'AI';
+            avatarDiv.style.backgroundColor = 'var(--accent-color)';
+            avatarDiv.style.color = 'white';
+            avatarDiv.style.display = 'flex';
+            avatarDiv.style.justifyContent = 'center';
+            avatarDiv.style.alignItems = 'center';
+        }
+        msgDiv.appendChild(avatarDiv);
+    }
 
-            const bubble = document.createElement('div');
-            bubble.className = 'bubble';
-            
-            if (isTypingEffect && role === 'ai') {
-                // 显示打字效果
-                bubble.classList.add('typing-indicator');
-                bubble.innerHTML = `
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                `;
-            } else {
-                bubble.textContent = text;
-            }
-            
-                    // 如果是AI消息，给气泡添加点击事件（包括正在输入的和已完成的）
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    if (isTypingEffect && role === 'ai') {
+        bubble.classList.add('typing-indicator');
+        bubble.innerHTML = `
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        `;
+    } else {
+        bubble.textContent = text;
+    }
+    
+    // 点击事件
     if (role === 'ai') {
         bubble.style.cursor = 'pointer';
-        
         bubble.onclick = function(e) {
             e.stopPropagation();
             e.preventDefault();
-            
-            // 如果是正在输入的气泡，稍等一会儿再显示菜单
             if (isTypingEffect) {
                 setTimeout(() => {
-                    if (this.parentNode) { // 确保气泡还在
-                        showAIContextMenu(this);
-                    }
+                    if (this.parentNode) showAIContextMenu(this);
                 }, 100);
             } else {
                 showAIContextMenu(this);
             }
         };
     }
-            
-            msgDiv.appendChild(bubble);
-
-            container.appendChild(msgDiv);
-            scrollToBottom();
-            
-            return {msgDiv, bubble};
-        }
+    
+    msgDiv.appendChild(bubble);
+    container.appendChild(msgDiv);
+    
+    // 【核心修改】：只有当 skipScroll 为 false 时，才执行丝滑滚动
+    if (!skipScroll) {
+        scrollToBottom();
+    }
+    
+    return {msgDiv, bubble};
+}
         
      // 在不同气泡中逐句显示（智能分割）
 async function typeMessageInMultipleBubbles(fullText, firstBubble, firstMsgDiv) {
@@ -3589,7 +3601,7 @@ async function displaySentences(sentences, originalText, firstBubble, firstMsgDi
         scrollToBottom();
 
         // 随机延迟（打字感）
-        const delay = 800 + Math.random() * 500; 
+        const delay = 1000 + Math.random() * 700; 
         await new Promise(resolve => setTimeout(resolve, delay));
     }
     
@@ -3634,18 +3646,61 @@ function createNewBubble(text, referenceMsgDiv) {
     return newBubble; // 【重要】返回气泡元素
 }
 
-/* --- 开始：替换 scrollToBottom --- */
-// 强制瞬间置底，使用 requestAnimationFrame 解决渲染时差导致的跳动
+/* --- 修复版：0.2秒丝滑缓动上移（打字专用） --- */
+// 定义一个全局变量，用来防止动画冲突
+let chatScrollAnimationId = null;
+
 function scrollToBottom() {
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
-    // 这一句是核心：等待浏览器把气泡画好后，再瞬间拉到底
-    requestAnimationFrame(() => {
-        container.scrollTop = container.scrollHeight;
-    });
+    // 1. 获取起点和终点
+    const start = container.scrollTop;
+    const target = container.scrollHeight - container.clientHeight;
+    const distance = target - start;
+    const duration = 200; // 0.2秒，你需要的时间
+
+    // 如果距离很小（比如已经在底了），直接到位，不浪费性能
+    if (Math.abs(distance) < 5) {
+        container.scrollTop = target;
+        return;
+    }
+
+    // 2. 如果上一次动画还没跑完，立刻取消，防止画面抖动
+    if (chatScrollAnimationId) {
+        cancelAnimationFrame(chatScrollAnimationId);
+    }
+
+    let startTime = null;
+
+    // 3. 定义丝滑动画过程
+    function animation(currentTime) {
+        if (!startTime) startTime = currentTime;
+        const timeElapsed = currentTime - startTime;
+        let progress = timeElapsed / duration;
+
+        if (progress > 1) progress = 1;
+
+        // 【核心魔法】Cubic Ease-Out 曲线
+        // 这种算法会让滚动“一开始很快，快结束时慢慢停下”，非常丝滑
+        const ease = 1 - Math.pow(1 - progress, 3);
+
+        // 应用位置
+        container.scrollTop = start + (distance * ease);
+
+        if (timeElapsed < duration) {
+            // 继续下一帧
+            chatScrollAnimationId = requestAnimationFrame(animation);
+        } else {
+            // 动画结束，确保严丝合缝
+            container.scrollTop = target;
+            chatScrollAnimationId = null;
+        }
+    }
+
+    // 启动动画
+    chatScrollAnimationId = requestAnimationFrame(animation);
 }
-/* --- 结束：替换 scrollToBottom --- */
 
 async function sendMessage() {
     const input = document.getElementById('message-input');
@@ -4217,7 +4272,7 @@ async function simulateMemorySummary(contact) {
             if (!currentContact.longMemories || currentContact.longMemories.length === 0) {
                 listDiv.innerHTML = `
                     <div style="text-align:center; padding:40px; color:var(--text-color-secondary);">
-                        <div style="font-size:48px; margin-bottom:20px;">📭</div>
+                        <div style="font-size:48px; margin-bottom:20px;"><i class="fa-solid fa-book"></i></div>
                         <div>还没有生成的记忆档案</div>
                     </div>
                 `;
