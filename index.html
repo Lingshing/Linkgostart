@@ -523,10 +523,10 @@
     right: 0;
     bottom: 0;
     overflow-y: auto;
-    padding: 15px 0 100px 0;
+    padding: 15px 0 80px 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    scroll-behavior: smooth;
+    scroll-behavior: auto !important;
 }
 
 /* 确保最后一条消息不被遮挡 */
@@ -2999,16 +2999,7 @@ item.onclick = () => {
     // 【关键修改】在动画开始前就渲染消息
    renderMessages(currentContact.history.slice(-20));
   
-   const container = document.getElementById('chat-messages');
-    if (container) {
-        container.style.scrollBehavior = 'auto'; // 临时改为瞬间
-        container.scrollTop = container.scrollHeight;
-        
-        // 10毫秒后把丝滑开回来，为之后发消息做准备
-        setTimeout(() => {
-            container.style.scrollBehavior = 'smooth';
-        }, 10);
-    }
+   scrollToBottom();
 }
         
        function exitChatWindow() {
@@ -3303,7 +3294,7 @@ function displaySegmentGroup(segmentGroup, container) {
             msgDiv.appendChild(bubble);
 
             container.appendChild(msgDiv);
-            scrollToBottom('smooth');
+            scrollToBottom();
             
             return {msgDiv, bubble};
         }
@@ -3603,11 +3594,12 @@ function createNewBubble(text, referenceMsgDiv) {
     return newBubble; // 【重要】返回气泡元素
 }
 
+// 强制瞬间置底，没有任何废话
 function scrollToBottom() {
     const container = document.getElementById('chat-messages');
     if (!container) return;
     
-    // 直接设置 scrollTop，CSS 里的 scroll-behavior: smooth 会负责丝滑的动画
+    // 直接赋值，浏览器会在 0.0001秒内渲染完成
     container.scrollTop = container.scrollHeight;
 }
 
