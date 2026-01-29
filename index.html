@@ -546,6 +546,131 @@
     height: 0px; /* 输入框高度 + 安全距离 */
 }
 
+/* --- ⬇️ 新增：搜索条与弹窗头部样式 ⬇️ --- */
+
+/* 1. 搜索条包装器（包含图标+输入框） */
+.search-bar-wrapper {
+    display: flex;
+    align-items: center;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    padding: 0 12px;
+    margin-bottom: 10px;
+    height: 38px; /* 固定高度 */
+    flex-shrink: 0; /* 防止被压缩 */
+}
+
+/* 2. 搜索图标 */
+.search-bar-wrapper i {
+    color: var(--text-color-secondary);
+    margin-right: 8px;
+    font-size: 14px;
+}
+
+/* 3. 输入框（去掉自带边框，背景透明） */
+.memory-search-box {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    height: 100%;
+    width: 100%;
+    flex-grow: 1;
+    font-size: 14px;
+    color: var(--text-color-primary);
+    outline: none; /* 去掉聚焦蓝框 */
+}
+
+/* 4. 修复：弹窗头部对齐 */
+.memory-header-row {
+    display: flex;
+    align-items: center; /* 垂直居中核心 */
+    margin-bottom: 5px;
+    height: 40px; /* 给一个固定高度基准 */
+    flex-shrink: 0;
+}
+
+.memory-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    width: 40px; /* 增大触控区域 */
+    margin-right: 0px;
+    margin-left: -10px; /* 抵消一点左边距，视觉平衡 */
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--text-color-primary);
+    transform: translateY(-7px);
+}
+
+#memory-modal-title {
+    margin: 0;
+    flex-grow: 1;
+    line-height: 40px; /* 文字垂直居中 */
+    font-size: 18px;
+    color: var(--text-color-primary);
+    /* 稍微往上提一点点(视觉补偿) */
+    position: relative;
+    top: -1px; 
+}
+
+/* 分类标签栏 (Tabs) - 修改：间距更小，显示更多 */
+.memory-tabs {
+    display: flex;
+    gap: 6px;  /* 从 10px 改为 6px，更紧凑 */
+    margin-bottom: 10px;
+    overflow-x: auto;
+    padding-bottom: 5px; 
+    scrollbar-width: none; 
+    flex-shrink: 0; /* 防止被压缩 */
+}
+.memory-tabs::-webkit-scrollbar { display: none; }
+
+.memory-tab {
+    padding: 5px 10px; /* 从 6px 12px 改小，更精致 */
+    border-radius: 15px;
+    background: var(--input-bg);
+    color: var(--text-color-secondary);
+    font-size: 13px;
+    white-space: nowrap;
+    border: 1px solid var(--input-border);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.memory-tab.active {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+    font-weight: bold;
+}
+
+/* 档案内的 Tag 样式 */
+.memory-tag {
+    color: var(--accent-color);
+    cursor: pointer;
+    text-decoration: none;
+    margin-right: 5px;
+}
+.memory-tag:hover {
+    text-decoration: underline;
+}
+
+/* 轮数显示的样式 */
+.memory-round-badge {
+    background: rgba(0,0,0,0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 11px;
+    margin-right: 5px;
+}
+.dark-mode .memory-round-badge {
+    background: rgba(255,255,255,0.1);
+}
+
 /* ----------------------- 输入框区域 - iOS风格 ----------------------- */
 .chat-input-area {
     flex-shrink: 0;
@@ -1171,23 +1296,41 @@ input[type="number"]::-webkit-inner-spin-button {
     color: var(--text-color-primary);
 }
 
-/* ----------------------- 修复记忆弹窗头部固定 ----------------------- */
+/* ----------------------- 修复记忆弹窗头部固定 & 搜索框吸顶 ----------------------- */
         
-        /* 1. 针对记忆弹窗：禁止整个卡片滚动，这样标题和底部按钮就会固定住 */
-        #memory-modal .modal-content {
-            overflow: hidden !important; 
-        }
+/* 1. 针对记忆弹窗：禁止整个卡片滚动，改为 Flex 布局 */
+#memory-modal .modal-content {
+    overflow: hidden !important;
+    display: flex;
+    flex-direction: column;
+}
 
-        /* 2. 让中间的内容容器填满剩余空间，并开启独立滚动 */
-        #memory-content-container {
-            flex-grow: 1;           /* 自动占据剩余高度 */
-            overflow-y: auto;       /* 内容多了只在这里出现滚动条 */
-            margin-bottom: 10px;    /* 和底部按钮保持距离 */
-            padding-right: 5px;     /* 防止滚动条紧贴文字 */
-            
-            /* 针对不同浏览器的滚动条美化（可选） */
-            scrollbar-width: thin; 
-        }
+/* 2. 内容容器：头部(搜索+标签)固定，只让内部的列表滚动 */
+#memory-content-container {
+    flex-grow: 1;
+    overflow: hidden; /* 禁止外层滚动，这是吸顶的关键 */
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+    padding-right: 0;
+}
+
+/* 3. 专门的列表滚动区域 - 只有这里会滚动 */
+#memory-list-scroll-area {
+    flex-grow: 1;
+    overflow-y: auto; /* 开启垂直滚动 */
+    padding-right: 5px; /* 防止滚动条挡住文字 */
+    scrollbar-width: thin;
+}
+
+/* 隐藏 memory-list 的滚动条但保持功能 (可选) */
+#memory-list-scroll-area::-webkit-scrollbar {
+    width: 4px;
+}
+#memory-list-scroll-area::-webkit-scrollbar-thumb {
+    background-color: rgba(0,0,0,0.1);
+    border-radius: 2px;
+}
 
 /* ----------------------- 隐藏记忆弹窗中文本框的滚动条 ----------------------- */
         
@@ -4111,7 +4254,7 @@ async function mockAIResponse(userMessage, contact) {
     }
 }
         
-// --- 最终进化版：防重复 + 第一人称沉浸式记忆 ---
+// --- ⬇️ 修改后：记录轮数 + 记忆生成逻辑 ⬇️ ---
 async function simulateMemorySummary(contact) {
     console.log("🧠 尝试触发长期记忆生成逻辑...");
     
@@ -4132,8 +4275,7 @@ async function simulateMemorySummary(contact) {
         m.content
     ).join('\n');
 
-    // 【关键修改1】构建“已有记忆库”字符串，用于防重
-    // 将现有的所有记忆提取出来，让 AI 对比
+    // 构建“已有记忆库”字符串，用于防重
     const allExistingMemories = contact.longMemories 
         ? contact.longMemories.map(m => m.content).join('\n')
         : "暂无记忆";
@@ -4142,7 +4284,7 @@ async function simulateMemorySummary(contact) {
     const apiKey = APP_DATA.settings.apiKey;
     const model = APP_DATA.settings.aiModel;
 
-    // 4. 【提示词重构】第一人称 + 强制防重
+    // 4. 提示词构造
     const summaryMessages = [
         {
             role: "system",
@@ -4164,14 +4306,14 @@ async function simulateMemorySummary(contact) {
             【格式要求】
             每条记忆占一行：分类|评分|关键词|内容
             
+            【字段说明】
+            1. 分类：[核心]、[偏好]、[进展]、[日常]
+            2. 评分：1-10（8分以上为极重要事实）
+            3. 关键词：3个，保留专有名词
+            
             【正确示例】
             [核心]|10|称呼,关系|哥哥说我是他最重要的人，听到这话我心跳好快。
             [日常]|6|习惯|他今天好像不太开心，一直叹气，我很担心他。
-            [偏好]|8|食物|原来小兔子（指他）喜欢吃胡萝卜，下次我要给他带点。
-
-            【错误示例（绝对不要这样写）】
-            [核心]|10|关系|用户称呼对方为哥哥。（错误：用了"用户"和"对方"）
-            [核心]|10|关系|${contact.name}成为了他的朋友。（错误：用了第三人称称呼自己）
             `
         },
         {
@@ -4198,7 +4340,7 @@ async function simulateMemorySummary(contact) {
             body: JSON.stringify({
                 model: model,
                 messages: summaryMessages,
-                temperature: 0.1, // 低温保持理智
+                temperature: 0.1, 
                 max_tokens: 500
             })
         });
@@ -4217,20 +4359,23 @@ async function simulateMemorySummary(contact) {
                 
                 const now = new Date();
                 const dateStr = `${now.getMonth()+1}月${now.getDate()}日`;
+                
+                // 【新增】计算轮数范围，例如 "第11-20轮"
+                const startRound = Math.max(1, userMessagesCount - interval + 1);
+                const roundRangeStr = `第${startRound}-${userMessagesCount}轮`;
+
                 let addedCount = 0;
 
                 lines.forEach(line => {
                     const cleanLine = line.trim();
                     if (!cleanLine) return;
-                    // 基础过滤
                     if (cleanLine.includes("提取") || cleanLine.startsWith("好的") || cleanLine.includes("日记")) return;
 
                     const parts = cleanLine.split('|');
                     if (parts.length >= 4) {
                         const content = parts[3].trim();
                         
-                        // 【JS层二次防重】虽然Prompt要求了，但为了保险，这里再检查一次
-                        // 检查新内容是否包含在已有记忆里，或者已有记忆包含新内容（避免子集重复）
+                        // JS层二次去重
                         const isDuplicate = contact.longMemories.some(m => 
                             m.content === content || 
                             (content.length > 5 && m.content.includes(content)) ||
@@ -4241,6 +4386,7 @@ async function simulateMemorySummary(contact) {
                             contact.longMemories.push({
                                 id: Date.now() + Math.random(),
                                 date: dateStr,
+                                roundRange: roundRangeStr, // 【这里保存了轮数！】
                                 category: parts[0].trim().replace(/[\[\]]/g, ''),
                                 score: parseInt(parts[1].trim()) || 5,
                                 keywords: parts[2].split(/[,，]/).map(k=>k.trim()),
@@ -4248,8 +4394,6 @@ async function simulateMemorySummary(contact) {
                                 type: 'structured'
                             });
                             addedCount++;
-                        } else {
-                            console.log("🗑️ 拦截到重复记忆:", content);
                         }
                     }
                 });
@@ -4257,8 +4401,6 @@ async function simulateMemorySummary(contact) {
                 if (addedCount > 0) {
                     saveData();
                     console.log(`✅ 成功写入 ${addedCount} 条新日记`);
-                } else {
-                    console.log("✅ 没有发现有价值的新信息（或全是重复的）");
                 }
             }
         }
@@ -4267,161 +4409,361 @@ async function simulateMemorySummary(contact) {
     }
 }
 
-        // ----------------------- 选项页 (Prompt/记忆) -----------------------
-        function showMemoryModal(contextType) {
-            if (!currentContact) return;
-            APP_DATA.activeModalContext = contextType;
-            
-            const title = document.getElementById('memory-modal-title');
-            const container = document.getElementById('memory-content-container');
-            const saveBtn = document.getElementById('memory-save-btn');
 
-            container.innerHTML = '';
-            saveBtn.style.display = 'inline-block';
+// --- ⬇️ 全新逻辑：带搜索、分类、Tag功能的记忆弹窗 ⬇️ ---
 
-            if (contextType === 'prompt') {
-                title.textContent = '修改角色 Prompt';
-                const textarea = document.createElement('textarea');
-                textarea.id = 'memory-content';
-                textarea.rows = 15;
-                textarea.placeholder = '内容';
-                textarea.value = currentContact.prompt;
-                container.appendChild(textarea);
-            
-           } else if (contextType === 'long') {
-            title.textContent = '长期记忆档案';
-            
-            // 列表容器
-            const listDiv = document.createElement('div');
-            
-            if (!currentContact.longMemories || currentContact.longMemories.length === 0) {
-                listDiv.innerHTML = `
-                    <div style="text-align:center; padding:40px; color:var(--text-color-secondary);">
-                        <div style="font-size:48px; margin-bottom:20px;"><i class="fa-solid fa-book"></i></div>
-                        <div>还没有生成的记忆档案</div>
-                    </div>
-                `;
-            } else {
-                // 倒序显示（最新的在最上面）
-                [...currentContact.longMemories].reverse().forEach(memory => {
-                    // 1. 处理旧数据（如果没有 score 字段，默认为 5）
-                    const score = memory.score || 5;
-                    const category = memory.category || '记录';
-                    
-                    // 2. 决定颜色
-                    let color = '#8e8e93'; // 默认灰
-                    if (score >= 8) color = '#ff4d4f'; // 高分红
-                    else if (score >= 6) color = '#52c41a'; // 中分绿
-                    else if (score >= 4) color = '#1890ff'; // 普通蓝
-                    
-                    const memoryDiv = document.createElement('div');
-                    memoryDiv.style.cssText = `
-                        margin-bottom:12px; 
-                        border-left: 4px solid ${color};
-                        border-radius: 4px;
-                        padding: 10px 15px; 
-                        background: var(--input-bg);
-                        position: relative;
-                    `;
-                    
-                    // 3. 构建 HTML
-                    memoryDiv.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px; color:var(--text-color-secondary);">
-                            <span>${memory.date} · [${category}] · 评分:${score}</span>
-                            <span class="clickable" onclick="deleteMemory('${memory.id}')" style="color:var(--danger-color); font-weight:bold;">×</span>
-                        </div>
-                        <div style="font-size:15px; color:var(--text-color-primary); line-height:1.4;">
-                            ${memory.content}
-                        </div>
-                        <div style="margin-top:6px; font-size:12px; color:${color}; opacity:0.8;">
-                            # ${Array.isArray(memory.keywords) ? memory.keywords.join(' #') : '...'}
-                        </div>
-                    `;
-                    listDiv.appendChild(memoryDiv);
-                });
+// 1. 全局变量：记录当前弹窗的状态
+let memoryState = {
+    searchTerm: '',
+    activeCategory: '全部', 
+    activeTag: null 
+};
+
+// --- ⬇️ 修改后：带搜索图标、头部对齐、临时记忆搜索支持 ⬇️ ---
+function showMemoryModal(contextType) {
+    if (!currentContact) return;
+    APP_DATA.activeModalContext = contextType;
+    
+    // 1. 初始化弹窗结构 (清空旧内容)
+    const modal = document.getElementById('memory-modal');
+    const contentDiv = modal.querySelector('.modal-content');
+    
+    // 重置状态
+    memoryState = { searchTerm: '', activeCategory: '全部', activeTag: null };
+
+    // --- 构建统一的头部 (修复对齐问题) ---
+    // 根据类型决定标题
+    let titleText = '记忆档案';
+    if (contextType === 'prompt') titleText = '修改角色 Prompt';
+    else if (contextType === 'short') titleText = '临时记忆';
+    else if (contextType === 'long') titleText = '长期记忆档案';
+
+    // 生成头部 HTML (使用 flex 严格对齐)
+    // 注意：这里手动构建头部，不依赖原来的静态HTML，确保每次都正确
+    contentDiv.innerHTML = `
+        <div class="memory-header-row">
+            <div class="memory-back-btn clickable" onclick="goBackInMemoryModal()">
+                <i class="fa-solid fa-angle-left"></i>
+            </div>
+            <h4 id="memory-modal-title">${titleText}</h4>
+        </div>
+        <div id="memory-content-container"></div>
+        <div class="modal-footer">
+            <button id="memory-save-btn" class="save-btn clickable" onclick="saveContextModalData()">保存修改</button>
+            <button class="cancel-btn clickable" onclick="hideModal('memory-modal')">关闭</button>
+        </div>
+    `;
+
+    const container = document.getElementById('memory-content-container');
+    const saveBtn = document.getElementById('memory-save-btn');
+
+    // --- 情况A：修改 Prompt ---
+    if (contextType === 'prompt') {
+        saveBtn.style.display = 'inline-block';
+        const textarea = document.createElement('textarea');
+        textarea.id = 'memory-content';
+        textarea.rows = 15;
+        textarea.style.width = '100%';
+        textarea.value = currentContact.prompt;
+        container.appendChild(textarea);
+
+    // --- 情况B：临时记忆 (新增搜索功能) ---
+    } else if (contextType === 'short') {
+        saveBtn.style.display = 'inline-block'; // 允许保存编辑
+
+        // 1. 顶部搜索栏 (固定)
+        const headerDiv = document.createElement('div');
+        
+        // 搜索条包装器 (图标 + 输入框)
+        const searchWrapper = document.createElement('div');
+        searchWrapper.className = 'search-bar-wrapper';
+        searchWrapper.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i>`; // ✨ 你的图标
+        
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'memory-search-box';
+        searchInput.placeholder = '搜索聊天记录...';
+        searchInput.oninput = (e) => {
+            memoryState.searchTerm = e.target.value.trim();
+            renderShortTermMemoryInModal(); // 实时刷新
+        };
+        searchWrapper.appendChild(searchInput);
+        headerDiv.appendChild(searchWrapper);
+        container.appendChild(headerDiv);
+
+        // 2. 列表容器 (滚动)
+        const listContainer = document.createElement('div');
+        listContainer.id = 'memory-list-scroll-area';
+        container.appendChild(listContainer);
+
+        // 3. 渲染列表
+        renderShortTermMemoryInModal();
+
+    // --- 情况C：长期记忆 ---
+    } else if (contextType === 'long') {
+        saveBtn.style.display = 'none'; 
+
+        // 1. 顶部功能区
+        const headerDiv = document.createElement('div');
+        
+        // 搜索条包装器 (图标 + 输入框)
+        const searchWrapper = document.createElement('div');
+        searchWrapper.className = 'search-bar-wrapper';
+        searchWrapper.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i>`; // ✨ 你的图标
+        
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'memory-search-box';
+        searchInput.placeholder = '搜索记忆内容 / Tag...';
+        searchInput.oninput = (e) => {
+            memoryState.searchTerm = e.target.value.trim();
+            renderMemoryList(); 
+        };
+        searchWrapper.appendChild(searchInput);
+        headerDiv.appendChild(searchWrapper);
+
+        // 分类 Tabs
+        const tabsDiv = document.createElement('div');
+        tabsDiv.className = 'memory-tabs';
+        const fixedCategories = ['全部', '核心', '偏好', '日常', '进展'];
+        const existingCategories = currentContact.longMemories 
+            ? [...new Set(currentContact.longMemories.map(m => m.category))]
+            : [];
+        const allCategories = [...new Set([...fixedCategories, ...existingCategories])];
+
+        allCategories.forEach(cat => {
+            const tab = document.createElement('div');
+            tab.className = `memory-tab ${cat === '全部' ? 'active' : ''}`;
+            tab.textContent = cat;
+            tab.onclick = () => {
+                document.querySelectorAll('.memory-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                memoryState.activeCategory = cat;
+                renderMemoryList();
+            };
+            tabsDiv.appendChild(tab);
+        });
+        headerDiv.appendChild(tabsDiv);
+        
+        // Tag 过滤器提示
+        const tagFilterDiv = document.createElement('div');
+        tagFilterDiv.id = 'memory-tag-filter-display';
+        tagFilterDiv.style.cssText = 'display:none; margin-bottom:10px; font-size:13px; color:var(--accent-color);';
+        headerDiv.appendChild(tagFilterDiv);
+
+        container.appendChild(headerDiv);
+
+        // 2. 列表容器
+        const listContainer = document.createElement('div');
+        listContainer.id = 'memory-list-scroll-area';
+        container.appendChild(listContainer);
+
+        // 3. 渲染
+        renderMemoryList();
+    }
+    
+    showModal('memory-modal');
+}
+
+// 3. 核心辅助函数：渲染记忆列表 (带过滤功能)
+function renderMemoryList() {
+    const listDiv = document.getElementById('memory-list-scroll-area');
+    const tagFilterDisplay = document.getElementById('memory-tag-filter-display');
+    if (!listDiv) return;
+
+    listDiv.innerHTML = ''; // 清空当前列表
+
+    // 更新 Tag 过滤提示
+    if (memoryState.activeTag) {
+        tagFilterDisplay.style.display = 'block';
+        tagFilterDisplay.innerHTML = `
+            当前标签筛选：<b>#${memoryState.activeTag}</b> 
+            <span style="cursor:pointer; margin-left:10px; color:var(--text-color-secondary)" onclick="clearTagFilter()">[清除]</span>
+        `;
+    } else {
+        tagFilterDisplay.style.display = 'none';
+    }
+
+    if (!currentContact.longMemories || currentContact.longMemories.length === 0) {
+        listDiv.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-color-secondary);">暂无档案</div>';
+        return;
+    }
+
+    // --- 核心过滤逻辑 ---
+    const filteredMemories = currentContact.longMemories.filter(m => {
+        // 1. 分类过滤
+        if (memoryState.activeCategory !== '全部' && m.category !== memoryState.activeCategory) {
+            return false;
+        }
+        // 2. Tag 过滤
+        if (memoryState.activeTag) {
+            if (!m.keywords || !m.keywords.includes(memoryState.activeTag)) {
+                return false;
             }
-            container.appendChild(listDiv);
+        }
+        // 3. 搜索词过滤
+        if (memoryState.searchTerm) {
+            const term = memoryState.searchTerm.toLowerCase();
+            const contentMatch = m.content.toLowerCase().includes(term);
+            const tagMatch = m.keywords && m.keywords.some(k => k.toLowerCase().includes(term));
+            if (!contentMatch && !tagMatch) return false;
+        }
+        return true;
+    });
 
-            } else if (contextType === 'short') {
-                title.textContent = '临时记忆 (按轮数管理)';
-                
-                // 优化：按轮数分组逻辑 (用户消息 = 新的一轮开始)
-                const rounds = [];
-                let currentRound = [];
-                
-                currentContact.history.forEach((message, index) => {
-                    // 如果遇到用户消息，且当前轮已经有内容，说明上一轮结束了
-                    if (message.role === 'user' && currentRound.length > 0) {
-                        rounds.push([...currentRound]);
-                        currentRound = [];
-                    }
-                    currentRound.push(message);
-                });
-                // 最后一轮
-                if (currentRound.length > 0) {
-                    rounds.push([...currentRound]);
-                }
-                
-                // 存储 rounds 供删除使用
-                window.tempMemoryRounds = rounds;
-                
-                // 渲染界面
-                rounds.forEach((round, roundIndex) => {
-                    const roundContainer = document.createElement('div');
-                    roundContainer.className = 'round-container';
-                    roundContainer.dataset.roundIndex = roundIndex;
-                    
-                    const roundHeader = document.createElement('div');
-                    roundHeader.className = 'round-header';
-                    
-                    const roundTitle = document.createElement('span');
-                    roundTitle.textContent = `第${roundIndex + 1}轮对话`;
-                    
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.className = 'round-delete-btn clickable';
-                    deleteBtn.innerHTML = '×';
-                    deleteBtn.title = '删除这一轮对话';
-                    deleteBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        deleteRound(roundIndex);
-                    };
-                    
-                    roundHeader.appendChild(roundTitle);
-                    roundHeader.appendChild(deleteBtn);
-                    roundContainer.appendChild(roundHeader);
-                    
-                    const roundContent = document.createElement('div');
-                    roundContent.className = 'round-content';
-                    
-                    round.forEach((message, msgIndex) => {
-                        const messageDiv = document.createElement('div');
-                        messageDiv.className = `round-message ${message.role}`;
-                        messageDiv.contentEditable = true;
-                        messageDiv.dataset.role = message.role;
-                        messageDiv.dataset.roundIndex = roundIndex;
-                        messageDiv.dataset.msgIndex = msgIndex;
-                        messageDiv.textContent = message.content;
-                        roundContent.appendChild(messageDiv);
-                    });
-                    
-                    roundContainer.appendChild(roundContent);
-                    container.appendChild(roundContainer);
-                });
-                
-            
-            // 自动滚动到最新的一轮（最后）
-            setTimeout(() => {
-                container.scrollTop = container.scrollHeight;
-            }, 100);
+    // --- 渲染结果 ---
+    // 倒序显示（reverse() 确保最新的在最上面）
+    filteredMemories.reverse().forEach(memory => {
+        const score = memory.score || 5;
+        // 颜色条逻辑
+        let color = '#8e8e93'; 
+        if (score >= 8) color = '#ff4d4f'; 
+        else if (score >= 6) color = '#52c41a'; 
+        else if (score >= 4) color = '#1890ff';
 
-                if (rounds.length === 0) {
-                    container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-color-secondary);">暂无对话记录</div>';
-                }
-            }
-            
-            showModal('memory-modal');
+        // 轮数 vs 日期 显示逻辑
+        const timeDisplay = memory.roundRange 
+            ? `<span class="memory-round-badge">${memory.roundRange}</span>` 
+            : `<span class="memory-round-badge">${memory.date}</span>`;
+
+        const item = document.createElement('div');
+        item.style.cssText = `
+            margin-bottom: 12px; 
+            border-left: 4px solid ${color};
+            border-radius: 4px;
+            padding: 10px 15px; 
+            background: var(--input-bg);
+            position: relative;
+        `;
+
+        // 生成 Tags HTML (点击可过滤)
+        let tagsHtml = '';
+        if (Array.isArray(memory.keywords)) {
+            tagsHtml = memory.keywords.map(k => 
+                `<span class="memory-tag" onclick="filterByTag('${k}')">#${k}</span>`
+            ).join(' ');
         }
 
+        item.innerHTML = `
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px; color:var(--text-color-secondary);">
+                <div>
+                    ${timeDisplay}
+                    <span style="background:${color}20; color:${color}; padding:1px 4px; border-radius:3px; margin-right:5px;">${memory.category}</span>
+                    <span>评分:${score}</span>
+                </div>
+                <span class="clickable" onclick="deleteMemory('${memory.id}')" style="color:var(--danger-color); font-weight:bold;">×</span>
+            </div>
+            <div style="font-size:15px; color:var(--text-color-primary); line-height:1.5; margin-bottom:6px;">
+                ${memory.content}
+            </div>
+            <div style="font-size:12px; opacity:0.9;">
+                ${tagsHtml}
+            </div>
+        `;
+        listDiv.appendChild(item);
+    });
+
+    if (filteredMemories.length === 0) {
+        listDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-color-secondary);">没有找到匹配的档案</div>';
+    }
+
+    // 需求1: 强制停留在最顶部（显示最新的档案）
+    listDiv.scrollTop = 0;
+}
+
+// 4. 辅助功能：点击Tag过滤
+function filterByTag(tag) {
+    memoryState.activeTag = tag;
+    // 清空搜索框，避免冲突
+    document.querySelector('.memory-search-box').value = '';
+    memoryState.searchTerm = '';
+    renderMemoryList();
+}
+
+// 5. 辅助功能：清除Tag过滤
+function clearTagFilter() {
+    memoryState.activeTag = null;
+    renderMemoryList();
+}
+
+// --- ⬇️ 修改后：支持搜索过滤的临时记忆渲染 ⬇️ ---
+function renderShortTermMemoryInModal() {
+    // 自动获取容器，不再依赖参数传入
+    const container = document.getElementById('memory-list-scroll-area');
+    if (!container) return;
+    
+    container.innerHTML = ''; // 清空列表
+
+    // 1. 整理数据为“轮次”
+    const rounds = [];
+    let currentRound = [];
+    currentContact.history.forEach((message) => {
+        if (message.role === 'user' && currentRound.length > 0) {
+            rounds.push([...currentRound]);
+            currentRound = [];
+        }
+        currentRound.push(message);
+    });
+    if (currentRound.length > 0) rounds.push([...currentRound]);
+    window.tempMemoryRounds = rounds;
+
+    // 2. 搜索过滤逻辑
+    let displayRounds = rounds;
+    if (memoryState.searchTerm) {
+        const term = memoryState.searchTerm.toLowerCase();
+        displayRounds = rounds.filter((round) => {
+            // 如果这一轮里有任何一句话包含搜索词，就显示这一轮
+            return round.some(msg => msg.content.toLowerCase().includes(term));
+        });
+    }
+
+    if (displayRounds.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-color-secondary);">未找到匹配的对话</div>';
+        return;
+    }
+
+    // 3. 渲染
+    // 注意：这里我们通过 rounds 的原始索引来确保删除功能正常
+    displayRounds.forEach((round) => {
+        // 找到它在原始数组中的索引，以便删除时ID正确
+        const originalIndex = rounds.indexOf(round);
+
+        const roundContainer = document.createElement('div');
+        roundContainer.className = 'round-container';
+        
+        const roundHeader = document.createElement('div');
+        roundHeader.className = 'round-header';
+        roundHeader.innerHTML = `第${originalIndex + 1}轮对话 <button class="round-delete-btn clickable" onclick="deleteRound(${originalIndex})">×</button>`;
+        roundContainer.appendChild(roundHeader);
+        
+        const roundContent = document.createElement('div');
+        roundContent.className = 'round-content';
+        
+        round.forEach((message) => {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `round-message ${message.role}`;
+            messageDiv.contentEditable = true;
+            messageDiv.dataset.role = message.role;
+            // 标记高亮 (可选)
+            if (memoryState.searchTerm) {
+                // 简单的查找高亮逻辑，为了不破坏HTML结构，这里只做简单文本替换
+                // 如果需要更复杂的高亮，可以加 span
+            }
+            messageDiv.textContent = message.content;
+            roundContent.appendChild(messageDiv);
+        });
+        roundContainer.appendChild(roundContent);
+        container.appendChild(roundContainer);
+    });
+    
+    // 如果不是在搜索状态，自动滚到底部（查看最新）
+    if (!memoryState.searchTerm) {
+        setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
+    } else {
+        container.scrollTop = 0; // 搜索时滚到顶部
+    }
+}
+        
         function saveContextModalData() {
             const contextType = APP_DATA.activeModalContext;
             
