@@ -462,28 +462,51 @@
 
 .chat-message.user .avatar { display: none; } /* 用户无头像 */
 
- /* 需求4: 气泡圆角不要那么圆 (6px) */
+ /* --- 开始：替换后的样式 --- */
+
+/* 1. 新增：定义上滑淡入动画 */
+@keyframes bubbleSlideUp {
+    0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95); /* 从下方20像素、稍微缩小一点开始 */
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1); /* 回到正常位置和大小 */
+    }
+}
+
+/* 2. 修改：气泡基础样式，加入动画 */
 .chat-message .bubble {
-     max-width: 70%;
-     padding: 10px 12px;
-    border-radius: var(--bubble-radius); 
+    max-width: 70%;
+    padding: 10px 12px;
+    border-radius: var(--bubble-radius);
     line-height: 1.4;
     font-size: 17px;
     font-family: "PingFang SC", -apple-system, sans-serif;
-    word-wrap: break-word; 
-    position: relative;       
-}       
+    word-wrap: break-word;
+    position: relative;
+    
+    /* 核心修改：应用上面的动画，时长0.4秒，使用柔和的曲线 */
+    animation: bubbleSlideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    transform-origin: bottom left; /* 设置动画基点 */
+    will-change: transform, opacity; /* 告诉浏览器提前准备，防卡顿 */
+}
 
+/* 3. 针对“正在输入”的三个点，不需要上滑动画，否则会很怪 */
+.chat-message .bubble.typing-indicator {
+    animation: none !important;
+}
+
+/* AI 气泡样式（保持你原有的逻辑，只需确保在这里） */
 .chat-message.ai .bubble {
     background-color: var(--bg-color-secondary);
     color: var(--text-color-primary);
-    padding: 10px 12px;
-    border-radius: 6px;
-    max-width: 70%;
-    line-height: 1.4;
-    cursor: pointer; /* 新增：显示为可点击 */
-    transition: background-color 0.1s, transform 0.1s; /* 新增：过渡效果 */
+    cursor: pointer;
+    transition: background-color 0.1s;
 }
+
+/* --- 结束：替换后的样式 --- */
 
 /* 新增：点击时的反馈效果 */
 .chat-message.ai .bubble:active {
@@ -3507,58 +3530,59 @@ function splitByLength(text) {
     return sentences;
 }
 
+/* --- 开始：替换 displaySentences --- */
 async function displaySentences(sentences, originalText, firstBubble, firstMsgDiv) {
-    // 1. 清理句子：去除首尾空格，去除空字符串
+    // 1. 清理句子
     sentences = sentences.map(s => s.trim()).filter(s => s.length > 0);
-    
-    // 【修正点1】如果清理后没有有效的句子（比如只发了个 \ ），防止报错
+
+    // 如果清理后为空
     if (sentences.length === 0) {
-        // 如果原始文本也是空的，就不显示；如果原始文本有特殊符号，保留原始文本但尝试去掉斜线
-        const cleanText = originalText.replace(/\\/g, ''); 
+        const cleanText = originalText.replace(/\\/g, '');
         firstBubble.textContent = cleanText;
         return { fullReply: cleanText, sentences: [] };
     }
     
-    // 【修正点2】这是你遇到问题的核心原因！
-    // 如果只有一个句子（说明反斜线没起到切分作用，比如在句尾），
-    // 之前是返回 originalText (带斜线)，现在强制返回 sentences[0] (不带斜线)
+    // 如果只有一句
     if (sentences.length === 1) {
         firstBubble.textContent = sentences[0];
+        // 只有一句时，也稍微滚一下确保可见
+        scrollToBottom();
         return { fullReply: sentences[0], sentences: [sentences[0]] };
     }
 
-    // 多个句子：逐句在不同气泡中显示
+    // 多个句子：逐句显示
     let fullReply = '';
-    
     for (let i = 0; i < sentences.length; i++) {
         const sentence = sentences[i];
-        
-        // 【修正点3】构建 fullReply 时，只用换行符或空格连接，不再把反斜线加回去
-        // 这样存入历史记录时就是干净的
         fullReply += (i > 0 ? ' ' : '') + sentence;
-        
+
         if (i === 0) {
-             // 第一句使用原来的气泡
+            // 第一句直接修改现有的气泡（就是那个正在输入的点点点）
             firstBubble.textContent = sentence;
             await sendPushNotification(sentence);
             addClickToBubble(firstBubble);
         } else {
-            // 后续句子创建新的气泡
+            // 后面的句子创建新气泡
             const newBubble = createNewBubble(sentence, firstMsgDiv);
             addClickToBubble(newBubble);
             await sendPushNotification(sentence);
         }
 
-        // 随机延迟效果
-        const delay = 1000 + Math.random() * 1000;
+        // --- 核心修改：防止跳动 ---
+        // 每出一个气泡，立即执行一次置底
+        scrollToBottom();
+
+        // 随机延迟（打字感）
+        const delay = 800 + Math.random() * 500; 
         await new Promise(resolve => setTimeout(resolve, delay));
-        
-        // 滚动到底部
-        scrollToBottom('smooth');
     }
+    
+    // 全部结束后，最后再确认一次置底
+    scrollToBottom();
     
     return { fullReply, sentences };
 }
+
 
 // 【新增】给气泡添加点击事件的辅助函数
 function addClickToBubble(bubble) {
@@ -3594,14 +3618,18 @@ function createNewBubble(text, referenceMsgDiv) {
     return newBubble; // 【重要】返回气泡元素
 }
 
-// 强制瞬间置底，没有任何废话
+/* --- 开始：替换 scrollToBottom --- */
+// 强制瞬间置底，使用 requestAnimationFrame 解决渲染时差导致的跳动
 function scrollToBottom() {
     const container = document.getElementById('chat-messages');
     if (!container) return;
-    
-    // 直接赋值，浏览器会在 0.0001秒内渲染完成
-    container.scrollTop = container.scrollHeight;
+
+    // 这一句是核心：等待浏览器把气泡画好后，再瞬间拉到底
+    requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+    });
 }
+/* --- 结束：替换 scrollToBottom --- */
 
 async function sendMessage() {
     const input = document.getElementById('message-input');
