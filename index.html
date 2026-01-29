@@ -586,7 +586,7 @@
 .memory-header-row {
     display: flex;
     align-items: center; /* 垂直居中核心 */
-    margin-bottom: 5px;
+    margin-bottom: 0;
     height: 40px; /* 给一个固定高度基准 */
     flex-shrink: 0;
 }
@@ -613,7 +613,7 @@
     color: var(--text-color-primary);
     /* 稍微往上提一点点(视觉补偿) */
     position: relative;
-    top: -1px; 
+    top: -0.5px; 
 }
 
 /* 分类标签栏 (Tabs) - 修改：间距更小，显示更多 */
@@ -4114,6 +4114,9 @@ async function mockAIResponse(userMessage, contact) {
             正确：（整理了一下裙摆）我今天穿了浅蓝色的连衣裙，喜欢吗？
                         
             【你的设定】
+            ${contact.tempPrompt ? `【当前状态/临时设定】\n${contact.tempPrompt}\n` : ''}
+
+            【核心人设】
             ${contact.prompt}
 
             ${applyDeepPresetToPrompt()}  
@@ -4419,27 +4422,25 @@ let memoryState = {
     activeTag: null 
 };
 
-// --- ⬇️ 修改后：带搜索图标、头部对齐、临时记忆搜索支持 ⬇️ ---
+// --- ⬇️ 修改后：字体强制统一 + 样式修复 ⬇️ ---
 function showMemoryModal(contextType) {
     if (!currentContact) return;
     APP_DATA.activeModalContext = contextType;
     
-    // 1. 初始化弹窗结构 (清空旧内容)
+    // 初始化弹窗
     const modal = document.getElementById('memory-modal');
     const contentDiv = modal.querySelector('.modal-content');
     
     // 重置状态
     memoryState = { searchTerm: '', activeCategory: '全部', activeTag: null };
 
-    // --- 构建统一的头部 (修复对齐问题) ---
-    // 根据类型决定标题
+    // 标题
     let titleText = '记忆档案';
-    if (contextType === 'prompt') titleText = '修改角色 Prompt';
+    if (contextType === 'prompt') titleText = '角色设定 (Prompt)';
     else if (contextType === 'short') titleText = '临时记忆';
     else if (contextType === 'long') titleText = '长期记忆档案';
 
-    // 生成头部 HTML (使用 flex 严格对齐)
-    // 注意：这里手动构建头部，不依赖原来的静态HTML，确保每次都正确
+    // 头部 HTML
     contentDiv.innerHTML = `
         <div class="memory-header-row">
             <div class="memory-back-btn clickable" onclick="goBackInMemoryModal()">
@@ -4457,60 +4458,140 @@ function showMemoryModal(contextType) {
     const container = document.getElementById('memory-content-container');
     const saveBtn = document.getElementById('memory-save-btn');
 
-    // --- 情况A：修改 Prompt ---
+    // --- 情况A：修改角色 Prompt ---
     if (contextType === 'prompt') {
         saveBtn.style.display = 'inline-block';
-        const textarea = document.createElement('textarea');
-        textarea.id = 'memory-content';
-        textarea.rows = 15;
-        textarea.style.width = '100%';
-        textarea.value = currentContact.prompt;
-        container.appendChild(textarea);
-
-    // --- 情况B：临时记忆 (新增搜索功能) ---
-    } else if (contextType === 'short') {
-        saveBtn.style.display = 'inline-block'; // 允许保存编辑
-
-        // 1. 顶部搜索栏 (固定)
-        const headerDiv = document.createElement('div');
         
-        // 搜索条包装器 (图标 + 输入框)
+        // 滚动容器
+        const scrollWrapper = document.createElement('div');
+        scrollWrapper.style.cssText = "height: 100%; overflow-y: auto; padding-right: 5px;";
+        
+        // 🌟 辅助方法：统一字体大小
+        const createPromptSection = (iconClass, labelText, value, id, placeholder, height) => {
+            const wrapper = document.createElement('div');
+            wrapper.style.marginBottom = '15px'; // 间距稍微调小一点
+            
+            // 标题栏
+            const header = document.createElement('div');
+            header.style.display = 'flex';
+            header.style.justifyContent = 'space-between';
+            header.style.alignItems = 'center';
+            header.style.marginBottom = '5px';
+            
+            // 左侧：图标 + 文字
+            const titleContainer = document.createElement('div');
+            titleContainer.style.display = 'flex';
+            titleContainer.style.alignItems = 'center';
+            titleContainer.style.fontWeight = 'bold';
+            
+            // 🔥【关键】标题字体设置为 14px
+            titleContainer.style.fontSize = '14px'; 
+            titleContainer.style.color = 'var(--text-color-primary)';
+
+            const icon = document.createElement('i');
+            icon.className = iconClass; 
+            icon.style.marginRight = '6px';
+            icon.style.color = 'var(--text-color-secondary)'; 
+            
+            const text = document.createElement('span');
+            text.textContent = labelText;
+
+            titleContainer.appendChild(icon);
+            titleContainer.appendChild(text);
+            
+            // 右侧：复制按钮
+            const copyIcon = document.createElement('i');
+            copyIcon.className = 'fa-regular fa-copy clickable';
+            copyIcon.style.cursor = 'pointer';
+            copyIcon.style.fontSize = '14px';
+            copyIcon.style.padding = '5px';
+            copyIcon.style.color = 'var(--text-color-secondary)';
+            copyIcon.onclick = function() { copyText(this, id); };
+            
+            header.appendChild(titleContainer);
+            header.appendChild(copyIcon);
+            
+            // 输入框
+            const textarea = document.createElement('textarea');
+            textarea.id = id;
+            textarea.style.height = height; 
+            textarea.style.width = '100%';
+            
+            // 🔥【关键】强制输入框字体也为 13px，与标题完全一致
+            // 使用 !important 防止被其他样式覆盖
+            textarea.style.cssText = `
+                height: ${height};
+                width: 100%;
+                font-size: 13px !important; 
+                line-height: 1.5 !important;
+                padding: 8px !important;
+                font-family: inherit;
+            `;
+            
+            textarea.value = value || '';
+            textarea.placeholder = placeholder;
+            
+            wrapper.appendChild(header);
+            wrapper.appendChild(textarea);
+            return wrapper;
+        };
+
+        // 1. 上方：临时设定
+        scrollWrapper.appendChild(createPromptSection(
+            'fa-solid fa-mask', 
+            '临时设定', 
+            currentContact.tempPrompt, 
+            'temp-prompt-input', 
+            '输入临时状态/职业...', 
+            '80px'
+        ));
+        
+        // 2. 下方：核心设定
+        scrollWrapper.appendChild(createPromptSection(
+            'fa-solid fa-brain', 
+            '核心设定', 
+            currentContact.prompt, 
+            'core-prompt-input', 
+            '输入核心性格/背景...', 
+            '250px'
+        ));
+
+        container.appendChild(scrollWrapper);
+
+    // --- 情况B：临时记忆 (保持不变) ---
+    } else if (contextType === 'short') {
+        saveBtn.style.display = 'inline-block';
+        
+        const headerDiv = document.createElement('div');
         const searchWrapper = document.createElement('div');
         searchWrapper.className = 'search-bar-wrapper';
-        searchWrapper.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i>`; // ✨ 你的图标
-        
+        searchWrapper.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i>`;
         const searchInput = document.createElement('input');
         searchInput.type = 'text';
         searchInput.className = 'memory-search-box';
         searchInput.placeholder = '搜索聊天记录...';
         searchInput.oninput = (e) => {
             memoryState.searchTerm = e.target.value.trim();
-            renderShortTermMemoryInModal(); // 实时刷新
+            renderShortTermMemoryInModal();
         };
         searchWrapper.appendChild(searchInput);
         headerDiv.appendChild(searchWrapper);
         container.appendChild(headerDiv);
 
-        // 2. 列表容器 (滚动)
         const listContainer = document.createElement('div');
         listContainer.id = 'memory-list-scroll-area';
         container.appendChild(listContainer);
 
-        // 3. 渲染列表
         renderShortTermMemoryInModal();
 
-    // --- 情况C：长期记忆 ---
+    // --- 情况C：长期记忆 (保持不变) ---
     } else if (contextType === 'long') {
         saveBtn.style.display = 'none'; 
 
-        // 1. 顶部功能区
         const headerDiv = document.createElement('div');
-        
-        // 搜索条包装器 (图标 + 输入框)
         const searchWrapper = document.createElement('div');
         searchWrapper.className = 'search-bar-wrapper';
-        searchWrapper.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i>`; // ✨ 你的图标
-        
+        searchWrapper.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i>`;
         const searchInput = document.createElement('input');
         searchInput.type = 'text';
         searchInput.className = 'memory-search-box';
@@ -4522,7 +4603,6 @@ function showMemoryModal(contextType) {
         searchWrapper.appendChild(searchInput);
         headerDiv.appendChild(searchWrapper);
 
-        // 分类 Tabs
         const tabsDiv = document.createElement('div');
         tabsDiv.className = 'memory-tabs';
         const fixedCategories = ['全部', '核心', '偏好', '日常', '进展'];
@@ -4545,7 +4625,6 @@ function showMemoryModal(contextType) {
         });
         headerDiv.appendChild(tabsDiv);
         
-        // Tag 过滤器提示
         const tagFilterDiv = document.createElement('div');
         tagFilterDiv.id = 'memory-tag-filter-display';
         tagFilterDiv.style.cssText = 'display:none; margin-bottom:10px; font-size:13px; color:var(--accent-color);';
@@ -4553,12 +4632,10 @@ function showMemoryModal(contextType) {
 
         container.appendChild(headerDiv);
 
-        // 2. 列表容器
         const listContainer = document.createElement('div');
         listContainer.id = 'memory-list-scroll-area';
         container.appendChild(listContainer);
 
-        // 3. 渲染
         renderMemoryList();
     }
     
@@ -4767,12 +4844,18 @@ function renderShortTermMemoryInModal() {
         function saveContextModalData() {
             const contextType = APP_DATA.activeModalContext;
             
-            if (contextType === 'prompt') {
-                const textarea = document.getElementById('memory-content');
-                currentContact.prompt = textarea.value;
-                alert('Prompt 已保存！');
+           if (contextType === 'prompt') {
+                const tempInput = document.getElementById('temp-prompt-input');
+                const coreInput = document.getElementById('core-prompt-input');
+                
+                // 保存两个字段
+                currentContact.tempPrompt = tempInput.value;
+                currentContact.prompt = coreInput.value; // prompt 字段现在只存核心人设
+                
+                alert('角色设定已保存！\n(临时设定 + 核心人设)');
                 saveData();
                 hideModal('memory-modal');
+
           } else if (contextType === 'long') {
     // 获取所有修改后的记忆
     const textareas = document.querySelectorAll('#memory-content-container textarea');
@@ -8470,6 +8553,28 @@ function updateNotificationSwitchUI(isEnabled) {
         switchEl.style.background = 'var(--input-border)';
         thumbEl.style.transform = 'translateX(0px)';
     }
+}
+// --- 📋 复制功能的辅助函数 ---
+function copyText(button, elementId) {
+    const textarea = document.getElementById(elementId);
+    if (!textarea) return;
+    
+    // 执行复制
+    navigator.clipboard.writeText(textarea.value).then(() => {
+        // 视觉反馈：图标变成对号
+        const icon = button;
+        icon.className = 'fa-solid fa-check';
+        icon.style.color = 'var(--accent-color)';
+        
+        // 1.5秒后变回复制图标
+        setTimeout(() => {
+            icon.className = 'fa-regular fa-copy clickable';
+            icon.style.color = '';
+        }, 1500);
+    }).catch(err => {
+        console.error('复制失败:', err);
+        alert('复制失败，请手动复制');
+    });
 }
 
 </script>
