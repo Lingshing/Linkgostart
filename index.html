@@ -523,10 +523,9 @@
     right: 0;
     bottom: 0;
     overflow-y: auto;
-    padding: 15px 0;
+    padding: 15px 0 40px 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    scroll-behavior: smooth;
 }
 
 /* 确保最后一条消息不被遮挡 */
@@ -2999,13 +2998,9 @@ item.onclick = () => {
     // 【关键修改】在动画开始前就渲染消息
    renderMessages(currentContact.history.slice(-20));
     
-    // 【关键修改】立即滚动到底部，不等待
     setTimeout(() => {
-        const container = document.getElementById('chat-messages');
-        if (container) {
-            container.scrollTop = container.scrollHeight;
-        }
-    }, 10);
+        scrollToBottom('auto'); 
+    }, 0);
     
     // 等待动画结束
     setTimeout(() => {
@@ -3305,7 +3300,7 @@ function displaySegmentGroup(segmentGroup, container) {
             msgDiv.appendChild(bubble);
 
             container.appendChild(msgDiv);
-            scrollToBottom();
+            scrollToBottom('smooth');
             
             return {msgDiv, bubble};
         }
@@ -3565,7 +3560,7 @@ async function displaySentences(sentences, originalText, firstBubble, firstMsgDi
         await new Promise(resolve => setTimeout(resolve, delay));
         
         // 滚动到底部
-        scrollToBottom();
+        scrollToBottom('smooth');
     }
     
     return { fullReply, sentences };
@@ -3605,12 +3600,16 @@ function createNewBubble(text, referenceMsgDiv) {
     return newBubble; // 【重要】返回气泡元素
 }
 
-function scrollToBottom() {
+// 升级版滚动函数：支持指定是“瞬间”还是“平滑”
+function scrollToBottom(behavior = 'auto') {
     const container = document.getElementById('chat-messages');
     if (!container) return;
     
-    // 直接设置到底部，CSS 的 scroll-behavior 会自动把它变得丝滑
-    container.scrollTop = container.scrollHeight;
+    // 使用 scrollTo 方法，它可以接受 behavior 参数
+    container.scrollTo({
+        top: container.scrollHeight,
+        behavior: behavior // 'auto'是瞬间，'smooth'是平滑
+    });
 }
 
 async function sendMessage() {
