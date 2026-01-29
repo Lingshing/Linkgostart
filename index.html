@@ -3108,63 +3108,65 @@ function loadMoreMessages() {
 }
 
 
-/* --- 最终版：0.2秒整体平滑上移 --- */
+// 全局变量，防止快速连续调用时动画冲突
+window.chatScrollAnimationId = null;
+
+/* --- 最终优化版：Cubic Ease-Out 丝滑阻尼滚动 --- */
 function scrollToBottom() {
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
-    // 1. 设定动画时长：0.2秒
-    const duration = 200; // 单位是毫秒，200ms = 0.2s
-
-    // 2. 锁定“看不见的地方”作为起点
-    // container.scrollTop 就是当前画面的位置。
-    // 因为新气泡刚加进去还在下面藏着，所以这就是“气泡看不见”的起点。
+    // 1. 获取起点和终点
     const start = container.scrollTop;
-
-    // 3. 锁定“终点”
-    // scrollHeight 是加了新气泡后的总高度，减去 clientHeight 就是最新的底部位置
+    // 目标位置：总高度 - 视口高度 = 最底部
     const target = container.scrollHeight - container.clientHeight;
-    
-    // 计算要滑多远
     const distance = target - start;
+    
+    // 【调整时长】350ms 能让"减速"过程更明显，更有质感
+    const duration = 350; 
 
-    // 如果距离太小（比如已经在底了），就不动了，防止抖动
-    if (Math.abs(distance) < 2) {
+    // 优化：如果距离很小（比如已经在底了），直接到位，不浪费性能
+    if (Math.abs(distance) < 5) {
         container.scrollTop = target;
         return;
     }
 
+    // 2. 如果上一次动画还没跑完，立刻取消，防止画面抖动
+    if (window.chatScrollAnimationId) {
+        cancelAnimationFrame(window.chatScrollAnimationId);
+    }
+
     let startTime = null;
 
-    // 4. 执行平滑移动动画
+    // 3. 定义丝滑动画过程
     function animation(currentTime) {
-        if (startTime === null) startTime = currentTime;
+        if (!startTime) startTime = currentTime;
         const timeElapsed = currentTime - startTime;
-        
-        // 计算进度 (0.0 到 1.0)
         let progress = timeElapsed / duration;
+
         if (progress > 1) progress = 1;
 
-        // 使用线性匀速 (Linear)，这能带来最稳的“整体上移感”
-        // 视觉效果：整个列表像一块板子一样匀速往上推，没有加速减速的“漂浮感”
-        const ease = progress; 
+        // 【核心魔法】Cubic Ease-Out 曲线
+        // 这种算法会让滚动“一开始很快，快结束时慢慢停下”
+        // 相比匀速 (progress)，这个更有“手机原生感”
+        const ease = 1 - Math.pow(1 - progress, 3);
 
-        // 移动到当前帧的位置
+        // 应用位置
         container.scrollTop = start + (distance * ease);
 
-        // 如果还没到时间，继续下一帧
         if (timeElapsed < duration) {
-            requestAnimationFrame(animation);
+            // 继续下一帧
+            window.chatScrollAnimationId = requestAnimationFrame(animation);
         } else {
-            // 时间到了，强制修正到终点，确保严丝合缝
-            container.scrollTop = target; 
+            // 动画结束，确保严丝合缝
+            container.scrollTop = target;
+            window.chatScrollAnimationId = null;
         }
     }
 
-    // 启动引擎
-    requestAnimationFrame(animation);
+    // 启动动画
+    window.chatScrollAnimationId = requestAnimationFrame(animation);
 }
-/* --- 结束 --- */
 
 /* --- 1. 修复：0秒瞬间置底（进场专用，加了双重保险） --- */
 function scrollToBottomInstant() {
@@ -3601,7 +3603,7 @@ async function displaySentences(sentences, originalText, firstBubble, firstMsgDi
         scrollToBottom();
 
         // 随机延迟（打字感）
-        const delay = 1000 + Math.random() * 700; 
+        const delay = 1000 + Math.random() * 1000; 
         await new Promise(resolve => setTimeout(resolve, delay));
     }
     
