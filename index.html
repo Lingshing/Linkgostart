@@ -3495,20 +3495,15 @@ function appendMessageToDOM(text, role, isTypingEffect = false, skipScroll = fal
     return {msgDiv, bubble};
 }
         
-     // 在不同气泡中逐句显示（智能分割）
+    // 在不同气泡中逐句显示（智能分割）
 async function typeMessageInMultipleBubbles(fullText, firstBubble, firstMsgDiv) {
     console.log("原始AI回复:", fullText);
     
-    // ========== 第二重清理 ==========
-    // 再次确保没有正斜线
-    fullText = fullText.replace(/\//g, '');
-    
-    // 同时清理其他可能的问题字符
-    fullText = fullText.replace(/[／∕⧸⁄]/g, ''); // 各种全角、数学斜线
-    // ==============================
-
-    // ========== 新增：合并连续标点 ==========
+    // ========== 预处理 ==========
+    // 1. 合并连续标点
     fullText = fullText.replace(/([!?！？])\1+/g, '$1');
+    // 2. 清理正斜线等干扰字符
+    fullText = fullText.replace(/[\/／∕⧸⁄]/g, '');
 
     // 优先：换行符分割
     if (fullText.includes('\n')) {
@@ -3544,14 +3539,7 @@ async function typeMessageInMultipleBubbles(fullText, firstBubble, firstMsgDiv) 
         return await displaySentences(sentences, fullText, firstBubble, firstMsgDiv);
     }
     
-    // 情况4：如果有换行符，按换行符分割
-    if (fullText.includes('\n')) {
-        console.log("检测到换行符，按换行符分割");
-        const sentences = splitByNewline(fullText);
-        return await displaySentences(sentences, fullText, firstBubble, firstMsgDiv);
-    }
-    
-    // 情况5：如果有逗号或分号，按逗号/分号分割
+    // 情况4：如果有逗号或分号，按逗号/分号分割
     const commaSemicolon = /[,，]/;
     if (commaSemicolon.test(fullText)) {
         console.log("检测到逗号，按逗号分割");
@@ -3559,17 +3547,20 @@ async function typeMessageInMultipleBubbles(fullText, firstBubble, firstMsgDiv) 
         return await displaySentences(sentences, fullText, firstBubble, firstMsgDiv);
     }
     
-    // 情况6：按长度分割（长文本拆分成短句）
+    // 情况5：按长度分割（长文本拆分成短句）
     if (fullText.length > 30) {
         console.log("长文本，按长度分割");
         const sentences = splitByLength(fullText);
         return await displaySentences(sentences, fullText, firstBubble, firstMsgDiv);
     }
     
-    // 情况7：直接显示（短文本）
+    // 情况6：直接显示（兜底）
     console.log("短文本，直接显示");
-    firstBubble.textContent = fullText;
-    return { fullReply: fullText, sentences: [fullText] };
+    // 【新增】最后兜底去除所有反斜线，保证干净
+    const cleanText = fullText.replace(/\\/g, ''); 
+    firstBubble.textContent = cleanText;
+    
+    return { fullReply: cleanText, sentences: [cleanText] };
 }
 
 
@@ -3705,10 +3696,10 @@ function splitByLength(text) {
 
 /* --- 开始：替换 displaySentences --- */
 async function displaySentences(sentences, originalText, firstBubble, firstMsgDiv) {
-    // 1. 清理句子
-    sentences = sentences.map(s => s.trim()).filter(s => s.length > 0);
+    // 1. 【核心修改】强力清洗：遍历每个切分后的句子，彻底删除反斜线
+    sentences = sentences.map(s => s.replace(/\\/g, '').trim()).filter(s => s.length > 0);
 
-    // 如果清理后为空
+    // 如果清洗后没东西了（比如原文全是反斜线）
     if (sentences.length === 0) {
         const cleanText = originalText.replace(/\\/g, '');
         firstBubble.textContent = cleanText;
@@ -3718,7 +3709,6 @@ async function displaySentences(sentences, originalText, firstBubble, firstMsgDi
     // 如果只有一句
     if (sentences.length === 1) {
         firstBubble.textContent = sentences[0];
-        // 只有一句时，也稍微滚一下确保可见
         scrollToBottom();
         return { fullReply: sentences[0], sentences: [sentences[0]] };
     }
@@ -3728,9 +3718,9 @@ async function displaySentences(sentences, originalText, firstBubble, firstMsgDi
     for (let i = 0; i < sentences.length; i++) {
         const sentence = sentences[i];
         fullReply += (i > 0 ? ' ' : '') + sentence;
-
+        
         if (i === 0) {
-            // 第一句直接修改现有的气泡（就是那个正在输入的点点点）
+            // 第一句修改现有气泡
             firstBubble.textContent = sentence;
             await sendPushNotification(sentence);
             addClickToBubble(firstBubble);
@@ -3741,21 +3731,18 @@ async function displaySentences(sentences, originalText, firstBubble, firstMsgDi
             await sendPushNotification(sentence);
         }
 
-        // --- 核心修改：防止跳动 ---
-        // 每出一个气泡，立即执行一次置底
+        // 立即置底，防止跳动
         scrollToBottom();
-
+        
         // 随机延迟（打字感）
-        const delay = 1000 + Math.random() * 1000; 
+        const delay = 1000 + Math.random() * 1000;
         await new Promise(resolve => setTimeout(resolve, delay));
     }
     
-    // 全部结束后，最后再确认一次置底
+    // 结束确认置底
     scrollToBottom();
-    
     return { fullReply, sentences };
 }
-
 
 // 【新增】给气泡添加点击事件的辅助函数
 function addClickToBubble(bubble) {
@@ -4213,8 +4200,10 @@ async function mockAIResponse(userMessage, contact) {
             }
 
             // 强力删除所有正斜线并应用正则 [cite: 755, 756]
-            result = result.replace(/\//g, '');
-            result = applyRegexToText(result); 
+            result = result.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+        	    result = result.replace(/\//g, '');
+         	   result = applyRegexToText(result);
 
             if (currentContact) {
                 saveData(); // [cite: 757]
@@ -4795,7 +4784,7 @@ function renderShortTermMemoryInModal() {
     }
 
     if (displayRounds.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-color-secondary);">未找到匹配的对话</div>';
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-color-secondary);">暂无对话</div>';
         return;
     }
 
