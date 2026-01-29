@@ -4109,60 +4109,80 @@ async function mockAIResponse(userMessage, contact) {
     }
 }
         
-// --- 再次优化：防废话、防概括的记忆生成函数 ---
+// --- 最终优化版：动态轮数 + 人称修正 ---
 async function simulateMemorySummary(contact) {
-    console.log("🧠 触发长期记忆生成逻辑...");
+    console.log("🧠 尝试触发长期记忆生成逻辑...");
     
-    // 1. 检查是否达到触发频率
-    const interval = APP_DATA.settings.diaryInterval || 10;
+    // 1. 【动态读取】读取您在设置里填写的数字
+    // 如果您填了8，interval就是8；如果您填了17，它就是17
+    const interval = parseInt(APP_DATA.settings.diaryInterval) || 10; 
+    
+    // 计算当前是用户说的第几句话（即第几轮）
     const userMessagesCount = contact.history.filter(m => m.role === 'user').length;
-    
-    if (userMessagesCount < interval || contact.history.length < 5) {
-        return;
+
+    console.log(`当前轮数: ${userMessagesCount}, 设定频率: ${interval}`);
+
+    // 2. 【核心逻辑】取余数判断
+    // 只有当 (当前轮数 ÷ 设定频率) 的余数为 0 时，才触发
+    // 例如设置 8：8%8=0(触发), 9%8=1(跳过)... 16%8=0(触发)
+    // 例如设置 17：17%17=0(触发)... 34%17=0(触发)
+    if (userMessagesCount === 0 || userMessagesCount % interval !== 0) {
+        return; // 不是总结点，直接退出
     }
 
-    console.log("📝 正在请求 AI 撰写结构化日记...");
+    console.log(`📝 达到第 ${userMessagesCount} 轮（${interval}的倍数），开始生成记忆...`);
     
-    // 2. 准备素材
-    const recentChat = contact.history.slice(-(interval * 2 + 5)).map(m => 
+    // 3. 动态截取对话上下文
+    // 无论频率是多少，我们都往前多截取一点，确保上下文完整 (例如 2倍频率 + 5句)
+    const sliceCount = interval * 2 + 5;
+    const recentChat = contact.history.slice(-sliceCount).map(m => 
         m.content
     ).join('\n');
+
+    // 4. 提取已有称呼（用于修正人称）
+    const existingCoreMemories = contact.longMemories
+        ? contact.longMemories.filter(m => m.score >= 8).map(m => m.content).join(';')
+        : "";
 
     const apiUrl = APP_DATA.settings.apiUrl;
     const apiKey = APP_DATA.settings.apiKey;
     const model = APP_DATA.settings.aiModel;
 
-    // 3. 【核心修改点】优化后的提示词
+    // 5. 【提示词优化】解决"用户"人称混乱问题
     const summaryMessages = [
         {
             role: "system",
-            content: `你是一个严谨的记忆录入员，不是聊天助手。请提取对话中的关键事实。
+            content: `你是一个严谨的记忆录入员。
             
+            【人称替换强制规则】
+            1. 🚫 **严禁在内容中使用"用户"一词！**
+            2. ✅ **必须使用具体称呼**：
+               - 如果已知对方名字（如"阿祖"）、昵称（如"宝贝"）或关系（如"哥哥"、"妹妹"），必须使用该具体称呼。
+               - 只有在完全没有任何关系或称呼的线索时，才允许使用"他/她"。
+            
+            【已知的关系/称呼参考】
+            ${existingCoreMemories ? existingCoreMemories : "暂无"}
+
             【必须严格遵守的格式】
             每条记忆占一行：分类|评分|关键词|内容
-            
-            【绝对禁止事项】
-            1. 🚫 禁止客套：绝对不要说"好的"、"我来帮你"、"以下是..."，直接输出数据行！
-            2. 🚫 禁止概括专有名词：
-               - 错误：用户去了快餐店。
-               - 正确：用户去了肯德基。
-               - 错误：用户在玩游戏。
-               - 正确：用户在玩《原神》。
-               必须保留具体的品牌名、地名、人名、作品名。
             
             【字段说明】
             1. 分类：[核心]、[偏好]、[进展]、[日常]
             2. 评分：1-10（8分以上为极重要事实，5-7分普通偏好，4分以下废话不要记）
             3. 关键词：3个，保留专有名词
             
-            【示例】
-            [核心]|10|姓名,称呼|用户希望我叫他"阿祖"。
-            [偏好]|9|肯德基,原味鸡|用户只喜欢吃肯德基的吮指原味鸡。
+            【禁止事项】
+            1. 禁止客套，直接输出数据行。
+            2. 禁止概括专有名词（如"玩游戏" -> 必须写"玩《原神》"）。
+
+            【正确示例】
+            [核心]|10|称呼,关系|哥哥今天看起来很累，需要我的安慰。
+            [偏好]|9|食物,口味|阿祖不喜欢吃香菜，点菜时要记得。
             `
         },
         {
             role: "user",
-            content: `最近对话记录：\n${recentChat}\n\n请提取（不要说废话，直接开始）：`
+            content: `最近对话记录：\n${recentChat}\n\n请提取（严格执行人称替换）：`
         }
     ];
 
@@ -4177,7 +4197,7 @@ async function simulateMemorySummary(contact) {
             body: JSON.stringify({
                 model: model,
                 messages: summaryMessages,
-                temperature: 0.1, // 【修改点】温度调到极低，让它更听话，不乱发挥
+                temperature: 0.1, // 低温保持理智
                 max_tokens: 500
             })
         });
@@ -4188,10 +4208,9 @@ async function simulateMemorySummary(contact) {
             
             if (data.choices && data.choices[0]?.message?.content) aiContent = data.choices[0].message.content;
             else if (data.result) aiContent = data.result;
-            
+
             if (aiContent) {
-                console.log("📥 AI 返回的原始记忆数据:", aiContent);
-                
+                console.log("📥 AI 返回的记忆数据:", aiContent);
                 const lines = aiContent.split('\n');
                 if (!contact.longMemories) contact.longMemories = [];
                 
@@ -4201,47 +4220,32 @@ async function simulateMemorySummary(contact) {
                 lines.forEach(line => {
                     const cleanLine = line.trim();
                     if (!cleanLine) return;
-
-                    // 【新增代码】垃圾拦截器：过滤掉 AI 可能输出的废话
-                    if (cleanLine.includes("提取") || cleanLine.includes("如下") || cleanLine.includes("帮你") || cleanLine.startsWith("好的")) {
-                        console.warn("🗑️ 拦截到废话，已丢弃:", cleanLine);
-                        return;
-                    }
+                    // 过滤废话
+                    if (cleanLine.includes("提取") || cleanLine.includes("如下") || cleanLine.startsWith("好的")) return;
 
                     const parts = cleanLine.split('|');
                     if (parts.length >= 4) {
-                        // 结构化数据
                         contact.longMemories.push({
                             id: Date.now() + Math.random(),
                             date: dateStr,
                             category: parts[0].trim().replace(/[\[\]]/g, ''),
                             score: parseInt(parts[1].trim()) || 5,
                             keywords: parts[2].split(/[,，]/).map(k=>k.trim()),
-                            content: parts[3].trim(),
+                            content: parts[3].trim(), // 这里存进去的就是"哥哥..."了
                             type: 'structured'
-                        });
-                    } else if (cleanLine.length > 5 && !cleanLine.includes("这里") && !cleanLine.includes("根据")) {
-                        // 【修改点】更严格的保底逻辑，防止存入奇怪的句子
-                        contact.longMemories.push({
-                            id: Date.now() + Math.random(),
-                            date: dateStr,
-                            category: '日常',
-                            score: 5,
-                            keywords: [],
-                            content: cleanLine,
-                            type: 'legacy'
                         });
                     }
                 });
 
                 saveData();
-                console.log("✅ 记忆已解析并保存");
+                console.log("✅ 记忆更新成功");
             }
         }
     } catch (e) {
         console.error("生成日记失败:", e);
     }
 }
+
         // ----------------------- 选项页 (Prompt/记忆) -----------------------
         function showMemoryModal(contextType) {
             if (!currentContact) return;
