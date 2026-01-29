@@ -781,6 +781,78 @@ input, textarea {
     caret-color: #07C160; 
 }
 
+/* === 新增：酒馆功能专用样式 === */
+        .tavern-control-group {
+            margin-bottom: 15px;
+            background: var(--bg-color-secondary);
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid var(--input-border);
+        }
+        .tavern-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--text-color-primary);
+        }
+        .tavern-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: var(--bg-color-primary);
+            border-radius: 8px;
+            padding: 5px;
+        }
+        .tavern-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 13px;
+        }
+        .tavern-item:last-child { border-bottom: none; }
+        .tavern-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 5px;
+        }
+        .tag-input { background: #e3f2fd; color: #1565c0; } /* 输入正则 */
+        .tag-output { background: #e8f5e9; color: #2e7d32; } /* 输出正则 */
+        .tag-depth { background: #fff3e0; color: #ef6c00; } /* 深度提示 */
+        
+        /* 开关样式 */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent-color); }
+        input:checked + .slider:before { transform: translateX(14px); }
+
         /* ----------------------- 模态框/弹窗样式 ----------------------- */
         .overlay {
             position: absolute;
@@ -904,10 +976,7 @@ input[type="number"]::-webkit-inner-spin-button {
     display: none;
 }
 
-        .overlay.active .modal-content {
-            transform: scale(1);
-            opacity: 1;
-        }
+        
 
         .modal-content h4 { 
             margin-bottom: 20px; 
@@ -1477,21 +1546,6 @@ input[type="number"]::-webkit-inner-spin-button {
     min-width: 40px;
 }
 
-/* 手机：更大的图标 */
-@media screen and (max-width: 768px) {
-    .context-menu {
-        min-width: 60px !important;
-    }
-    .menu-item {
-        font-size: 40px !important;
-        height: 60px !important;
-        width: 60px !important;
-
-        aspect-ratio: 1 / 1 !important;
-        min-height: 60px !important;
-        min-width: 60px !important;
-    }
-}
 
 .menu-item:hover {
     background-color: transparent;
@@ -1821,31 +1875,12 @@ input[type="number"]::-webkit-inner-spin-button {
     opacity: 1;
 }
 
-.modal-content {
-    transform: scale(0.95);
-    opacity: 0;
-    transition: transform 0.3s ease, opacity 0.3s ease;
-}
-
 /* 动态创建的弹窗也统一动画 */
 #edit-preset-modal,
 #model-list-modal,
 #model-list-edit-modal {
     animation: modalFadeIn 0.3s ease;
 }
-/* 手机专用弹窗样式 */
-@media screen and (max-width: 768px) {
-    /* 所有弹窗内容 */
-    .modal-content,
-    #preset-modal .modal-content,
-    #new-contact-modal .modal-content,
-    #memory-modal .modal-content {
-        width: 90% !important;
-        max-width: 300px !important;
-        max-height: 70vh !important;
-        padding: 20px !important;
-        margin: 10px !important;
-    }
     
     /* 编辑预设弹窗 */
     #edit-preset-modal > div {
@@ -1879,7 +1914,6 @@ input[type="number"]::-webkit-inner-spin-button {
         padding: 12px 16px !important;
         font-size: 16px !important;
     }
-}
    </style>
 </head>
 <body>
@@ -2096,99 +2130,53 @@ input[type="number"]::-webkit-inner-spin-button {
     </div>
 </div>
 
-<!-- 预设管理弹窗 -->
-<div id="deep-preset-modal" class="overlay" style="z-index: 9999;">
-    <div class="modal-content" style="width: 90%; max-width: 320px; max-height: 70vh;">
-        <h4 style="margin-top: 0; margin-bottom: 20px; color: var(--text-color-primary);">预设管理</h4>
-        
-        <div style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px;" id="deep-preset-list">
-            <!-- 预设列表会动态生成在这里 -->
-            <div style="text-align: center; padding: 30px; color: var(--text-color-secondary);">
-                <div style="font-size: 36px; margin-bottom: 10px;">📁</div>
-                <div>无预设</div>
-            </div>
-        </div>
-        
-        <div style="display: flex; gap: 12px; justify-content: center;">
-            <button onclick="importDeepPresetFile()" 
-                    style="padding: 10px 20px; border-radius: 8px; background: var(--accent-color); 
-                           color: white; border: none; cursor: pointer;">导入</button>
-            <button onclick="hideModal('deep-preset-modal')" 
-                    style="padding: 10px 20px; border-radius: 8px; background: var(--input-bg); 
-                           color: var(--text-color-primary); border: 1px solid var(--input-border); 
-                           cursor: pointer;">关闭</button>
-        </div>
-    </div>
-</div>
-
-<!-- 正则管理弹窗 -->
-<div id="regex-modal" class="overlay" style="z-index: 9999;">
-    <div class="modal-content" style="width: 90%; max-width: 320px; max-height: 70vh;">
-        <h4 style="margin-top: 0; margin-bottom: 20px; color: var(--text-color-primary);">正则管理</h4>
-        
-        <div style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px;" id="regex-list">
-            <!-- 正则列表会动态生成在这里 -->
-            <div style="text-align: center; padding: 30px; color: var(--text-color-secondary);">
-                <div style="font-size: 36px; margin-bottom: 10px;">📄</div>
-                <div>无正则</div>
-            </div>
-        </div>
-        
-        <div style="display: flex; gap: 12px; justify-content: center;">
-            <button onclick="importRegexFile()" 
-                    style="padding: 10px 20px; border-radius: 8px; background: var(--accent-color); 
-                           color: white; border: none; cursor: pointer;">导入</button>
-            <button onclick="hideModal('regex-modal')" 
-                    style="padding: 10px 20px; border-radius: 8px; background: var(--input-bg); 
-                           color: var(--text-color-primary); border: 1px solid var(--input-border); 
-                           cursor: pointer;">关闭</button>
-        </div>
-    </div>
-</div>                
+<!-- 记忆配置模块 -->
 <div class="settings-group">
     <h4>记忆配置</h4>
     
     <label for="context-limit">携带历史轮数 (临时记忆):</label>
-    <p style="font-size: 12px; color: var(--text-color-secondary); margin-top: 2px; margin-bottom: 8px;">发送给AI的最近对话轮数（1轮=我问+AI答）。</p >
+    <p style="font-size: 12px; color: var(--text-color-secondary); margin-top: 2px; margin-bottom: 8px;">发送给AI的最近对话轮数（1轮=我问+AI答）。</p>
     <input type="number" id="context-limit" value="10" placeholder="默认 10">
     
     <label for="diary-interval">自动写日记频率 (轮数):</label>
-    <p style="font-size: 12px; color: var(--text-color-secondary); margin-top: 2px; margin-bottom: 8px;">每隔多少轮对话，让AI总结一次长期记忆。</p >
+    <p style="font-size: 12px; color: var(--text-color-secondary); margin-top: 2px; margin-bottom: 8px;">每隔多少轮对话，让AI总结一次长期记忆。</p>
     <input type="number" id="diary-interval" value="10" placeholder="默认 10">
 </div>
-                    <!-- 新增：头像设置区域 -->
-                    <div class="settings-group avatar-settings">
-                        <h4>AI 头像设置</h4>
-                        <div class="avatar-preview-container">
-                            <div class="avatar-preview-label">当前头像预览</div>
-                            <div id="current-ai-avatar-preview" class="contact-avatar" style="width: 80px; height: 80px; font-size: 36px;"></div>
-                            <input type="file" id="ai-avatar-file" accept="image/*" style="display: none;">
-                            <input type="hidden" id="ai-avatar-base64">
-                                                                                                                                                                                                                        <div class="avatar-actions" style="display: flex; gap: 10px;">
-                                <button class="file-upload-btn clickable" onclick="document.getElementById('ai-avatar-file').click()" style="padding: 8px 15px; font-size: 14px; height: 36px; border: none; background: var(--accent-color); color: white; border-radius: 8px; white-space: nowrap;">上传新头像</button>
-                                <button class="clickable" onclick="resetAvatar()" style="padding: 8px 15px; font-size: 14px; height: 36px; background-color: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); border-radius: 8px; white-space: nowrap;">重置</button>
-                            </div>
-                        </div>
-                    </div>
-                    
+
+<!-- AI头像设置模块 -->
+<div class="settings-group avatar-settings">
+    <h4>AI 头像设置</h4>
+    <div class="avatar-preview-container">
+        <div class="avatar-preview-label">当前头像预览</div>
+        <div id="current-ai-avatar-preview" class="contact-avatar" style="width: 80px; height: 80px; font-size: 36px;"></div>
+        <input type="file" id="ai-avatar-file" accept="image/*" style="display: none;">
+        <input type="hidden" id="ai-avatar-base64">
+        <div class="avatar-actions" style="display: flex; gap: 10px;">
+            <button class="file-upload-btn clickable" onclick="document.getElementById('ai-avatar-file').click()" style="padding: 8px 15px; font-size: 14px; height: 36px; border: none; background: var(--accent-color); color: white; border-radius: 8px; white-space: nowrap;">上传新头像</button>
+            <button class="clickable" onclick="resetAvatar()" style="padding: 8px 15px; font-size: 14px; height: 36px; background-color: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); border-radius: 8px; white-space: nowrap;">重置</button>
+        </div>
+    </div>
+</div>
+
+<!-- 通知服务模块 -->
 <div class="settings-group">
     <h4 style="margin-bottom: 5px;">通知服务</h4>
     <div style="margin-bottom: 20px">
-    <div style="display: flex; align-items: center; margin-bottom: 8px;">
-        <label style="font-weight: bold; font-size: 14px; color: var(--text-color-primary); margin-right: 10px;">通知显示内容</label>
-        
-        <div class="theme-switch-track clickable" 
-             style="width: 40px; height: 20px; background: var(--accent-color); margin-top: 9px;" 
-             onclick="toggleNotificationContent()" 
-             id="notification-content-switch">
-             
-            <div class="theme-switch-thumb" style="width: 18px; height: 18px; top: 1px; left: 1px; transform: translateX(20px);"></div>
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+            <label style="font-weight: bold; font-size: 14px; color: var(--text-color-primary); margin-right: 10px;">通知显示内容</label>
+            
+            <div class="theme-switch-track clickable" 
+                 style="width: 40px; height: 20px; background: var(--accent-color); margin-top: 9px;" 
+                 onclick="toggleNotificationContent()" 
+                 id="notification-content-switch">
+                 
+                <div class="theme-switch-thumb" style="width: 18px; height: 18px; top: 1px; left: 1px; transform: translateX(20px);"></div>
+            </div>
         </div>
-     </div>
-     <p style="font-size: 12px; color: #666; margin-top: -5px;">
-         关闭后通知仅显示“收到新消息”，保护隐私。
-     </p>
-</div>
+        <p style="font-size: 12px; color: #666; margin-top: -5px;">
+            关闭后通知仅显示"收到新消息"，保护隐私。
+        </p>
+    </div>
     <div style="display: flex; justify-content: center;">
         <button id="push-auth-btn" onclick="requestPushPermission()" 
                 style="flex: 1; padding: 12px; background: var(--accent-color); color: white; 
@@ -2197,10 +2185,9 @@ input[type="number"]::-webkit-inner-spin-button {
             允许接收通知
         </button>
     </div>
-    
 </div>
 
-                                        <!-- 数据管理 -->
+<!-- 数据管理模块 -->
 <div class="settings-group">
     <h4>数据管理</h4>
     <div style="margin-bottom: 12px; padding: 10px; background: var(--input-bg); border-radius: 8px;">
@@ -2219,7 +2206,68 @@ input[type="number"]::-webkit-inner-spin-button {
     </div>
 </div>
 
+<!-- 保存配置按钮 -->
 <button onclick="saveSettings()" class="options-save-btn clickable">保存配置</button>
+
+<div id="deep-preset-modal" class="overlay" style="z-index: 9999;">
+    <div class="modal-content" style="width: 90%; max-width: 320px; max-height: 70vh;">
+        <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--text-color-primary);">预设库 (World Info)</h4>
+        
+        <div style="font-size:12px; color:var(--text-color-secondary); margin-bottom:10px;">点击预设名称进行编辑/启用:</div>
+        
+        <div style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px; background:var(--bg-color-primary); border-radius:8px; padding:5px;" id="deep-preset-list">
+        </div>
+        
+        <div style="display: flex; gap: 12px; justify-content: center;">
+            <button onclick="importDeepPresetFile()" style="padding: 10px 20px; border-radius: 8px; background: var(--accent-color); color: white; border: none; cursor: pointer;">导入新预设</button>
+            <button onclick="hideModal('deep-preset-modal')" style="padding: 10px 20px; border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); cursor: pointer;">关闭</button>
+        </div>
+    </div>
+</div>
+
+        
+        <div style="display: flex; gap: 12px; justify-content: center;">
+            <button id="use-preset-btn" onclick="activateDeepPreset()" style="padding: 10px 20px; border-radius: 8px; background: var(--accent-color); color: white; border: none; cursor: pointer;">使用此预设</button>
+            <button onclick="hideModal('deep-preset-detail-modal')" style="padding: 10px 20px; border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); cursor: pointer;">返回</button>
+        </div>
+    </div>
+</div>
+
+<div id="regex-modal" class="overlay" style="z-index: 9999;">
+    <div class="modal-content" style="width: 90%; max-width: 320px; max-height: 70vh;">
+        <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--text-color-primary);">正则库 (Regex)</h4>
+        
+        <div style="font-size:12px; color:var(--text-color-secondary); margin-bottom:10px;">点击文件查看详细脚本:</div>
+
+        <div style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px; background:var(--bg-color-primary); border-radius:8px; padding:5px;" id="regex-file-list">
+            <div style="text-align: center; padding: 30px; color: var(--text-color-secondary);">
+                <div style="font-size: 36px; margin-bottom: 10px;">📄</div>
+                <div>无正则文件</div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; justify-content: center;">
+            <button onclick="importRegexFile()" style="padding: 10px 20px; border-radius: 8px; background: var(--accent-color); color: white; border: none; cursor: pointer;">导入正则</button>
+            <button onclick="hideModal('regex-modal')" style="padding: 10px 20px; border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); cursor: pointer;">关闭</button>
+        </div>
+    </div>
+</div>
+
+<div id="regex-detail-modal" class="overlay" style="z-index: 10000;">
+    <div class="modal-content" style="width: 90%; max-width: 350px; max-height: 80vh; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h4 id="regex-detail-title" style="margin:0; color: var(--text-color-primary);">脚本详情</h4>
+            <button onclick="deleteCurrentRegexFile()" style="background:none; border:none; color:var(--danger-color); font-weight:bold; cursor:pointer;">删除文件</button>
+        </div>
+
+        <div style="flex:1; overflow-y: auto; margin-bottom: 15px; background:var(--bg-color-primary); border-radius:8px; padding:5px;" id="regex-detail-list">
+        </div>
+        
+        <div style="text-align:center;">
+            <button onclick="hideModal('regex-detail-modal')" style="padding: 10px 30px; border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); cursor: pointer;">返回</button>
+        </div>
+    </div>
+</div>              
                     
                     
                 </div>
@@ -2439,35 +2487,47 @@ input[type="number"]::-webkit-inner-spin-button {
             localStorage.setItem('AI_PHONE_APP_DATA', JSON.stringify(APP_DATA));
         }
 
-        function loadSettings() {
-            document.getElementById('api-url').value = APP_DATA.settings.apiUrl;
-            document.getElementById('api-key').value = APP_DATA.settings.apiKey;
-            document.getElementById('ai-model').value = APP_DATA.settings.aiModel;
-            document.getElementById('temperature').value = APP_DATA.settings.temperature || 0.7;
-            document.getElementById('maxTokens-input').value = APP_DATA.settings.maxTokens || 2048; // 新增加载项
-            document.getElementById('context-limit').value = APP_DATA.settings.contextLimit || 20;
-            document.getElementById('diary-interval').value = APP_DATA.settings.diaryInterval || 10;
-            
-            window.isNotificationContentEnabled = APP_DATA.settings.notificationShowContent !== false;
-            
-            loadAvatarPreview(APP_DATA.settings.aiAvatarBase64, 'current-ai-avatar-preview');
-            document.getElementById('ai-avatar-base64').value = APP_DATA.settings.aiAvatarBase64;
-            
-            // 【新增】加载当前配置的显示
-            if (APP_DATA.currentPresetId) {
-                const preset = APP_DATA.presets.find(p => p.id == APP_DATA.currentPresetId);
-                if (preset) {
-                    document.getElementById('api-preset-display').value = preset.name;
-                    document.getElementById('save-preset-btn').style.display = 'none';
-                    document.getElementById('api-fields-container').style.display = 'none';
-                    // 新增：加载深预设和正则设置
-                    loadDeepPresetAndRegexSettings();
-                    // 加载流式开关状态
-                    updateSwitchState('stream-switch', APP_DATA.settings.stream || false);
+ function loadSettings() {
+    // 1. 加载基础设置
+    document.getElementById('api-url').value = APP_DATA.settings.apiUrl || '';
+    document.getElementById('api-key').value = APP_DATA.settings.apiKey || '';
+    document.getElementById('ai-model').value = APP_DATA.settings.aiModel || '';
+    document.getElementById('temperature').value = APP_DATA.settings.temperature || 0.7;
+    document.getElementById('maxTokens-input').value = APP_DATA.settings.maxTokens || 2048;
+    document.getElementById('context-limit').value = APP_DATA.settings.contextLimit || 20;
+    document.getElementById('diary-interval').value = APP_DATA.settings.diaryInterval || 10;
+    
+    window.isNotificationContentEnabled = APP_DATA.settings.notificationShowContent !== false;
+    loadAvatarPreview(APP_DATA.settings.aiAvatarBase64, 'current-ai-avatar-preview');
+    document.getElementById('ai-avatar-base64').value = APP_DATA.settings.aiAvatarBase64 || '';
 
-                }
-            }
+    // 2. 加载当前预设名称
+    if (APP_DATA.currentPresetId) {
+        const preset = APP_DATA.presets ? APP_DATA.presets.find(p => p.id == APP_DATA.currentPresetId) : null;
+        if (preset) {
+            document.getElementById('api-preset-display').value = preset.name;
+            const saveBtn = document.getElementById('save-preset-btn');
+            const apiContainer = document.getElementById('api-fields-container');
+            if (saveBtn) saveBtn.style.display = 'none';
+            if (apiContainer) apiContainer.style.display = 'none';
         }
+    }
+
+    // 3. 核心修复：强制加载正则和预设数据
+    // 使用 setTimeout 确保页面元素完全就绪后再渲染，防止“消失”
+    setTimeout(() => {
+        try {
+            ensureTavernData(); // 确保数据结构完整
+            loadDeepPresetAndRegexSettings(); // 更新开关状态
+            updateRegexUI(); // 强制刷新正则列表
+            updateDeepPresetUI(); // 强制刷新预设列表
+        } catch (e) {
+            console.error("初始化酒馆组件失败:", e);
+        }
+    }, 100);
+
+    updateSwitchState('stream-switch', APP_DATA.settings.stream || false);
+}
         
         // 新增：初始化预设系统
 function initPresetSystem() {
@@ -2785,6 +2845,726 @@ function savePushKey() {
     hideModal('push-key-modal');
     alert('通知 API 配置已成功同步！');
 }
+
+
+/* ================= 修复版：酒馆功能核心引擎 (预设与正则) ================= */
+
+// 0. 数据结构初始化与迁移 (确保APP_DATA中有我们需要的数据)
+function ensureTavernData() {
+    // 初始化预设数组
+    if (!APP_DATA.deepPresets) APP_DATA.deepPresets = [];
+    
+    // 初始化正则文件集合 (这就是我们用来实现"先看文件名"的新结构)
+    if (!APP_DATA.regexCollections) APP_DATA.regexCollections = [];
+    
+    // 迁移旧数据：如果用户之前有散乱的正则，把它们打包进一个"默认文件"
+    if (APP_DATA.regexPatterns && APP_DATA.regexPatterns.length > 0) {
+        APP_DATA.regexCollections.push({
+            id: 'legacy_' + Date.now(),
+            name: '旧版导入数据',
+            scripts: [...APP_DATA.regexPatterns],
+            enabled: true
+        });
+        APP_DATA.regexPatterns = []; // 清空旧结构，以后只用 Collections
+        saveData();
+    }
+}
+
+// 1. 预设 Prompt 注入逻辑
+function applyDeepPresetToPrompt() {
+    if (!APP_DATA.deepPresetEnabled || !APP_DATA.currentDeepPresetId) return "";
+    const preset = APP_DATA.deepPresets.find(p => p.id === APP_DATA.currentDeepPresetId);
+    if (!preset || !preset.prompts) return "";
+
+    let injectedText = "\n【世界书/预设规则】\n";
+    preset.prompts.forEach(p => {
+        if (p.enabled !== false && p.content) {
+            injectedText += `${p.content}\n`;
+        }
+    });
+    return injectedText;
+}
+
+// 2. 正则处理逻辑 (修复版：遍历所有启用的文件)
+function applyRegexToText(text) {
+    if (!APP_DATA.regexEnabled || !APP_DATA.regexCollections) return text;
+    let processedText = text;
+    
+    // 遍历每一个正则文件
+    APP_DATA.regexCollections.forEach(collection => {
+        // 如果文件被禁用了，跳过
+        if (collection.enabled === false) return;
+        
+        // 遍历文件里的脚本
+        if (collection.scripts) {
+            collection.scripts.forEach(script => {
+                if (script.disabled) return; 
+                // 仅处理输出(placement包含2或未定义)
+                if (script.placement && !script.placement.includes(2)) return;
+
+                try {
+                    let pattern = script.regex; 
+                    let flags = 'g';
+                    // 处理 /abc/g 这种格式
+                    if (pattern.startsWith('/') && pattern.lastIndexOf('/') > 0) {
+                        const lastSlash = pattern.lastIndexOf('/');
+                        const flagStr = pattern.substring(lastSlash + 1);
+                        if(flagStr) flags = flagStr;
+                        pattern = pattern.substring(1, lastSlash);
+                    }
+                    
+                    const regex = new RegExp(pattern, flags);
+                    processedText = processedText.replace(regex, script.replace || "");
+                } catch (e) {
+                    console.warn("正则执行错误:", script.name, e);
+                }
+            });
+        }
+    });
+    return processedText;
+}
+
+/* ================= 导入系统 (兼容性增强) ================= */
+
+// 3. 导入预设
+function importDeepPresetFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.style.display = 'none';
+    document.body.appendChild(input); 
+    
+    input.onchange = e => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            try {
+                const json = JSON.parse(ev.target.result);
+                let presetName = json.name || (input.files[0] ? input.files[0].name.replace('.json', '') : "导入预设");
+
+                let extractedPrompts = [];
+                // 兼容 SillyTavern / 这里的格式
+                if (Array.isArray(json.prompts)) {
+                    extractedPrompts = json.prompts;
+                } else {
+                    // 尝试提取常见字段
+                    const fields = [
+                        { key: 'main_prompt', name: 'Main Prompt' },
+                        { key: 'jailbreak_prompt', name: 'Jailbreak' },
+                        { key: 'nsfw_prompt', name: 'NSFW' },
+                        { key: 'story_string', name: 'Story String' },
+                        { key: 'system_prompt', name: 'System Prompt' }
+                    ];
+                    fields.forEach(field => {
+                        if (json[field.key]) extractedPrompts.push({ name: field.name, content: json[field.key], enabled: true });
+                    });
+                }
+
+                if (extractedPrompts.length === 0) {
+                     extractedPrompts.push({ name: "通用设置", content: "无内容", enabled: true });
+                }
+
+                const newPreset = {
+                    id: Date.now().toString(), 
+                    name: presetName,
+                    prompts: extractedPrompts
+                };
+
+                if (!APP_DATA.deepPresets) APP_DATA.deepPresets = [];
+                APP_DATA.deepPresets.push(newPreset);
+                APP_DATA.currentDeepPresetId = newPreset.id; // 自动选中
+                
+                saveData();
+                updateDeepPresetUI(); // 刷新列表
+                alert(`✅ 成功导入预设: ${presetName}`);
+                
+            } catch (err) { 
+                alert('预设解析失败: ' + err.message); 
+            } finally {
+                document.body.removeChild(input);
+            }
+        };
+        reader.readAsText(e.target.files[0]);
+    };
+    input.click();
+}
+
+// 4. 导入正则 (修复Undefined问题)
+function importRegexFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    input.onchange = e => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            try {
+                const json = JSON.parse(ev.target.result);
+                const fileName = input.files[0] ? input.files[0].name.replace('.json', '') : "导入的正则";
+                let scripts = [];
+
+                // 核心：处理 undefined 的关键，增加多重判断
+                const normalizeScript = (item, idx) => {
+                    // 尝试获取名字，如果都没有，就叫“正则脚本+序号”
+                    const name = item.scriptName || item.name || item.key || item.comment || `正则脚本 ${idx + 1}`;
+                    // 尝试获取正则内容
+                    const regexStr = item.findRegex || item.regex || item.pattern || item.source;
+                    // 尝试获取替换内容
+                    const replaceStr = (item.replaceString !== undefined) ? item.replaceString : (item.replace !== undefined ? item.replace : "");
+                    
+                    if (regexStr) {
+                        return {
+                            id: Date.now() + Math.random().toString(36).substr(2, 5),
+                            name: name,
+                            regex: regexStr,
+                            replace: replaceStr,
+                            disabled: item.disabled === true,
+                            placement: item.placement // 保留位置信息
+                        };
+                    }
+                    return null;
+                };
+
+                // 判断 JSON 结构：是数组还是对象？
+                let rawList = [];
+                if (Array.isArray(json)) {
+                    rawList = json;
+                } else if (json.scripts && Array.isArray(json.scripts)) {
+                    rawList = json.scripts;
+                } else if (json.regex_scripts && Array.isArray(json.regex_scripts)) {
+                    rawList = json.regex_scripts;
+                }
+
+                if (rawList.length > 0) {
+                    rawList.forEach((item, idx) => {
+                        const s = normalizeScript(item, idx);
+                        if (s) scripts.push(s);
+                    });
+                } else {
+                    // 尝试作为单个对象处理
+                    const s = normalizeScript(json, 0);
+                    if (s) scripts.push(s);
+                }
+
+                if (scripts.length > 0) {
+                    // 创建一个新的“正则文件集合”
+                    const newCollection = {
+                        id: Date.now().toString(),
+                        name: fileName,
+                        scripts: scripts,
+                        enabled: true
+                    };
+                    
+                    ensureTavernData();
+                    APP_DATA.regexCollections.push(newCollection);
+                    saveData();
+                    updateRegexUI(); // 刷新 UI
+                    alert(`✅ 成功导入文件 "${fileName}"，包含 ${scripts.length} 条脚本！`);
+                } else {
+                    alert("导入失败：文件中未找到有效的正则格式。\n请确认是酒馆(SillyTavern)或常见的正则JSON格式。");
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert('文件解析错误: ' + err.message);
+            } finally {
+                document.body.removeChild(input);
+            }
+        };
+        reader.readAsText(e.target.files[0]);
+    };
+    input.click();
+}
+
+/* ================= 界面渲染 (UI) ================= */
+
+// 打开预设管理（一级：文件列表）
+function openDeepPresetManager() {
+    ensureTavernData();
+    updateDeepPresetUI();
+    showModal('deep-preset-modal');
+}
+
+// 全局变量：记录当前正在编辑的预设ID (放在所有函数外面，或者 script 标签最开头)
+let editingPresetId = null; 
+
+// ==========================================
+// 函数 1：渲染预设列表 (完全仿照正则列表的排版)
+// ==========================================
+function updateDeepPresetUI() {
+    const container = document.getElementById('deep-preset-list');
+    const displayInput = document.getElementById('deep-preset-display');
+    
+    // 1. 更新主界面显示的文字
+    if (displayInput) {
+        const active = APP_DATA.deepPresets.find(p => String(p.id) === String(APP_DATA.currentDeepPresetId));
+        displayInput.value = active ? active.name : "未选择预设";
+    }
+
+    if (!container) return;
+    container.innerHTML = ''; 
+
+    // 2. 如果没数据，显示空提示
+    if (!APP_DATA.deepPresets || APP_DATA.deepPresets.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:#888">暂无预设</div>';
+        return;
+    }
+
+    // 3. 循环生成列表项 (结构与正则列表完全一致)
+    APP_DATA.deepPresets.forEach(preset => {
+        const div = document.createElement('div');
+        div.className = 'tavern-item'; // 使用相同的样式类
+        
+        // 判断是否是当前选中的预设
+        const isActive = (String(preset.id) === String(APP_DATA.currentDeepPresetId));
+        
+        // --- A. 左侧：点击进入编辑 (仿照正则) ---
+        const infoDiv = document.createElement('div');
+        infoDiv.style.flex = '1';
+        infoDiv.style.cursor = 'pointer';
+        // 选中时文字变色，不选中时普通颜色
+        if (isActive) infoDiv.style.color = 'var(--accent-color)';
+        
+        infoDiv.innerHTML = `
+            <div style="font-weight:bold; font-size:14px;">${preset.name}</div>
+            <div style="font-size:11px; color:#888">包含 ${preset.prompts ? preset.prompts.length : 0} 条内容</div>
+        `;
+        
+        // ★★★ 点击名字：打开详情弹窗 ★★★
+        infoDiv.onclick = function(e) {
+            e.stopPropagation(); // 防止误触开关
+            openDeepPresetDetail(preset.id);
+        };
+        div.appendChild(infoDiv);
+
+        // --- B. 右侧：控制区 (小开关 + 删除) ---
+        const controlsDiv = document.createElement('div');
+        controlsDiv.style.display = 'flex';
+        controlsDiv.style.alignItems = 'center';
+        controlsDiv.style.gap = '12px';
+
+        // 1. 小开关
+        const switchLabel = document.createElement('label');
+        switchLabel.className = 'switch';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = isActive; // 如果是当前选中的，开关就是开的
+        
+        checkbox.onchange = function(e) {
+            e.stopPropagation();
+            if (this.checked) {
+                // 选中：设为当前预设，并开启总开关
+                APP_DATA.currentDeepPresetId = preset.id;
+                APP_DATA.deepPresetEnabled = true;
+            } else {
+                // 取消：如果是当前预设，则关闭功能
+                if (isActive) {
+                    APP_DATA.currentDeepPresetId = null;
+                    APP_DATA.deepPresetEnabled = false;
+                }
+            }
+            saveData();
+            updateDeepPresetUI(); // 刷新列表
+            
+            // 同步更新主界面的总开关样式
+            const mainSwitch = document.getElementById('deep-preset-switch');
+            if(mainSwitch) {
+                 const thumb = mainSwitch.querySelector('.theme-switch-thumb');
+                 if(thumb) thumb.style.left = APP_DATA.deepPresetEnabled ? '20px' : '1px';
+            }
+        };
+        
+        const sliderSpan = document.createElement('span');
+        sliderSpan.className = 'slider';
+        
+        switchLabel.appendChild(checkbox);
+        switchLabel.appendChild(sliderSpan);
+        controlsDiv.appendChild(switchLabel);
+
+        // 2. 删除按钮 (红色垃圾桶)
+        const deleteBtn = document.createElement('div');
+        deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+        deleteBtn.style.color = 'var(--danger-color)';
+        deleteBtn.style.cursor = 'pointer';
+        deleteBtn.style.fontSize = '14px';
+        
+        deleteBtn.onclick = function(e) {
+            e.stopPropagation();
+            if (confirm(`确定要删除预设 "${preset.name}" 吗？`)) {
+                APP_DATA.deepPresets = APP_DATA.deepPresets.filter(p => String(p.id) !== String(preset.id));
+                // 如果删掉的是当前正在用的，重置状态
+                if (String(APP_DATA.currentDeepPresetId) === String(preset.id)) {
+                    APP_DATA.currentDeepPresetId = null;
+                }
+                saveData();
+                updateDeepPresetUI();
+            }
+        };
+        controlsDiv.appendChild(deleteBtn);
+
+        div.appendChild(controlsDiv);
+        container.appendChild(div);
+    });
+}
+
+// ==========================================
+// 函数 2：打开预设详情窗口 (修复版 - 更清晰的数据检查)
+// ==========================================
+function openDeepPresetDetail(presetId) {
+    console.log('🔍 [调试] 打开预设详情，收到ID:', presetId);
+    
+    // 1. 基础检查
+    editingPresetId = String(presetId);
+    
+    if (!APP_DATA.deepPresets || !Array.isArray(APP_DATA.deepPresets)) {
+        alert('❌ 预设数据异常！请刷新页面重试。');
+        return;
+    }
+    
+    // 2. 查找预设
+    let preset = APP_DATA.deepPresets.find(p => String(p.id) === String(presetId));
+    
+    if (!preset) {
+        alert('❌ 找不到该预设！ID: ' + presetId);
+        console.error('可用的预设ID:', APP_DATA.deepPresets.map(p => p.id));
+        return;
+    }
+    
+    console.log('✅ 找到预设:', preset.name, '内容项数量:', preset.prompts ? preset.prompts.length : 0);
+    
+    // 3. 更新标题
+    const titleEl = document.getElementById('preset-detail-title');
+    if (!titleEl) {
+        alert('❌ 弹窗HTML结构错误！找不到标题元素');
+        return;
+    }
+    titleEl.textContent = preset.name;
+    
+    // 4. 渲染内容
+    const container = document.getElementById('deep-preset-details');
+    if (!container) {
+        alert('❌ 找不到内容容器！');
+        return;
+    }
+    
+    container.innerHTML = ''; // 清空
+    
+    // 5. 检查数据并渲染
+    if (!preset.prompts || !Array.isArray(preset.prompts) || preset.prompts.length === 0) {
+        console.warn('⚠️ 预设没有内容数据');
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px 20px; color:var(--text-color-secondary); line-height:1.8;">
+                <div style="font-size:48px; margin-bottom:15px;">📭</div>
+                <div style="font-size:16px; font-weight:bold; margin-bottom:8px;">该预设暂无内容</div>
+                <div style="font-size:13px; opacity:0.7;">可能原因：</div>
+                <div style="font-size:13px; opacity:0.7;">1. 导入的文件格式不正确</div>
+                <div style="font-size:13px; opacity:0.7;">2. 预设文件内容为空</div>
+                <div style="font-size:13px; opacity:0.7; margin-top:10px;">
+                    <strong>解决方案：</strong><br>
+                    请删除此预设，重新导入正确的酒馆预设文件
+                </div>
+            </div>
+        `;
+    } else {
+        // 正常渲染
+        console.log('📝 开始渲染', preset.prompts.length, '个内容项');
+        
+        preset.prompts.forEach((prompt, idx) => {
+            const div = document.createElement('div');
+            div.style.cssText = `
+                padding: 14px;
+                margin-bottom: 10px;
+                border-radius: 10px;
+                background: var(--bg-color-secondary);
+                border: 1px solid var(--input-border);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            `;
+            
+            const contentPreview = (prompt.content || '无内容').substring(0, 50);
+            
+            div.innerHTML = `
+                <div style="flex:1; overflow:hidden; margin-right:12px;">
+                    <div style="font-weight:600; font-size:15px; color:var(--text-color-primary); margin-bottom:6px;">
+                        ${prompt.name || '未命名内容 ' + (idx + 1)}
+                    </div>
+                    <div style="font-size:12px; color:var(--text-color-secondary); line-height:1.4; opacity:0.8;">
+                        ${contentPreview}${(prompt.content && prompt.content.length > 50) ? '...' : ''}
+                    </div>
+                </div>
+                <label class="switch" title="启用/禁用此项" style="flex-shrink:0;">
+                    <input type="checkbox" 
+                           ${prompt.enabled !== false ? 'checked' : ''} 
+                           onchange="togglePresetPrompt('${preset.id}', ${idx}, this.checked)">
+                    <span class="slider"></span>
+                </label>
+            `;
+            
+            container.appendChild(div);
+        });
+        
+        console.log('✅ 成功渲染', preset.prompts.length, '个内容项');
+    }
+    
+    // 6. 更新按钮状态
+    const useBtn = document.getElementById('use-preset-btn');
+    if (useBtn) {
+        const isActive = String(APP_DATA.currentDeepPresetId) === String(presetId);
+        
+        if (isActive) {
+            useBtn.textContent = "✓ 当前正在使用";
+            useBtn.style.background = "#95C296";
+            useBtn.style.cursor = "not-allowed";
+            useBtn.disabled = true;
+        } else {
+            useBtn.textContent = "使用此预设";
+            useBtn.style.background = "var(--accent-color)";
+            useBtn.style.cursor = "pointer";
+            useBtn.disabled = false;
+        }
+    }
+    
+    // 7. 显示弹窗
+    showModal('deep-preset-detail-modal');
+    console.log('✅ 预设详情弹窗已打开');
+}
+
+
+
+// 启用某个预设
+function activateDeepPreset() {
+    if (editingPresetId) {
+        APP_DATA.currentDeepPresetId = String(editingPresetId);
+        APP_DATA.deepPresetEnabled = true; // 自动开启总开关
+        saveData();
+        
+        // 更新开关UI
+        const btn = document.getElementById('deep-preset-switch').querySelector('.theme-switch-thumb');
+        if(btn) btn.style.left = '20px';
+        
+        updateDeepPresetUI();
+        hideModal('deep-preset-detail-modal');
+    }
+}
+
+function togglePresetPrompt(presetId, idx, checked) {
+    const preset = APP_DATA.deepPresets.find(p => p.id === presetId);
+    if (preset && preset.prompts[idx]) {
+        preset.prompts[idx].enabled = checked;
+        saveData();
+    }
+}
+
+function deleteCurrentDeepPreset() {
+    if (!editingPresetId) return;
+    if (!confirm("确定要删除这个预设吗？")) return;
+    
+    APP_DATA.deepPresets = APP_DATA.deepPresets.filter(p => p.id !== editingPresetId);
+    if (APP_DATA.currentDeepPresetId === editingPresetId) APP_DATA.currentDeepPresetId = null;
+    
+    saveData();
+    hideModal('deep-preset-detail-modal');
+    updateDeepPresetUI();
+}
+
+// --- 正则部分 ---
+
+// 打开正则管理（一级：文件列表）
+function openRegexManager() {
+    ensureTavernData();
+    updateRegexUI();
+    showModal('regex-modal');
+}
+
+// 替换代码块 2：正则列表渲染 (增加删除按钮)
+function updateRegexUI() {
+    const container = document.getElementById('regex-file-list');
+    const displayInput = document.getElementById('regex-display');
+    
+    // 计算统计信息
+    let totalScripts = 0;
+    if (APP_DATA.regexCollections) {
+        APP_DATA.regexCollections.forEach(c => {
+            if (c.enabled !== false && c.scripts) totalScripts += c.scripts.length;
+        });
+    }
+    if (displayInput) displayInput.value = `已启用 ${totalScripts} 条脚本`;
+
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!APP_DATA.regexCollections || APP_DATA.regexCollections.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:30px; color:#888">暂无文件</div>';
+        return;
+    }
+
+    APP_DATA.regexCollections.forEach(file => {
+        const div = document.createElement('div');
+        div.className = 'tavern-item';
+        
+        // --- A. 左侧：文件名 (点击进入详情) ---
+        const infoDiv = document.createElement('div');
+        infoDiv.style.flex = '1';
+        infoDiv.style.cursor = 'pointer';
+        infoDiv.innerHTML = `
+            <div style="font-weight:bold; font-size:14px;">${file.name}</div>
+            <div style="font-size:11px; color:#888">包含 ${file.scripts ? file.scripts.length : 0} 条脚本</div>
+        `;
+        infoDiv.onclick = function(e) {
+            e.stopPropagation();
+            openRegexDetail(file.id);
+        };
+
+        div.appendChild(infoDiv);
+
+        // --- B. 右侧：控制区 ---
+        const controlsDiv = document.createElement('div');
+        controlsDiv.style.display = 'flex';
+        controlsDiv.style.alignItems = 'center';
+        controlsDiv.style.gap = '12px';
+
+        // 1. 开关
+        const switchLabel = document.createElement('label');
+        switchLabel.className = 'switch';
+        switchLabel.title = "启用/禁用此文件";
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = (file.enabled !== false);
+        checkbox.onchange = function(e) {
+            e.stopPropagation();
+            toggleRegexFile(file.id, this.checked);
+        };
+        
+        const sliderSpan = document.createElement('span');
+        sliderSpan.className = 'slider';
+        
+        switchLabel.appendChild(checkbox);
+        switchLabel.appendChild(sliderSpan);
+        controlsDiv.appendChild(switchLabel);
+
+        // 2. 删除按钮 (新增)
+        const deleteBtn = document.createElement('div');
+        deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+        deleteBtn.style.color = 'var(--danger-color)';
+        deleteBtn.style.cursor = 'pointer';
+        deleteBtn.style.fontSize = '14px';
+        deleteBtn.title = "删除此正则文件";
+        
+        deleteBtn.onclick = function(e) {
+            e.stopPropagation();
+            if (confirm(`确定要删除正则文件 "${file.name}" 吗？`)) {
+                APP_DATA.regexCollections = APP_DATA.regexCollections.filter(f => f.id !== file.id);
+                saveData();
+                updateRegexUI();
+            }
+        };
+        controlsDiv.appendChild(deleteBtn);
+
+        div.appendChild(controlsDiv);
+        container.appendChild(div);
+    });
+}
+
+function toggleRegexFile(fileId, checked) {
+    const file = APP_DATA.regexCollections.find(f => f.id === fileId);
+    if (file) {
+        file.enabled = checked;
+        saveData();
+        // 更新主界面统计
+        updateRegexUI();
+    }
+}
+
+// 打开正则详情（二级：脚本列表）
+let editingRegexFileId = null;
+function openRegexDetail(fileId) {
+    editingRegexFileId = fileId;
+    const file = APP_DATA.regexCollections.find(f => f.id === fileId);
+    if (!file) return;
+
+    document.getElementById('regex-detail-title').textContent = file.name;
+    const container = document.getElementById('regex-detail-list');
+    container.innerHTML = '';
+
+    if (file.scripts) {
+        file.scripts.forEach((script, idx) => {
+            const div = document.createElement('div');
+            div.className = 'tavern-item';
+            div.innerHTML = `
+                <div style="flex:1; overflow:hidden;">
+                    <div style="font-weight:bold; font-size:13px;">${script.name}</div>
+                    <div style="font-size:10px; color:#1565c0; font-family:monospace; background:#e3f2fd; display:inline-block; padding:1px 3px; border-radius:3px;">
+                        ${script.regex ? script.regex.substring(0, 20) : '???'}...
+                    </div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" ${!script.disabled ? 'checked' : ''} 
+                           onchange="toggleRegexScript('${file.id}', ${idx}, this.checked)">
+                    <span class="slider"></span>
+                </label>
+            `;
+            container.appendChild(div);
+        });
+    }
+    showModal('regex-detail-modal');
+}
+
+function toggleRegexScript(fileId, idx, checked) {
+    const file = APP_DATA.regexCollections.find(f => f.id === fileId);
+    if (file && file.scripts[idx]) {
+        file.scripts[idx].disabled = !checked; // 注意这里是 disabled
+        saveData();
+    }
+}
+
+function deleteCurrentRegexFile() {
+    if (!editingRegexFileId) return;
+    if (!confirm("确定要删除这个正则文件吗？")) return;
+    
+    APP_DATA.regexCollections = APP_DATA.regexCollections.filter(f => f.id !== editingRegexFileId);
+    
+    saveData();
+    hideModal('regex-detail-modal');
+    updateRegexUI();
+}
+
+// 简单的开关切换UI辅助函数
+function toggleDeepPreset() {
+    APP_DATA.deepPresetEnabled = !APP_DATA.deepPresetEnabled;
+    saveData();
+    const btn = document.getElementById('deep-preset-switch').querySelector('.theme-switch-thumb');
+    if(APP_DATA.deepPresetEnabled) btn.style.left = '20px'; else btn.style.left = '1px';
+}
+
+function toggleRegex() {
+    APP_DATA.regexEnabled = !APP_DATA.regexEnabled;
+    saveData();
+    const btn = document.getElementById('regex-switch').querySelector('.theme-switch-thumb');
+    if(APP_DATA.regexEnabled) btn.style.left = '20px'; else btn.style.left = '1px';
+}
+
+function loadDeepPresetAndRegexSettings() {
+    // 确保数据存在
+    ensureTavernData();
+    
+    const pBtn = document.getElementById('deep-preset-switch')?.querySelector('.theme-switch-thumb');
+    const rBtn = document.getElementById('regex-switch')?.querySelector('.theme-switch-thumb');
+    if(pBtn) pBtn.style.left = APP_DATA.deepPresetEnabled ? '20px' : '1px';
+    if(rBtn) rBtn.style.left = APP_DATA.regexEnabled ? '20px' : '1px';
+    
+    // 初始化UI显示
+    const presetDisplay = document.getElementById('deep-preset-display');
+    const activePreset = APP_DATA.deepPresets.find(p => p.id === APP_DATA.currentDeepPresetId);
+    if (presetDisplay) presetDisplay.value = activePreset ? activePreset.name : "未选择预设";
+    
+    updateRegexUI(); 
+}
+
         // ----------------------- 页面切换 -----------------------
         function showPage(pageId) {
             document.querySelectorAll('.page').forEach(page => {
@@ -3835,9 +4615,15 @@ function scrollToBottom() {
 }
 
 async function sendMessage() {
-    const input = document.getElementById('message-input');
+    // 强制转接到新逻辑，防止功能丢失
+    const input = document.getElementById('message-input') || document.getElementById('chat-textarea');
     const message = input.value.trim();
-    if (!message) return;
+    if(message && currentContact) {
+       // 模拟按下回车
+       const event = new KeyboardEvent('keydown', { key: 'Enter' });
+       input.dispatchEvent(event);
+       return; 
+    }
 
     // 1. 显示用户消息
     addMessage(message, true);
@@ -6166,7 +6952,7 @@ async function openModelSelector() {
             showManualInputModal();
         } else {
             // 显示模型选择列表
-            showModelListModal(models);
+            showModelSelectDialog(models);
         }
         
     } catch (error) {
@@ -7638,16 +8424,23 @@ function refreshRegexList() {
     });
 }
 
-// 选择深预设
-function selectDeepPreset(presetId) {
-    const preset = APP_DATA.deepPresets.find(p => p.id == presetId);
-    if (!preset) return;
+// 6. 交互动作 (修复 ID 类型匹配问题)
+function selectDeepPreset(id) {
+    // 强制转为字符串，防止 ID 类型不匹配
+    APP_DATA.currentDeepPresetId = String(id);
     
-    APP_DATA.currentDeepPresetId = presetId;
-    preset.lastUsedTime = Date.now();
-    updateDeepPresetDisplay();
+    // 应用参数
+    const preset = APP_DATA.deepPresets.find(p => String(p.id) === String(id));
+    if (preset) {
+        if (preset.temperature !== undefined) {
+            APP_DATA.settings.temperature = parseFloat(preset.temperature);
+            const tempDisplay = document.getElementById('temperature-value');
+            if(tempDisplay) tempDisplay.textContent = APP_DATA.settings.temperature;
+        }
+    }
+
     saveData();
-    hideModal('deep-preset-modal');
+    updateDeepPresetUI(); // 刷新界面
 }
 
 // 选择正则
@@ -7698,174 +8491,6 @@ function deleteRegex(regexId) {
     refreshRegexList();
 }
 
-// 导入深预设文件
-function importDeepPresetFile() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json,.txt';
-    input.onchange = function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const fileContent = e.target.result;
-                let presetName = file.name.replace(/\.[^/.]+$/, "");
-                let presetContent = "";
-
-                try {
-                    // 尝试解析为 JSON
-                    const presetData = JSON.parse(fileContent);
-                    
-                    // 自动寻找可能的字段名
-                    presetContent = presetData.content || presetData.text || presetData.value || 
-                                    (typeof presetData === 'string' ? presetData : JSON.stringify(presetData));
-                    
-                    if (presetData.name) {
-                        presetName = presetData.name;
-                    }
-                } catch (jsonError) {
-                    // 如果不是 JSON，直接作为纯文本
-                    presetContent = fileContent;
-                }
-                
-                if (!presetContent || presetContent.trim() === "") {
-                    alert("文件内容为空，无法导入");
-                    return;
-                }
-
-                // 创建预设对象并保存
-                const newPreset = {
-                    id: Date.now(),
-                    name: presetName,
-                    content: presetContent,
-                    lastUsedTime: Date.now()
-                };
-
-                if (!APP_DATA.deepPresets) APP_DATA.deepPresets = [];
-                APP_DATA.deepPresets.push(newPreset);
-                saveData();
-                
-                refreshDeepPresetList();
-                selectDeepPreset(newPreset.id);
-                
-                alert('预设导入成功！');
-            } catch (error) {
-                alert('导入过程中出错：' + error.message);
-            }
-        };
-        reader.readAsText(file);
-    };
-    input.click();
-}
-
-// 导入正则文件
-function importRegexFile() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json,.txt';
-    input.onchange = function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const fileContent = e.target.result;
-                let regexData;
-                
-                try {
-                    regexData = JSON.parse(fileContent);
-                } catch (jsonError) {
-                    alert('请提供有效的 JSON 格式文件。');
-                    return;
-                }
-
-                // --- 智能识别逻辑 ---
-                // 1. 找名称
-                let name = regexData.name || regexData.title || file.name.replace(/\.[^/.]+$/, "");
-                
-                // 2. 找匹配模式 (Pattern)
-                let pattern = regexData.pattern || regexData.regex || regexData.match;
-                
-                // 3. 找替换内容 (Replacement)
-                let replacement = regexData.replacement || regexData.replace || regexData.result || "";
-
-                if (!pattern) {
-                    alert('导入失败：未在文件中找到“pattern”或“regex”匹配规则。');
-                    return;
-                }
-
-                const newRegex = {
-                    id: Date.now(),
-                    name: name,
-                    pattern: pattern,
-                    replacement: String(replacement), // 确保是字符串
-                    lastUsedTime: Date.now()
-                };
-
-                if (!APP_DATA.regexPatterns) APP_DATA.regexPatterns = [];
-                APP_DATA.regexPatterns.push(newRegex);
-                saveData();
-                
-                refreshRegexList();
-                selectRegex(newRegex.id);
-                
-                alert('正则规则导入成功！');
-            } catch (error) {
-                alert('导入出错：' + error.message);
-            }
-        };
-        reader.readAsText(file);
-    };
-    input.click();
-}
-
-// 创建新的深预设（空预设，用于手动创建）
-function createNewDeepPreset() {
-    const presetName = prompt('请输入预设名称：', '新预设');
-    if (!presetName || !presetName.trim()) return;
-    
-    const presetContent = prompt('请输入预设内容：', '');
-    if (presetContent === null) return; // 用户取消
-    
-    const newPreset = {
-        id: Date.now(),
-        name: presetName.trim(),
-        content: presetContent || '',
-        lastUsedTime: Date.now()
-    };
-    
-    APP_DATA.deepPresets.push(newPreset);
-    saveData();
-    refreshDeepPresetList();
-    selectDeepPreset(newPreset.id);
-}
-
-// 创建新的正则（空正则，用于手动创建）
-function createNewRegex() {
-    const regexName = prompt('请输入正则名称：', '新正则');
-    if (!regexName || !regexName.trim()) return;
-    
-    const regexPattern = prompt('请输入正则表达式：', '');
-    if (regexPattern === null) return;
-    
-    const regexReplacement = prompt('请输入替换内容（可为空）：', '');
-    
-    const newRegex = {
-        id: Date.now(),
-        name: regexName.trim(),
-        pattern: regexPattern,
-        replacement: regexReplacement || '',
-        lastUsedTime: Date.now()
-    };
-    
-    APP_DATA.regexPatterns.push(newRegex);
-    saveData();
-    refreshRegexList();
-    selectRegex(newRegex.id);
-}
 
 // 在AI对话中应用深预设
 function applyDeepPresetToPrompt() {
@@ -8565,6 +9190,154 @@ function copyText(button, elementId) {
         alert('复制失败，请手动复制');
     });
 }
+// --- 补全缺失的模型选择函数 ---
+
+// 1. 打开“当前配置”的模型选择
+async function openCurrentPresetModelSelector() {
+    const apiUrl = document.getElementById('api-url').value.trim();
+    const apiKey = document.getElementById('api-key').value.trim();
+    if (!apiUrl || !apiKey) { alert('请先填写API URL和API Key'); return; }
+
+    try {
+        // 复用现有的获取列表逻辑
+        const models = await fetchModelList(apiUrl, apiKey);
+        if (models.length === 0) { showManualInputModal(); return; }
+        
+        // 显示通用选择弹窗，但修改点击回调
+        showModelSelectDialog(models);
+        
+        // 【关键】修改弹窗里的点击行为，让它去更新 current-preset-model
+        // 我们这里用一个小技巧：覆盖掉刚才生成的弹窗里的 onclick
+        const items = document.querySelectorAll('#model-list-modal .model-item'); // 注意确认ID是否匹配
+        // 由于 showModelSelectDialog 里的 ID 是 model-select-modal，我们需要重新获取
+        const modal = document.getElementById('model-select-modal');
+        if(modal) {
+            const itemDivs = modal.querySelectorAll('.model-item');
+            itemDivs.forEach(div => {
+                // 获取模型ID（假设它是第二个子元素的文本）
+                const modelId = div.querySelector('div:nth-child(2)').textContent.trim();
+                div.onclick = function() {
+                    document.getElementById('current-preset-model').value = modelId;
+                    
+                    // 如果当前有选中的预设，同步更新数据
+                    if (APP_DATA.currentPresetId) {
+                        const preset = APP_DATA.presets.find(p => p.id == APP_DATA.currentPresetId);
+                        if (preset) {
+                            preset.defaultModel = modelId;
+                            APP_DATA.settings.aiModel = modelId; // 同时更新设置
+                            saveData();
+                        }
+                    }
+                    modal.remove();
+                };
+            });
+        }
+    } catch (e) {
+        console.error(e);
+        alert('获取模型失败，请手动输入');
+    }
+}
+
+// 2. 打开“编辑预设”时的模型选择
+async function openModelSelectorForEdit() {
+    // 获取编辑弹窗里的 API 信息
+    const apiUrl = document.getElementById('edit-api-url').value.trim();
+    const apiKey = document.getElementById('edit-api-key').value.trim();
+    
+    if (!apiUrl || !apiKey) { alert('请先在上方填写 API URL 和 Key'); return; }
+
+    try {
+        const models = await fetchModelList(apiUrl, apiKey);
+        // 使用你已经写好的 showModelListForEdit 函数
+        showModelListForEdit(models); 
+    } catch (e) {
+        alert('获取模型失败: ' + e.message);
+    }
+}
+
+/* ================= 补丁修复代码 (请放在脚本最后) ================= */
+
+// 1. 更加健壮的数据检查
+function ensureTavernData() {
+    if (!APP_DATA.deepPresets || !Array.isArray(APP_DATA.deepPresets)) APP_DATA.deepPresets = [];
+    if (!APP_DATA.regexCollections || !Array.isArray(APP_DATA.regexCollections)) APP_DATA.regexCollections = [];
+}
+
+// 2. 重写预设打开函数，增加错误提示
+function openDeepPresetManager() {
+    ensureTavernData();
+    updateDeepPresetUI();
+    const modal = document.getElementById('deep-preset-modal');
+    if (!modal) {
+        alert('【错误】找不到预设弹窗 HTML 元素！\n请确保你已经把 "deep-preset-modal" 的 HTML 代码粘贴到了 body 标签内。');
+        return;
+    }
+    showModal('deep-preset-modal');
+}
+
+// 3. 补全：打开"当前预设模型"选择器
+async function openCurrentPresetModelSelector() {
+    const apiUrl = document.getElementById('api-url').value.trim();
+    const apiKey = document.getElementById('api-key').value.trim();
+    
+    if (!apiUrl || !apiKey) { alert('请先填写API URL和API Key'); return; }
+
+    try {
+        const models = await fetchModelList(apiUrl, apiKey);
+        if (models.length === 0) { showManualInputModal(); return; }
+        
+        // 复用通用的弹窗，但由于通用弹窗是硬编码绑定给 #ai-model 的，我们需要拦截它的行为
+        showModelSelectDialog(models);
+        
+        // 强行修改刚刚生成的弹窗里的点击事件
+        const modal = document.getElementById('model-select-modal');
+        if (modal) {
+            // 修改标题
+            const title = modal.querySelector('h4');
+            if(title) title.textContent = `选择预设模型 (${models.length}个)`;
+            
+            // 修改所有选项的点击行为
+            const items = modal.querySelectorAll('.model-item');
+            items.forEach(item => {
+                // 获取原本的模型ID文本
+                const modelId = item.querySelector('div:nth-child(2)').textContent.trim();
+                item.onclick = function() {
+                    // 1. 填入当前预设模型框
+                    document.getElementById('current-preset-model').value = modelId;
+                    // 2. 同时填入全局设置模型框
+                    document.getElementById('ai-model').value = modelId;
+                    
+                    // 3. 更新数据
+                    if (APP_DATA.currentPresetId) {
+                        const preset = APP_DATA.presets.find(p => p.id == APP_DATA.currentPresetId);
+                        if (preset) {
+                            preset.defaultModel = modelId;
+                            APP_DATA.settings.aiModel = modelId;
+                            saveData();
+                        }
+                    }
+                    modal.remove(); // 关闭弹窗
+                };
+            });
+        }
+    } catch (e) {
+        alert('获取模型失败: ' + e.message);
+    }
+}
+
+// 4. 补全：打开"编辑预设"时的模型选择器
+async function openModelSelectorForEdit() {
+    const apiUrl = document.getElementById('edit-api-url').value.trim();
+    const apiKey = document.getElementById('edit-api-key').value.trim();
+    if (!apiUrl || !apiKey) { alert('请先填写API URL和Key'); return; }
+    
+    try {
+        const models = await fetchModelList(apiUrl, apiKey);
+        showModelListForEdit(models);
+    } catch (e) {
+        alert('获取失败: ' + e.message);
+    }
+}
 
 </script>
 
@@ -8589,5 +9362,33 @@ function copyText(button, elementId) {
         </div>
     </div>
 </div>
+<div id="deep-preset-modal" class="overlay" style="z-index: 9999;">
+    <div class="modal-content" style="width: 90%; max-width: 350px; max-height: 70vh; display: flex; flex-direction: column;">
+
+        <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--text-color-primary);">预设库 (World Info)</h4>
+        <div style="font-size:12px; color:var(--text-color-secondary); margin-bottom:10px;">点击预设名称进行编辑/启用:</div>
+        <div style="height: 250px; overflow-y: auto; margin-bottom: 15px; background:var(--bg-color-primary); border-radius:8px; padding:5px;" id="deep-preset-list"></div>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+            <button onclick="importDeepPresetFile()" style="padding: 10px 20px; border-radius: 8px; background: var(--accent-color); color: white; border: none; cursor: pointer;">导入新预设</button>
+            <button onclick="hideModal('deep-preset-modal')" style="padding: 10px 20px; border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); cursor: pointer;">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 预设详情弹窗 -->
+<div id="deep-preset-detail-modal" class="overlay" style="z-index: 10000;">
+    <div class="modal-content" style="width: 90%; max-width: 350px; max-height: 80vh; display:flex; flex-direction:column; background: var(--bg-color-secondary) !important;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <div class="back-button clickable" onclick="hideModal('deep-preset-detail-modal')" style="margin-right: 15px;">
+                <i class="fa-solid fa-angle-left"></i>
+            </div>
+            <h4 id="preset-detail-title" style="margin:0; flex-grow:1; text-align:center; color: var(--text-color-primary);">预设详情</h4>
+            <div style="width: 40px;"></div>
+        </div>
+        <div style="margin-bottom:10px; font-size:12px; color:var(--text-color-secondary);">功能开关:</div>
+        <div style="flex:1; overflow-y: auto; margin-bottom: 15px; background:var(--input-bg); border-radius:8px; padding:10px;" id="deep-preset-details"></div>
+    </div>
+</div>
+
 
 </body>
