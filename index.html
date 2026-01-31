@@ -5609,14 +5609,16 @@ async function simulateMemorySummary(contact) {
             【格式要求】
             每条记忆占一行：分类|评分|关键词|内容
             
-            【字段说明】
-            1. 分类：[核心]、[偏好]、[进展]、[日常]
-            2. 评分：1-10（8分以上为极重要事实）
-            3. 关键词：3个，保留专有名词
-            
-            【正确示例】
-            [核心]|10|称呼,关系|哥哥说我是他最重要的人，听到这话我心跳好快。
-            [日常]|6|习惯|他今天好像不太开心，一直叹气，我很担心他。
+【字段说明】
+1. 分类：[核心]、[偏好]、[进展]、[日常]、[人物]
+2. 评分：1-10（8分以上为极重要事实）
+3. 关键词：3个，保留专有名词
+
+【正确示例】
+[核心]|10|称呼,关系|哥哥说我是他最重要的人，听到这话我心跳好快。
+[日常]|6|习惯|他今天好像不太开心，一直叹气，我很担心他。
+[人物]|9|小明,弟弟,年龄|小明是我的弟弟，他小我3岁。
+[人物]|10|师弟,关系|我有一个师弟，他是师傅的关门大弟子。
             `
         },
         {
@@ -6123,7 +6125,7 @@ function showMemoryModal(contextType) {
 
         const tabsDiv = document.createElement('div');
         tabsDiv.className = 'memory-tabs';
-        const fixedCategories = ['全部', '核心', '偏好', '日常', '进展'];
+        const fixedCategories = ['全部', '核心', '偏好', '日常', '进展', '人物'];
         const existingCategories = currentContact.longMemories 
             ? [...new Set(currentContact.longMemories.map(m => m.category))]
             : [];
