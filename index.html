@@ -2277,7 +2277,7 @@ input[type="number"]::-webkit-inner-spin-button {
 <div id="regex-detail-modal" class="overlay" style="z-index: 10000;">
     <div class="modal-content" style="width: 90%; max-width: 350px; max-height: 80vh; display:flex; flex-direction:column; background: var(--bg-color-secondary) !important;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <div class="back-button clickable" onclick="hideModal('regex-detail-title')" style="margin-right: 15px;">
+            <div class="back-button clickable" onclick="hideModal('regex-detail-modal')" style="margin-right: 15px;">
                 <i class="fa-solid fa-angle-left"></i>
             </div>
             <h4 id="regex-detail-title" style="margin:0; flex-grow:1; text-align:center; color: var(--text-color-primary);">脚本详情</h4>
@@ -3148,64 +3148,71 @@ function updateDeepPresetUI() {
             <div style="font-size:11px; color:#888">包含 ${preset.prompts ? preset.prompts.length : 0} 条内容</div>
         `;
         
-        // ★★★ 点击名字：打开详情弹窗 ★★★
+        // ★★★ 点击名字：仅选中预设，不打开详情 ★★★
         infoDiv.onclick = function(e) {
-            e.stopPropagation(); // 防止误触开关
-            openDeepPresetDetail(preset.id);
+            e.stopPropagation();
+            
+            // 判断是否已经选中
+            const isCurrentlySelected = (String(APP_DATA.currentDeepPresetId) === String(preset.id));
+            
+            if (isCurrentlySelected) {
+                // 如果已选中，则取消选中
+                APP_DATA.currentDeepPresetId = null;
+                APP_DATA.deepPresetEnabled = false; // 关闭总开关
+            } else {
+                // 如果未选中，则选中这个预设
+                APP_DATA.currentDeepPresetId = String(preset.id);
+                APP_DATA.deepPresetEnabled = true; // 开启总开关
+            }
+            
+            saveData();
+            
+            // 更新总开关UI
+            const switchBtn = document.getElementById('deep-preset-switch');
+            if (switchBtn) {
+                const thumb = switchBtn.querySelector('.theme-switch-thumb');
+                if (APP_DATA.deepPresetEnabled) {
+                    thumb.style.left = '20px';
+                    switchBtn.style.background = 'var(--accent-color)';
+                } else {
+                    thumb.style.left = '1px';
+                    switchBtn.style.background = 'var(--input-border)';
+                }
+            }
+            
+            // 刷新列表显示（显示新的选中颜色）
+            updateDeepPresetUI();
         };
         div.appendChild(infoDiv);
 
-        // --- B. 右侧：控制区 (小开关 + 删除) ---
+        // --- B. 右侧：编辑按钮 + 删除按钮 ---
         const controlsDiv = document.createElement('div');
         controlsDiv.style.display = 'flex';
         controlsDiv.style.alignItems = 'center';
-        controlsDiv.style.gap = '12px';
+        controlsDiv.style.gap = '6px';
+        controlsDiv.style.justifyContent = 'flex-end';
 
-        // 1. 小开关
-        const switchLabel = document.createElement('label');
-        switchLabel.className = 'switch';
+        // 编辑按钮 (绿色笔)
+        const editBtn = document.createElement('div');
+        editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+        editBtn.style.color = 'var(--accent-color)';
+        editBtn.style.cursor = 'pointer';
+        editBtn.style.fontSize = '14px';
+        editBtn.style.padding = '8px';
         
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = isActive; // 如果是当前选中的，开关就是开的
-        
-        checkbox.onchange = function(e) {
+        editBtn.onclick = function(e) {
             e.stopPropagation();
-            if (this.checked) {
-                // 选中：设为当前预设，并开启总开关
-                APP_DATA.currentDeepPresetId = preset.id;
-                APP_DATA.deepPresetEnabled = true;
-            } else {
-                // 取消：如果是当前预设，则关闭功能
-                if (isActive) {
-                    APP_DATA.currentDeepPresetId = null;
-                    APP_DATA.deepPresetEnabled = false;
-                }
-            }
-            saveData();
-            updateDeepPresetUI(); // 刷新列表
-            
-            // 同步更新主界面的总开关样式
-            const mainSwitch = document.getElementById('deep-preset-switch');
-            if(mainSwitch) {
-                 const thumb = mainSwitch.querySelector('.theme-switch-thumb');
-                 if(thumb) thumb.style.left = APP_DATA.deepPresetEnabled ? '20px' : '1px';
-            }
+            openDeepPresetDetail(preset.id);
         };
-        
-        const sliderSpan = document.createElement('span');
-        sliderSpan.className = 'slider';
-        
-        switchLabel.appendChild(checkbox);
-        switchLabel.appendChild(sliderSpan);
-        controlsDiv.appendChild(switchLabel);
+        controlsDiv.appendChild(editBtn);
 
-        // 2. 删除按钮 (红色垃圾桶)
+        // 删除按钮 (红色垃圾桶)
         const deleteBtn = document.createElement('div');
         deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
         deleteBtn.style.color = 'var(--danger-color)';
         deleteBtn.style.cursor = 'pointer';
         deleteBtn.style.fontSize = '14px';
+        deleteBtn.style.padding = '8px';
         
         deleteBtn.onclick = function(e) {
             e.stopPropagation();
@@ -3457,26 +3464,74 @@ function updateRegexUI() {
         // 【变色逻辑】开启变绿，关闭变黑
         const nameColor = isEnabled ? 'var(--accent-color)' : 'var(--text-color-primary)';
         
-        div.innerHTML = `
-            <div style="flex:1; cursor:pointer;">
-                <div style="font-weight:bold; color: ${nameColor}; transition: color 0.3s;">
-                    ${c.name}
-                </div>
-                <div style="font-size:11px; color: var(--text-color-secondary, #888);">
-                    ${c.scripts ? c.scripts.length : 0} 条脚本
-                </div>
+        // 左侧：文件名和脚本数量（点击切换选中状态）
+        const infoDiv = document.createElement('div');
+        infoDiv.style.flex = '1';
+        infoDiv.style.cursor = 'pointer';
+        infoDiv.innerHTML = `
+            <div style="font-weight:bold; color: ${nameColor}; transition: color 0.3s;">
+                ${c.name}
             </div>
-            <label class="switch">
-                <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="toggleRegexCollection('${c.id}', this.checked)">
-                <span class="slider"></span>
-            </label>
+            <div style="font-size:11px; color: var(--text-color-secondary, #888);">
+                ${c.scripts ? c.scripts.length : 0} 条脚本
+            </div>
         `;
         
-        // 点击名字进入详情
-        div.querySelector('div').onclick = function() {
-             if(typeof openRegexDetail === 'function') openRegexDetail(c.id);
+        // ★★★ 点击名字：切换选中状态（支持多选）★★★
+        infoDiv.onclick = function(e) {
+            e.stopPropagation();
+            
+            // 判断当前是否选中
+            const isCurrentlySelected = (c.enabled !== false);
+            
+            // 切换状态（多选模式，不影响其他项）
+            if (isCurrentlySelected) {
+                c.enabled = false; // 取消选中
+            } else {
+                c.enabled = true; // 选中
+            }
+            
+            saveData();
+            updateRegexUI(); // 刷新列表显示
         };
+        div.appendChild(infoDiv);
         
+        // 右侧：控制区（编辑按钮 + 删除按钮）
+        const controlsDiv = document.createElement('div');
+        controlsDiv.style.display = 'flex';
+        controlsDiv.style.alignItems = 'center';
+        controlsDiv.style.gap = '6px';
+        controlsDiv.style.justifyContent = 'flex-end';
+        
+        // 编辑按钮 (绿色笔)
+        const editBtn = document.createElement('div');
+        editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+        editBtn.style.color = 'var(--accent-color)';
+        editBtn.style.cursor = 'pointer';
+        editBtn.style.fontSize = '14px';
+        editBtn.style.padding = '8px';
+        
+        editBtn.onclick = function(e) {
+            e.stopPropagation();
+            if(typeof openRegexDetail === 'function') openRegexDetail(c.id);
+        };
+        controlsDiv.appendChild(editBtn);
+        
+        // 删除按钮
+        const deleteBtn = document.createElement('div');
+        deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+        deleteBtn.style.color = 'var(--danger-color)';
+        deleteBtn.style.cursor = 'pointer';
+        deleteBtn.style.fontSize = '14px';
+        deleteBtn.style.padding = '8px';
+        deleteBtn.title = '删除正则文件';
+        deleteBtn.onclick = function(e) {
+            e.stopPropagation();
+            deleteRegexCollection(c.id);
+        };
+        controlsDiv.appendChild(deleteBtn);
+        
+        div.appendChild(controlsDiv);
         list.appendChild(div);
     });
 }
@@ -3543,6 +3598,24 @@ function deleteCurrentRegexFile() {
     saveData();
     hideModal('regex-detail-modal');
     updateRegexUI();
+}
+
+// 新增：从列表直接删除正则文件
+function deleteRegexCollection(fileId) {
+    const file = APP_DATA.regexCollections.find(f => f.id === fileId);
+    if (!file) return;
+    
+    if (!confirm(`确定要删除正则文件「${file.name}」吗？\n\n此操作无法撤销！`)) {
+        return;
+    }
+    
+    // 从数组中删除
+    APP_DATA.regexCollections = APP_DATA.regexCollections.filter(f => f.id !== fileId);
+    
+    saveData();
+    updateRegexUI(); // 刷新列表
+    
+    alert('正则文件已删除！');
 }
 
 // 简单的开关切换UI辅助函数
