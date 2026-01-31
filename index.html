@@ -8823,7 +8823,12 @@ function renderCurrentPresetModels(models) {
         container.appendChild(item);
     });
 }
-// ==================== 长期记忆API配置功能（完整实现）====================
+// ==================== 长期记忆API配置功能（完全独立）====================
+
+// 【新增】在APP_DATA中添加独立的长期记忆预设ID字段
+if (!APP_DATA.currentBackfillPresetId) {
+    APP_DATA.currentBackfillPresetId = null;
+}
 
 // 加载长期记忆API配置到界面
 function loadBackfillApiSettings() {
@@ -8833,9 +8838,9 @@ function loadBackfillApiSettings() {
     
     if (!display) return;
     
-    // 从当前主API配置中读取（因为长期记忆API复用主API的配置）
-    if (APP_DATA.currentPresetId) {
-        const preset = APP_DATA.presets.find(p => p.id == APP_DATA.currentPresetId);
+    // 【修改】从独立的长期记忆预设ID读取
+    if (APP_DATA.currentBackfillPresetId) {
+        const preset = APP_DATA.presets.find(p => p.id == APP_DATA.currentBackfillPresetId);
         if (preset) {
             display.value = preset.name;
             
@@ -8860,15 +8865,15 @@ function loadBackfillApiSettings() {
     }
 }
 
-// 保存长期记忆API配置（从当前选中的主API预设同步）
+// 保存长期记忆API配置
 function saveBackfillApiSettings() {
-    if (APP_DATA.currentPresetId) {
-        const preset = APP_DATA.presets.find(p => p.id == APP_DATA.currentPresetId);
+    if (APP_DATA.currentBackfillPresetId) {
+        const preset = APP_DATA.presets.find(p => p.id == APP_DATA.currentBackfillPresetId);
         if (preset) {
             APP_DATA.settings.backfillApiUrl = preset.apiUrl;
             APP_DATA.settings.backfillApiKey = preset.apiKey;
             APP_DATA.settings.backfillModel = preset.defaultModel;
-            console.log('✅ 长期记忆API配置已同步:', {
+            console.log('✅ 长期记忆API配置已保存:', {
                 url: preset.apiUrl,
                 model: preset.defaultModel
             });
@@ -8876,19 +8881,99 @@ function saveBackfillApiSettings() {
     }
 }
 
-// 长期记忆API的配置管理器（复用主API）
+// 【修改】长期记忆API的配置管理器（独立选择）
 function openBackfillPresetManager() {
-    openPresetManager();
+    const modal = document.getElementById('preset-modal');
+    modal.style.display = 'flex';
+    modal.offsetWidth;
+    modal.classList.add('active');
+    
+    // 刷新预设列表，标记这是为长期记忆API选择
+    refreshPresetListForBackfill();
 }
 
-// 长期记忆API的模型选择器（复用主API逻辑）
+// 【新增】专门为长期记忆API刷新预设列表
+function refreshPresetListForBackfill() {
+    const list = document.getElementById('preset-list');
+    
+    if (!APP_DATA.presets || APP_DATA.presets.length === 0) {
+        list.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: var(--text-color-secondary);">
+                <div style="font-size: 48px; margin-bottom: 20px;">📁</div>
+                <div>无配置</div>
+            </div>
+        `;
+        return;
+    }
+    
+    // 按最后使用时间排序
+    const sortedPresets = [...APP_DATA.presets].sort((a, b) => {
+        const timeA = a.lastUsedTime || 0;
+        const timeB = b.lastUsedTime || 0;
+        return timeB - timeA;
+    });
+    
+    list.innerHTML = '';
+    sortedPresets.forEach(preset => {
+        const div = document.createElement('div');
+        div.style.cssText = `
+            padding: 12px 15px; margin-bottom: 8px; border-radius: 10px;
+            background: var(--input-bg); border: 1px solid var(--input-border);
+            position: relative;
+            min-height: 60px;
+            cursor: pointer;
+        `;
+        
+        div.innerHTML = `
+            <div style="font-weight: bold; color: var(--text-color-primary); font-size: 17px;">
+                ${preset.name}
+            </div>
+            <div style="font-size: 14px; color: var(--accent-color); margin-top: 8px;">
+                ${preset.defaultModel || '无模型'}
+            </div>
+        `;
+        
+        div.onclick = function() {
+            // 【关键】选择后更新长期记忆API的配置
+            APP_DATA.currentBackfillPresetId = preset.id;
+            APP_DATA.settings.backfillApiUrl = preset.apiUrl;
+            APP_DATA.settings.backfillApiKey = preset.apiKey;
+            APP_DATA.settings.backfillModel = preset.defaultModel;
+            
+            // 更新显示
+            document.getElementById('backfill-preset-display').value = preset.name;
+            document.getElementById('backfill-current-preset-model-container').style.display = 'block';
+            document.getElementById('backfill-current-preset-model').value = preset.defaultModel || '';
+            
+            saveData();
+            hideModal('preset-modal');
+            
+            console.log('✅ 已选择长期记忆API配置:', preset.name);
+        };
+        
+        list.appendChild(div);
+    });
+}
+
+// 长期记忆API的模型选择器
 async function openBackfillCurrentPresetModelSelector() {
-    await openCurrentPresetModelSelector('backfill');
+    if (!APP_DATA.currentBackfillPresetId) {
+        alert('请先选择一个配置');
+        return;
+    }
+    
+    const preset = APP_DATA.presets.find(p => p.id == APP_DATA.currentBackfillPresetId);
+    if (!preset || !preset.apiUrl || !preset.apiKey) {
+        alert('请先在编辑配置中填写API信息');
+        return;
+    }
+    
+    // 复用现有的模型选择逻辑
+    await openModelSelectorWithCustomApi(preset.apiUrl, preset.apiKey, 'backfill-current-preset-model', 'backfill');
 }
 
-// 【新增】获取长期记忆API的配置信息（用于API调用）
+// 获取长期记忆API的配置信息（用于API调用）
 function getBackfillApiConfig() {
-    // 优先使用专门配置的长期记忆API
     const backfillUrl = APP_DATA.settings.backfillApiUrl;
     const backfillKey = APP_DATA.settings.backfillApiKey;
     const backfillModel = APP_DATA.settings.backfillModel;
@@ -8898,7 +8983,7 @@ function getBackfillApiConfig() {
         apiUrl: backfillUrl || APP_DATA.settings.apiUrl,
         apiKey: backfillKey || APP_DATA.settings.apiKey,
         model: backfillModel || APP_DATA.settings.aiModel,
-        isUsingMainApi: !backfillUrl // 标记是否使用的是主API
+        isUsingMainApi: !backfillUrl
     };
 }
     // 更新开关状态
