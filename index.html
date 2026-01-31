@@ -1716,6 +1716,43 @@ input[type="number"]::-webkit-inner-spin-button {
     transform: translateY(0);
 }
 
+/* 深预设和正则详情列表统一字体大小 */
+.tavern-item {
+    font-size: 14px; /* 统一字体大小 */
+}
+
+.tavern-item > div:first-child {
+    font-size: 14px; /* 功能名称字体 */
+}
+
+.tavern-item .round-badge,
+.memory-round-badge {
+    font-size: 11px; /* 轮数标记字体 */
+}
+
+/* 深预设详情弹窗标题 */
+#preset-detail-title,
+#regex-detail-title {
+    font-size: 16px !important; /* 标题字体 */
+}
+
+/* 正则详情弹窗标题 */
+#deep-preset-modal h4,
+#regex-modal h4 {
+    font-size: 16px !important;
+}
+
+/* 列表项内容字体统一 */
+#deep-preset-details .tavern-item,
+#regex-detail-list .tavern-item {
+    font-size: 14px !important;
+}
+
+#deep-preset-details .tavern-item > div,
+#regex-detail-list .tavern-item > div {
+    font-size: 14px !important;
+}
+
 /* 确保预设管理弹窗也有动画 */
 #preset-modal .modal-content {
     transform: scale(0.95);
@@ -2276,14 +2313,13 @@ input[type="number"]::-webkit-inner-spin-button {
               
 <div id="regex-detail-modal" class="overlay" style="z-index: 10000;">
     <div class="modal-content" style="width: 90%; max-width: 350px; max-height: 80vh; display:flex; flex-direction:column; background: var(--bg-color-secondary) !important;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <div class="back-button clickable" onclick="hideModal('regex-detail-modal')" style="margin-right: 15px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; height: 40px;">
+            <div class="back-button clickable" onclick="hideModal('regex-detail-modal')" style="margin-right: 15px; display: flex; align-items: center;">
                 <i class="fa-solid fa-angle-left"></i>
             </div>
-            <h4 id="regex-detail-title" style="margin:0; flex-grow:1; text-align:center; color: var(--text-color-primary);">脚本详情</h4>
+            <h4 id="regex-detail-title" style="margin:0; flex-grow:1; text-align:center; color: var(--text-color-primary); font-size: 15px !important; line-height: 40px; transform: translateY(6px);">脚本详情</h4>
             <div style="width: 40px;"></div>
         </div>
-        <div style="margin-bottom:10px; font-size:12px; color:var(--text-color-secondary);">功能开关:</div>
         <div style="flex:1; overflow-y: auto; margin-bottom: 15px; background:var(--input-bg); border-radius:8px; padding:10px;" id="regex-detail-list"></div>
     </div>
 </div>
@@ -3292,42 +3328,61 @@ function openDeepPresetDetail(presetId) {
             </div>
         `;
     } else {
-        // 正常渲染
+        // 正常渲染（新UI：取消预览，右侧显示详情按钮和开关）
         console.log('📝 开始渲染', preset.prompts.length, '个内容项');
         
         preset.prompts.forEach((prompt, idx) => {
             const div = document.createElement('div');
-            div.style.cssText = `
-                padding: 14px;
-                margin-bottom: 10px;
-                border-radius: 10px;
-                background: var(--bg-color-secondary);
-                border: 1px solid var(--input-border);
+            div.className = 'tavern-item';
+            div.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:10px 12px;';
+            
+            // 左侧：功能名称（不显示内容预览）
+            const nameDiv = document.createElement('div');
+            nameDiv.style.cssText = 'flex:1; overflow:hidden;';
+            nameDiv.innerHTML = `<div style="font-weight:bold; font-size:14px; color:var(--text-color-primary);">${prompt.name || '未命名内容 ' + (idx + 1)}</div>`;
+            
+            // 右侧：详情按钮 + 开关
+            const controlsDiv = document.createElement('div');
+            controlsDiv.style.cssText = 'display:flex; align-items:center; gap:8px; flex-shrink:0;';
+            
+            // 详情按钮
+            const detailBtn = document.createElement('div');
+            detailBtn.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
+            detailBtn.style.cssText = `
+                padding: 0;
+                width: 30px;
+                height: 30px;
+                background: transparent;
+                color: var(--accent-color);
+                border: none;
+                cursor: pointer;
+                font-size: 20px;
                 display: flex;
-                justify-content: space-between;
                 align-items: center;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                justify-content: center;
+                transform: translateY(0px);
+            `;
+            detailBtn.title = '查看/编辑详情';
+            detailBtn.onclick = (e) => {
+                e.stopPropagation();
+                showPresetPromptDetail(presetId, idx);
+            };
+            
+            // 开关
+            const switchLabel = document.createElement('label');
+            switchLabel.className = 'switch';
+            switchLabel.style.marginTop = '0px';
+            switchLabel.innerHTML = `
+                <input type="checkbox" ${prompt.enabled !== false ? 'checked' : ''} 
+                       onchange="togglePresetPrompt('${preset.id}', ${idx}, this.checked)">
+                <span class="slider"></span>
             `;
             
-            const contentPreview = (prompt.content || '无内容').substring(0, 50);
+            controlsDiv.appendChild(detailBtn);
+            controlsDiv.appendChild(switchLabel);
             
-            div.innerHTML = `
-                <div style="flex:1; overflow:hidden; margin-right:12px;">
-                    <div style="font-weight:600; font-size:15px; color:var(--text-color-primary); margin-bottom:6px;">
-                        ${prompt.name || '未命名内容 ' + (idx + 1)}
-                    </div>
-                    <div style="font-size:12px; color:var(--text-color-secondary); line-height:1.4; opacity:0.8;">
-                        ${contentPreview}${(prompt.content && prompt.content.length > 50) ? '...' : ''}
-                    </div>
-                </div>
-                <label class="switch" title="启用/禁用此项" style="flex-shrink:0;">
-                    <input type="checkbox" 
-                           ${prompt.enabled !== false ? 'checked' : ''} 
-                           onchange="togglePresetPrompt('${preset.id}', ${idx}, this.checked)">
-                    <span class="slider"></span>
-                </label>
-            `;
-            
+            div.appendChild(nameDiv);
+            div.appendChild(controlsDiv);
             container.appendChild(div);
         });
         
@@ -3358,6 +3413,137 @@ function openDeepPresetDetail(presetId) {
 }
 
 
+
+// 新增:显示预设内容详情编辑弹窗
+function showPresetPromptDetail(presetId, promptIdx) {
+    const preset = APP_DATA.deepPresets.find(p => String(p.id) === String(presetId));
+    if (!preset || !preset.prompts[promptIdx]) return;
+    
+    const prompt = preset.prompts[promptIdx];
+    
+    // 创建详情编辑弹窗
+    const detailModal = document.createElement('div');
+    detailModal.id = 'preset-prompt-detail-modal';
+    detailModal.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 10001;
+        display: flex; justify-content: center; align-items: center;
+        padding: 20px;
+    `;
+    
+    detailModal.innerHTML = `
+        <div style="background: var(--bg-color-secondary); border-radius: 16px; 
+                    width: 90%; max-width: 350px; max-height: 75vh;
+                    display: flex; flex-direction: column; padding: 20px;">
+            
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="back-button clickable" onclick="closePresetPromptDetail()" 
+                     style="margin-right: 15px;">
+                    <i class="fa-solid fa-angle-left"></i>
+                </div>
+                <h4 style="margin: 0; flex: 1; text-align: center; color: var(--text-color-primary);">
+                    ${prompt.name || '未命名内容'}
+                </h4>
+                <div style="width: 40px;"></div>
+            </div>
+            
+            <div style="flex: 1; overflow-y: auto; margin-bottom: 20px;">
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold; 
+                                  font-size: 14px; color: var(--text-color-primary);">
+                        功能名称
+                    </label>
+                    <input type="text" id="edit-prompt-name" 
+                           style="width: 100%; padding: 10px 12px; border-radius: 8px; 
+                                  border: 1px solid var(--input-border); 
+                                  background: var(--input-bg); color: var(--text-color-primary);
+                                  font-size: 14px; box-sizing: border-box;"
+                           value="${prompt.name || ''}">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold; 
+                                  font-size: 14px; color: var(--text-color-primary);">
+                        内容
+                    </label>
+                    <textarea id="edit-prompt-content" 
+                              style="width: 100%; padding: 10px 12px; border-radius: 8px; 
+                                     border: 1px solid var(--input-border); 
+                                     background: var(--input-bg); color: var(--text-color-primary);
+                                     font-size: 13px; box-sizing: border-box;
+                                     min-height: 200px; max-height: 300px; resize: vertical;"
+                              placeholder="输入预设内容...">${prompt.content || ''}</textarea>
+                </div>
+                
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closePresetPromptDetail()" 
+                        style="flex: 1; padding: 12px; border-radius: 8px; 
+                               background: var(--input-bg); color: var(--text-color-primary);
+                               border: 1px solid var(--input-border); cursor: pointer;
+                               font-size: 15px;">
+                    取消
+                </button>
+                <button onclick="savePresetPromptEdit('${presetId}', ${promptIdx})" 
+                        style="flex: 1; padding: 12px; border-radius: 8px; 
+                               background: var(--accent-color); color: white;
+                               border: none; cursor: pointer; font-size: 15px;">
+                    保存
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(detailModal);
+    
+    // 点击外部关闭
+    detailModal.addEventListener('click', function(e) {
+        if (e.target === detailModal) {
+            closePresetPromptDetail();
+        }
+    });
+}
+
+// 保存预设内容编辑
+function savePresetPromptEdit(presetId, promptIdx) {
+    const preset = APP_DATA.deepPresets.find(p => String(p.id) === String(presetId));
+    if (!preset || !preset.prompts[promptIdx]) return;
+    
+    const nameInput = document.getElementById('edit-prompt-name');
+    const contentInput = document.getElementById('edit-prompt-content');
+    
+    const newName = nameInput.value.trim();
+    const newContent = contentInput.value;
+    
+    if (!newName) {
+        alert('功能名称不能为空');
+        return;
+    }
+    
+    // 更新数据
+    preset.prompts[promptIdx].name = newName;
+    preset.prompts[promptIdx].content = newContent;
+    
+    saveData();
+    
+    // 关闭详情弹窗
+    closePresetPromptDetail();
+    
+    // 刷新预设详情列表
+    openDeepPresetDetail(presetId);
+    
+    alert('✅ 修改已保存！');
+}
+
+// 关闭预设内容详情弹窗
+function closePresetPromptDetail() {
+    const modal = document.getElementById('preset-prompt-detail-modal');
+    if (modal && modal.parentNode) {
+        modal.remove();
+    }
+}
 
 // 启用某个预设
 function activateDeepPreset() {
@@ -3562,19 +3748,57 @@ function openRegexDetail(fileId) {
         file.scripts.forEach((script, idx) => {
             const div = document.createElement('div');
             div.className = 'tavern-item';
-            div.innerHTML = `
-                <div style="flex:1; overflow:hidden;">
-                    <div style="font-weight:bold; font-size:13px;">${script.name}</div>
-                    <div style="font-size:10px; color:#1565c0; font-family:monospace; background:#e3f2fd; display:inline-block; padding:1px 3px; border-radius:3px;">
-                        ${script.regex ? script.regex.substring(0, 20) : '???'}...
-                    </div>
-                </div>
-                <label class="switch">
-                    <input type="checkbox" ${!script.disabled ? 'checked' : ''} 
-                           onchange="toggleRegexScript('${file.id}', ${idx}, this.checked)">
-                    <span class="slider"></span>
-                </label>
+            div.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:10px 12px;';
+            
+            // 左侧：功能名称（不显示内容预览）
+            const nameDiv = document.createElement('div');
+            nameDiv.style.cssText = 'flex:1; overflow:hidden;';
+            nameDiv.innerHTML = `<div style="font-weight:bold; font-size:14px; color:var(--text-color-primary);">${script.name}</div>`;
+            
+            // 右侧：详情按钮 + 开关
+            const controlsDiv = document.createElement('div');
+            controlsDiv.style.cssText = 'display:flex; align-items:center; gap:8px; flex-shrink:0;';
+            
+            // 详情按钮
+            const detailBtn = document.createElement('div');
+            detailBtn.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
+            detailBtn.style.cssText = `
+                padding: 0;
+                width: 30px;
+                height: 30px;
+                background: transparent;
+                color: var(--accent-color);
+                border: none;
+                cursor: pointer;
+                font-size: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transform: translateY(1px);  // 正数往下，负数往上
+
             `;
+            detailBtn.title = '查看/编辑详情';
+            detailBtn.onclick = (e) => {
+                e.stopPropagation();
+                showRegexScriptDetail(fileId, idx);
+            };
+            
+            // 开关
+            const switchLabel = document.createElement('label');
+            switchLabel.className = 'switch';
+            switchLabel.style.marginTop = '1px';  // 或 marginBottom
+
+            switchLabel.innerHTML = `
+                <input type="checkbox" ${!script.disabled ? 'checked' : ''} 
+                       onchange="toggleRegexScript('${file.id}', ${idx}, this.checked)">
+                <span class="slider"></span>
+            `;
+            
+            controlsDiv.appendChild(detailBtn);
+            controlsDiv.appendChild(switchLabel);
+            
+            div.appendChild(nameDiv);
+            div.appendChild(controlsDiv);
             container.appendChild(div);
         });
     }
@@ -3586,6 +3810,165 @@ function toggleRegexScript(fileId, idx, checked) {
     if (file && file.scripts[idx]) {
         file.scripts[idx].disabled = !checked; // 注意这里是 disabled
         saveData();
+    }
+}
+
+// 新增：显示正则脚本详情编辑弹窗
+function showRegexScriptDetail(fileId, scriptIdx) {
+    const file = APP_DATA.regexCollections.find(f => f.id === fileId);
+    if (!file || !file.scripts[scriptIdx]) return;
+    
+    const script = file.scripts[scriptIdx];
+    
+    // 创建详情编辑弹窗
+    const detailModal = document.createElement('div');
+    detailModal.id = 'regex-script-detail-modal';
+    detailModal.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 10001;
+        display: flex; justify-content: center; align-items: center;
+        padding: 20px;
+    `;
+    
+    detailModal.innerHTML = `
+        <div style="background: var(--bg-color-secondary); border-radius: 16px; 
+                    width: 90%; max-width: 350px; max-height: 75vh;
+                    display: flex; flex-direction: column; padding: 20px;">
+            
+            <!-- 标题栏 -->
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="back-button clickable" onclick="closeRegexScriptDetail()" 
+                     style="margin-right: 15px;">
+                    <i class="fa-solid fa-angle-left"></i>
+                </div>
+                <h4 style="margin: 0; flex: 1; text-align: center; color: var(--text-color-primary);">
+                    ${script.name}
+                </h4>
+                <div style="width: 40px;"></div>
+            </div>
+            
+            <!-- 内容区域（可滚动） -->
+            <div style="flex: 1; overflow-y: auto; margin-bottom: 20px;">
+                
+                <!-- 功能名称 -->
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold; 
+                                  font-size: 14px; color: var(--text-color-primary);">
+                        功能名称
+                    </label>
+                    <input type="text" id="edit-script-name" 
+                           style="width: 100%; padding: 10px 12px; border-radius: 8px; 
+                                  border: 1px solid var(--input-border); 
+                                  background: var(--input-bg); color: var(--text-color-primary);
+                                  font-size: 14px; box-sizing: border-box;"
+                           value="${script.name || ''}">
+                </div>
+                
+                <!-- 正则表达式 -->
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold; 
+                                  font-size: 14px; color: var(--text-color-primary);">
+                        正则表达式 (Regex)
+                    </label>
+                    <textarea id="edit-script-regex" 
+                              style="width: 100%; padding: 10px 12px; border-radius: 8px; 
+                                     border: 1px solid var(--input-border); 
+                                     background: var(--input-bg); color: var(--text-color-primary);
+                                     font-size: 13px; font-family: monospace; box-sizing: border-box;
+                                     min-height: 80px; max-height: 150px; resize: vertical;"
+                              placeholder="例如: /pattern/g">${script.regex || ''}</textarea>
+                </div>
+                
+                <!-- 替换内容 -->
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold; 
+                                  font-size: 14px; color: var(--text-color-primary);">
+                        替换内容 (Replace)
+                    </label>
+                    <textarea id="edit-script-replace" 
+                              style="width: 100%; padding: 10px 12px; border-radius: 8px; 
+                                     border: 1px solid var(--input-border); 
+                                     background: var(--input-bg); color: var(--text-color-primary);
+                                     font-size: 13px; box-sizing: border-box;
+                                     min-height: 80px; max-height: 150px; resize: vertical;"
+                              placeholder="替换为的内容...">${script.replace || ''}</textarea>
+                </div>
+                
+            </div>
+            
+            <!-- 底部按钮 -->
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closeRegexScriptDetail()" 
+                        style="flex: 1; padding: 12px; border-radius: 8px; 
+                               background: var(--input-bg); color: var(--text-color-primary);
+                               border: 1px solid var(--input-border); cursor: pointer;
+                               font-size: 15px;">
+                    取消
+                </button>
+                <button onclick="saveRegexScriptEdit('${fileId}', ${scriptIdx})" 
+                        style="flex: 1; padding: 12px; border-radius: 8px; 
+                               background: var(--accent-color); color: white;
+                               border: none; cursor: pointer; font-size: 15px;">
+                    保存
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(detailModal);
+    
+    // 点击外部关闭
+    detailModal.addEventListener('click', function(e) {
+        if (e.target === detailModal) {
+            closeRegexScriptDetail();
+        }
+    });
+}
+
+// 保存正则脚本编辑
+function saveRegexScriptEdit(fileId, scriptIdx) {
+    const file = APP_DATA.regexCollections.find(f => f.id === fileId);
+    if (!file || !file.scripts[scriptIdx]) return;
+    
+    const nameInput = document.getElementById('edit-script-name');
+    const regexInput = document.getElementById('edit-script-regex');
+    const replaceInput = document.getElementById('edit-script-replace');
+    
+    const newName = nameInput.value.trim();
+    const newRegex = regexInput.value.trim();
+    const newReplace = replaceInput.value;
+    
+    if (!newName) {
+        alert('功能名称不能为空');
+        return;
+    }
+    
+    if (!newRegex) {
+        alert('正则表达式不能为空');
+        return;
+    }
+    
+    // 更新数据
+    file.scripts[scriptIdx].name = newName;
+    file.scripts[scriptIdx].regex = newRegex;
+    file.scripts[scriptIdx].replace = newReplace;
+    
+    saveData();
+    
+    // 关闭详情弹窗
+    closeRegexScriptDetail();
+    
+    // 刷新正则详情列表
+    openRegexDetail(fileId);
+    
+    alert('✅ 修改已保存！');
+}
+
+// 关闭正则脚本详情弹窗
+function closeRegexScriptDetail() {
+    const modal = document.getElementById('regex-script-detail-modal');
+    if (modal && modal.parentNode) {
+        modal.remove();
     }
 }
 
@@ -9318,14 +9701,13 @@ function openDeepPresetManager() {
 <!-- 预设详情弹窗 -->
 <div id="deep-preset-detail-modal" class="overlay" style="z-index: 10000;">
     <div class="modal-content" style="width: 90%; max-width: 350px; max-height: 80vh; display:flex; flex-direction:column; background: var(--bg-color-secondary) !important;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <div class="back-button clickable" onclick="hideModal('deep-preset-detail-modal')" style="margin-right: 15px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; height: 40px;">
+            <div class="back-button clickable" onclick="hideModal('deep-preset-detail-modal')" style="margin-right: 15px; display: flex; align-items: center;">
                 <i class="fa-solid fa-angle-left"></i>
             </div>
-            <h4 id="preset-detail-title" style="margin:0; flex-grow:1; text-align:center; color: var(--text-color-primary);">预设详情</h4>
+            <h4 id="preset-detail-title" style="margin:0; flex-grow:1; text-align:center; color: var(--text-color-primary); font-size: 15px !important; line-height: 40px; transform: translateY(6px);">预设详情</h4>
             <div style="width: 40px;"></div>
         </div>
-        <div style="margin-bottom:10px; font-size:12px; color:var(--text-color-secondary);">功能开关:</div>
         <div style="flex:1; overflow-y: auto; margin-bottom: 15px; background:var(--input-bg); border-radius:8px; padding:10px;" id="deep-preset-details"></div>
     </div>
 </div>
