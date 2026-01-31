@@ -2258,49 +2258,35 @@ input[type="number"]::-webkit-inner-spin-button {
     </div>
 </div>
 
-        
-        <div style="display: flex; gap: 12px; justify-content: center;">
-            <button id="use-preset-btn" onclick="activateDeepPreset()" style="padding: 10px 20px; border-radius: 8px; background: var(--accent-color); color: white; border: none; cursor: pointer;">使用此预设</button>
-            <button onclick="hideModal('deep-preset-detail-modal')" style="padding: 10px 20px; border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); cursor: pointer;">返回</button>
-        </div>
-    </div>
-</div>
-
 <div id="regex-modal" class="overlay" style="z-index: 9999;">
     <div class="modal-content" style="width: 90%; max-width: 320px; max-height: 70vh;">
         <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--text-color-primary);">正则库 (Regex)</h4>
         
         <div style="font-size:12px; color:var(--text-color-secondary); margin-bottom:10px;">点击文件查看详细脚本:</div>
-
-        <div style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px; background:var(--bg-color-primary); border-radius:8px; padding:5px;" id="regex-file-list">
-            <div style="text-align: center; padding: 30px; color: var(--text-color-secondary);">
-                <div style="font-size: 36px; margin-bottom: 10px;">📄</div>
-                <div>无正则文件</div>
-            </div>
-        </div>
         
+        <div style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px; background:var(--bg-color-primary); border-radius:8px; padding:5px;" id="regex-file-list">
+</div>
+            
         <div style="display: flex; gap: 12px; justify-content: center;">
             <button onclick="importRegexFile()" style="padding: 10px 20px; border-radius: 8px; background: var(--accent-color); color: white; border: none; cursor: pointer;">导入正则</button>
             <button onclick="hideModal('regex-modal')" style="padding: 10px 20px; border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); cursor: pointer;">关闭</button>
         </div>
     </div>
 </div>
-
+              
 <div id="regex-detail-modal" class="overlay" style="z-index: 10000;">
-    <div class="modal-content" style="width: 90%; max-width: 350px; max-height: 80vh; display:flex; flex-direction:column;">
+    <div class="modal-content" style="width: 90%; max-width: 350px; max-height: 80vh; display:flex; flex-direction:column; background: var(--bg-color-secondary) !important;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h4 id="regex-detail-title" style="margin:0; color: var(--text-color-primary);">脚本详情</h4>
-            <button onclick="deleteCurrentRegexFile()" style="background:none; border:none; color:var(--danger-color); font-weight:bold; cursor:pointer;">删除文件</button>
+            <div class="back-button clickable" onclick="hideModal('regex-detail-title')" style="margin-right: 15px;">
+                <i class="fa-solid fa-angle-left"></i>
+            </div>
+            <h4 id="regex-detail-title" style="margin:0; flex-grow:1; text-align:center; color: var(--text-color-primary);">脚本详情</h4>
+            <div style="width: 40px;"></div>
         </div>
-
-        <div style="flex:1; overflow-y: auto; margin-bottom: 15px; background:var(--bg-color-primary); border-radius:8px; padding:5px;" id="regex-detail-list">
-        </div>
-        
-        <div style="text-align:center;">
-            <button onclick="hideModal('regex-detail-modal')" style="padding: 10px 30px; border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); cursor: pointer;">返回</button>
-        </div>
+        <div style="margin-bottom:10px; font-size:12px; color:var(--text-color-secondary);">功能开关:</div>
+        <div style="flex:1; overflow-y: auto; margin-bottom: 15px; background:var(--input-bg); border-radius:8px; padding:10px;" id="regex-detail-list"></div>
     </div>
-</div>                               
+</div>
                     
                 </div>
             </div>
@@ -3411,95 +3397,90 @@ function openRegexManager() {
     showModal('regex-modal');
 }
 
-// 替换代码块 2：正则列表渲染 (增加删除按钮)
-function updateRegexUI() {
-    const container = document.getElementById('regex-file-list');
-    const displayInput = document.getElementById('regex-display');
+/* ================= 正则功能完整修复补丁 ================= */
+
+// 1. 切换开关函数 (原版缺失这个，导致点了没反应)
+function toggleRegexCollection(id, status) {
+    if (!APP_DATA.regexCollections) return;
     
-    // 计算统计信息
-    let totalScripts = 0;
-    if (APP_DATA.regexCollections) {
-        APP_DATA.regexCollections.forEach(c => {
-            if (c.enabled !== false && c.scripts) totalScripts += c.scripts.length;
-        });
+    const item = APP_DATA.regexCollections.find(c => c.id == id);
+    if (item) {
+        item.enabled = status; // 修改开启状态
+        if (typeof saveData === 'function') saveData(); // 保存
+        updateRegexUI(); // 立即刷新界面颜色
     }
-    if (displayInput) displayInput.value = `已启用 ${totalScripts} 条脚本`;
+}
 
-    if (!container) return;
-    container.innerHTML = '';
-
-    if (!APP_DATA.regexCollections || APP_DATA.regexCollections.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:30px; color:#888">暂无文件</div>';
+// 2. 界面文字显示函数 (修复一直显示"未选择"的问题)
+function updateRegexDisplay() {
+    const display = document.getElementById('regex-display');
+    if (!display) return;
+    
+    if (!APP_DATA.regexCollections || !Array.isArray(APP_DATA.regexCollections)) {
+        display.value = '未选择正则';
         return;
     }
 
-    APP_DATA.regexCollections.forEach(file => {
+    // 统计所有被启用的文件 (enabled不为false即视为启用)
+    const enabledItems = APP_DATA.regexCollections.filter(c => c.enabled !== false);
+    
+    if (enabledItems.length === 0) {
+        display.value = '未选择正则'; 
+    } else if (enabledItems.length === 1) {
+        display.value = enabledItems[0].name;
+    } else {
+        display.value = `${enabledItems[0].name} 等 ${enabledItems.length} 个`;
+    }
+}
+
+// 3. 列表生成函数 (修复颜色不变化的问题)
+function updateRegexUI() {
+    updateRegexDisplay(); // 先更新顶部的文字
+
+    const list = document.getElementById('regex-file-list');
+    if (!list) return;
+    
+    list.innerHTML = '';
+    
+    if (!APP_DATA.regexCollections || !APP_DATA.regexCollections.length) {
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:#888">暂无文件</div>';
+        return;
+    }
+    
+    APP_DATA.regexCollections.forEach(c => {
         const div = document.createElement('div');
         div.className = 'tavern-item';
         
-        // --- A. 左侧：文件名 (点击进入详情) ---
-        const infoDiv = document.createElement('div');
-        infoDiv.style.flex = '1';
-        infoDiv.style.cursor = 'pointer';
-        infoDiv.innerHTML = `
-            <div style="font-weight:bold; font-size:14px;">${file.name}</div>
-            <div style="font-size:11px; color:#888">包含 ${file.scripts ? file.scripts.length : 0} 条脚本</div>
+        // 判断启用状态：默认为开启(true)，除非明确被设为false
+        const isEnabled = (c.enabled !== false); 
+        
+        // 【变色逻辑】开启变绿，关闭变黑
+        const nameColor = isEnabled ? 'var(--accent-color)' : 'var(--text-color-primary)';
+        
+        div.innerHTML = `
+            <div style="flex:1; cursor:pointer;">
+                <div style="font-weight:bold; color: ${nameColor}; transition: color 0.3s;">
+                    ${c.name}
+                </div>
+                <div style="font-size:11px; color: var(--text-color-secondary, #888);">
+                    ${c.scripts ? c.scripts.length : 0} 条脚本
+                </div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="toggleRegexCollection('${c.id}', this.checked)">
+                <span class="slider"></span>
+            </label>
         `;
-        infoDiv.onclick = function(e) {
-            e.stopPropagation();
-            openRegexDetail(file.id);
-        };
-
-        div.appendChild(infoDiv);
-
-        // --- B. 右侧：控制区 ---
-        const controlsDiv = document.createElement('div');
-        controlsDiv.style.display = 'flex';
-        controlsDiv.style.alignItems = 'center';
-        controlsDiv.style.gap = '12px';
-
-        // 1. 开关
-        const switchLabel = document.createElement('label');
-        switchLabel.className = 'switch';
-        switchLabel.title = "启用/禁用此文件";
         
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = (file.enabled !== false);
-        checkbox.onchange = function(e) {
-            e.stopPropagation();
-            toggleRegexFile(file.id, this.checked);
+        // 点击名字进入详情
+        div.querySelector('div').onclick = function() {
+             if(typeof openRegexDetail === 'function') openRegexDetail(c.id);
         };
         
-        const sliderSpan = document.createElement('span');
-        sliderSpan.className = 'slider';
-        
-        switchLabel.appendChild(checkbox);
-        switchLabel.appendChild(sliderSpan);
-        controlsDiv.appendChild(switchLabel);
-
-        // 2. 删除按钮 (新增)
-        const deleteBtn = document.createElement('div');
-        deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-        deleteBtn.style.color = 'var(--danger-color)';
-        deleteBtn.style.cursor = 'pointer';
-        deleteBtn.style.fontSize = '14px';
-        deleteBtn.title = "删除此正则文件";
-        
-        deleteBtn.onclick = function(e) {
-            e.stopPropagation();
-            if (confirm(`确定要删除正则文件 "${file.name}" 吗？`)) {
-                APP_DATA.regexCollections = APP_DATA.regexCollections.filter(f => f.id !== file.id);
-                saveData();
-                updateRegexUI();
-            }
-        };
-        controlsDiv.appendChild(deleteBtn);
-
-        div.appendChild(controlsDiv);
-        container.appendChild(div);
+        list.appendChild(div);
     });
 }
+
 
 function toggleRegexFile(fileId, checked) {
     const file = APP_DATA.regexCollections.find(f => f.id === fileId);
@@ -8235,21 +8216,6 @@ function updateDeepPresetDisplay() {
     display.value = '未选择预设';
 }
 
-// 更新正则显示
-function updateRegexDisplay() {
-    const display = document.getElementById('regex-display');
-    if (!display) return;
-    
-    if (APP_DATA.currentRegexId) {
-        const regex = APP_DATA.regexPatterns.find(r => r.id == APP_DATA.currentRegexId);
-        if (regex) {
-            display.value = regex.name;
-            return;
-        }
-    }
-    display.value = '未选择正则';
-}
-
 // 切换深预设开关
 function toggleDeepPreset() {
     APP_DATA.deepPresetEnabled = !APP_DATA.deepPresetEnabled;
@@ -9216,6 +9182,41 @@ function copyText(button, elementId) {
     });
 }
 
+/* ================= 纯净版修复代码 (只修复深预设弹窗) ================= */
+
+// 1. 数据安全检查 (这是让弹窗能正常运行的核心)
+function ensureTavernData() {
+    if (!window.APP_DATA) window.APP_DATA = {};
+    // 确保 deepPresets 是一个数组，防止代码读取时崩溃
+    if (!APP_DATA.deepPresets || !Array.isArray(APP_DATA.deepPresets)) APP_DATA.deepPresets = [];
+    if (!APP_DATA.regexCollections || !Array.isArray(APP_DATA.regexCollections)) APP_DATA.regexCollections = [];
+}
+
+// 2. 仅重写"深预设"的打开逻辑
+function openDeepPresetManager() {
+    ensureTavernData(); // 先穿"防弹衣"
+    
+    // 如果原代码有更新UI的函数，就调用它
+    if (typeof updateDeepPresetUI === 'function') {
+        updateDeepPresetUI();
+    }
+    
+    // 查找弹窗元素
+    const modal = document.getElementById('deep-preset-modal');
+    if (!modal) {
+        alert('错误：找不到 id 为 deep-preset-modal 的弹窗元素！');
+        return;
+    }
+    
+    // 强制显示弹窗 (兼容两种常见的显示方式)
+    if (typeof showModal === 'function') {
+        showModal('deep-preset-modal');
+    } else {
+        modal.classList.add('active');
+        modal.style.display = 'flex';
+    }
+}
+
 
 </script>
 
@@ -9237,18 +9238,6 @@ function copyText(button, elementId) {
                 <i class="fas fa-plus-circle"></i> 新建配置
             </button>
           
-        </div>
-    </div>
-</div>
-<div id="deep-preset-modal" class="overlay" style="z-index: 9999;">
-    <div class="modal-content" style="width: 90%; max-width: 350px; max-height: 70vh; display: flex; flex-direction: column;">
-
-        <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--text-color-primary);">预设库 (World Info)</h4>
-        <div style="font-size:12px; color:var(--text-color-secondary); margin-bottom:10px;">点击预设名称进行编辑/启用:</div>
-        <div style="height: 250px; overflow-y: auto; margin-bottom: 15px; background:var(--bg-color-primary); border-radius:8px; padding:5px;" id="deep-preset-list"></div>
-        <div style="display: flex; gap: 12px; justify-content: center;">
-            <button onclick="importDeepPresetFile()" style="padding: 10px 20px; border-radius: 8px; background: var(--accent-color); color: white; border: none; cursor: pointer;">导入新预设</button>
-            <button onclick="hideModal('deep-preset-modal')" style="padding: 10px 20px; border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); cursor: pointer;">关闭</button>
         </div>
     </div>
 </div>
