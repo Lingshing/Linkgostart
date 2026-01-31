@@ -2161,6 +2161,39 @@ input[type="number"]::-webkit-inner-spin-button {
     </p>
 </div>
 
+<!-- 新增：其他API配置（共享主API配置） -->
+<div class="settings-group">
+    <h4>💡 其他API配置</h4>
+    <p style="font-size: 12px; color: var(--text-color-secondary); margin-bottom: 15px;">
+        用于后台补全长期记忆等功能，不影响主聊天
+    </p>
+    
+    <!-- 长期记忆API配置 -->
+    <h4 style="font-size: 15px; margin-top: 20px; margin-bottom: 10px; color: var(--text-color-primary);">📝 长期记忆API配置</h4>
+    
+    <!-- 预设选择（复用主API的配置列表） -->
+    <label>配置名称:</label>
+    <input type="text" id="backfill-preset-display" readonly 
+           style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: var(--radius-default); 
+                  background: var(--input-bg); color: var(--text-color-primary); 
+                  border: 1px solid var(--input-border); cursor: pointer; 
+                  font-size: 16px; box-sizing: border-box;"
+           value="新建配置"
+           onclick="openBackfillPresetManager()">
+    
+    <!-- 当前预设的模型选择 -->
+    <div id="backfill-current-preset-model-container" style="display: none; margin-bottom: 10px;">
+        <label for="backfill-current-preset-model">当前模型:</label>
+        <input type="text" id="backfill-current-preset-model" readonly
+               style="width: 100%; padding: 12px; margin-top: 5px; border: 1px solid var(--input-border); 
+                      border-radius: var(--radius-default); background-color: var(--input-bg); 
+                      color: var(--text-color-primary); cursor: pointer; 
+                      font-size: 16px; box-sizing: border-box;"
+               onclick="openBackfillCurrentPresetModelSelector()"
+               placeholder="点击选择模型">
+    </div>
+</div>
+
     <!-- 新增：预设与正则管理模块 -->
 <div class="settings-group">
     <h4>预设与正则管理</h4>
@@ -7052,26 +7085,48 @@ function refreshPresetList() {
             contentDiv.onclick = function() {
     console.log('选择预设:', preset.name);
     
-    // 1. 先加载预设数据
-    loadPreset(preset.id);
+    // 检查是否是补全API模式
+    const modal = document.getElementById('preset-modal');
+    const isBackfillMode = modal.dataset.mode === 'backfill';
     
-    // 2. 关闭弹窗（用hideModal确保动画正确）
+    if (isBackfillMode) {
+        // 补全API模式：应用到补全API区域
+        APP_DATA.currentBackfillPresetId = preset.id;
+        document.getElementById('backfill-preset-display').value = preset.name;
+        
+        // 显示模型选择框
+        const backfillModelContainer = document.getElementById('backfill-current-preset-model-container');
+        if (backfillModelContainer) {
+            backfillModelContainer.style.display = 'block';
+            document.getElementById('backfill-current-preset-model').value = preset.defaultModel || '';
+        }
+        
+        // 恢复弹窗标题
+        const title = modal.querySelector('h4');
+        if (title && title.dataset.originalText) {
+            title.textContent = title.dataset.originalText;
+        }
+        
+        // 清除模式标记
+        modal.dataset.mode = '';
+        window.isBackfillMode = false;
+    } else {
+        // 主API模式：应用到主API区域
+        loadPreset(preset.id);
+        document.getElementById('api-preset-display').value = preset.name;
+        
+        const apiFieldsContainer = document.getElementById('api-fields-container');
+        if (apiFieldsContainer) {
+            apiFieldsContainer.style.display = 'none';
+        }
+        document.getElementById('save-preset-btn').style.display = 'none';
+    }
+    
+    // 关闭弹窗
     hideModal('preset-modal');
-    
-    // 3. 【重要】保存当前设置
     saveData();
     
-    // 4. 更新主页面显示
-    document.getElementById('api-preset-display').value = preset.name;
-    
-    // 5. 隐藏API输入字段（因为现在有预设了）
-    const apiFieldsContainer = document.getElementById('api-fields-container');
-    if (apiFieldsContainer) {
-        apiFieldsContainer.style.display = 'none';
-    }
-    document.getElementById('save-preset-btn').style.display = 'none';
-    
-    console.log('已选择预设:', preset.name);
+    console.log('已选择预设:', preset.name, '模式:', isBackfillMode ? '补全API' : '主API');
 };
             
             div.appendChild(contentDiv);
@@ -7311,48 +7366,46 @@ function renderModelList(models, container) {
     
     models.forEach((model, index) => {
         const modelId = model.id || model;
-        const modelName = modelId.split('/').pop(); // 取最后一部分
+        const displayName = modelId.split('/').pop(); // 取最后一部分
         
         const item = document.createElement('div');
         item.className = 'model-item';
-        // 修改item.style.cssText
-item.style.cssText = `
-    padding: 18px 20px; 
-    margin: 0 auto 12px auto; /* 居中：左右auto */
-    border-radius: 14px;
-    border: 1px solid var(--input-border); 
-    cursor: pointer;
-    background: var(--input-bg); 
-    transition: all 0.2s;
-    width: 100%; 
-    max-width: 100%; /* 确保不超过容器 */
-    box-sizing: border-box;
-    word-break: break-word;
-    text-align: left; /* 文字左对齐 */
-    display: block; /* 确保居中生效 */
-`;
+        item.style.cssText = `
+            padding: 18px 20px; 
+            margin: 0 auto 12px auto; 
+            border-radius: 14px;
+            border: 1px solid var(--input-border); 
+            cursor: pointer;
+            background: var(--input-bg); 
+            transition: all 0.2s;
+            width: 100%; 
+            max-width: 100%; 
+            box-sizing: border-box;
+            word-break: break-word;
+            text-align: left;
+            display: block;
+        `;
 
-// 修改内容HTML，文字左对齐但整体居中
-item.innerHTML = `
-    <div style="
-        font-weight: 600; 
-        color: var(--text-color-primary);
-        font-size: 17px;
-        margin-bottom: 8px;
-        text-align: left;
-    ">
-        ${displayName}
-    </div>
-    <div style="
-        font-size: 14px; 
-        color: var(--text-color-secondary); 
-        line-height: 1.4;
-        text-align: left;
-        opacity: 0.8;
-    ">
-        ${modelId}
-    </div>
-`;
+        item.innerHTML = `
+            <div style="
+                font-weight: 600; 
+                color: var(--text-color-primary);
+                font-size: 17px;
+                margin-bottom: 8px;
+                text-align: left;
+            ">
+                ${displayName}
+            </div>
+            <div style="
+                font-size: 14px; 
+                color: var(--text-color-secondary); 
+                line-height: 1.4;
+                text-align: left;
+                opacity: 0.8;
+            ">
+                ${modelId}
+            </div>
+        `;
         
         item.onclick = function() {
             document.getElementById('ai-model').value = modelId;
@@ -8627,10 +8680,294 @@ function renderCurrentPresetModels(models) {
         container.appendChild(item);
     });
 }
-// ==================== 深预设和正则功能 ====================
+// ==================== 补全API配置功能（复用主API配置）====================
 
-// 加载深预设和正则设置
-function loadDeepPresetAndRegexSettings() {
+// 打开补全API的配置管理器（直接复用主API配置列表）
+function openBackfillPresetManager() {
+    // 标记当前是补全API模式
+    window.isBackfillMode = true;
+    
+    // 直接复用主API的配置管理弹窗
+    const modal = document.getElementById('preset-modal');
+    
+    // 修改弹窗标题
+    const title = modal.querySelector('h4');
+    if (title) {
+        title.dataset.originalText = title.dataset.originalText || title.textContent;
+        title.textContent = '长期记忆API配置';
+    }
+    
+    // 修改点击事件，让它选择配置后应用到补全API
+    modal.dataset.mode = 'backfill';
+    
+    // 显示弹窗并刷新列表
+    showModal('preset-modal');
+    refreshPresetList();
+}
+
+async function openBackfillCurrentPresetModelSelector() {
+    // 标记当前是补全API模式
+    window.isBackfillMode = true;
+    
+    // 获取当前补全API选择的预设
+    const currentId = APP_DATA.currentBackfillPresetId || APP_DATA.currentPresetId;
+    if (!currentId) {
+        alert('请先选择一个配置');
+        return;
+    }
+    
+    const preset = APP_DATA.presets.find(p => p.id == currentId);
+    if (!preset) {
+        alert('配置不存在');
+        return;
+    }
+    
+    const apiUrl = preset.apiUrl || '';
+    const apiKey = preset.apiKey || '';
+    
+    if (!apiUrl || !apiKey) {
+        alert('请先在编辑配置中填写API URL和API Key');
+        return;
+    }
+    
+    // 显示加载弹窗
+    const loadingModal = document.createElement('div');
+    loadingModal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; justify-content: center; align-items: center;';
+    loadingModal.innerHTML = '<div style="background: var(--bg-color-secondary); padding: 30px; border-radius: 16px; min-width: 200px; text-align: center;"><div style="margin-bottom: 15px;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 24px;"></i></div><div>正在获取模型列表...</div></div>';
+    document.body.appendChild(loadingModal);
+    
+    try {
+        const models = await fetchModelList(apiUrl, apiKey);
+        loadingModal.remove();
+        
+        if (models.length === 0) {
+            alert('未获取到模型列表');
+            return;
+        }
+        
+        // 显示模型选择弹窗
+        showBackfillCurrentPresetModelList(models);
+    } catch (error) {
+        loadingModal.remove();
+        alert('获取模型失败: ' + error.message);
+    }
+}
+
+// 显示补全API的当前预设模型列表
+function showBackfillCurrentPresetModelList(models) {
+    const modal = document.createElement('div');
+    modal.id = 'backfill-current-model-list-modal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 20px;';
+    
+    modal.innerHTML = `
+        <div style="background: var(--bg-color-secondary); border-radius: 16px; width: 100%; max-width: 400px; max-height: 70vh; display: flex; flex-direction: column;">
+            <div style="padding: 20px; border-bottom: 1px solid var(--input-border);">
+                <h4 style="margin: 0; color: var(--text-color-primary);">选择模型 (${models.length}个)</h4>
+            </div>
+            <div style="padding: 15px; flex: 1; overflow-y: auto;">
+                <input type="text" id="backfill-current-model-search-input" placeholder="搜索模型..." style="width: 90%; padding: 10px 15px; margin: 0 auto 15px auto; border-radius: 10px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-color-primary); display: block;">
+                <div id="backfill-current-model-items-container" style="max-height: 50vh; overflow-y: auto;"></div>
+            </div>
+            <div style="padding: 15px; border-top: 1px solid var(--input-border); text-align: center;">
+                <button onclick="document.getElementById('backfill-current-model-list-modal').remove()" style="padding: 10px 20px; border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); cursor: pointer;">取消</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    renderBackfillCurrentPresetModels(models);
+    
+    document.getElementById('backfill-current-model-search-input').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const filteredModels = models.filter(model => (model.id || model).toLowerCase().includes(searchTerm));
+        renderBackfillCurrentPresetModels(filteredModels);
+    });
+}
+
+// 渲染补全API当前预设的模型列表
+function renderBackfillCurrentPresetModels(models) {
+    const container = document.getElementById('backfill-current-model-items-container');
+    container.innerHTML = '';
+    
+    if (models.length === 0) {
+        container.innerHTML = '<div style="padding: 30px; text-align: center; color: var(--text-color-secondary);">未找到匹配的模型</div>';
+        return;
+    }
+    
+    models.forEach((model) => {
+        const modelId = model.id || model;
+        const displayName = modelId.split('/').pop();
+        
+        const item = document.createElement('div');
+        item.style.cssText = 'padding: 12px 15px; margin: 0 10px 8px 10px; border-radius: 10px; border: 1px solid var(--input-border); cursor: pointer; background: var(--input-bg); transition: all 0.2s; width: calc(100% - 20px); box-sizing: border-box; overflow: hidden; word-break: break-word;';
+        
+        item.innerHTML = `
+            <div style="font-weight: bold; color: var(--text-color-primary);">${displayName}</div>
+            <div style="font-size: 12px; color: var(--text-color-secondary); margin-top: 4px;">${modelId}</div>
+        `;
+        
+        item.onclick = function() {
+            const currentId = APP_DATA.currentBackfillPresetId || APP_DATA.currentPresetId;
+            const preset = APP_DATA.presets.find(p => p.id == currentId);
+            if (preset) {
+                preset.defaultModel = modelId;
+                document.getElementById('backfill-current-preset-model').value = modelId;
+                APP_DATA.currentBackfillPresetId = currentId;
+                saveData();
+            }
+            document.getElementById('backfill-current-model-list-modal').remove();
+        };
+        
+        container.appendChild(item);
+    });
+}
+
+async function openBackfillModelSelectorForEdit() {
+    const apiUrl = document.getElementById('edit-backfill-api-url').value.trim();
+    const apiKey = document.getElementById('edit-backfill-api-key').value.trim();
+    
+    if (!apiUrl || !apiKey) {
+        alert('请先填写API URL和API Key');
+        return;
+    }
+    
+    const loadingModal = document.createElement('div');
+    loadingModal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10002; display: flex; justify-content: center; align-items: center;';
+    loadingModal.innerHTML = '<div style="background: var(--bg-color-secondary); padding: 30px; border-radius: 16px; min-width: 200px; text-align: center;"><div style="margin-bottom: 15px;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 24px;"></i></div><div>正在获取模型列表...</div></div>';
+    document.body.appendChild(loadingModal);
+    
+    try {
+        const models = await fetchModelList(apiUrl, apiKey);
+        loadingModal.remove();
+        if (models.length === 0) {
+            alert('未获取到模型列表');
+            return;
+        }
+        showBackfillModelListForEdit(models);
+    } catch (error) {
+        loadingModal.remove();
+        alert('获取模型失败: ' + error.message);
+    }
+}
+
+function showBackfillModelListModal(models, isCurrentPreset) {
+    const modal = document.createElement('div');
+    modal.id = 'backfill-model-list-modal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 20px;';
+    
+    modal.innerHTML = `<div style="background: var(--bg-color-secondary); border-radius: 16px; width: 100%; max-width: 320px; max-height: 70vh; display: flex; flex-direction: column;"><div style="padding: 20px; border-bottom: 1px solid var(--input-border);"><h4 style="margin: 0;">选择模型 (${models.length}个)</h4></div><div style="padding: 15px; flex: 1; overflow-y: auto;"><input type="text" id="backfill-model-search-input" placeholder="搜索模型..." style="width: 90%; padding: 10px 15px; margin: 0 auto 15px auto; border-radius: 10px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-color-primary); display: block;"><div id="backfill-model-items-container"></div></div><div style="padding: 15px; border-top: 1px solid var(--input-border); text-align: center;"><button onclick="document.getElementById('backfill-model-list-modal').remove()" style="padding: 10px 20px; border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); cursor: pointer;">取消</button></div></div>`;
+    
+    document.body.appendChild(modal);
+    renderBackfillModels(models, isCurrentPreset);
+    
+    document.getElementById('backfill-model-search-input').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const filteredModels = models.filter(model => (model.id || model).toLowerCase().includes(searchTerm));
+        renderBackfillModels(filteredModels, isCurrentPreset);
+    });
+}
+
+function renderBackfillModels(models, isCurrentPreset) {
+    const container = document.getElementById('backfill-model-items-container');
+    container.innerHTML = '';
+    
+    models.forEach((model) => {
+        const modelId = model.id || model;
+        const displayName = modelId.split('/').pop();
+        
+        const item = document.createElement('div');
+        item.style.cssText = 'padding: 12px 15px; margin: 0 10px 8px 10px; border-radius: 10px; border: 1px solid var(--input-border); cursor: pointer; background: var(--input-bg); transition: all 0.2s; width: calc(100% - 20px); box-sizing: border-box; overflow: hidden; word-break: break-word;';
+        
+        item.innerHTML = `
+            <div style="font-weight: bold; color: var(--text-color-primary);">
+                ${displayName}
+            </div>
+            <div style="font-size: 12px; color: var(--text-color-secondary); margin-top: 4px;">
+                ${modelId}
+            </div>
+        `;
+        
+        if (isCurrentPreset) {
+            item.onclick = function() {
+                if (APP_DATA.currentBackfillPresetId) {
+                    const preset = APP_DATA.backfillPresets.find(p => p.id == APP_DATA.currentBackfillPresetId);
+                    if (preset) {
+                        preset.defaultModel = modelId;
+                        document.getElementById('backfill-current-preset-model').value = modelId;
+                        saveData();
+                    }
+                }
+                document.getElementById('backfill-model-list-modal').remove();
+            };
+        } else {
+            item.onclick = function() {
+                document.getElementById('backfill-ai-model').value = modelId;
+                document.getElementById('backfill-model-list-modal').remove();
+            };
+        }
+        
+        container.appendChild(item);
+    });
+}
+
+function showBackfillModelListForEdit(models) {
+    const modal = document.createElement('div');
+    modal.id = 'backfill-model-list-edit-modal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10002; display: flex; justify-content: center; align-items: center; padding: 20px;';
+    
+    modal.innerHTML = `
+        <div style="background: var(--bg-color-secondary); border-radius: 16px; width: 100%; max-width: 320px; max-height: 70vh; display: flex; flex-direction: column;">
+            <div style="padding: 20px; border-bottom: 1px solid var(--input-border);">
+                <h4 style="margin: 0;">选择模型 (${models.length}个)</h4>
+            </div>
+            <div style="padding: 15px; flex: 1; overflow-y: auto;">
+                <input type="text" id="backfill-model-search-edit-input" placeholder="搜索模型..." style="width: 90%; padding: 10px 15px; margin: 0 auto 15px auto; border-radius: 10px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-color-primary); display: block;">
+                <div id="backfill-model-items-edit-container"></div>
+            </div>
+            <div style="padding: 15px; border-top: 1px solid var(--input-border); text-align: center;">
+                <button onclick="document.getElementById('backfill-model-list-edit-modal').remove()" style="padding: 10px 20px; border-radius: 8px; background: var(--input-bg); color: var(--text-color-primary); border: 1px solid var(--input-border); cursor: pointer;">取消</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    renderBackfillModelsForEdit(models);
+    
+    document.getElementById('backfill-model-search-edit-input').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const filteredModels = models.filter(model => (model.id || model).toLowerCase().includes(searchTerm));
+        renderBackfillModelsForEdit(filteredModels);
+    });
+}
+
+function renderBackfillModelsForEdit(models) {
+    const container = document.getElementById('backfill-model-items-edit-container');
+    container.innerHTML = '';
+    
+    models.forEach((model) => {
+        const modelId = model.id || model;
+        const displayName = modelId.split('/').pop();
+        
+        const item = document.createElement('div');
+        item.style.cssText = 'padding: 12px 15px; margin: 0 10px 8px 10px; border-radius: 10px; border: 1px solid var(--input-border); cursor: pointer; background: var(--input-bg); transition: all 0.2s; width: calc(100% - 20px); box-sizing: border-box; overflow: hidden; word-break: break-word;';
+        
+        item.innerHTML = `
+            <div style="font-weight: bold; color: var(--text-color-primary);">
+                ${displayName}
+            </div>
+            <div style="font-size: 12px; color: var(--text-color-secondary); margin-top: 4px;">
+                ${modelId}
+            </div>
+        `;
+        
+        item.onclick = function() {
+            document.getElementById('edit-backfill-default-model').value = modelId;
+            document.getElementById('backfill-model-list-edit-modal').remove();
+        };
+        
+        container.appendChild(item);
+    });
+}
     // 更新开关状态
     updateSwitchState('deep-preset-switch', APP_DATA.deepPresetEnabled);
     updateSwitchState('regex-switch', APP_DATA.regexEnabled);
@@ -8638,7 +8975,6 @@ function loadDeepPresetAndRegexSettings() {
     // 更新显示框内容
     updateDeepPresetDisplay();
     updateRegexDisplay();
-}
 
 // 更新开关状态
 function updateSwitchState(switchId, enabled) {
