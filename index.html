@@ -45,6 +45,25 @@
             --danger-color: #D17A6B;
         }
         
+        /* ----------------------- 顶部极简进度条样式 ----------------------- */
+        #backfill-progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #7B9E6D 0%, #5B9BD5 100%);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+            z-index: 10002;
+            box-shadow: 0 1px 3px rgba(123, 158, 109, 0.5);
+            opacity: 0;
+        }
+
+        #backfill-progress-bar.active {
+            opacity: 1;
+        }
 
         /* 基础样式和动效 */
         body {
@@ -1989,6 +2008,8 @@ input[type="number"]::-webkit-inner-spin-button {
    </style>
 </head>
 <body>
+    <!-- 顶部极简进度条 -->
+    <div id="backfill-progress-bar"></div>
 
     <div class="phone-frame" id="phone-frame">
         <div class="phone-screen" id="phone-screen">
@@ -5552,8 +5573,12 @@ async function simulateMemorySummary(contact) {
     const interval = parseInt(APP_DATA.settings.diaryInterval) || 10; 
     const userMessagesCount = contact.history.filter(m => m.role === 'user').length;
 
+    // 【修复】添加调试日志，检查触发条件
+    console.log(`📊 当前用户消息数: ${userMessagesCount}, 触发频率: ${interval}, 余数: ${userMessagesCount % interval}`);
+
     // 2. 触发检查
     if (userMessagesCount === 0 || userMessagesCount % interval !== 0) {
+        console.log(`⏸️ 不满足触发条件，跳过记忆生成`);
         return; 
     }
 
@@ -5591,15 +5616,26 @@ async function simulateMemorySummary(contact) {
     const summaryMessages = [
         {
             role: "system",
-            content: `【指令】你不再是冷冰冰的记录员，你是 **${contact.name}** 本人。
-            你正在写属于自己的私密日记，记录关于“他/她”（和你对话的人）的事情。
+            content: `【核心身份】你就是 **${contact.name}**，不是旁观者，不是记录员。
 
-            【第一人称视角规则 - 必须严格执行】
-            1. **"我"** = ${contact.name}（你自己）。
-            2. **"他" / "她"** = 和你对话的人。
-            3. 如果你知道他的昵称（如"哥哥"、"阿祖"），必须用昵称称呼他。
-            4. 🚫 **绝对禁止出现**："用户"、"对方"、"玩家" 这些词！
-            5. 🚫 **绝对禁止出现**：用第三人称称呼你自己（比如不要写"${contact.name}喜欢他"，要写"我喜欢他"）。
+【写日记的角度 - 铁律】
+- "我" = ${contact.name}（你自己）
+- "他/她" = 和你对话的那个人
+- 如果知道对方的昵称（例如"哥哥"、"阿祖"、"小明"），**必须直接用昵称**
+- 🚫 **严禁出现**："用户"、"对方"、"玩家"、"这个人"
+- 🚫 **严禁第三人称**：不要写"${contact.name}觉得"，要写"我觉得"
+
+【日记内容示例 - 学习这个格式】
+✅ 正确：
+[核心]|10|哥哥,关系,重要|哥哥今天对我说"你是我最重要的人"，我心跳得好快。
+[日常]|6|心情,观察|他今天好像不太开心，一直在叹气，我很担心他。
+[人物]|9|小明,弟弟|小明是我的弟弟，比我小3岁，很听话。
+[偏好]|7|食物,口味|我发现他特别喜欢吃辣，每次点菜都要麻辣口味。
+
+❌ 错误（千万别这样写）：
+[核心]|10|用户,关系|用户说${contact.name}很重要。（错误：出现了"用户"，而且用第三人称）
+[日常]|6|观察|对方今天心情不好。（错误：用了"对方"）
+[人物]|9|弟弟|${contact.name}有个弟弟叫小明。（错误：第三人称）
 
             【去重规则 - 必须严格执行】
             请先阅读下方的【已有记忆库】。
@@ -5714,6 +5750,160 @@ async function simulateMemorySummary(contact) {
     }
 }
 
+
+// 【修复】一键补全所有缺失的记忆 - 使用顶部极简进度条
+async function backfillAllMemories() {
+    if (!currentContact) {
+        alert('❌ 请先打开一个聊天窗口');
+        return;
+    }
+    
+    if (!currentContact.longMemories) currentContact.longMemories = [];
+    
+    const interval = parseInt(APP_DATA.settings.diaryInterval) || 10;
+    const userMessagesCount = currentContact.history.filter(m => m.role === 'user').length;
+    
+    console.log('🔍 [补全检查] 开始检测:', {
+        角色: currentContact.name,
+        总消息数: currentContact.history.length,
+        用户消息数: userMessagesCount,
+        补全频率: interval,
+        现有记忆数: currentContact.longMemories.length
+    });
+    
+    // 【关键检查1】对话轮数是否足够
+    if (userMessagesCount < interval) {
+        alert(`❌ 对话轮数不足\n\n当前：${userMessagesCount} 轮\n需要：至少 ${interval} 轮才能生成记忆`);
+        return;
+    }
+    
+    const expectedBlocks = Math.floor(userMessagesCount / interval);
+    const missingBlocks = [];
+    
+    // 【检查2】找出所有缺失的记忆区块
+    for (let i = 1; i <= expectedBlocks; i++) {
+        const startRound = (i - 1) * interval + 1;
+        const endRound = i * interval;
+        
+        const hasMemory = currentContact.longMemories.some(m => {
+            if (!m.roundRange) return false;
+            const match = m.roundRange.match(/第?(\d+)-(\d+)轮?/);
+            if (!match) return false;
+            const [_, start, end] = match;
+            return (parseInt(start) === startRound && parseInt(end) === endRound);
+        });
+        
+        console.log(`📊 [区块${i}] 第${startRound}-${endRound}轮:`, hasMemory ? '✅已存在' : '❌缺失');
+        
+        if (!hasMemory) {
+            missingBlocks.push({ startRound, endRound, blockIndex: i });
+        }
+    }
+    
+    console.log('📋 [检测完成] 结果:', {
+        应有区块: expectedBlocks,
+        缺失区块: missingBlocks.length,
+        详情: missingBlocks
+    });
+    
+    // 【检查3】是否有缺失
+    if (missingBlocks.length === 0) {
+        alert('✅ 记忆完整！\n\n所有区块都已生成，无需补全。');
+        return;
+    }
+    
+    // 【检查4】API配置是否完整
+    const apiUrl = APP_DATA.settings.backfillApiUrl || APP_DATA.settings.apiUrl;
+    const apiKey = APP_DATA.settings.backfillApiKey || APP_DATA.settings.apiKey;
+    const model = APP_DATA.settings.backfillModel || APP_DATA.settings.aiModel;
+    
+    if (!apiUrl || !apiKey || !model) {
+        alert('❌ API配置不完整\n\n请先在设置页面配置API信息');
+        return;
+    }
+    
+    console.log('🔧 [API配置]', { apiUrl, model });
+    
+    // 确认开始补全
+    if (!confirm(`🔍 检测到 ${missingBlocks.length} 个缺失的记忆区块\n\n缺失轮数：\n${missingBlocks.map(b => `第${b.startRound}-${b.endRound}轮`).join('\n')}\n\n是否开始补全？`)) {
+        return;
+    }
+    
+    // 【核心修改】使用顶部极简进度条
+    const progressBar = document.getElementById('backfill-progress-bar');
+    if (!progressBar) {
+        alert('进度条元素未找到');
+        return;
+    }
+    
+    // 显示进度条
+    progressBar.classList.add('active');
+    progressBar.style.opacity = '1';
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    // 逐个补全
+    for (let i = 0; i < missingBlocks.length; i++) {
+        const block = missingBlocks[i];
+        
+        // 更新进度条（通过transform scaleX实现进度）
+        const progress = ((i + 1) / missingBlocks.length) * 100;
+        progressBar.style.transform = `scaleX(${progress / 100})`;
+        
+        console.log(`🔄 处理进度: ${i + 1}/${missingBlocks.length} (${progress.toFixed(1)}%)`);
+        
+        try {
+            console.log(`🚀 [开始补全] 区块${block.blockIndex}: 第${block.startRound}-${block.endRound}轮`);
+            const added = await generateMemoryForBlock(currentContact, block.startRound, block.endRound, interval);
+            
+            if (added > 0) {
+                successCount++;
+                console.log(`✅ [补全成功] 区块${block.blockIndex}: 生成了${added}条记忆`);
+            } else {
+                failCount++;
+                console.warn(`⚠️ [无内容] 区块${block.blockIndex}: AI未生成记忆`);
+            }
+            
+            // 间隔2秒，避免API限流
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (error) {
+            failCount++;
+            console.error(`❌ [补全失败] 区块${block.blockIndex}:`, error);
+            if (progressDetail) {
+                progressDetail.textContent = `第${block.startRound}-${block.endRound}轮失败: ${error.message}`;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
+    
+    // 等待所有数据保存完成
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // 【核心修改】隐藏进度条（平滑淡出）
+    progressBar.style.transition = 'opacity 0.5s ease, transform 0.3s ease';
+    progressBar.style.opacity = '0';
+    
+    // 等待淡出动画完成后重置
+    setTimeout(() => {
+        progressBar.classList.remove('active');
+        progressBar.style.transform = 'scaleX(0)';
+    }, 500);
+    
+    // 显示结果
+    console.log('📊 [补全完成] 最终结果:', {
+        成功: successCount,
+        失败: failCount,
+        总计: missingBlocks.length
+    });
+    
+    
+    // 如果全部失败，显示错误提示
+    if (successCount === 0 && failCount > 0) {
+        alert(`❌ 补全失败\n\n成功补全：0 个记忆区块\n\n所有区块都未能生成记忆。\n\n可能原因：\n1. API密钥错误\n2. 网络连接失败\n3. 模型不支持\n\n请检查控制台日志查看详细错误。`);
+    }
+}
+
 // 【新增】检测并补全历史缺失的记忆
 async function checkAndBackfillMemories(contact, interval, currentRound) {
     if (!contact.longMemories) contact.longMemories = [];
@@ -5790,7 +5980,7 @@ async function generateMemoryForBlock(contact, startRound, endRound, interval) {
     
     if (blockMessages.length === 0) {
         console.log(`⚠️ 未找到第${startRound}-${endRound}轮的对话记录`);
-        return;
+        return 0;
     }
     
     console.log(`📊 找到${blockMessages.length}条消息用于生成记忆`);
@@ -5857,7 +6047,6 @@ ${chatContent}
 记住：你是${contact.name}，用"我"说话！`
         }
     ];
-    REPLACE
     
     try {
         const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
@@ -5928,13 +6117,17 @@ ${chatContent}
                 if (addedCount > 0) {
                     saveData();
                     console.log(`✅ 成功补全第${startRound}-${endRound}轮，写入 ${addedCount} 条记忆`);
+                    return addedCount;
                 }
+                return 0;
             }
         } else {
             console.error(`补全第${startRound}-${endRound}轮失败: ${response.status}`);
+            return 0;
         }
     } catch (e) {
         console.error(`补全第${startRound}-${endRound}轮出错:`, e);
+        return 0;
     }
 }
 
@@ -5968,12 +6161,22 @@ function showMemoryModal(contextType) {
 
     // 头部 HTML
     contentDiv.innerHTML = `
-        <div class="memory-header-row">
-            <div class="memory-back-btn clickable" onclick="goBackInMemoryModal()">
-                <i class="fa-solid fa-angle-left"></i>
-            </div>
-            <h4 id="memory-modal-title">${titleText}</h4>
+<div class="memory-header-row">
+    <div class="memory-back-btn clickable" onclick="goBackInMemoryModal()">
+        <i class="fa-solid fa-angle-left"></i>
+    </div>
+    <h4 id="memory-modal-title">${titleText}</h4>
+    ${contextType === 'long' ? `
+        <div class="backfill-btn clickable" onclick="backfillAllMemories()" 
+             style="display: flex; align-items: center; justify-content: center;
+                    width: 32px; height: 32px; cursor: pointer; 
+                    font-size: 20px; transition: transform 0.2s; color: #FF9500;
+                    transform: translateY(-5px);"
+             title="一键补全缺失的记忆">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
         </div>
+    ` : ''}
+</div>
         <div id="memory-content-container"></div>
         <div class="modal-footer">
             <button id="memory-save-btn" class="save-btn clickable" onclick="saveContextModalData()">保存修改</button>
