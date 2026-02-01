@@ -2744,31 +2744,40 @@ function loadPreset(presetId) {
 
     console.log('加载配置:', preset.name);
     
+    // 【核心修改】只更新主API配置，不影响长期记忆API
     APP_DATA.currentPresetId = presetId;
     document.getElementById('api-preset-display').value = preset.name;
     
-    // 【新增】记录最后使用时间
+    // 记录最后使用时间
     preset.lastUsedTime = Date.now();
     
-    // 【新增】显示当前配置的模型选择框
+    // 显示当前配置的模型选择框
     if (modelContainer) {
         modelContainer.style.display = 'block';
         document.getElementById('current-preset-model').value = preset.defaultModel || '';
     }
     
-    // 【新增】隐藏新建配置区域（如果有配置）
+    // 隐藏新建配置区域
     if (apiFieldsContainer) {
         apiFieldsContainer.style.display = 'none';
     }
     document.getElementById('save-preset-btn').style.display = 'none';
     
-    // 同步到settings
+    // ⚠️ 只同步到主API的settings，不要修改长期记忆API配置
     APP_DATA.settings.apiUrl = preset.apiUrl || '';
     APP_DATA.settings.apiKey = preset.apiKey || '';
     APP_DATA.settings.aiModel = preset.defaultModel || '';
     
+    // ⚠️ 不要修改这些字段：
+    // APP_DATA.settings.backfillApiUrl
+    // APP_DATA.settings.backfillApiKey
+    // APP_DATA.settings.backfillModel
+    // APP_DATA.currentBackfillPresetId
+    
     // 保存当前状态
     saveData();
+    
+    console.log('✅ 已选择主API配置:', preset.name, '(长期记忆API不受影响)');
 }
 
 // 新增：创建新配置（从弹窗）
@@ -5618,12 +5627,23 @@ async function simulateMemorySummary(contact) {
             role: "system",
             content: `【核心身份】你就是 **${contact.name}**，不是旁观者，不是记录员。
 
+【角色关系说明 - 必须牢记】
+- **你是谁？** 你是 ${contact.name}
+- **用户是谁？** 用户扮演与你对话的角色（可能是妹妹、哥哥、朋友等）
+- **用户的角色设定：** ${currentContact.prompt ? '从以下设定中提取用户的角色身份 → ' + currentContact.prompt : '未指定'}
+
 【写日记的角度 - 铁律】
-- "我" = ${contact.name}（你自己）
-- "他/她" = 和你对话的那个人
-- 如果知道对方的昵称（例如"哥哥"、"阿祖"、"小明"），**必须直接用昵称**
+- "我" = ${contact.name}（你自己，AI的角色）
+- "他/她/对方的称呼" = 用户扮演的角色
+- 如果从对话中能确定用户的称呼（例如"妹妹"、"哥哥"、"小明"），**必须直接用这个称呼**
 - 🚫 **严禁出现**："用户"、"对方"、"玩家"、"这个人"
 - 🚫 **严禁第三人称**：不要写"${contact.name}觉得"，要写"我觉得"
+- ⚠️ **防止角色混淆**：你是${contact.name}，不要把自己和用户的身份搞反了
+
+【角色判断方法】
+1. 如果对话中用户称呼你为"哥哥/姐姐/老师"等，说明用户是弟弟/妹妹/学生
+2. 如果对话中用户自称"我是你妹妹"，那就直接称呼对方"妹妹"
+3. 始终站在 ${contact.name} 的视角记录
 
 【日记内容示例 - 学习这个格式】
 ✅ 正确：
@@ -7517,37 +7537,33 @@ function refreshPresetList() {
         list.innerHTML = `
             <div style="text-align: center; padding: 40px; color: var(--text-color-secondary);">
                 <div style="font-size: 48px; margin-bottom: 20px;">📁</div>
-                <div>无预设</div>
+                <div>无配置</div>
             </div>
         `;
 
     } else {
-        // 【新增】按最后使用时间排序（最新的在前面）
+        // 按最后使用时间排序（最新的在前面）
         const sortedPresets = [...APP_DATA.presets].sort((a, b) => {
-            // 获取最后使用时间，如果没有则用0
             const timeA = a.lastUsedTime || 0;
             const timeB = b.lastUsedTime || 0;
-            
-            // 倒序排序：时间大的（新的）在前面
             return timeB - timeA;
         });
         
-        // 如果有预设，显示预设列表（按排序后的顺序）
         list.innerHTML = '';
-        sortedPresets.forEach(preset => {  // ← 这里改为 sortedPresets
+        sortedPresets.forEach(preset => {
             const div = document.createElement('div');
             div.style.cssText = `
                 padding: 12px 15px; margin-bottom: 8px; border-radius: 10px;
                 background: var(--input-bg); border: 1px solid var(--input-border);
                 position: relative;
-                min-height: 60px; /* 固定最小高度 */
+                min-height: 60px;
             `;
             
             // 主内容区域（点击选择）
             const contentDiv = document.createElement('div');
             contentDiv.style.cssText = `
                 cursor: pointer;
-                margin-right: 70px; /* 给按钮留空间 */
+                margin-right: 70px;
             `;
             
             contentDiv.innerHTML = `
@@ -7560,43 +7576,18 @@ function refreshPresetList() {
             `;
             
             contentDiv.onclick = function() {
-    console.log('选择预设:', preset.name);
-    
-    // 直接应用到主API（因为补全API已经直接复用主API了）
-    loadPreset(preset.id);
-    
-    // 【核心修复】更新补全API的显示
-    const backfillDisplay = document.getElementById('backfill-preset-display');
-    if (backfillDisplay) {
-        backfillDisplay.value = preset.name;
-    }
-    
-    // 【核心修复】显示并更新补全API的模型选择框
-    const backfillModelContainer = document.getElementById('backfill-current-preset-model-container');
-    if (backfillModelContainer) {
-        backfillModelContainer.style.display = 'block'; // 显示容器
-        const backfillModelInput = document.getElementById('backfill-current-preset-model');
-        if (backfillModelInput) {
-            backfillModelInput.value = preset.defaultModel || '';
-        }
-    }
-    
-    // 【核心修复】更新主API的模型选择框（主API也要显示）
-    const mainModelContainer = document.getElementById('current-preset-model-container');
-    if (mainModelContainer) {
-        mainModelContainer.style.display = 'block';
-        const mainModelInput = document.getElementById('current-preset-model');
-        if (mainModelInput) {
-            mainModelInput.value = preset.defaultModel || '';
-        }
-    }
-    
-    // 关闭弹窗
-    hideModal('preset-modal');
-    saveData();
-    
-    console.log('✅ 已选择配置:', preset.name, '(主API和补全API共享)');
-};
+                console.log('选择主API配置:', preset.name);
+                
+                // 【核心修改】只更新主API，不触碰长期记忆API
+                loadPreset(preset.id);
+                
+                // 关闭弹窗
+                hideModal('preset-modal');
+                saveData();
+                
+                console.log('✅ 已选择主API配置:', preset.name);
+                console.log('📌 长期记忆API配置保持不变');
+            };
             
             div.appendChild(contentDiv);
             
@@ -9352,7 +9343,7 @@ function openBackfillPresetManager() {
     refreshPresetListForBackfill();
 }
 
-// 【新增】专门为长期记忆API刷新预设列表
+// 【修复】专门为长期记忆API刷新预设列表（完全独立，不影响主API）
 function refreshPresetListForBackfill() {
     const list = document.getElementById('preset-list');
     
@@ -9394,21 +9385,28 @@ function refreshPresetListForBackfill() {
         `;
         
         div.onclick = function() {
-            // 【关键】选择后更新长期记忆API的配置
+            // 【核心修复】只更新长期记忆API，绝对不动主API
             APP_DATA.currentBackfillPresetId = preset.id;
             APP_DATA.settings.backfillApiUrl = preset.apiUrl;
             APP_DATA.settings.backfillApiKey = preset.apiKey;
             APP_DATA.settings.backfillModel = preset.defaultModel;
             
-            // 更新显示
+            // 更新长期记忆API的显示
             document.getElementById('backfill-preset-display').value = preset.name;
-            document.getElementById('backfill-current-preset-model-container').style.display = 'block';
-            document.getElementById('backfill-current-preset-model').value = preset.defaultModel || '';
+            const backfillModelContainer = document.getElementById('backfill-current-preset-model-container');
+            if (backfillModelContainer) {
+                backfillModelContainer.style.display = 'block';
+            }
+            const backfillModelInput = document.getElementById('backfill-current-preset-model');
+            if (backfillModelInput) {
+                backfillModelInput.value = preset.defaultModel || '';
+            }
             
             saveData();
             hideModal('preset-modal');
             
-            console.log('✅ 已选择长期记忆API配置:', preset.name);
+            console.log('✅ 长期记忆API已选择:', preset.name);
+            console.log('📌 主API配置保持不变:', APP_DATA.currentPresetId);
         };
         
         list.appendChild(div);
