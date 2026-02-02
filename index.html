@@ -4508,8 +4508,8 @@ item.onclick = () => {
     }, 300);
 }
 
-       /* --- 4. 修复：加载历史时彻底禁止动画，只在最后瞬间置底 --- */
-function renderMessages(history, startFromEnd = true) {
+/* --- 4. 修复：加载历史时彻底禁止动画，只在最后瞬间置底 --- */
+function renderMessages(history, startFromEnd = true, skipScroll = false) {
     const container = document.getElementById('chat-messages');
     if (startFromEnd) {
         currentStartIndex = Math.max(0, history.length - PAGE_SIZE);
@@ -4547,8 +4547,10 @@ function renderMessages(history, startFromEnd = true) {
         displaySegmentGroup(segmentGroup, container);
     }
     
-    // 最后一步：0秒瞬间置底
-    scrollToBottomInstant();
+    // 【关键修改】只有在不跳过滚动时才置底
+    if (!skipScroll) {
+        scrollToBottomInstant();
+    }
 }
 
 function loadMoreMessages() {
@@ -4559,23 +4561,87 @@ function loadMoreMessages() {
     
     isLoadingMore = true;
     
-    // 显示加载提示
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    
+    // 【关键1】记录加载前的滚动位置和容器高度
+    const oldScrollHeight = container.scrollHeight;
+    const oldScrollTop = container.scrollTop;
+    
+    // 显示加载提示（更柔和的动画）
     const loadingElement = document.getElementById('loading-more');
     if (loadingElement) {
         loadingElement.style.display = 'block';
+        loadingElement.style.opacity = '0';
+        setTimeout(() => {
+            loadingElement.style.transition = 'opacity 0.2s ease';
+            loadingElement.style.opacity = '1';
+        }, 10);
     }
     
     // 往前取10条
+    const previousStartIndex = currentStartIndex;
     currentStartIndex = Math.max(0, currentStartIndex - PAGE_SIZE);
     
-    // 重新渲染
-    setTimeout(() => {
-        renderMessages(currentContact.history, false);
-        isLoadingMore = false;
+    // 【关键2】使用requestAnimationFrame确保平滑渲染
+    requestAnimationFrame(() => {
+        // 【核心修改】传入正确的参数：history, startFromEnd=false, skipScroll=true
+        const startFromEnd = false;
+        const skipScroll = true;
+        
+        // 手动渲染消息（不使用renderMessages，避免参数混乱）
+        const container = document.getElementById('chat-messages');
+        const messagesToShow = currentContact.history.slice(currentStartIndex);
+        const loadingElement = document.getElementById('loading-more');
+        
+        container.innerHTML = '';
         if (loadingElement) {
-            loadingElement.style.display = 'none';
+            container.appendChild(loadingElement);
         }
-    }, 300);
+        
+        let segmentGroup = [];
+        messagesToShow.forEach((msg, index) => {
+            if (msg.role === 'ai' && msg.isSegment && msg.segmentIndex !== undefined) {
+                if (msg.segmentIndex === 0) {
+                    if (segmentGroup.length > 0) {
+                        displaySegmentGroup(segmentGroup, container);
+                    }
+                    segmentGroup = [msg];
+                } else {
+                    segmentGroup.push(msg);
+                }
+            } else {
+                if (segmentGroup.length > 0) {
+                    displaySegmentGroup(segmentGroup, container);
+                    segmentGroup = [];
+                }
+                appendMessageToDOM(msg.content, msg.role, false, true);
+            }
+        });
+        
+        if (segmentGroup.length > 0) {
+            displaySegmentGroup(segmentGroup, container);
+        }
+        
+        // 【关键3】渲染完成后，计算新增的高度并调整滚动位置
+        requestAnimationFrame(() => {
+            const newScrollHeight = container.scrollHeight;
+            const heightDifference = newScrollHeight - oldScrollHeight;
+            
+            // 保持用户之前看到的内容位置不变
+            container.scrollTop = oldScrollTop + heightDifference;
+            
+            // 淡出加载提示
+            if (loadingElement) {
+                loadingElement.style.opacity = '0';
+                setTimeout(() => {
+                    loadingElement.style.display = 'none';
+                }, 200);
+            }
+            
+            isLoadingMore = false;
+        });
+    });
 }
 
 
