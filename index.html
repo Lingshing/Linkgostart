@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -77,10 +78,63 @@
                  'SF Pro Text', 'Helvetica Neue', 
                  'PingFang SC', 'Hiragino Sans GB',
                  sans-serif;
-    -webkit-font-smoothing: antialiased;  /* 字体抗锯齿 */
-    -moz-osx-font-smoothing: grayscale;
+            -webkit-font-smoothing: antialiased;  /* 字体抗锯齿 */
+            -moz-osx-font-smoothing: grayscale;
             transition: background-color 0.3s;
             color: var(--text-color-primary); /* 确保所有文字颜色统一 */
+            /* 禁用移动端点击高亮 */
+            -webkit-tap-highlight-color: transparent !important;
+            -webkit-touch-callout: none;
+        }
+        
+        /* 全局禁用所有元素的点击高亮效果 */
+        * {
+            -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+            -webkit-touch-callout: none !important;
+            -webkit-user-select: none !important;
+            -moz-user-select: none !important;
+            -ms-user-select: none !important;
+            user-select: none !important;
+            outline: none !important;
+            tap-highlight-color: transparent !important;
+        }
+        
+        /* 移除所有元素的聚焦轮廓 */
+        *:focus {
+            outline: none !important;
+            box-shadow: none !important;
+            -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+        }
+        
+        /* 移除点击时的背景色变化 */
+        *:active {
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
+            outline: none !important;
+        }
+        
+        /* 特别针对所有可点击元素 */
+        button, a, .clickable, div[onclick], 
+        .options-item, .contact-item, .menu-item, 
+        .memory-tab, .modal-footer button,
+        .theme-switch-track, .manage-button, .action-button {
+            -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+            -webkit-touch-callout: none !important;
+            tap-highlight-color: transparent !important;
+        }
+        
+        /* 允许输入框和文本域选择文字 */
+        input, textarea {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+            -webkit-tap-highlight-color: transparent !important;
+        }
+        
+        /* 针对所有可点击元素加强 */
+        button, a, .clickable, div[onclick] {
+            -webkit-tap-highlight-color: transparent !important;
+            -webkit-touch-callout: none !important;
         }
         
         .clickable:active {
@@ -94,7 +148,7 @@
             background: linear-gradient(145deg, var(--bg-color-primary), var(--bg-color-primary));
             border-radius: 0;
             box-shadow: var(--shadow-dark);
-            padding: 10px;
+            padding: 0;
             box-sizing: border-box;
             position: relative;
         }
@@ -377,8 +431,6 @@
             transition: background-color 0.1s;
         }
         
-        .contact-item:active { background-color: rgba(0, 0, 0, 0.05); } 
-        
         /* 需求2: 删除按钮 */
         .delete-btn-wrapper {
             width: 0;
@@ -460,10 +512,11 @@
             margin-bottom: 15px;
         }
 
-        .chat-message.ai .avatar {  
+.chat-message.ai .avatar {  
     width: 36px; 
     height: 36px; 
     margin-right: 8px; 
+    margin-left: 11px; /* 新增：与左边框保持距离 */
     flex-shrink: 0;
     border-radius: 8px; 
     /* 修改点：移除或调整顶部边距 */
@@ -693,25 +746,27 @@
 /* ----------------------- 输入框区域 - iOS风格 ----------------------- */
 .chat-input-area {
     flex-shrink: 0;
-    padding: 12px 16px 16px 16px; /* 增加内边距，让输入框抬高 */
+    padding: 12px 0 16px 0; /* 左右padding改为0，让输入框铺满 */
     display: flex;
     align-items: flex-end;
     background-color: var(--bg-color-secondary);
     border-top: 1px solid var(--input-border);
     box-sizing: border-box;
+    width: 100%; /* 确保宽度100% */
     /* 移除min-height，让高度自适应 */
 }
 
 /* ----------------------- 无边框iOS风格输入框 ----------------------- */
 .chat-input-area {
     flex-shrink: 0;
-    padding: 16px 16px 20px 16px; /* 保持抬高效果 */
+    padding: 16px 0 40px 0; /* 调整底部padding到40px，间距更合适 */
     display: flex;
     align-items: center;
     background-color: var(--bg-color-secondary);
     /* 完全移除边框 */
     border-top: none;
     box-sizing: border-box;
+    width: 100%; /* 确保宽度100% */
     /* 轻微阴影保持悬浮感，但更柔和 */
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.04);
     z-index: 10;
@@ -731,9 +786,9 @@
     padding: 9px 16px;
     /* 移除边框 */
     border: none;
-    /* 保持圆角 */
-    border-radius: 19px;
-    margin: 0;
+    /* 稍微减小圆角，不那么圆但也不太方 */
+    border-radius: 12px;
+    margin: 0 12px; /* 左右各留12px间距 */
      font-size: 17px;
     font-family: "PingFang SC", -apple-system, sans-serif !important;
     -webkit-font-smoothing: antialiased;
@@ -877,11 +932,18 @@ input, textarea {
         .overlay {
             position: absolute;
             inset: 0;
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(0, 0, 0, 0);
             z-index: 40;
             display: none;
             justify-content: center;
             align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease, background-color 0.3s ease;
+        }
+        
+        .overlay.active {
+            background: rgba(0, 0, 0, 0.4);
+            opacity: 1;
         }
         
         .modal-content {
@@ -1045,9 +1107,12 @@ input[type="number"]::-webkit-inner-spin-button {
             padding: 18px 0; 
             border-bottom: 1px solid var(--input-border);
             cursor: pointer;
-            transition: background-color 0.1s;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .options-item:active { background-color: rgba(0, 0, 0, 0.05); }
+        
+        .options-item:active {
+            transform: scale(0.97);
+        }
 
         .options-item:last-child { border-bottom: none; }
 
@@ -1443,14 +1508,24 @@ input[type="number"]::-webkit-inner-spin-button {
     overflow: hidden;
 }
 
-/* 进入聊天界面时的动画 - 从右向左滑动 */
+/* 进入聊天界面时的动画 - 加快速度 */
 .slide-in-right {
-    animation: slideInRight 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* 退出聊天界面时的动画 - 从左向右滑动 */
+/* 退出聊天界面时的动画 - 加快速度 */
 .slide-out-left {
-    animation: slideOutLeft 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    animation: slideOutLeft 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 【修改】聊天室页面跟随动画 - 加快速度 */
+.contacts-slide-out {
+    animation: contactsSlideOut 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 【修改】聊天室页面返回动画 - 加快速度 + 添加渐变 */
+.contacts-slide-in {
+    animation: contactsSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* 确保消息容器在动画开始时就是可见的 */
@@ -1459,7 +1534,7 @@ input[type="number"]::-webkit-inner-spin-button {
     transition: opacity 0.1s;
 }
 
-/* 修改动画，确保内容同时出现 */
+/* 聊天界面从右向左滑入 */
 @keyframes slideInRight {
     from {
         transform: translateX(100%);
@@ -1469,14 +1544,35 @@ input[type="number"]::-webkit-inner-spin-button {
     }
 }
 
+/* 聊天界面从左向右滑出 */
 @keyframes slideOutLeft {
     from {
         transform: translateX(0);
         opacity: 1;
     }
     to {
-        transform: translateX(100%); /* 向右滑出 */
+        transform: translateX(100%);
         opacity: 0.9;
+    }
+}
+
+/* 【新增】聊天室列表向左移动（移除渐变） */
+@keyframes contactsSlideOut {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-30%); /* 移动距离为聊天界面的30% */
+    }
+}
+
+/* 【新增】聊天室列表从左侧滑回（移除渐变） */
+@keyframes contactsSlideIn {
+    from {
+        transform: translateX(-30%);
+    }
+    to {
+        transform: translateX(0);
     }
 }
 
@@ -2025,9 +2121,6 @@ input[type="number"]::-webkit-inner-spin-button {
 </div>
 <div class="refresh-btn clickable" onclick="refreshAllData();" title="刷新所有数据">
             <i class="fa-solid fa-rotate"></i>
-        </div>
-        <div class="refresh-btn clickable" onclick="emergencyFix();" title="紧急修复" style="color: var(--danger-color);">
-            <i class="fa-solid fa-wrench"></i>
         </div>
     </div>
     <h3 class="small-title" style="position: static; transform: none; left: auto; width: auto;">聊天室</h3>
@@ -4470,8 +4563,8 @@ item.onclick = () => {
     currentContact = APP_DATA.contacts.find(c => c.id === contactId);
     document.getElementById('chat-role-name').textContent = currentContact.name;
     
-    // 先隐藏聊天室
-    contactsPage.style.display = 'none';
+    // 【新增】聊天室页面添加跟随滑出动画
+    contactsPage.classList.add('contacts-slide-out');
     
     // 立即显示聊天窗口
     chatWindow.style.display = 'flex';
@@ -4481,6 +4574,12 @@ item.onclick = () => {
    renderMessages(currentContact.history.slice(-20));
   
    scrollToBottomInstant();
+   
+   // 动画结束后隐藏聊天室
+   setTimeout(() => {
+       contactsPage.style.display = 'none';
+       contactsPage.classList.remove('contacts-slide-out');
+   }, 400);
 }
         
        function exitChatWindow() {
@@ -4491,13 +4590,15 @@ item.onclick = () => {
     currentAIRequest = null;
     isTyping = false;
     
-    // 3. 动画效果
+    // 【修改】聊天界面滑出 + 聊天室从左侧滑回
     chatWindow.classList.add('slide-out-left');
     contactsPage.style.display = 'flex';
+    contactsPage.classList.add('contacts-slide-in');
     
     setTimeout(() => {
         chatWindow.style.display = 'none';
         chatWindow.classList.remove('slide-out-left');
+        contactsPage.classList.remove('contacts-slide-in');
         
         // 4. 退出管理模式
         isManageMode = false;
@@ -4505,7 +4606,7 @@ item.onclick = () => {
         selectedContacts.clear();
         document.getElementById('batch-toolbar').classList.remove('show');
         renderContacts();
-    }, 300);
+    }, 400);
 }
 
 /* --- 4. 修复：加载历史时彻底禁止动画，只在最后瞬间置底 --- */
@@ -6596,15 +6697,15 @@ function clearTagFilter() {
     renderMemoryList();
 }
 
-// --- ⬇️ 修改后：支持搜索过滤的临时记忆渲染 ⬇️ ---
+// --- ⬇️ 修复版：分页加载临时记忆，防止闪退 ⬇️ ---
+let currentMemoryPage = 1;
+const MEMORY_PAGE_SIZE = 20; // 每页显示20轮对话
+
 function renderShortTermMemoryInModal() {
-    // 自动获取容器，不再依赖参数传入
     const container = document.getElementById('memory-list-scroll-area');
     if (!container) return;
     
-    container.innerHTML = ''; // 清空列表
-
-    // 1. 整理数据为“轮次”
+    // 1. 整理数据为"轮次"
     const rounds = [];
     let currentRound = [];
     currentContact.history.forEach((message) => {
@@ -6622,7 +6723,6 @@ function renderShortTermMemoryInModal() {
     if (memoryState.searchTerm) {
         const term = memoryState.searchTerm.toLowerCase();
         displayRounds = rounds.filter((round) => {
-            // 如果这一轮里有任何一句话包含搜索词，就显示这一轮
             return round.some(msg => msg.content.toLowerCase().includes(term));
         });
     }
@@ -6632,10 +6732,38 @@ function renderShortTermMemoryInModal() {
         return;
     }
 
-    // 3. 渲染
-    // 注意：这里我们通过 rounds 的原始索引来确保删除功能正常
-    displayRounds.forEach((round) => {
-        // 找到它在原始数组中的索引，以便删除时ID正确
+    // 3. 【核心修复】从后往前分页 - 首次显示最新20轮
+    const totalPages = Math.ceil(displayRounds.length / MEMORY_PAGE_SIZE);
+    
+    // 计算起始索引：从后往前数
+    const startIndex = Math.max(0, displayRounds.length - (currentMemoryPage * MEMORY_PAGE_SIZE));
+    const endIndex = displayRounds.length - ((currentMemoryPage - 1) * MEMORY_PAGE_SIZE);
+    const pageRounds = displayRounds.slice(startIndex, endIndex);
+
+    // 清空容器（仅在第一页或搜索时清空）
+    if (currentMemoryPage === 1 || memoryState.searchTerm) {
+        container.innerHTML = '';
+        currentMemoryPage = 1; // 搜索时重置页码
+    }
+
+    // 4. 页面信息提示
+    if (displayRounds.length > MEMORY_PAGE_SIZE && currentMemoryPage === 1) {
+        const pageInfo = document.createElement('div');
+        pageInfo.style.cssText = `
+            text-align: center;
+            padding: 10px;
+            color: var(--text-color-secondary);
+            font-size: 13px;
+            background: var(--input-bg);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        `;
+        pageInfo.textContent = `共 ${displayRounds.length} 轮对话 (分页显示，每页${MEMORY_PAGE_SIZE}轮)`;
+        container.appendChild(pageInfo);
+    }
+
+    // 5. 渲染当前页的轮次
+    pageRounds.forEach((round) => {
         const originalIndex = rounds.indexOf(round);
 
         const roundContainer = document.createElement('div');
@@ -6654,27 +6782,49 @@ function renderShortTermMemoryInModal() {
             messageDiv.className = `round-message ${message.role}`;
             messageDiv.contentEditable = true;
             messageDiv.dataset.role = message.role;
-            // 标记高亮 (可选)
-            if (memoryState.searchTerm) {
-                // 简单的查找高亮逻辑，为了不破坏HTML结构，这里只做简单文本替换
-                // 如果需要更复杂的高亮，可以加 span
-            }
             messageDiv.textContent = message.content;
             roundContent.appendChild(messageDiv);
         });
         roundContainer.appendChild(roundContent);
         container.appendChild(roundContainer);
     });
+
+    // 6. 添加"加载更早"按钮（放在顶部）
+    if (currentMemoryPage < totalPages) {
+        const loadMoreBtn = document.createElement('div');
+        loadMoreBtn.id = 'load-more-memory-btn';
+        loadMoreBtn.style.cssText = `
+            text-align: center;
+            padding: 15px;
+            margin: 0 0 15px 0;
+            background: var(--accent-color);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        `;
+        const remainingRounds = displayRounds.length - (currentMemoryPage * MEMORY_PAGE_SIZE);
+        loadMoreBtn.textContent = `加载更早的对话 (还有${remainingRounds}轮)`;
+        loadMoreBtn.onclick = () => {
+            currentMemoryPage++;
+            renderShortTermMemoryInModal(); // 追加更早的对话
+        };
+        loadMoreBtn.onmouseover = function() { this.style.opacity = '0.8'; };
+        loadMoreBtn.onmouseout = function() { this.style.opacity = '1'; };
+        // 插入到容器顶部
+        container.insertBefore(loadMoreBtn, container.firstChild);
+    }
     
-    // 如果不是在搜索状态，自动滚到底部（查看最新）
-    if (!memoryState.searchTerm) {
+    // 滚动位置处理
+    if (!memoryState.searchTerm && currentMemoryPage === 1) {
         setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
-    } else {
-        container.scrollTop = 0; // 搜索时滚到顶部
+    } else if (memoryState.searchTerm) {
+        container.scrollTop = 0;
     }
 }
         
-        function saveContextModalData() {
+function saveContextModalData() {
             const contextType = APP_DATA.activeModalContext;
             
            if (contextType === 'prompt') {
@@ -6706,29 +6856,64 @@ function renderShortTermMemoryInModal() {
     saveData();
     hideModal('memory-modal');
             } else if (contextType === 'short') {
-                // 需求5: 保存修改后的临时记忆
-                const roundContainers = document.querySelectorAll('.round-container');
-                const newHistory = [];
+                // 【核心修复】基于完整数据更新，而不是DOM重建
+                if (!window.tempMemoryRounds || window.tempMemoryRounds.length === 0) {
+                    alert('没有可保存的对话数据');
+                    return;
+                }
                 
-                roundContainers.forEach((container, roundIndex) => {
-                    const messages = container.querySelectorAll('.round-message');
-                    messages.forEach(msgDiv => {
+                // 从DOM中读取所有修改后的对话
+                const roundContainers = document.querySelectorAll('.round-container');
+                
+                // 创建一个映射表：roundIndex -> 修改后的内容
+                const updatedRounds = new Map();
+                
+                roundContainers.forEach((container) => {
+                    // 从标题中提取轮数（例如"第3轮对话"）
+                    const headerText = container.querySelector('.round-header').textContent;
+                    const match = headerText.match(/第(\d+)轮/);
+                    if (!match) return;
+                    
+                    const roundIndex = parseInt(match[1]) - 1; // 转为0-based索引
+                    
+                    // 读取这一轮的所有消息
+                    const messages = [];
+                    const msgDivs = container.querySelectorAll('.round-message');
+                    msgDivs.forEach(msgDiv => {
                         const role = msgDiv.dataset.role;
                         const content = msgDiv.textContent.trim();
                         if (content) {
-                            newHistory.push({ role, content });
+                            messages.push({ role, content });
                         }
                     });
+                    
+                    if (messages.length > 0) {
+                        updatedRounds.set(roundIndex, messages);
+                    }
+                });
+                
+                // 基于完整的原始数据重建历史记录
+                const newHistory = [];
+                window.tempMemoryRounds.forEach((originalRound, index) => {
+                    // 如果这一轮有修改，使用修改后的内容
+                    if (updatedRounds.has(index)) {
+                        updatedRounds.get(index).forEach(msg => {
+                            newHistory.push(msg);
+                        });
+                    } else {
+                        // 否则保留原始内容
+                        originalRound.forEach(msg => {
+                            newHistory.push({ role: msg.role, content: msg.content });
+                        });
+                    }
                 });
                 
                 if (newHistory.length > 0) {
-                currentContact.history = newHistory;
-                // 设置标记，但不自动跳转
-                window.needRefreshChat = true;
-                alert('临时记忆已更新！');
-                saveData();
-                hideModal('memory-modal');
-                // 不自动跳转，让用户手动返回
+                    currentContact.history = newHistory;
+                    window.needRefreshChat = true;
+                    alert('临时记忆已更新！');
+                    saveData();
+                    hideModal('memory-modal');
                 } else {
                     alert('对话内容不能为空！');
                 }
@@ -10100,313 +10285,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 2000);
 });
 
-// ==================== 紧急修复功能 ====================
-function emergencyFix() {
-    // 显示修复选项弹窗
-    const fixModal = document.createElement('div');
-    fixModal.id = 'emergency-fix-modal';
-    fixModal.style.cssText = `
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.6); z-index: 9999;
-        display: flex; justify-content: center; align-items: center;
-        padding: 20px;
-    `;
-    
-    fixModal.innerHTML = `
-        <div style="background: var(--bg-color-secondary); border-radius: 16px; 
-                    width: 90%; max-width: 320px; padding: 24px;">
-            <h4 style="margin: 0 0 20px 0; color: var(--danger-color); text-align: center;">
-                🔧 紧急修复
-            </h4>
-            
-            <p style="color: var(--text-color-secondary); font-size: 14px; margin-bottom: 20px; text-align: center;">
-                如果某个聊天卡死了，请选择修复方式：
-            </p>
-            
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <button onclick="fixTypingState()" style="
-                    padding: 14px; border-radius: 10px; border: none;
-                    background: var(--accent-color); color: white;
-                    font-size: 15px; cursor: pointer;">
-                    🔄 解除卡死状态
-                </button>
-                
-                <button onclick="showForcePagedLoadSelector()" style="
-                    padding: 14px; border-radius: 10px; border: none;
-                    background: #FF6B6B; color: white;
-                    font-size: 15px; cursor: pointer;">
-                    ⚡ 强制分页加载（消息过多卡死用这个）
-                </button>
-                
-                <button onclick="fixAndRerender()" style="
-                    padding: 14px; border-radius: 10px; border: none;
-                    background: var(--warning-color); color: white;
-                    font-size: 15px; cursor: pointer;">
-                    🔃 重新渲染聊天界面
-                </button>
-                
-                <button onclick="showChatSelector()" style="
-                    padding: 14px; border-radius: 10px; border: none;
-                    background: var(--input-bg); color: var(--text-color-primary);
-                    border: 1px solid var(--input-border);
-                    font-size: 15px; cursor: pointer;">
-                    🗑️ 清空某个聊天的历史
-                </button>
-                
-                <button onclick="document.getElementById('emergency-fix-modal').remove()" style="
-                    padding: 14px; border-radius: 10px; border: none;
-                    background: var(--input-bg); color: var(--text-color-secondary);
-                    font-size: 15px; cursor: pointer; margin-top: 10px;">
-                    取消
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(fixModal);
-    
-    // 点击外部关闭
-    fixModal.addEventListener('click', function(e) {
-        if (e.target === fixModal) {
-            fixModal.remove();
-        }
-    });
-}
-
-// 修复1：解除卡死状态
-function fixTypingState() {
-    // 重置所有状态变量
-    isTyping = false;
-    currentAIRequest = null;
-    
-    // 取消正在进行的网络请求
-    if (currentController) {
-        currentController.abort();
-        currentController = null;
-    }
-    
-    // 移除所有正在加载的气泡
-    document.querySelectorAll('.typing-indicator').forEach(el => {
-        const msgDiv = el.closest('.chat-message');
-        if (msgDiv) msgDiv.remove();
-    });
-    
-    // 关闭修复弹窗
-    const modal = document.getElementById('emergency-fix-modal');
-    if (modal) modal.remove();
-    
-    alert('✅ 已解除卡死状态！\n\n现在可以继续聊天了。');
-}
-
-// 修复2：重新渲染聊天界面
-function fixAndRerender() {
-    // 先解除卡死状态
-    isTyping = false;
-    currentAIRequest = null;
-    if (currentController) {
-        currentController.abort();
-        currentController = null;
-    }
-    
-    // 如果当前有聊天，重新渲染
-    if (currentContact) {
-        const container = document.getElementById('chat-messages');
-        if (container) {
-            container.innerHTML = '';
-            renderMessages(currentContact.history);
-        }
-    }
-    
-    // 关闭修复弹窗
-    const modal = document.getElementById('emergency-fix-modal');
-    if (modal) modal.remove();
-    
-    alert('✅ 已重新渲染聊天界面！');
-}
-
-// 修复3：显示聊天选择器（清空历史）
-function showChatSelector() {
-    const modal = document.getElementById('emergency-fix-modal');
-    if (!modal) return;
-    
-    // 更新弹窗内容为聊天列表
-    const content = modal.querySelector('div');
-    if (!content) return;
-    
-    let chatListHTML = '';
-    APP_DATA.contacts.forEach(contact => {
-        chatListHTML += `
-            <button onclick="clearChatHistory(${contact.id})" style="
-                padding: 12px; border-radius: 8px; border: none;
-                background: var(--input-bg); color: var(--text-color-primary);
-                border: 1px solid var(--input-border);
-                font-size: 14px; cursor: pointer; text-align: left;
-                display: flex; justify-content: space-between; align-items: center;">
-                <span>${contact.name}</span>
-                <span style="color: var(--text-color-secondary); font-size: 12px;">
-                    ${contact.history.length} 条消息
-                </span>
-            </button>
-        `;
-    });
-    
-    content.innerHTML = `
-        <h4 style="margin: 0 0 20px 0; color: var(--text-color-primary); text-align: center;">
-            选择要清空的聊天
-        </h4>
-        
-        <p style="color: var(--danger-color); font-size: 13px; margin-bottom: 15px; text-align: center;">
-            ⚠️ 清空后无法恢复！
-        </p>
-        
-        <div style="display: flex; flex-direction: column; gap: 10px; max-height: 50vh; overflow-y: auto;">
-            ${chatListHTML || '<p style="text-align: center; color: var(--text-color-secondary);">没有聊天记录</p>'}
-        </div>
-        
-        <button onclick="document.getElementById('emergency-fix-modal').remove()" style="
-            width: 100%; padding: 14px; border-radius: 10px; border: none;
-            background: var(--input-bg); color: var(--text-color-secondary);
-            font-size: 15px; cursor: pointer; margin-top: 15px;">
-            返回
-        </button>
-    `;
-}
-
-// 清空指定聊天的历史
-function clearChatHistory(contactId) {
-    const contact = APP_DATA.contacts.find(c => c.id === contactId);
-    if (!contact) return;
-    
-    if (!confirm(`确定要清空「${contact.name}」的所有聊天记录吗？\n\n此操作无法撤销！`)) {
-        return;
-    }
-    
-    // 清空历史
-    contact.history = [];
-    saveData();
-    
-    // 如果当前正在这个聊天中，重新渲染
-    if (currentContact && currentContact.id === contactId) {
-        const container = document.getElementById('chat-messages');
-        if (container) {
-            container.innerHTML = '';
-        }
-    }
-    
-    // 关闭弹窗
-    const modal = document.getElementById('emergency-fix-modal');
-    if (modal) modal.remove();
-    
-    alert(`✅ 已清空「${contact.name}」的聊天记录！`);
-}
-
-// 修复4：显示强制分页加载选择器
-function showForcePagedLoadSelector() {
-    const modal = document.getElementById('emergency-fix-modal');
-    if (!modal) return;
-    
-    // 更新弹窗内容为聊天列表
-    const content = modal.querySelector('div');
-    if (!content) return;
-    
-    let chatListHTML = '';
-    APP_DATA.contacts.forEach(contact => {
-        const msgCount = contact.history.length;
-        const isLarge = msgCount > 100;
-        chatListHTML += `
-            <button onclick="forcePagedLoad(${contact.id})" style="
-                padding: 12px; border-radius: 8px; border: none;
-                background: ${isLarge ? 'rgba(255, 107, 107, 0.1)' : 'var(--input-bg)'}; 
-                color: var(--text-color-primary);
-                border: 1px solid ${isLarge ? '#FF6B6B' : 'var(--input-border)'};
-                font-size: 14px; cursor: pointer; text-align: left;
-                display: flex; justify-content: space-between; align-items: center;">
-                <span>${contact.name}</span>
-                <span style="color: ${isLarge ? '#FF6B6B' : 'var(--text-color-secondary)'}; font-size: 12px; font-weight: ${isLarge ? 'bold' : 'normal'};">
-                    ${msgCount} 条消息 ${isLarge ? '⚠️' : ''}
-                </span>
-            </button>
-        `;
-    });
-    
-    content.innerHTML = `
-        <h4 style="margin: 0 0 15px 0; color: #FF6B6B; text-align: center;">
-            ⚡ 强制分页加载
-        </h4>
-        
-        <p style="color: var(--text-color-secondary); font-size: 13px; margin-bottom: 15px; text-align: center; line-height: 1.5;">
-            选择卡死的聊天，系统将只加载最近20条消息。<br>
-            <span style="color: #FF6B6B;">红色标记的聊天消息过多，建议处理。</span>
-        </p>
-        
-        <div style="display: flex; flex-direction: column; gap: 10px; max-height: 45vh; overflow-y: auto;">
-            ${chatListHTML || '<p style="text-align: center; color: var(--text-color-secondary);">没有聊天记录</p>'}
-        </div>
-        
-        <button onclick="emergencyFix()" style="
-            width: 100%; padding: 14px; border-radius: 10px; border: none;
-            background: var(--input-bg); color: var(--text-color-secondary);
-            font-size: 15px; cursor: pointer; margin-top: 15px;">
-            返回
-        </button>
-    `;
-}
-
-// 强制分页加载指定聊天
-function forcePagedLoad(contactId) {
-    const contact = APP_DATA.contacts.find(c => c.id === contactId);
-    if (!contact) return;
-    
-    const msgCount = contact.history.length;
-    
-    // 关闭修复弹窗
-    const modal = document.getElementById('emergency-fix-modal');
-    if (modal) modal.remove();
-    
-    // 重置所有状态
-    isTyping = false;
-    currentAIRequest = null;
-    if (currentController) {
-        currentController.abort();
-        currentController = null;
-    }
-    
-    // 设置当前聊天
-    APP_DATA.currentChatId = contactId;
-    currentContact = contact;
-    
-    // 强制只渲染最后20条
-    currentStartIndex = Math.max(0, contact.history.length - 20);
-    
-    // 显示聊天窗口
-    document.querySelectorAll('.page').forEach(page => {
-        page.style.display = 'none';
-    });
-    
-    const chatWindow = document.getElementById('chat-window');
-    chatWindow.style.display = 'flex';
-    document.getElementById('chat-role-name').textContent = contact.name;
-    
-    // 清空消息容器
-    const container = document.getElementById('chat-messages');
-    if (container) {
-        container.innerHTML = '<div id="loading-more" style="display:none; text-align:center; padding:10px; color:var(--text-color-secondary);">加载中...</div>';
-    }
-    
-    // 只渲染最后20条消息
-    const recentMessages = contact.history.slice(-20);
-    
-    // 延迟渲染，确保DOM已更新
-    setTimeout(() => {
-        recentMessages.forEach(msg => {
-            appendMessageToDOM(msg.content, msg.role, false);
-        });
-        
-        scrollToBottomInstant();
-        
-        alert(`✅ 已强制分页加载「${contact.name}」！\n\n原有 ${msgCount} 条消息，当前只显示最近 20 条。\n\n向上滚动可以加载更多历史消息。`);
-    }, 100);
-}
 
 // 切换流式输出开关
 function toggleStream() {
