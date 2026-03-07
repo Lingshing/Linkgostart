@@ -2224,6 +2224,115 @@
             transform: translateX(20px);
         }
 
+
+        /* ==========================================
+           🌟 任务站 (To-Do App) 专属样式
+           ========================================== */
+        .todo-tabs {
+            display: flex;
+            background: var(--bg-color);
+            border-radius: 8px;
+            padding: 3px;
+            margin-bottom: 8px;
+        }
+        .todo-tab {
+            flex: 1;
+            text-align: center;
+            padding: 8px 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-sub);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .todo-tab.active {
+            background: var(--card-bg);
+            color: var(--text-main);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .todo-card {
+            background: var(--card-bg);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 12px;
+            /* 极其细腻的悬浮阴影 */
+            box-shadow: 0 2px 12px rgba(0,0,0,0.03); 
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: transform 0.2s, opacity 0.3s;
+        }
+        .todo-card:active {
+            transform: scale(0.98); /* 点击时微缩的物理手感 */
+        }
+        .todo-header {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .todo-checkbox {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .todo-checkbox.checked {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        .todo-title {
+            font-size: 15px;
+            color: var(--text-main);
+            font-weight: 500;
+            line-height: 1.4;
+            margin-bottom: 6px;
+        }
+        .todo-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .todo-tag {
+            font-size: 11px;
+            padding: 3px 8px;
+            background: var(--accent-light);
+            color: var(--accent);
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .todo-progress-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .todo-progress-bg {
+            flex: 1;
+            height: 6px;
+            background: var(--bg-color);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .todo-progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* 极其丝滑的进度条动画 */
+        }
+        .todo-progress-text {
+            font-size: 11px;
+            color: var(--text-sub);
+            font-weight: 600;
+            min-width: 32px;
+        }
     </style>
 </head>
 <body>
@@ -2252,7 +2361,27 @@
         </button>
     </div>
 
-    <div id="tab-apps" class="tab-page"><div class="large-header"><h1 class="large-title">Apps</h1></div><div class="app-grid"><div class="clickable"><div class="app-icon-box" style="background: #FF9F0A;"><i class="fas fa-shopping-cart"></i></div><div class="app-label">购物车</div></div></div></div>
+    <div id="tab-apps" class="tab-page">
+        <div class="large-header">
+            <h1 class="large-title">Apps</h1>
+        </div>
+        
+        <div class="app-grid">
+            <div class="clickable">
+                <div class="app-icon-box" style="background: #FF9F0A;">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <div class="app-label">购物车</div>
+            </div>
+            
+            <div class="clickable" onclick="openSubPage('scene-todo')">
+                <div class="app-icon-box" style="background: var(--accent); box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);">
+                    <i class="fa-solid fa-list-check"></i>
+                </div>
+                <div class="app-label">任务站</div>
+            </div>
+        </div>
+    </div>
     <div id="tab-explore" class="tab-page">
         <div class="pull-refresh-indicator" id="explore-refresh-indicator">
             <div class="pull-refresh-spinner"></div>
@@ -13451,7 +13580,46 @@ ${chatContent}
                 </div>
             </div>
         </div>
+    
+        <div id="scene-todo" class="sub-page-scene" style="z-index: 3000;">
+        <div class="nav-header" style="background: var(--card-bg); border-bottom: 0.5px solid var(--border);">
+            <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('scene-todo')"></i>
+            <span class="nav-title">任务站</span>
+            <i class="fa-solid fa-plus clickable" style="font-size:18px; color:var(--accent);" onclick="alert('开发中：添加弹窗')"></i>
+        </div>
+        
+        <div style="padding: 12px 16px 0; background: var(--card-bg);">
+            <div class="todo-tabs">
+                <div class="todo-tab active">📥 待办</div>
+                <div class="todo-tab">🔥 进行中</div>
+                <div class="todo-tab">✅ 已完成</div>
+            </div>
+        </div>
 
+        <div id="todo-list-container" style="overflow-y:auto; flex:1; background: var(--bg-color); padding: 16px;">
+            
+            <div class="todo-card">
+                <div class="todo-header">
+                    <div class="todo-checkbox"><i class="fa-solid fa-check" style="font-size: 12px;"></i></div>
+                    <div style="flex:1;">
+                        <div class="todo-title">撰写日中翻译实践报告初稿</div>
+                        <div class="todo-tags">
+                            <span class="todo-tag">🎓 论文</span>
+                            <span class="todo-tag"><i class="fa-solid fa-bolt"></i> AI 已拆解</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="todo-progress-container">
+                    <div class="todo-progress-bg">
+                        <div class="todo-progress-fill" style="width: 40%;"></div>
+                    </div>
+                    <span class="todo-progress-text">40%</span>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    
     <div id="scene-post-detail" class="sub-page-scene" style="z-index: 3000;">
     <div class="nav-header" style="background: var(--card-bg); border-bottom: 0.5px solid var(--border);">
         <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('scene-post-detail')"></i>
@@ -13466,6 +13634,45 @@ ${chatContent}
                 <div id="detail-comments-list">
                     </div>
             </div>
+        </div>
+    </div>
+    
+    <div id="scene-todo" class="sub-page-scene" style="z-index: 3000;">
+        <div class="nav-header" style="background: var(--card-bg); border-bottom: 0.5px solid var(--border);">
+            <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('scene-todo')"></i>
+            <span class="nav-title">任务站</span>
+            <i class="fa-solid fa-plus clickable" style="font-size:18px; color:var(--accent);" onclick="alert('开发中：添加弹窗')"></i>
+        </div>
+        
+        <div style="padding: 12px 16px 0; background: var(--card-bg);">
+            <div class="todo-tabs">
+                <div class="todo-tab active">📥 待办</div>
+                <div class="todo-tab">🔥 进行中</div>
+                <div class="todo-tab">✅ 已完成</div>
+            </div>
+        </div>
+
+        <div id="todo-list-container" style="overflow-y:auto; flex:1; background: var(--bg-color); padding: 16px;">
+            
+            <div class="todo-card">
+                <div class="todo-header">
+                    <div class="todo-checkbox"><i class="fa-solid fa-check" style="font-size: 12px;"></i></div>
+                    <div style="flex:1;">
+                        <div class="todo-title">撰写日中翻译实践报告初稿</div>
+                        <div class="todo-tags">
+                            <span class="todo-tag">🎓 论文</span>
+                            <span class="todo-tag"><i class="fa-solid fa-diagram-project"></i> AI 已拆解</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="todo-progress-container">
+                    <div class="todo-progress-bg">
+                        <div class="todo-progress-fill" style="width: 40%;"></div>
+                    </div>
+                    <span class="todo-progress-text">40%</span>
+                </div>
+            </div>
+            
         </div>
     </div>
 </body>
