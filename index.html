@@ -12349,41 +12349,69 @@ ${chatContent}
                         cell.dataset.level = getLevel(count);
                         cell.title = `${ds}：聊了 ${count} 句`;
                         
-                        // 🌟 3. 核心：添加点击事件，瞬间替换上方的数据看板
+                        // 🌟 3. 核心：添加点击事件，支持选中与取消选中
                         cell.onclick = () => {
-                            // 清除其他格子的选中边框
+                            const isAlreadySelected = cell.dataset.selected === 'true';
+
+                            // 第一步：不管三七二十一，先清除所有格子的选中状态
                             document.querySelectorAll('.month-day-cell').forEach(c => {
-                                c.style.border = '0.5px solid var(--border)';
-                                c.style.transform = 'scale(1)';
+                                c.style.boxShadow = 'none'; // 移除高亮内发光
+                                c.style.border = '0.5px solid var(--border)'; // 恢复原本的细边框
+                                c.style.transform = 'scale(1)'; // 确保大小正常
                                 c.style.zIndex = '1';
+                                c.dataset.selected = 'false';
                             });
-                            // 高亮当前选中的格子
-                            cell.style.border = '2px solid var(--accent)';
-                            cell.style.transform = 'scale(1.1)';
-                            cell.style.zIndex = '10';
-                            
-                            // 替换顶部四个小方块的数据
-                            const dayTime = stats[ds + '_time'] || 0;
-                            
-                            document.getElementById('hm-val-1').textContent = count;
-                            document.getElementById('hm-lbl-1').textContent = "当日轮数";
-                            
-                            document.getElementById('hm-val-time').textContent = formatOnlineTime(dayTime);
-                            document.getElementById('hm-val-time').style.color = "var(--accent)";
-                            document.getElementById('hm-lbl-time').textContent = "当日时长";
-                            
-                            document.getElementById('hm-val-2').textContent = `${month + 1}月${d}日`;
-                            document.getElementById('hm-lbl-2').textContent = "选中日期";
-                            
-                            const val3El = document.getElementById('hm-val-3');
-                            if (count > 0) {
-                                val3El.textContent = "有迹可循";
-                                val3El.className = "stat-value hm-title-calm";
+
+                            if (isAlreadySelected) {
+                                // 🎯 逻辑 A：如果刚才已经是选中状态，现在的点击就是【取消选中】
+                                // 瞬间恢复本月的总数据（这些变量在生成日历前就已经算好了！）
+                                document.getElementById('hm-val-1').textContent = msgs;
+                                document.getElementById('hm-lbl-1').textContent = "总轮数";
+                                
+                                document.getElementById('hm-val-time').textContent = formatOnlineTime(timeSecs);
+                                document.getElementById('hm-val-time').style.color = "var(--text-main)"; // 恢复默认黑色/白色
+                                document.getElementById('hm-lbl-time').textContent = isTimeStatAverage ? "日均时长" : "总时长";
+                                
+                                document.getElementById('hm-val-2').textContent = activeDaysCount + "天";
+                                document.getElementById('hm-lbl-2').textContent = "陪伴天数";
+                                
+                                const val3El = document.getElementById('hm-val-3');
+                                val3El.textContent = Math.round(density * 100) + "%";
+                                val3El.className = "stat-value"; // 恢复默认样式
+                                document.getElementById('hm-lbl-3').textContent = "陪伴密度";
+
                             } else {
-                                val3El.textContent = "风平浪静";
-                                val3El.className = "stat-value";
+                                // 🎯 逻辑 B：如果刚才没选中，现在的点击就是【选中】它
+                                cell.dataset.selected = 'true';
+                                
+                                // ✨ UI修复：用“向内发光”的阴影代替外边框，格子不发胖，绝对不会被边缘裁掉！
+                                cell.style.border = '0.5px solid transparent'; 
+                                cell.style.boxShadow = 'inset 0 0 0 2px var(--accent)';
+                                cell.style.zIndex = '10';
+                                
+                                // 替换顶部四个小方块为当日专属数据
+                                const dayTime = stats[ds + '_time'] || 0;
+                                
+                                document.getElementById('hm-val-1').textContent = count;
+                                document.getElementById('hm-lbl-1').textContent = "当日轮数";
+                                
+                                document.getElementById('hm-val-time').textContent = formatOnlineTime(dayTime);
+                                document.getElementById('hm-val-time').style.color = "var(--accent)"; // 变成蓝色强调
+                                document.getElementById('hm-lbl-time').textContent = "当日时长";
+                                
+                                document.getElementById('hm-val-2').textContent = `${month + 1}月${d}日`;
+                                document.getElementById('hm-lbl-2').textContent = "选中日期";
+                                
+                                const val3El = document.getElementById('hm-val-3');
+                                if (count > 0) {
+                                    val3El.textContent = "有迹可循";
+                                    val3El.className = "stat-value hm-title-calm";
+                                } else {
+                                    val3El.textContent = "风平浪静";
+                                    val3El.className = "stat-value";
+                                }
+                                document.getElementById('hm-lbl-3').textContent = "当日状态";
                             }
-                            document.getElementById('hm-lbl-3').textContent = "当日状态";
                         };
                     }
                     grid.appendChild(cell);
