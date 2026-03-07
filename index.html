@@ -2226,45 +2226,47 @@
 
 
         /* ==========================================
-           🌟 任务站 (To-Do App) 专属样式
+           🌟 任务站 (To-Do App) 专属样式 (极简原生版)
            ========================================== */
+        /* 1. 苹果原生分段选择器 (Segmented Control) */
         .todo-tabs {
             display: flex;
-            background: var(--bg-color);
-            border-radius: 8px;
-            padding: 3px;
-            margin-bottom: 8px;
+            background: var(--bg-color); /* 凹陷的底层灰色 */
+            border-radius: 9px; /* 完美包裹的圆角 */
+            padding: 2px;
         }
         .todo-tab {
             flex: 1;
             text-align: center;
-            padding: 8px 0;
+            padding: 6px 0;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 500;
             color: var(--text-sub);
-            border-radius: 6px;
-            transition: all 0.2s ease;
+            border-radius: 7px; /* 内部滑块的圆角 */
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
         }
         .todo-tab.active {
-            background: var(--card-bg);
+            background: var(--card-bg); /* 凸起的滑块色 */
             color: var(--text-main);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.02); /* 极其细腻的原生浮雕阴影 */
+            font-weight: 600;
         }
+
+        /* 2. 极简任务卡片 */
         .todo-card {
             background: var(--card-bg);
-            border-radius: 14px;
+            border-radius: 16px; /* 更贴近 iOS 17 的大圆角 */
             padding: 16px;
             margin-bottom: 12px;
-            /* 极其细腻的悬浮阴影 */
-            box-shadow: 0 2px 12px rgba(0,0,0,0.03); 
+            box-shadow: 0 1px 4px rgba(0,0,0,0.02); /* 极其克制的阴影，去除廉价感 */
             display: flex;
             flex-direction: column;
             gap: 12px;
             transition: transform 0.2s, opacity 0.3s;
         }
         .todo-card:active {
-            transform: scale(0.98); /* 点击时微缩的物理手感 */
+            transform: scale(0.98);
         }
         .todo-header {
             display: flex;
@@ -2272,10 +2274,10 @@
             align-items: flex-start;
         }
         .todo-checkbox {
-            width: 24px;
-            height: 24px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
-            border: 2px solid var(--border);
+            border: 1.5px solid var(--text-sub); /* 柔和的边框 */
             flex-shrink: 0;
             display: flex;
             align-items: center;
@@ -2285,17 +2287,19 @@
             transition: all 0.2s;
         }
         .todo-checkbox.checked {
-            background: var(--accent);
-            border-color: var(--accent);
-            color: white;
+            background: var(--text-main); /* 选中时变成高级的纯黑/纯白 */
+            border-color: var(--text-main);
+            color: var(--card-bg);
         }
         .todo-title {
             font-size: 15px;
             color: var(--text-main);
             font-weight: 500;
-            line-height: 1.4;
-            margin-bottom: 6px;
+            line-height: 1.3;
+            margin-bottom: 8px;
         }
+        
+        /* 3. 标签与进度条去色重构 */
         .todo-tags {
             display: flex;
             gap: 6px;
@@ -2303,11 +2307,15 @@
         }
         .todo-tag {
             font-size: 11px;
-            padding: 3px 8px;
-            background: var(--accent-light);
-            color: var(--accent);
+            padding: 4px 8px;
+            background: var(--bg-color); /* 统一灰底 */
+            color: var(--text-sub);      /* 统一灰字，不抢视觉 */
             border-radius: 6px;
-            font-weight: 600;
+            font-weight: 500;
+        }
+        .todo-tag.highlight {
+            color: var(--text-main); /* 需要强调的标签用主色 */
+            background: var(--border);
         }
         .todo-progress-container {
             display: flex;
@@ -2316,22 +2324,23 @@
         }
         .todo-progress-bg {
             flex: 1;
-            height: 6px;
+            height: 5px; /* 更细致的进度条 */
             background: var(--bg-color);
             border-radius: 3px;
             overflow: hidden;
         }
         .todo-progress-fill {
             height: 100%;
-            background: var(--accent);
+            background: var(--text-main); /* 进度条填充也使用纯黑/纯白，极度克制 */
             border-radius: 3px;
-            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* 极其丝滑的进度条动画 */
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .todo-progress-text {
-            font-size: 11px;
-            color: var(--text-sub);
+            font-size: 12px;
+            color: var(--text-main); /* 粗体进度数字 */
             font-weight: 600;
-            min-width: 32px;
+            min-width: 36px;
+            text-align: right;
         }
     </style>
 </head>
@@ -13581,18 +13590,17 @@ ${chatContent}
             </div>
         </div>
     
-        <div id="scene-todo" class="sub-page-scene" style="z-index: 3000;">
-        <div class="nav-header" style="background: var(--card-bg); border-bottom: 0.5px solid var(--border);">
-            <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('scene-todo')"></i>
-            <span class="nav-title">任务站</span>
-            <i class="fa-solid fa-plus clickable" style="font-size:18px; color:var(--accent);" onclick="alert('开发中：添加弹窗')"></i>
+        <div class="nav-header" style="background: var(--card-bg); padding-bottom: 4px;">
+            <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--text-main);" onclick="closeSubPage('scene-todo')"></i>
+            <span class="nav-title" style="font-weight: 600;">任务站</span>
+            <i class="fa-solid fa-plus clickable" style="font-size:18px; color:var(--text-main);" onclick="alert('开发中：添加弹窗')"></i>
         </div>
         
-        <div style="padding: 12px 16px 0; background: var(--card-bg);">
+        <div style="padding: 8px 16px 12px; background: var(--card-bg);">
             <div class="todo-tabs">
-                <div class="todo-tab active">📥 待办</div>
-                <div class="todo-tab">🔥 进行中</div>
-                <div class="todo-tab">✅ 已完成</div>
+                <div class="todo-tab active">待办</div>
+                <div class="todo-tab">进行中</div>
+                <div class="todo-tab">已完成</div>
             </div>
         </div>
 
@@ -13600,12 +13608,12 @@ ${chatContent}
             
             <div class="todo-card">
                 <div class="todo-header">
-                    <div class="todo-checkbox"><i class="fa-solid fa-check" style="font-size: 12px;"></i></div>
+                    <div class="todo-checkbox"><i class="fa-solid fa-check" style="font-size: 11px;"></i></div>
                     <div style="flex:1;">
                         <div class="todo-title">撰写日中翻译实践报告初稿</div>
                         <div class="todo-tags">
-                            <span class="todo-tag">🎓 论文</span>
-                            <span class="todo-tag"><i class="fa-solid fa-bolt"></i> AI 已拆解</span>
+                            <span class="todo-tag">论文</span>
+                            <span class="todo-tag highlight"><i class="fa-solid fa-bolt" style="margin-right:4px;"></i>AI 已拆解</span>
                         </div>
                     </div>
                 </div>
@@ -13618,7 +13626,6 @@ ${chatContent}
             </div>
             
         </div>
-    </div>
     
     <div id="scene-post-detail" class="sub-page-scene" style="z-index: 3000;">
     <div class="nav-header" style="background: var(--card-bg); border-bottom: 0.5px solid var(--border);">
