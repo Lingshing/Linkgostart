@@ -12364,19 +12364,38 @@ ${chatContent}
 
                             if (isAlreadySelected) {
                                 // 🎯 逻辑 A：如果刚才已经是选中状态，现在的点击就是【取消选中】
-                                // 瞬间恢复本月的总数据（这些变量在生成日历前就已经算好了！）
-                                document.getElementById('hm-val-1').textContent = msgs;
-                                document.getElementById('hm-lbl-1').textContent = "总轮数";
+                                // 重新精确计算本月数据，防止跨作用域导致的变量丢失
+                                let monthMsgs = 0, monthTimeSecs = 0, monthActiveDays = 0;
+                                const tempDate = new Date(year, month, 1);
+                                const targetPrefix = tempDate.toLocaleDateString('zh-CN').replace(/\//g, '-').split('-').slice(0, 2).join('-') + '-';
                                 
-                                document.getElementById('hm-val-time').textContent = formatOnlineTime(timeSecs);
-                                document.getElementById('hm-val-time').style.color = "var(--text-main)"; // 恢复默认黑色/白色
-                                document.getElementById('hm-lbl-time').textContent = isTimeStatAverage ? "日均时长" : "总时长";
+                                Object.keys(stats).forEach(key => {
+                                    if (key.startsWith(targetPrefix)) {
+                                        if (key.endsWith('_time')) monthTimeSecs += stats[key];
+                                        else if (!key.includes('_') && stats[key] > 0) {
+                                            monthMsgs += stats[key];
+                                            monthActiveDays++;
+                                        }
+                                    }
+                                });
+                                let isCurrentRealMonth = (today.getFullYear() === year && today.getMonth() === month);
+                                let daysInMonthVal = new Date(year, month + 1, 0).getDate();
+                                let pastDays = isCurrentRealMonth ? today.getDate() : daysInMonthVal;
+                                let monthDensity = pastDays > 0 ? (monthActiveDays / pastDays) : 0;
+
+                                // 瞬间恢复本月的总数据
+                                document.getElementById('hm-val-1').textContent = monthMsgs;
+                                document.getElementById('hm-lbl-1').textContent = "本月轮数";
                                 
-                                document.getElementById('hm-val-2').textContent = activeDaysCount + "天";
+                                document.getElementById('hm-val-time').textContent = formatOnlineTime(monthTimeSecs);
+                                document.getElementById('hm-val-time').style.color = "var(--text-main)"; // 恢复默认颜色
+                                document.getElementById('hm-lbl-time').textContent = isTimeStatAverage ? "日均时长" : "本月时长";
+                                
+                                document.getElementById('hm-val-2').textContent = monthActiveDays;
                                 document.getElementById('hm-lbl-2').textContent = "陪伴天数";
                                 
                                 const val3El = document.getElementById('hm-val-3');
-                                val3El.textContent = Math.round(density * 100) + "%";
+                                val3El.textContent = Math.round(monthDensity * 100) + "%";
                                 val3El.className = "stat-value"; // 恢复默认样式
                                 document.getElementById('hm-lbl-3').textContent = "陪伴密度";
 
@@ -12384,9 +12403,11 @@ ${chatContent}
                                 // 🎯 逻辑 B：如果刚才没选中，现在的点击就是【选中】它
                                 cell.dataset.selected = 'true';
                                 
-                                // ✨ UI修复：用“向内发光”的阴影代替外边框，格子不发胖，绝对不会被边缘裁掉！
+                                // ✨ UI终极魔法：使用“靶心双层高对比内环”！
+                                // 第一圈用卡片背景色隔绝底色，第二圈用黑/白强对比色。
+                                // 这样无论是蓝色、黑色还是灰色的格子，都绝对看得清清楚楚，且不改变物理大小！
                                 cell.style.border = '0.5px solid transparent'; 
-                                cell.style.boxShadow = 'inset 0 0 0 2px var(--accent)';
+                                cell.style.boxShadow = 'inset 0 0 0 2px var(--card-bg), inset 0 0 0 4px var(--text-main)';
                                 cell.style.zIndex = '10';
                                 
                                 // 替换顶部四个小方块为当日专属数据
