@@ -4614,17 +4614,16 @@
                 if (!('serviceWorker' in navigator)) return;
                 const registration = await navigator.serviceWorker.ready;
                 
-                // 🌟 核心突破：跳过云端中转，直接由本地网页唤起通知！
                 // 这样 100% 保证能把气泡内容打印在通知栏上，告别“一条通知”
                 if (Notification.permission === 'granted') {
                     await registration.showNotification('Linkgo', {
                         body: finalContent,
                         icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg',
                         vibrate: [200, 100, 200],
-                        // 🎯 核心要求 3：每次生成独立的随机标签 Date.now()
-                        // 保证 a、b、c 三个气泡在后台时，会分别弹出三次通知，不会互相覆盖吞掉
-                        tag: 'linkgo-bubble-' + Date.now(), 
-                        renotify: true
+                        // 🌟 核心魔法：使用固定的标签名！
+                        // 这样当气泡 b 出来时，系统会瞬间用 b 替换掉屏幕上的 a，绝不排队滞后！
+                        tag: 'linkgo-active-reply', 
+                        renotify: true // 替换时也轻轻震动一下提示有新内容
                     });
                 }
             } catch (error) {
@@ -13251,7 +13250,23 @@ ${chatContent}
             }
         }
 
-        
+        // --- 🌟 高级体验：切回网页时，自动清理遗留的通知横幅 ---
+        document.addEventListener('visibilitychange', async () => {
+            // 只要系统检测到你回到了网页（页面状态变成 visible）
+            if (document.visibilityState === 'visible') {
+                try {
+                    if ('serviceWorker' in navigator) {
+                        const registration = await navigator.serviceWorker.ready;
+                        // 找出那条固定标签的通知
+                        const notifications = await registration.getNotifications({ tag: 'linkgo-active-reply' });
+                        // 瞬间将它关闭（撤回）
+                        notifications.forEach(n => n.close()); 
+                    }
+                } catch (e) {
+                    console.error('清屏失败:', e);
+                }
+            }
+        });
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
