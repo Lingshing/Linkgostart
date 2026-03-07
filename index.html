@@ -11991,6 +11991,13 @@ ${chatContent}
         // 互动视图 (Heatmap) 功能逻辑 + 时长统计
         // ==========================================
         let currentHmRange = 'day';
+        let currentViewDate = new Date(); // 🌟 新增：用于记录互动视图中“当前穿越到了哪个月”
+
+        // 🌟 新增：互动视图的月份切换引擎
+        window.changeHmMonth = function(delta) {
+            currentViewDate.setMonth(currentViewDate.getMonth() + delta);
+            switchHmRange('month', 1); // 重新计算并渲染选中的月份
+        };
 
         // --- 实时在线时长统计引擎 ---
         let lastTimeRecord = Date.now();
@@ -12066,9 +12073,13 @@ ${chatContent}
             }
 
             const todayStr = getDateKey(today);
-            const currentMonthPrefix = todayStr.split('-').slice(0, 2).join('-'); // "2026-2"
-            const currentYearPrefix = todayStr.split('-')[0];  // "2026"
-
+    
+            // 🌟 核心：计算时光机目标月份的前缀，并巧妙加上 "-" 防止 "2026-1" 错误匹配 "2026-11"
+            const targetDateKey = getDateKey(currentViewDate);
+            const viewMonthPrefix = targetDateKey.split('-').slice(0, 2).join('-') + '-'; 
+            
+            const currentYearPrefix = todayStr.split('-')[0]; // "2026"
+            
             let msgs = 0, activeDaysCount = 0, timeSecs = 0;
             
             // --- 🌟 修复1：连聊计算逻辑 ---
@@ -12149,9 +12160,10 @@ ${chatContent}
                 let nightMsgs = 0;
                 let maxDailyMsgs = 0;
                 
+                msgs = 0; timeSecs = 0; activeDaysCount = 0; // 确保切换月份时彻底清零
                 Object.keys(stats).forEach(key => {
-                    // 只匹配本月的数据
-                    if (key.startsWith(currentMonthPrefix)) {
+                    // 🌟 只匹配“时光机穿越到”的那个月的数据
+                    if (key.startsWith(viewMonthPrefix)) {
                         if (key.endsWith('_time')) {
                             timeSecs += stats[key];
                         } else if (key.includes('_')) {
@@ -12169,8 +12181,10 @@ ${chatContent}
                 // 如果你还没聊过天，分母设为1避免除以0
                 timeStatData = { total: timeSecs, days: activeDaysCount || 1 };
 
-                // 陪伴密度计算保持原样 (用日历天数，因为它是“出勤率”的概念)
-                let pastDaysInMonth = today.getDate(); 
+                // 🌟 核心判断：如果是当月，天数算到今天；如果是查看过去的月份，天数算那个月的满月总天数
+                let isCurrentRealMonth = (today.getFullYear() === currentViewDate.getFullYear() && today.getMonth() === currentViewDate.getMonth());
+                let pastDaysInMonth = isCurrentRealMonth ? today.getDate() : new Date(currentViewDate.getFullYear(), currentViewDate.getMonth() + 1, 0).getDate();
+                
                 let density = pastDaysInMonth > 0 ? (activeDaysCount / pastDaysInMonth) : 0;
                 let isNightOwl = msgs > 0 && (nightMsgs / msgs) > 0.35;
                 
@@ -12287,7 +12301,17 @@ ${chatContent}
                 wrapperEl.appendChild(chart);
 
             } else if (range === 'month') {
-                titleEl.textContent = "本月陪伴足迹";
+                const year = currentViewDate.getFullYear();
+                const month = currentViewDate.getMonth();
+                
+                // 🌟 1. 将标题换成可以左右点击切换月份的控件
+                titleEl.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:16px;">
+                        <i class="fa-solid fa-chevron-left clickable" style="font-size:14px; color:var(--text-sub); padding:4px;" onclick="changeHmMonth(-1)"></i>
+                        <span style="font-size:15px; font-weight:600; min-width: 80px; text-align: center;">${year}年${month + 1}月</span>
+                        <i class="fa-solid fa-chevron-right clickable" style="font-size:14px; color:var(--text-sub); padding:4px;" onclick="changeHmMonth(1)"></i>
+                    </div>
+                `;
                 legendEl.style.display = 'flex';
                 wrapperEl.style.display = 'block';
 
@@ -12302,8 +12326,7 @@ ${chatContent}
                     grid.appendChild(wh);
                 });
 
-                const year = today.getFullYear();
-                const month = today.getMonth();
+                // 🌟 2. 基于时光机指针计算当月日历
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
                 const firstDay = new Date(year, month, 1).getDay();
 
@@ -12315,19 +12338,57 @@ ${chatContent}
                     const dateObj = new Date(year, month, d);
                     const ds = dateObj.toLocaleDateString('zh-CN').replace(/\//g, '-');
                     const count = stats[ds] || 0;
-
+                    
                     const cell = document.createElement('div');
                     cell.className = 'month-day-cell';
                     cell.textContent = d;
-
+                    
                     if (dateObj > today) {
-                        cell.classList.add('future'); 
+                        cell.classList.add('future');
                     } else {
                         cell.dataset.level = getLevel(count);
                         cell.title = `${ds}：聊了 ${count} 句`;
+                        
+                        // 🌟 3. 核心：添加点击事件，瞬间替换上方的数据看板
+                        cell.onclick = () => {
+                            // 清除其他格子的选中边框
+                            document.querySelectorAll('.month-day-cell').forEach(c => {
+                                c.style.border = '0.5px solid var(--border)';
+                                c.style.transform = 'scale(1)';
+                                c.style.zIndex = '1';
+                            });
+                            // 高亮当前选中的格子
+                            cell.style.border = '2px solid var(--accent)';
+                            cell.style.transform = 'scale(1.1)';
+                            cell.style.zIndex = '10';
+                            
+                            // 替换顶部四个小方块的数据
+                            const dayTime = stats[ds + '_time'] || 0;
+                            
+                            document.getElementById('hm-val-1').textContent = count;
+                            document.getElementById('hm-lbl-1').textContent = "当日轮数";
+                            
+                            document.getElementById('hm-val-time').textContent = formatOnlineTime(dayTime);
+                            document.getElementById('hm-val-time').style.color = "var(--accent)";
+                            document.getElementById('hm-lbl-time').textContent = "当日时长";
+                            
+                            document.getElementById('hm-val-2').textContent = `${month + 1}月${d}日`;
+                            document.getElementById('hm-lbl-2').textContent = "选中日期";
+                            
+                            const val3El = document.getElementById('hm-val-3');
+                            if (count > 0) {
+                                val3El.textContent = "有迹可循";
+                                val3El.className = "stat-value hm-title-calm";
+                            } else {
+                                val3El.textContent = "风平浪静";
+                                val3El.className = "stat-value";
+                            }
+                            document.getElementById('hm-lbl-3').textContent = "当日状态";
+                        };
                     }
                     grid.appendChild(cell);
                 }
+
                 wrapperEl.appendChild(grid);
 
             } else if (range === 'year') {
@@ -13216,7 +13277,11 @@ ${chatContent}
         function toggleTimeStat() {
             // 只有月和年视图支持切换，日视图只有当日时长
             if (currentHmRange === 'day') return;
-
+            
+            // 🌟 拦截：如果你点击了某一天，正在看“当日状态”，就不允许它切换成日均
+            const lbl1 = document.getElementById('hm-lbl-1').textContent;
+            if (lbl1 === "当日轮数") return;
+            
             isTimeStatAverage = !isTimeStatAverage;
             updateTimeStatDisplay();
         }
