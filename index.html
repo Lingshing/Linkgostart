@@ -2228,38 +2228,65 @@
         /* ==========================================
            🌟 任务站 (To-Do App) 专属样式 (极简原生版)
            ========================================== */
-        /* 1. 苹果原生分段选择器 (Segmented Control) */
+        /* 1. 苹果原生分段选择器 (极致圆角胶囊版) */
         .todo-tabs {
             display: flex;
-            background: var(--bg-color); /* 凹陷的底层灰色 */
-            border-radius: 9px; /* 完美包裹的圆角 */
-            padding: 2px;
+            background: rgba(120, 120, 128, 0.12);
+            border-radius: 100px; /* ✨ 直接拉满，变成完美的胶囊形 */
+            padding: 3px;
         }
         .todo-tab {
             flex: 1;
             text-align: center;
-            padding: 6px 0;
+            padding: 7px 0;
             font-size: 13px;
             font-weight: 500;
             color: var(--text-sub);
-            border-radius: 7px; /* 内部滑块的圆角 */
+            border-radius: 100px; /* ✨ 内部滑块也变成完美圆角 */
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
         }
         .todo-tab.active {
-            background: var(--card-bg); /* 凸起的滑块色 */
+            background: var(--card-bg);
             color: var(--text-main);
-            box-shadow: 0 3px 8px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.02); /* 极其细腻的原生浮雕阴影 */
+            box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 1px 1px rgba(0,0,0,0.04);
             font-weight: 600;
         }
 
-        /* 2. 极简任务卡片 */
+        /* ✨ 新增：为左右滑动准备的底层轨道框架 */
+        .todo-swiper-viewport {
+            flex: 1;
+            overflow: hidden; /* 像取景框一样，隐藏屏幕外的内容 */
+            background: var(--bg-color); /* 保持纯黑底色 */
+            position: relative;
+        }
+        .todo-swiper-track {
+            display: flex;
+            width: 300%; /* 三个页面的总宽度 */
+            height: 100%;
+            transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1); /* 极其丝滑的阻尼物理滑动动画 */
+        }
+        .todo-page {
+            width: 33.3333%; /* 每个页面占整体的 1/3，刚好一个屏幕宽 */
+            height: 100%;
+            overflow-y: auto; /* 允许每个页面独立上下滚动 */
+            padding: 16px;
+        }
+        .todo-tab.active {
+            background: var(--card-bg);
+            color: var(--text-main);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 1px 1px rgba(0,0,0,0.04); /* 加深一点点阴影，让滑块更立体 */
+            font-weight: 600;
+        }
+
+        /* 2. 极简任务卡片 (增加极细边框防粘连) */
         .todo-card {
             background: var(--card-bg);
-            border-radius: 16px; /* 更贴近 iOS 17 的大圆角 */
+            border-radius: 16px;
             padding: 16px;
             margin-bottom: 12px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.02); /* 极其克制的阴影，去除廉价感 */
+            border: 0.5px solid var(--border); /* ✨ 核心：加入极细边框，防止页面底色统一后卡片消失 */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -2342,6 +2369,169 @@
             min-width: 36px;
             text-align: right;
         }
+
+        /* ==========================================
+           🌟 任务站：底部添加面板 (Bottom Sheet) 样式
+           ========================================== */
+        /* 黑色半透明遮罩层 */
+        .todo-sheet-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(2px); /* 极其高级的背景模糊 */
+            z-index: 4000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .todo-sheet-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        /* 从底部弹出的面板本体 */
+        .todo-bottom-sheet {
+            position: fixed;
+            left: 0; right: 0; bottom: 0;
+            background: var(--card-bg);
+            border-radius: 20px 20px 0 0; 
+            padding: 24px 20px 80px; /* ✨ 修改：增加顶部和底部的留白，让面板更高 */
+            min-height: 40vh; /* ✨ 新增：强行让面板占据屏幕高度的 40% */
+            z-index: 4001;
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .todo-bottom-sheet.active {
+            transform: translateY(0); /* 弹出！ */
+        }
+        /* 面板顶部的小横条 (iOS 标志性设计) */
+        .todo-sheet-handle {
+            width: 36px;
+            height: 5px;
+            background: var(--border);
+            border-radius: 3px;
+            margin: 0 auto 8px;
+        }
+        /* 无边框的大输入框 */
+        .todo-input-large {
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--text-main);
+            outline: none;
+            resize: none;
+            min-height: 44px;
+        }
+        .todo-input-large::placeholder { color: var(--text-sub); }
+        
+        /* 工具栏 (AI、DDL) */
+        .todo-tools-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .todo-tool-btn {
+            background: var(--bg-color);
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+        .todo-tool-btn.highlight { color: var(--accent); background: rgba(10, 132, 255, 0.1); }
+        
+        /* 动态标签区 (重构选择逻辑与防放大输入框) */
+        .todo-dynamic-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        /* 标签药丸 */
+        .todo-tag-pill {
+            background: var(--bg-color);
+            color: var(--text-sub);
+            padding: 6px 12px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        /* 选中时的状态 */
+        .todo-tag-pill.selected {
+            background: rgba(10, 132, 255, 0.1); 
+            color: var(--accent);
+            border-color: rgba(10, 132, 255, 0.3);
+        }
+        /* 删除小叉叉 */
+        .todo-tag-delete {
+            opacity: 0.4;
+            font-size: 12px;
+            padding: 2px;
+            transition: opacity 0.2s;
+        }
+        .todo-tag-delete:hover { opacity: 1; color: #ff3b30; }
+        
+        /* 极其优雅的行内无缝输入框 (彻底告别 prompt 弹窗) */
+        .todo-tag-input-wrapper {
+            display: flex;
+            align-items: center;
+            background: var(--bg-color);
+            border-radius: 100px;
+            padding: 4px 12px;
+            gap: 6px;
+        }
+        .todo-tag-input {
+            border: none;
+            background: transparent;
+            font-size: 16px; /* ✨ 核心防线：设定为 16px，绝对防止 iOS 自动放大屏幕！ */
+            color: var(--text-main);
+            width: 70px;
+            outline: none;
+        }
+        .todo-tag-input::placeholder { color: var(--text-sub); font-size: 13px; }
+        .todo-editable-tag {
+            background: var(--bg-color);
+            color: var(--text-sub);
+            padding: 4px 10px;
+            border-radius: 100px; /* 圆润的标签 */
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .todo-editable-tag i { cursor: pointer; opacity: 0.6; }
+        .todo-editable-tag i:active { opacity: 1; }
+        
+        /* 底部大按钮 */
+        .todo-submit-btn {
+            background: var(--text-main); /* 用主字色做底色，极简纯黑/纯白 */
+            color: var(--card-bg); /* 字色反转 */
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .todo-submit-btn:active { transform: scale(0.98); }
     </style>
 </head>
 <body>
@@ -13517,6 +13707,339 @@ ${chatContent}
                 }
             }
         });
+
+        // ==========================================
+        // 🌟 任务站：全套核心引擎 (完整修复版)
+        // ==========================================
+
+        // --- 1. 滑动与页面切换引擎 ---
+        let todoCurrentIndex = 0;
+
+        function switchTodoTab(index) {
+            todoCurrentIndex = index;
+            const tabs = document.querySelectorAll('#todo-tabs-container .todo-tab');
+            tabs.forEach((tab, i) => {
+                if (i === index) tab.classList.add('active');
+                else tab.classList.remove('active');
+            });
+
+            const track = document.getElementById('todo-main-track');
+            if (track) {
+                track.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+                track.style.transform = `translateX(-${index * 33.3333}%)`;
+            }
+        }
+
+        let todoStartX = 0;
+        let todoCurrentX = 0;
+        let isTodoDragging = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const todoTrack = document.getElementById('todo-main-track');
+            if (!todoTrack) return;
+
+            todoTrack.addEventListener('touchstart', (e) => {
+                todoStartX = e.touches[0].clientX;
+                isTodoDragging = true;
+                todoTrack.style.transition = 'none'; 
+            }, { passive: true });
+
+            todoTrack.addEventListener('touchmove', (e) => {
+                if (!isTodoDragging) return;
+                todoCurrentX = e.touches[0].clientX;
+                const deltaX = todoCurrentX - todoStartX;
+                const screenWidth = todoTrack.parentElement.clientWidth;
+                const percentMove = (deltaX / screenWidth) * 33.3333;
+                const baseTranslate = -todoCurrentIndex * 33.3333;
+                todoTrack.style.transform = `translateX(${baseTranslate + percentMove}%)`;
+            }, { passive: true });
+
+            todoTrack.addEventListener('touchend', (e) => {
+                if (!isTodoDragging) return;
+                isTodoDragging = false;
+                
+                const deltaX = todoCurrentX - todoStartX;
+                const threshold = 50; 
+                
+                if (deltaX < -threshold && todoCurrentIndex < 2) {
+                    todoCurrentIndex++;
+                } else if (deltaX > threshold && todoCurrentIndex > 0) {
+                    todoCurrentIndex--;
+                }
+                switchTodoTab(todoCurrentIndex);
+            });
+        });
+
+        // --- 2. 数据库与标签系统 ---
+        // 你的核心数据库，刚才被误删了，现在给它请回来！
+        let todoList = JSON.parse(localStorage.getItem('LINKGO_TODO_DATA')) || [];
+
+        function saveTodoData() {
+            localStorage.setItem('LINKGO_TODO_DATA', JSON.stringify(todoList));
+        }
+
+        let todoTagPool = ['日常', '论文', '游戏'];
+        let todoSelectedTags = new Set(); 
+
+        function renderTodoTags() {
+            const container = document.getElementById('todo-tags-container');
+            if (!container) return;
+            const inputWrapper = container.querySelector('.todo-tag-input-wrapper');
+            
+            const oldTags = container.querySelectorAll('.todo-tag-pill');
+            oldTags.forEach(tag => tag.remove());
+
+            todoTagPool.forEach(tag => {
+                const tagEl = document.createElement('div');
+                tagEl.className = `todo-tag-pill ${todoSelectedTags.has(tag) ? 'selected' : ''}`;
+                
+                const textSpan = document.createElement('span');
+                textSpan.textContent = tag;
+                textSpan.onclick = () => {
+                    if (todoSelectedTags.has(tag)) todoSelectedTags.delete(tag);
+                    else todoSelectedTags.add(tag);
+                    renderTodoTags(); 
+                };
+                
+                const delIcon = document.createElement('i');
+                delIcon.className = 'fa-solid fa-xmark todo-tag-delete';
+                delIcon.onclick = (e) => {
+                    e.stopPropagation(); 
+                    todoTagPool = todoTagPool.filter(t => t !== tag); 
+                    todoSelectedTags.delete(tag); 
+                    renderTodoTags();
+                };
+
+                tagEl.appendChild(delIcon); // ✨ 修复：叉叉在左侧，防误触！
+                tagEl.appendChild(textSpan);
+                
+                container.insertBefore(tagEl, inputWrapper);
+            });
+        }
+
+        function handleNewTagKeyPress(e) {
+            if ((e.key === 'Enter' || e.keyCode === 13) && !e.isComposing) {
+                e.preventDefault();
+                const input = document.getElementById('todo-new-tag-input');
+                const newTag = input.value.trim();
+                
+                if (newTag && !todoTagPool.includes(newTag)) {
+                    todoTagPool.push(newTag); 
+                    todoSelectedTags.add(newTag); 
+                    input.value = ''; 
+                    renderTodoTags(); 
+                }
+            }
+        }
+
+        // --- 3. 面板呼出与日期时间 ---
+        function openTodoSheet() {
+            todoSelectedTags.clear();
+            renderTodoTags(); 
+            
+            delete document.getElementById('todo-bottom-sheet').dataset.editingId;
+            document.getElementById('todo-input-title').value = '';
+            document.getElementById('todo-date-picker').value = '';
+            document.getElementById('todo-time-picker').value = '';
+            updateTodoDDL();
+
+            document.getElementById('todo-sheet-overlay').classList.add('active');
+            document.getElementById('todo-bottom-sheet').classList.add('active');
+            setTimeout(() => document.getElementById('todo-input-title').focus(), 100);
+        }
+
+        function closeTodoSheet() {
+            document.getElementById('todo-sheet-overlay').classList.remove('active');
+            document.getElementById('todo-bottom-sheet').classList.remove('active');
+        }
+
+        function updateTodoDDL() {
+            const dateVal = document.getElementById('todo-date-picker').value;
+            const timeVal = document.getElementById('todo-time-picker').value;
+            
+            const dateText = document.getElementById('todo-ddl-date-text');
+            const timeText = document.getElementById('todo-ddl-time-text');
+            
+            if (dateVal) {
+                const [y, m, d] = dateVal.split('-');
+                const today = new Date();
+                const selected = new Date(y, m - 1, d); 
+                
+                const isToday = today.toDateString() === selected.toDateString();
+                const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+                const isTomorrow = tomorrow.toDateString() === selected.toDateString();
+
+                if (isToday) dateText.textContent = "今天";
+                else if (isTomorrow) dateText.textContent = "明天";
+                else dateText.textContent = `${m}月${d}日`;
+                
+                dateText.parentElement.style.color = 'var(--accent)'; 
+            } else {
+                dateText.textContent = "日期";
+                dateText.parentElement.style.color = 'var(--text-main)';
+            }
+
+            if (timeVal) {
+                timeText.textContent = timeVal;
+                timeText.parentElement.style.color = 'var(--accent)';
+            } else {
+                timeText.textContent = "时间";
+                timeText.parentElement.style.color = 'var(--text-main)';
+            }
+        }
+
+        // --- 4. 渲染任务与状态打勾 ---
+        function renderTodoList() {
+            const pages = [
+                document.getElementById('todo-page-0'), 
+                document.getElementById('todo-page-1'), 
+                document.getElementById('todo-page-2')  
+            ];
+            if (!pages[0]) return;
+            pages.forEach(p => p.innerHTML = '');
+
+            todoList.forEach(task => {
+                let tagsHtml = task.tags.map(t => `<span class="todo-tag">${t}</span>`).join('');
+                
+                if (task.ddl_date || task.ddl_time) {
+                    let ddlDisplay = '';
+                    if (task.ddl_date) {
+                        const [y, m, d] = task.ddl_date.split('-');
+                        const today = new Date();
+                        const selected = new Date(y, m - 1, d);
+                        if (today.toDateString() === selected.toDateString()) ddlDisplay = "今天";
+                        else {
+                            const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+                            if (tomorrow.toDateString() === selected.toDateString()) ddlDisplay = "明天";
+                            else ddlDisplay = `${m}月${d}日`;
+                        }
+                    }
+                    if (task.ddl_time) ddlDisplay += (ddlDisplay ? ' ' : '') + task.ddl_time;
+                    
+                    tagsHtml += `<span class="todo-tag highlight"><i class="fa-regular fa-calendar"></i> ${ddlDisplay}</span>`;
+                }
+
+                const titleStyle = task.status === 2 ? 'text-decoration: line-through; opacity: 0.5;' : '';
+                const checkClass = task.status === 2 ? 'checked' : '';
+
+                const cardHtml = `
+                    <div class="todo-card" onclick="openTodoAction(${task.id})">
+                        <div class="todo-header">
+                            <div class="todo-checkbox ${checkClass}" onclick="event.stopPropagation(); toggleTodoStatus(${task.id})">
+                                <i class="fa-solid fa-check" style="font-size: 11px;"></i>
+                            </div>
+                            <div style="flex:1;">
+                                <div class="todo-title" style="${titleStyle}">${task.title}</div>
+                                <div class="todo-tags">${tagsHtml}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                if (pages[task.status]) pages[task.status].insertAdjacentHTML('beforeend', cardHtml);
+            });
+            
+            if (!pages[0].innerHTML) pages[0].innerHTML = '<div style="text-align:center; color:var(--text-sub); margin-top:60px; font-size:13px;">空空如也，点击右上角添加任务吧</div>';
+            if (!pages[1].innerHTML) pages[1].innerHTML = '<div style="text-align:center; color:var(--text-sub); margin-top:60px; font-size:13px;">没有进行中的任务，保持专注</div>';
+            if (!pages[2].innerHTML) pages[2].innerHTML = '<div style="text-align:center; color:var(--text-sub); margin-top:60px; font-size:13px;">完成的任务会沉淀在这里</div>';
+        }
+
+        function toggleTodoStatus(id) {
+            const task = todoList.find(t => t.id === id);
+            if (!task) return;
+            
+            task.status = (task.status + 1) % 3; 
+            saveTodoData();
+            renderTodoList();
+        }
+
+        function submitNewTodo() {
+            const titleEl = document.getElementById('todo-input-title');
+            const dateEl = document.getElementById('todo-date-picker');
+            const timeEl = document.getElementById('todo-time-picker');
+            const title = titleEl.value.trim();
+            if (!title) { alert("任务内容不能为空哦！"); return; }
+
+            const editingId = document.getElementById('todo-bottom-sheet').dataset.editingId;
+
+            if (editingId) {
+                const task = todoList.find(t => t.id === parseInt(editingId));
+                if (task) {
+                    task.title = title;
+                    task.tags = Array.from(todoSelectedTags);
+                    task.ddl_date = dateEl.value; 
+                    task.ddl_time = timeEl.value; 
+                }
+                delete document.getElementById('todo-bottom-sheet').dataset.editingId;
+            } else {
+                const newTask = {
+                    id: Date.now(), 
+                    title: title,
+                    tags: Array.from(todoSelectedTags), 
+                    ddl_date: dateEl.value,
+                    ddl_time: timeEl.value,
+                    status: 0, progress: 0 
+                };
+                todoList.unshift(newTask); 
+            }
+
+            saveTodoData(); renderTodoList(); 
+            
+            titleEl.value = ''; dateEl.value = ''; timeEl.value = '';
+            updateTodoDDL(); closeTodoSheet();
+            if (!editingId) switchTodoTab(0); 
+        }
+
+        // --- 5. 操作菜单 (单击唤出) ---
+        let activeTodoId = null;
+
+        function openTodoAction(taskId) {
+            activeTodoId = taskId;
+            document.getElementById('todo-action-overlay').classList.add('active');
+            document.getElementById('todo-action-sheet').style.transform = 'translateY(0)';
+        }
+
+        function closeTodoAction() {
+            activeTodoId = null;
+            document.getElementById('todo-action-overlay').classList.remove('active');
+            document.getElementById('todo-action-sheet').style.transform = 'translateY(100%)';
+        }
+
+        function deleteCurrentTodo() {
+            if (!activeTodoId) return;
+            todoList = todoList.filter(t => t.id !== activeTodoId);
+            saveTodoData(); renderTodoList(); closeTodoAction();
+        }
+
+        function editCurrentTodo() {
+            if (!activeTodoId) return;
+            const task = todoList.find(t => t.id === activeTodoId);
+            if (!task) return;
+            
+            document.getElementById('todo-input-title').value = task.title;
+            
+            document.getElementById('todo-date-picker').value = task.ddl_date || '';
+            document.getElementById('todo-time-picker').value = task.ddl_time || '';
+            updateTodoDDL();
+
+            todoSelectedTags.clear();
+            task.tags.forEach(tag => {
+                if (!todoTagPool.includes(tag)) todoTagPool.push(tag);
+                todoSelectedTags.add(tag);
+            });
+            renderTodoTags();
+
+            document.getElementById('todo-bottom-sheet').dataset.editingId = task.id;
+            
+            closeTodoAction();
+            setTimeout(() => {
+                document.getElementById('todo-sheet-overlay').classList.add('active');
+                document.getElementById('todo-bottom-sheet').classList.add('active');
+            }, 100); 
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(renderTodoList, 200);
+        });
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
@@ -13590,42 +14113,29 @@ ${chatContent}
             </div>
         </div>
     
-        <div class="nav-header" style="background: var(--card-bg); padding-bottom: 4px;">
+     <div id="scene-todo" class="sub-page-scene" style="z-index: 3000;">
+        <div class="nav-header" style="background: var(--bg-color); padding-bottom: 4px; border-bottom: none !important;">
             <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--text-main);" onclick="closeSubPage('scene-todo')"></i>
             <span class="nav-title" style="font-weight: 600;">任务站</span>
-            <i class="fa-solid fa-plus clickable" style="font-size:18px; color:var(--text-main);" onclick="alert('开发中：添加弹窗')"></i>
+            <i class="fa-solid fa-plus clickable" style="font-size:18px; color:var(--text-main);" onclick="openTodoSheet()"></i>
         </div>
         
-        <div style="padding: 8px 16px 12px; background: var(--card-bg);">
-            <div class="todo-tabs">
-                <div class="todo-tab active">待办</div>
-                <div class="todo-tab">进行中</div>
-                <div class="todo-tab">已完成</div>
+        <div style="padding: 8px 16px 12px; background: var(--bg-color);">
+            <div class="todo-tabs" id="todo-tabs-container">
+                <div class="todo-tab active" onclick="switchTodoTab(0)">待办</div>
+                <div class="todo-tab" onclick="switchTodoTab(1)">进行中</div>
+                <div class="todo-tab" onclick="switchTodoTab(2)">已完成</div>
             </div>
         </div>
 
-        <div id="todo-list-container" style="overflow-y:auto; flex:1; background: var(--bg-color); padding: 16px;">
-            
-            <div class="todo-card">
-                <div class="todo-header">
-                    <div class="todo-checkbox"><i class="fa-solid fa-check" style="font-size: 11px;"></i></div>
-                    <div style="flex:1;">
-                        <div class="todo-title">撰写日中翻译实践报告初稿</div>
-                        <div class="todo-tags">
-                            <span class="todo-tag">论文</span>
-                            <span class="todo-tag highlight"><i class="fa-solid fa-bolt" style="margin-right:4px;"></i>AI 已拆解</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="todo-progress-container">
-                    <div class="todo-progress-bg">
-                        <div class="todo-progress-fill" style="width: 40%;"></div>
-                    </div>
-                    <span class="todo-progress-text">40%</span>
-                </div>
+        <div class="todo-swiper-viewport">
+            <div class="todo-swiper-track" id="todo-main-track">
+                <div class="todo-page" id="todo-page-0"></div>
+                <div class="todo-page" id="todo-page-1"></div>
+                <div class="todo-page" id="todo-page-2"></div>
             </div>
-            
         </div>
+    </div>   
     
     <div id="scene-post-detail" class="sub-page-scene" style="z-index: 3000;">
     <div class="nav-header" style="background: var(--card-bg); border-bottom: 0.5px solid var(--border);">
@@ -13643,44 +14153,58 @@ ${chatContent}
             </div>
         </div>
     </div>
-    
-    <div id="scene-todo" class="sub-page-scene" style="z-index: 3000;">
-        <div class="nav-header" style="background: var(--card-bg); border-bottom: 0.5px solid var(--border);">
-            <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('scene-todo')"></i>
-            <span class="nav-title">任务站</span>
-            <i class="fa-solid fa-plus clickable" style="font-size:18px; color:var(--accent);" onclick="alert('开发中：添加弹窗')"></i>
+    <div id="todo-action-overlay" class="todo-sheet-overlay" style="z-index: 4002;" onclick="closeTodoAction()"></div>
+    <div id="todo-action-sheet" style="position: fixed; left: 0; right: 0; bottom: 0; z-index: 4003; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1); padding-bottom: calc(env(safe-area-inset-bottom) + 16px);">
+        <div style="margin: 0 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="background: var(--card-bg); border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+                <div style="padding: 12px; text-align: center; font-size: 13px; color: var(--text-sub); border-bottom: 0.5px solid var(--border);">
+                    请选择操作
+                </div>
+                <div onclick="editCurrentTodo()" style="padding: 16px; text-align: center; font-size: 17px; color: var(--accent); font-weight: 500; border-bottom: 0.5px solid var(--border); background: var(--card-bg); cursor: pointer;">
+                    编辑任务
+                </div>
+                <div onclick="deleteCurrentTodo()" style="padding: 16px; text-align: center; font-size: 17px; color: #FF3B30; font-weight: 500; background: var(--card-bg); cursor: pointer;">
+                    删除任务
+                </div>
+            </div>
+            <div onclick="closeTodoAction()" style="background: var(--card-bg); border-radius: 14px; padding: 16px; text-align: center; font-size: 17px; color: var(--text-main); font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+                取消
+            </div>
         </div>
+    </div>
+    <div id="todo-sheet-overlay" class="todo-sheet-overlay" onclick="closeTodoSheet()"></div>
+    
+    <div id="todo-bottom-sheet" class="todo-bottom-sheet">
+        <div class="todo-sheet-handle"></div>
         
-        <div style="padding: 12px 16px 0; background: var(--card-bg);">
-            <div class="todo-tabs">
-                <div class="todo-tab active">📥 待办</div>
-                <div class="todo-tab">🔥 进行中</div>
-                <div class="todo-tab">✅ 已完成</div>
+        <textarea id="todo-input-title" class="todo-input-large" placeholder="准备做什么？（输入大任务可呼唤 AI 拆解）" rows="2"></textarea>
+        
+        <div class="todo-tools-row">
+            <label class="todo-tool-btn" style="position: relative; overflow: hidden; padding: 6px 10px;">
+                <i class="fa-regular fa-calendar"></i>
+                <span id="todo-ddl-date-text">日期</span>
+                <input type="date" id="todo-date-picker" style="position: absolute; opacity: 0; left: 0; top: 0; width: 100%; height: 100%; cursor: pointer;" onchange="updateTodoDDL()">
+            </label>
+
+            <label class="todo-tool-btn" style="position: relative; overflow: hidden; padding: 6px 10px;">
+                <i class="fa-regular fa-clock"></i>
+                <span id="todo-ddl-time-text">时间</span>
+                <input type="time" id="todo-time-picker" style="position: absolute; opacity: 0; left: 0; top: 0; width: 100%; height: 100%; cursor: pointer;" onchange="updateTodoDDL()">
+            </label>
+            
+            <button class="todo-tool-btn highlight" style="margin-left: auto;">
+                <i class="fa-solid fa-bolt"></i> 智能拆解
+            </button>
+        </div>
+
+        <div class="todo-dynamic-tags" id="todo-tags-container">
+            <div class="todo-tag-input-wrapper">
+                <i class="fa-solid fa-plus" style="color: var(--text-sub); font-size: 12px;"></i>
+                <input type="text" id="todo-new-tag-input" class="todo-tag-input" placeholder="新标签" onkeypress="handleNewTagKeyPress(event)">
             </div>
         </div>
 
-        <div id="todo-list-container" style="overflow-y:auto; flex:1; background: var(--bg-color); padding: 16px;">
-            
-            <div class="todo-card">
-                <div class="todo-header">
-                    <div class="todo-checkbox"><i class="fa-solid fa-check" style="font-size: 12px;"></i></div>
-                    <div style="flex:1;">
-                        <div class="todo-title">撰写日中翻译实践报告初稿</div>
-                        <div class="todo-tags">
-                            <span class="todo-tag">🎓 论文</span>
-                            <span class="todo-tag"><i class="fa-solid fa-diagram-project"></i> AI 已拆解</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="todo-progress-container">
-                    <div class="todo-progress-bg">
-                        <div class="todo-progress-fill" style="width: 40%;"></div>
-                    </div>
-                    <span class="todo-progress-text">40%</span>
-                </div>
-            </div>
-            
-        </div>
+        <button class="todo-submit-btn" onclick="submitNewTodo()">创建任务</button>
     </div>
 </body>
 </html>
