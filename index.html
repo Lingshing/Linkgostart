@@ -1592,17 +1592,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
-            /* 移除刺眼的横线，依靠空间留白来做视觉分隔 */
-        }
-        
-        .short-memory-round-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
+            /* 移除刺眼的横线，依靠空间留白来做视觉分隔 */
         }
         
         .short-memory-round-title {
@@ -4633,10 +4624,9 @@
                     });
                 }
                 
-                // 决定发送的内容
-                const finalContent = PUSH_CONFIG.showContent 
-                    ? messageText.substring(0, 100) 
-                    : "收到一条新消息";
+                // 决定发送的内容（强制读取本地最新开关状态，保证准确无误）
+                const isShowContent = localStorage.getItem('PUSH_SHOW_CONTENT') !== 'false';
+                const finalContent = isShowContent ? messageText.substring(0, 100) : "收到一条新消息"; 
                 
                 // 发送到Worker
                 await fetch(PUSH_CONFIG.workerUrl, {
@@ -8022,6 +8012,12 @@ ${chatContent}
                 addMessage(contactId, 'assistant', sentence);
                 updateChatListLastMessage(contactId, sentence);
                 
+                // ✨ 新增：气泡级逐条推送通知！
+                // 因为 sendPushNotification 内部自带判定，前台会拦截，后台才会真发，所以直接扔给它就行
+                if (typeof sendPushNotification === 'function') {
+                    sendPushNotification(sentence);
+                }
+                
                 // 🎯 2. 如果用户就在这个聊天页面，追加气泡到屏幕上
                 const isCurrentPage = document.getElementById('scene-chat') && document.getElementById('scene-chat').classList.contains('show') && currentChatContactId === contactId;
                 
@@ -8068,11 +8064,6 @@ ${chatContent}
 
             // 丢给后台队列排队（无论用户在哪，都会默默执行）
             startGlobalBubbleQueue(contactId, finalFullMessage);
-
-            // ✨ 新增这三行：在这里触发后台推送！
-            if (typeof sendPushNotification === 'function') {
-                sendPushNotification(finalFullMessage);
-            }
             
             // 如果用户在当前页面，立刻显示一个呼吸占位符
             const isCurrentPage = document.getElementById('scene-chat') && document.getElementById('scene-chat').classList.contains('show') && currentChatContactId === contactId;
