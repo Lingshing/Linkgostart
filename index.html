@@ -4603,12 +4603,11 @@
             
             if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') return;
             
-            // 检查总开关是否开启
-            const pushEnabled = localStorage.getItem('PUSH_ENABLED') === 'true';
-            if (!pushEnabled) return; 
+            // 🎯 直接读取你通用设置里的真实开关状态，绝对不会断联！
+            if (!GENERAL_CONFIG.notification.pushEnabled) return; 
             
-            // 🎯 核心要求 2：检查“显示内容”开关
-            const isShowContent = localStorage.getItem('PUSH_SHOW_CONTENT') !== 'false';
+            // 🎯 检查“显示内容”开关
+            const isShowContent = GENERAL_CONFIG.notification.showContent;
             const finalContent = isShowContent ? messageText.substring(0, 100) : "收到一条新消息";
             
             try {
@@ -4631,12 +4630,6 @@
             } catch (error) {
                 console.error("本地推送失败:", error);
             }
-        }
-        
-        // --- 切换通知内容显示 ---
-        function toggleNotificationContent() {
-            PUSH_CONFIG.showContent = !PUSH_CONFIG.showContent;
-            localStorage.setItem('PUSH_SHOW_CONTENT', PUSH_CONFIG.showContent ? 'true' : 'false');
         }
         
         // --- 检查并重新激活订阅 ---
@@ -9994,15 +9987,12 @@ ${chatContent}
             saveGeneralConfig();
         }
         
+        
         // --- 切换显示内容 ---
         function toggleGeneralContent() {
             GENERAL_CONFIG.notification.showContent = !GENERAL_CONFIG.notification.showContent;
             updateGeneralSwitch('general-content-switch', GENERAL_CONFIG.notification.showContent);
             saveGeneralConfig();
-            
-            // 同步到推送系统
-            PUSH_CONFIG.showContent = GENERAL_CONFIG.notification.showContent;
-            toggleNotificationContent();
         }
         
         // --- 切换保持唤醒 ---
