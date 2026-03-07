@@ -8065,9 +8065,14 @@ ${chatContent}
             // 清理界面的呼吸气泡
             const streamCont = document.getElementById('active-stream-container');
             if (streamCont) streamCont.remove();
-            
+
             // 丢给后台队列排队（无论用户在哪，都会默默执行）
             startGlobalBubbleQueue(contactId, finalFullMessage);
+
+            // ✨ 新增这三行：在这里触发后台推送！
+            if (typeof sendPushNotification === 'function') {
+                sendPushNotification(finalFullMessage);
+            }
             
             // 如果用户在当前页面，立刻显示一个呼吸占位符
             const isCurrentPage = document.getElementById('scene-chat') && document.getElementById('scene-chat').classList.contains('show') && currentChatContactId === contactId;
@@ -9986,7 +9991,7 @@ ${chatContent}
             }
         }
         
-        // --- 切换推送通知 ---
+        // --- 切换推送通知 (完美控制版) ---
         async function toggleGeneralPush() {
             if (!GENERAL_CONFIG.notification.pushEnabled) {
                 // 尝试请求权限
@@ -9995,9 +10000,15 @@ ${chatContent}
                     GENERAL_CONFIG.notification.pushEnabled = true;
                 }
             } else {
+                // 关闭通知
                 GENERAL_CONFIG.notification.pushEnabled = false;
+                
+                // ✨ 新增：关闭时也要告诉底层的 PUSH_CONFIG 拦截推送
+                if (typeof PUSH_CONFIG !== 'undefined') {
+                    PUSH_CONFIG.enabled = false;
+                    localStorage.setItem('PUSH_ENABLED', 'false');
+                }
             }
-            
             updateGeneralSwitch('general-push-switch', GENERAL_CONFIG.notification.pushEnabled);
             saveGeneralConfig();
         }
@@ -13269,6 +13280,7 @@ ${chatContent}
             }
         }
 
+        
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
