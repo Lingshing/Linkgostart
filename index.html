@@ -2065,8 +2065,7 @@
         .post-time { font-size: 12px; color: var(--text-sub); }
         .post-title { font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
         .post-content {
-            font-size: 14px; color: var(--text-main); line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-        }
+        font-size: 14px; color: var(--text-main); line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;        }
         .post-actions {
             display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 0.5px solid var(--border);
         }
@@ -2093,8 +2092,7 @@
         }
         .chat-forward-title { font-size: 15px; font-weight: 700; color: var(--text-main); }
         .chat-forward-content {
-            font-size: 13px; color: var(--text-sub); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-        }
+        font-size: 13px; color: var(--text-sub); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;        }
         .chat-forward-footer {
             font-size: 11px; color: var(--text-sub); border-top: 0.5px dashed var(--border); padding-top: 6px; margin-top: 4px; display: flex; justify-content: space-between;
         }
@@ -4596,50 +4594,42 @@
             }
         }
         
-        // --- 发送推送通知 ---
+        // 实际发送通知的函数（本地高精度版）
         async function sendPushNotification(messageText) {
-            // 只在后台时发送通知
-            if (document.visibilityState === 'visible') {
-                return;
-            }
+            // 🎯 核心要求 1：打断逻辑
+            // 如果用户当前回到了网页里（页面可见），立刻停止执行！
+            // 效果：如果在 b 气泡显示前你回到了网页，这里直接 return，b 气泡就不会推送通知。
+            if (document.visibilityState === 'visible') return; 
             
-            if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') {
-                return;
-            }
+            if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') return;
             
-            if (!PUSH_CONFIG.enabled) {
-                return;
-            }
+            // 检查总开关是否开启
+            const pushEnabled = localStorage.getItem('PUSH_ENABLED') === 'true';
+            if (!pushEnabled) return; 
+            
+            // 🎯 核心要求 2：检查“显示内容”开关
+            const isShowContent = localStorage.getItem('PUSH_SHOW_CONTENT') !== 'false';
+            const finalContent = isShowContent ? messageText.substring(0, 100) : "收到一条新消息";
             
             try {
                 if (!('serviceWorker' in navigator)) return;
-                
                 const registration = await navigator.serviceWorker.ready;
-                let subscription = await registration.pushManager.getSubscription();
                 
-                if (!subscription) {
-                    subscription = await registration.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array(PUSH_CONFIG.vapidPublicKey)
+                // 🌟 核心突破：跳过云端中转，直接由本地网页唤起通知！
+                // 这样 100% 保证能把气泡内容打印在通知栏上，告别“一条通知”
+                if (Notification.permission === 'granted') {
+                    await registration.showNotification('Linkgo', {
+                        body: finalContent,
+                        icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg',
+                        vibrate: [200, 100, 200],
+                        // 🎯 核心要求 3：每次生成独立的随机标签 Date.now()
+                        // 保证 a、b、c 三个气泡在后台时，会分别弹出三次通知，不会互相覆盖吞掉
+                        tag: 'linkgo-bubble-' + Date.now(), 
+                        renotify: true
                     });
                 }
-                
-                // 决定发送的内容（强制读取本地最新开关状态，保证准确无误）
-                const isShowContent = localStorage.getItem('PUSH_SHOW_CONTENT') !== 'false';
-                const finalContent = isShowContent ? messageText.substring(0, 100) : "收到一条新消息"; 
-                
-                // 发送到Worker
-                await fetch(PUSH_CONFIG.workerUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ 
-                        subscription: subscription.toJSON(),
-                        message: finalContent 
-                    })
-                });
-                
             } catch (error) {
-                console.error("推送失败:", error);
+                console.error("本地推送失败:", error);
             }
         }
         
