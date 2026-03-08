@@ -160,6 +160,19 @@
         .app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 20px; }
         .app-icon-box { width: 56px; height: 56px; margin: 0 auto 10px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
         .app-label { text-align: center; font-size: 12px; font-weight: 500; }
+        /* ✨ 终极防线：彻底剥夺图标的原生滚动与系统菜单权限 */
+        .app-grid .clickable {
+            /* 核心魔法：告诉浏览器，手指在这个元素上的任何滑动，都绝对不允许触发页面滚动或下拉刷新 */
+            touch-action: none; 
+            
+            /* 防止长按时意外弹出苹果/安卓的系统文本选中或保存图片菜单 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        /* ✨ 新增：桌面 Apps 拖动时的原生质感动画 */
+        .app-item-ghost { opacity: 0 !important; }
+        .app-item-chosen { transform: scale(1.15); z-index: 10; transition: none !important; }
 
         /* --- 聊天列表容器 --- */
         #chat-list-container {
@@ -2338,14 +2351,14 @@
         </div>
         
         <div class="app-grid">
-            <div class="clickable">
+            <div class="clickable" data-id="app-cart">
                 <div class="app-icon-box" style="background: #FF9F0A;">
                     <i class="fas fa-shopping-cart"></i>
                 </div>
                 <div class="app-label">购物车</div>
             </div>
             
-            <div class="clickable" onclick="openSubPage('scene-todo')">
+            <div class="clickable" data-id="app-todo" onclick="openSubPage('scene-todo')">
                 <div class="app-icon-box" style="background: var(--accent); box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);">
                     <i class="fa-solid fa-list-check"></i>
                 </div>
@@ -5108,6 +5121,9 @@ ${recentChat}
                 tabPage.addEventListener('touchstart', (e) => {
                     const scrollContainer = e.target.closest('.forum-feed') || tabPage;
                     if (scrollContainer.scrollTop > 5) return;
+                    
+                    // ✨ 终极防线：如果发现用户摸到的是应用列表(.app-grid)，引擎直接“装死”，不触发下拉！
+                    if (e.target.closest('.app-grid')) return;
                     
                     isPulling = true;
                     startY = e.touches[0].clientY;
@@ -13481,6 +13497,52 @@ ${chatContent}
         });
 
         // ==========================================
+        // 🌟 主页 Apps 拖拽排序功能 (终极防下拉版)
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            const appGrid = document.querySelector('.app-grid');
+            if (!appGrid) return;
+            
+            // 1. 读取本地保存的顺序
+            const savedOrder = JSON.parse(localStorage.getItem('LINKGO_APPS_ORDER'));
+            if (savedOrder && savedOrder.length > 0) {
+                savedOrder.forEach(id => {
+                    const appEl = appGrid.querySelector(`[data-id="${id}"]`);
+                    if (appEl) {
+                        appGrid.appendChild(appEl); // 按记忆的顺序重新排列
+                    }
+                });
+            }
+
+            // 2. 挂载 Sortable 拖拽引擎
+            new Sortable(appGrid, {
+                animation: 350, 
+                easing: "cubic-bezier(0.25, 1, 0.5, 1)",
+                delay: 200, 
+                delayOnTouchOnly: true, 
+                touchStartThreshold: 5, 
+                
+                // ✨ 终极防线 2：强制开启底层接管模式，把图标抽离出原本的滚动容器！
+                forceFallback: true, 
+                fallbackClass: "app-item-chosen", 
+                ghostClass: 'app-item-ghost',
+                chosenClass: 'app-item-chosen',
+                fallbackOnBody: true, // 核心：拖拽时让元素临时挂在 body 上，彻底摆脱下拉刷新的干扰
+                onEnd: function () {
+                    // 拖拽松手时，保存新顺序
+                    const newOrder = [];
+                    appGrid.querySelectorAll('.clickable').forEach(el => {
+                        if (el.dataset.id) newOrder.push(el.dataset.id);
+                    });
+                    localStorage.setItem('LINKGO_APPS_ORDER', JSON.stringify(newOrder));
+                    
+                    // 震动反馈
+                    if (navigator.vibrate) navigator.vibrate(15);
+                }
+            });
+        });
+
+        // ==========================================
         // 🌟 任务站：全套核心引擎 (终极防误触版)
         // ==========================================
 
@@ -13507,12 +13569,19 @@ ${chatContent}
             
             const todoTrack = document.getElementById('todo-main-track');
             if (!todoTrack) return;
-            todoTrack.addEventListener('touchstart', (e) => { 
-            todoStartX = e.touches[0].clientX; 
+            todoTrack.addEventListener('touchstart', (e) => {
+            todoStartX = e.touches[0].clientX;
+            
+            // ✨ 新增修复：边缘右滑防误触（如果手指按下的位置距离左边缘小于 30px，直接放弃滑动接管，把控制权还给系统的边缘退出）
+            if (todoStartX < 30) {
+                isTodoDragging = false;
+                return;
+            }
+
             todoCurrentX = todoStartX; // ✨ 核心修复：每次碰到屏幕，立刻把记忆清零，绝不误判上一次的位置！
-            todoStartY = e.touches[0].clientY; 
-            isTodoDragging = true; 
-            todoTrack.style.transition = 'none'; 
+            todoStartY = e.touches[0].clientY;
+            isTodoDragging = true;
+            todoTrack.style.transition = 'none';
         }, { passive: true });
             
             todoTrack.addEventListener('touchmove', (e) => {
