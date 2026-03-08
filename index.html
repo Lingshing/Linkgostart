@@ -13551,10 +13551,16 @@ ${chatContent}
         });
 
         let todoList = JSON.parse(localStorage.getItem('LINKGO_TODO_DATA')) || [];
-        function saveTodoData() { localStorage.setItem('LINKGO_TODO_DATA', JSON.stringify(todoList)); }
+        function saveTodoData() {
+            localStorage.setItem('LINKGO_TODO_DATA', JSON.stringify(todoList));
+        }
 
-        let todoTagPool = ['日常', '论文', '游戏'];
-        let todoSelectedTags = new Set(); 
+        // ✨ 修复：从本地读取标签池，并新增保存函数
+        let todoTagPool = JSON.parse(localStorage.getItem('LINKGO_TODO_TAGS')) || ['日常', '论文', '游戏'];
+        function saveTodoTags() {
+            localStorage.setItem('LINKGO_TODO_TAGS', JSON.stringify(todoTagPool));
+        }
+        let todoSelectedTags = new Set();
 
         // ✨ 过滤器菜单系统
         function openTodoFilterSheet() {
@@ -13656,6 +13662,7 @@ ${chatContent}
                         if (el.dataset.tag) newPool.push(el.dataset.tag);
                     });
                     todoTagPool = newPool;
+                    saveTodoTags(); // ✨ 新增：持久化保存拖拽后的新顺序
                 }
             });
         }
@@ -13666,6 +13673,7 @@ ${chatContent}
             todoTagPool = todoTagPool.filter(t => t !== tag);
             // 如果它目前是选中状态，也要从选中集合中移除
             todoSelectedTags.delete(tag);
+            saveTodoTags();
             // 重新渲染视图
             renderTodoTags();
         }
@@ -13686,6 +13694,7 @@ ${chatContent}
             if (newTag && !todoTagPool.includes(newTag)) {
                 todoTagPool.push(newTag); todoSelectedTags.add(newTag); 
                 document.getElementById('todo-new-tag-input').value = ''; 
+                saveTodoTags();
                 renderTodoTags(); 
             }
         }
@@ -13726,6 +13735,7 @@ ${chatContent}
         function cancelTodoSheet() {
             if (window.originalTagPool) todoTagPool = [...window.originalTagPool];
             if (window.originalSelectedTags) todoSelectedTags = new Set(window.originalSelectedTags);
+            saveTodoTags();
             renderTodoTags();
             closeTodoSheet();
         }
@@ -13809,7 +13819,8 @@ ${chatContent}
                         else { const tom = new Date(today); tom.setDate(tom.getDate() + 1); ddlDisplay = tom.toDateString() === selected.toDateString() ? "明天" : `${m}月${d}日`; }
                     }
                     if (task.ddl_time) ddlDisplay += (ddlDisplay ? ' ' : '') + task.ddl_time;
-                    tagsHtml += `<span class="todo-tag highlight"><i class="fa-regular fa-calendar"></i> ${ddlDisplay}</span>`;
+                    // ✨ 修复：把时间标签加在 tagsHtml 的最前面
+                    tagsHtml = `<span class="todo-tag highlight"><i class="fa-regular fa-calendar"></i> ${ddlDisplay}</span>` + tagsHtml;
                 }
 
                 const titleStyle = task.status === 2 ? 'text-decoration: line-through; opacity: 0.5;' : '';
@@ -14054,6 +14065,21 @@ ${chatContent}
             });
         });
 
+        // ✨ 聊天输入框键盘顶起优化逻辑
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatInputBar = document.getElementById('chat-input-bar');
+            if (chatInputBar) {
+                chatInputBar.addEventListener('focusin', (e) => {
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                        setTimeout(() => {
+                            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            // 附赠一个小优化：键盘弹起时，顺便让聊天列表也滚到底部
+                            scrollToBottomInstant(); 
+                        }, 300);
+                    }
+                });
+            }
+        });
         // ==========================================
         // 抽屉拖拽拉伸逻辑 (赋予原生 App 质感)
         // ==========================================
