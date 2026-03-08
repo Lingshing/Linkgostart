@@ -2228,311 +2228,83 @@
         /* ==========================================
            🌟 任务站 (To-Do App) 专属样式 (极简原生版)
            ========================================== */
-        /* 1. 苹果原生分段选择器 (极致圆角胶囊版) */
-        .todo-tabs {
-            display: flex;
-            background: rgba(120, 120, 128, 0.12);
-            border-radius: 100px; /* ✨ 直接拉满，变成完美的胶囊形 */
-            padding: 3px;
+        .todo-tabs { display: flex; background: rgba(120, 120, 128, 0.12); border-radius: 100px; padding: 3px; }
+        .todo-tab { flex: 1; text-align: center; padding: 7px 0; font-size: 13px; font-weight: 500; color: var(--text-sub); border-radius: 100px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        .todo-tab.active { background: var(--card-bg); color: var(--text-main); box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 1px 1px rgba(0,0,0,0.04); font-weight: 600; }
+        .todo-swiper-viewport { flex: 1; overflow: hidden; background: var(--bg-color); position: relative; }
+        .todo-swiper-track { display: flex; width: 300%; height: 100%; transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1); }
+        .todo-page { width: 33.3333%; height: 100%; overflow-y: auto; padding: 16px; }
+        /* ✨ 子任务丝滑展开动画 */
+        .subtasks-grid-wrapper {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         }
-        .todo-tab {
-            flex: 1;
-            text-align: center;
-            padding: 7px 0;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-sub);
-            border-radius: 100px; /* ✨ 内部滑块也变成完美圆角 */
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
+        .subtasks-grid-wrapper.expanded {
+            grid-template-rows: 1fr;
         }
-        .todo-tab.active {
-            background: var(--card-bg);
-            color: var(--text-main);
-            box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 1px 1px rgba(0,0,0,0.04);
-            font-weight: 600;
-        }
-
-        /* ✨ 新增：为左右滑动准备的底层轨道框架 */
-        .todo-swiper-viewport {
-            flex: 1;
-            overflow: hidden; /* 像取景框一样，隐藏屏幕外的内容 */
-            background: var(--bg-color); /* 保持纯黑底色 */
-            position: relative;
-        }
-        .todo-swiper-track {
-            display: flex;
-            width: 300%; /* 三个页面的总宽度 */
-            height: 100%;
-            transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1); /* 极其丝滑的阻尼物理滑动动画 */
-        }
-        .todo-page {
-            width: 33.3333%; /* 每个页面占整体的 1/3，刚好一个屏幕宽 */
-            height: 100%;
-            overflow-y: auto; /* 允许每个页面独立上下滚动 */
-            padding: 16px;
-        }
-        .todo-tab.active {
-            background: var(--card-bg);
-            color: var(--text-main);
-            box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 1px 1px rgba(0,0,0,0.04); /* 加深一点点阴影，让滑块更立体 */
-            font-weight: 600;
-        }
-
-        /* 2. 极简任务卡片 (增加极细边框防粘连) */
-        .todo-card {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 12px;
-            border: 0.5px solid var(--border); /* ✨ 核心：加入极细边框，防止页面底色统一后卡片消失 */
-            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            transition: transform 0.2s, opacity 0.3s;
-        }
-        .todo-card:active {
-            transform: scale(0.98);
-        }
-        .todo-header {
-            display: flex;
-            gap: 12px;
-            align-items: flex-start;
-        }
-        .todo-checkbox {
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            border: 1.5px solid var(--text-sub); /* 柔和的边框 */
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: transparent;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .todo-checkbox.checked {
-            background: var(--text-main); /* 选中时变成高级的纯黑/纯白 */
-            border-color: var(--text-main);
-            color: var(--card-bg);
-        }
-        .todo-title {
-            font-size: 15px;
-            color: var(--text-main);
-            font-weight: 500;
-            line-height: 1.3;
-            margin-bottom: 8px;
-        }
-        
-        /* 3. 标签与进度条去色重构 */
-        .todo-tags {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-        .todo-tag {
-            font-size: 11px;
-            padding: 4px 8px;
-            background: var(--bg-color); /* 统一灰底 */
-            color: var(--text-sub);      /* 统一灰字，不抢视觉 */
-            border-radius: 6px;
-            font-weight: 500;
-        }
-        .todo-tag.highlight {
-            color: var(--text-main); /* 需要强调的标签用主色 */
-            background: var(--border);
-        }
-        .todo-progress-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .todo-progress-bg {
-            flex: 1;
-            height: 5px; /* 更细致的进度条 */
-            background: var(--bg-color);
-            border-radius: 3px;
+        .subtasks-inner {
             overflow: hidden;
         }
-        .todo-progress-fill {
-            height: 100%;
-            background: var(--text-main); /* 进度条填充也使用纯黑/纯白，极度克制 */
-            border-radius: 3px;
-            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .todo-progress-text {
-            font-size: 12px;
-            color: var(--text-main); /* 粗体进度数字 */
-            font-weight: 600;
-            min-width: 36px;
-            text-align: right;
+        /* ✨ 修复：抛弃厚重的卡片，改成极其干净的无边框细线列表 */
+        .todo-list-item { 
+            background: transparent; 
+            padding: 16px 0; 
+            border-bottom: 0.5px solid var(--border); 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            transition: transform 0.2s; 
         }
 
-        /* ==========================================
-           🌟 任务站：底部添加面板 (Bottom Sheet) 样式
-           ========================================== */
-        /* 黑色半透明遮罩层 */
-        .todo-sheet-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(2px); /* 极其高级的背景模糊 */
-            z-index: 4000;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        .todo-sheet-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-        /* 从底部弹出的面板本体 */
-        .todo-bottom-sheet {
-            position: fixed;
-            left: 0; right: 0; bottom: 0;
-            background: var(--card-bg);
-            border-radius: 20px 20px 0 0; 
-            padding: 24px 20px 80px; /* ✨ 修改：增加顶部和底部的留白，让面板更高 */
-            min-height: 40vh; /* ✨ 新增：强行让面板占据屏幕高度的 40% */
-            z-index: 4001;
-            transform: translateY(100%);
-            transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-        .todo-bottom-sheet.active {
-            transform: translateY(0); /* 弹出！ */
-        }
-        /* 面板顶部的小横条 (iOS 标志性设计) */
-        .todo-sheet-handle {
-            width: 36px;
-            height: 5px;
-            background: var(--border);
-            border-radius: 3px;
-            margin: 0 auto 8px;
-        }
-        /* 无边框的大输入框 */
-        .todo-input-large {
-            width: 100%;
-            border: none;
-            background: transparent;
-            font-size: 18px;
-            font-weight: 500;
-            color: var(--text-main);
-            outline: none;
-            resize: none;
-            min-height: 44px;
-        }
+        .todo-list-item:last-child { border-bottom: none; } /* 最后一项不画线 */
+        
+        /* ✨ 修复：去除了动画里的 overflow 和 height，彻底解决子任务字体被裁切的问题 */
+        @keyframes slideDownSub { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        /* ✨ 去掉廉价的虚线，换成极度克制的浅色实线，并增加行距 */
+        .todo-subtask-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid rgba(142, 142, 147, 0.15); animation: slideDownSub 0.2s ease-out forwards; }
+        .todo-subtask-input { flex: 1; border: none; background: transparent; font-size: 14px; color: var(--text-main); outline: none; line-height: 1.4; padding-top: 2px;}
+        .todo-subtask-delete { color: var(--text-sub); padding: 4px; cursor: pointer; }
+        .todo-add-subtask-btn { font-size: 13px; color: var(--text-sub); font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 4px 0; transition: color 0.2s; }
+        .todo-add-subtask-btn:active { color: var(--text-main); }
+        
+        .todo-sheet-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(2px); z-index: 4000; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
+        .todo-sheet-overlay.active { opacity: 1; visibility: visible; }
+        .todo-bottom-sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card-bg); border-radius: 20px 20px 0 0; padding: 24px 20px 80px; height: 65vh; z-index: 4001; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), height 0.35s cubic-bezier(0.25, 1, 0.5, 1); box-shadow: 0 -4px 20px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 16px; overflow-y: auto; -webkit-overflow-scrolling: touch;}
+        .todo-bottom-sheet.active { transform: translateY(0); }
+        /* 扩大了触控面积的小把手，视觉不变，但极其容易按到，随便一划就能跟手 */
+        .todo-sheet-handle { width: 120px; height: 32px; margin: -12px auto -4px; position: relative; display: flex; justify-content: center; align-items: center; }
+        .todo-sheet-handle::after { content: ''; width: 36px; height: 5px; background: var(--border); border-radius: 3px; }
+        .todo-input-large { width: 100%; border: none; background: transparent; font-size: 18px; font-weight: 500; color: var(--text-main); outline: none; resize: none; min-height: 44px; }
         .todo-input-large::placeholder { color: var(--text-sub); }
-        
-        /* 工具栏 (AI、DDL) */
-        .todo-tools-row {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-        .todo-tool-btn {
-            background: var(--bg-color);
-            border: none;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-main);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-        }
+        .todo-tools-row { display: flex; gap: 12px; align-items: center; }
+        .todo-tool-btn { background: var(--bg-color); border: none; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 6px; cursor: pointer; }
         .todo-tool-btn.highlight { color: var(--accent); background: rgba(10, 132, 255, 0.1); }
-        
-        /* 动态标签区 (重构选择逻辑与防放大输入框) */
-        .todo-dynamic-tags {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        /* 标签药丸 */
-        .todo-tag-pill {
-            background: var(--bg-color);
-            color: var(--text-sub);
-            padding: 6px 12px;
-            border-radius: 100px;
-            font-size: 13px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid transparent;
-        }
-        /* 选中时的状态 */
-        .todo-tag-pill.selected {
-            background: rgba(10, 132, 255, 0.1); 
-            color: var(--accent);
-            border-color: rgba(10, 132, 255, 0.3);
-        }
-        /* 删除小叉叉 */
-        .todo-tag-delete {
-            opacity: 0.4;
-            font-size: 12px;
-            padding: 2px;
-            transition: opacity 0.2s;
-        }
-        .todo-tag-delete:hover { opacity: 1; color: #ff3b30; }
-        
-        /* 极其优雅的行内无缝输入框 (彻底告别 prompt 弹窗) */
-        .todo-tag-input-wrapper {
-            display: flex;
-            align-items: center;
-            background: var(--bg-color);
-            border-radius: 100px;
-            padding: 4px 12px;
-            gap: 6px;
-        }
-        .todo-tag-input {
-            border: none;
-            background: transparent;
-            font-size: 16px; /* ✨ 核心防线：设定为 16px，绝对防止 iOS 自动放大屏幕！ */
-            color: var(--text-main);
-            width: 70px;
-            outline: none;
-        }
+        .todo-dynamic-tags { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .todo-tag-pill { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; background: var(--bg-color); color: var(--text-sub); padding: 6px 12px; border-radius: 100px; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: background-color 0.2s, color 0.2s, border-color 0.2s, opacity 0.2s; border: 1px solid transparent; }
+        .todo-tag-pill.selected { background: rgba(10, 132, 255, 0.1); color: var(--accent); border-color: rgba(10, 132, 255, 0.3); }
+        .todo-tag-delete { opacity: 0.4; font-size: 12px; padding: 2px; transition: opacity 0.2s; }
+        .todo-tag-delete:active { opacity: 1; color: var(--text-sub); }
+        .todo-tag-input-wrapper { display: flex; align-items: center; background: var(--bg-color); border-radius: 100px; padding: 4px 12px; gap: 6px; }
+        .todo-tag-input { border: none; background: transparent; font-size: 13px; color: var(--text-main); width: 70px; outline: none; }
         .todo-tag-input::placeholder { color: var(--text-sub); font-size: 13px; }
-        .todo-editable-tag {
-            background: var(--bg-color);
-            color: var(--text-sub);
-            padding: 4px 10px;
-            border-radius: 100px; /* 圆润的标签 */
-            font-size: 12px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .todo-editable-tag i { cursor: pointer; opacity: 0.6; }
-        .todo-editable-tag i:active { opacity: 1; }
-        
-        /* 底部大按钮 */
-        .todo-submit-btn {
-            background: var(--text-main); /* 用主字色做底色，极简纯黑/纯白 */
-            color: var(--card-bg); /* 字色反转 */
-            border: none;
-            border-radius: 12px;
-            padding: 14px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 8px;
-        }
+        .todo-submit-btn { background: var(--text-main); color: var(--card-bg); border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; }
         .todo-submit-btn:active { transform: scale(0.98); }
+        .todo-checkbox-hitbox { position: relative; padding: 12px; margin: -12px 0 -12px -12px; z-index: 2; }
+        /* ✨ 修复：间距缩紧，母圆圈缩小为精致的 20px */
+        .todo-header { display: flex; gap: 0px; align-items: flex-start; }
+        .todo-checkbox { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--text-sub); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: transparent; cursor: pointer; transition: all 0.2s; margin-top: 1px; }
+        .todo-checkbox.checked { background: var(--text-main); border-color: var(--text-main); color: var(--card-bg); }
+        .todo-title { font-size: 16px; color: var(--text-main); font-weight: 500; line-height: 1.3; margin-bottom: 0; }
+        .todo-tags { margin-left: 0px; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+        .todo-tag { font-size: 11px; padding: 4px 8px; background: rgba(120, 120, 128, 0.12); color: var(--text-sub); border-radius: 6px; font-weight: 500; }
+        .todo-tag.highlight { color: var(--text-main); background: var(--border); }
+        /* 拖走后留在原地的透明影子 */
+        .todo-tag-ghost { opacity: 0; } 
+        /* 拿在手上的标签变成深色胶囊并放大，极其有质感 */
+        .todo-tag-chosen { transform: scale(1.05); background-color: var(--text-main) !important; color: var(--card-bg) !important; border-radius: 100px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: none !important; }
     </style>
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 <body>
     <div id="backfill-progress-bar"></div>
@@ -13709,11 +13481,11 @@ ${chatContent}
         });
 
         // ==========================================
-        // 🌟 任务站：全套核心引擎 (完整修复版)
+        // 🌟 任务站：全套核心引擎 (终极防误触版)
         // ==========================================
 
-        // --- 1. 滑动与页面切换引擎 ---
-        let todoCurrentIndex = 0;
+        let todoCurrentIndex = 1; 
+        let activeFilterTag = null; 
 
         function switchTodoTab(index) {
             todoCurrentIndex = index;
@@ -13722,7 +13494,6 @@ ${chatContent}
                 if (i === index) tab.classList.add('active');
                 else tab.classList.remove('active');
             });
-
             const track = document.getElementById('todo-main-track');
             if (track) {
                 track.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
@@ -13730,122 +13501,220 @@ ${chatContent}
             }
         }
 
-        let todoStartX = 0;
-        let todoCurrentX = 0;
-        let isTodoDragging = false;
-
+        let todoStartX = 0, todoStartY = 0, todoCurrentX = 0, isTodoDragging = false;
         document.addEventListener('DOMContentLoaded', () => {
+            switchTodoTab(1); 
+            
             const todoTrack = document.getElementById('todo-main-track');
             if (!todoTrack) return;
-
-            todoTrack.addEventListener('touchstart', (e) => {
-                todoStartX = e.touches[0].clientX;
-                isTodoDragging = true;
-                todoTrack.style.transition = 'none'; 
-            }, { passive: true });
-
+            todoTrack.addEventListener('touchstart', (e) => { 
+            todoStartX = e.touches[0].clientX; 
+            todoCurrentX = todoStartX; // ✨ 核心修复：每次碰到屏幕，立刻把记忆清零，绝不误判上一次的位置！
+            todoStartY = e.touches[0].clientY; 
+            isTodoDragging = true; 
+            todoTrack.style.transition = 'none'; 
+        }, { passive: true });
+            
             todoTrack.addEventListener('touchmove', (e) => {
                 if (!isTodoDragging) return;
                 todoCurrentX = e.touches[0].clientX;
+                const currentY = e.touches[0].clientY;
                 const deltaX = todoCurrentX - todoStartX;
-                const screenWidth = todoTrack.parentElement.clientWidth;
-                const percentMove = (deltaX / screenWidth) * 33.3333;
-                const baseTranslate = -todoCurrentIndex * 33.3333;
-                todoTrack.style.transform = `translateX(${baseTranslate + percentMove}%)`;
-            }, { passive: true });
+                const deltaY = currentY - todoStartY;
+                
+                // ✨ 终极防线：只要检测到手指是在“上下移动”而不是“左右移动”，立刻没收左右滑动权！绝对不再误判！
+                if (Math.abs(deltaY) > Math.abs(deltaX)) {
+                    isTodoDragging = false;
+                    return;
+                }
 
+                if (Math.abs(deltaX) > 10) {
+                    const percentMove = (deltaX / todoTrack.parentElement.clientWidth) * 33.3333;
+                    todoTrack.style.transform = `translateX(${-todoCurrentIndex * 33.3333 + percentMove}%)`;
+                }
+            }, { passive: true });
+            
             todoTrack.addEventListener('touchend', (e) => {
                 if (!isTodoDragging) return;
                 isTodoDragging = false;
-                
                 const deltaX = todoCurrentX - todoStartX;
-                const threshold = 50; 
                 
-                if (deltaX < -threshold && todoCurrentIndex < 2) {
-                    todoCurrentIndex++;
-                } else if (deltaX > threshold && todoCurrentIndex > 0) {
-                    todoCurrentIndex--;
+                if (Math.abs(deltaX) < 10) {
+                    todoTrack.style.transform = `translateX(${-todoCurrentIndex * 33.3333}%)`;
+                    return;
                 }
+
+                if (deltaX < -50 && todoCurrentIndex < 2) todoCurrentIndex++;
+                else if (deltaX > 50 && todoCurrentIndex > 0) todoCurrentIndex--;
                 switchTodoTab(todoCurrentIndex);
             });
         });
 
-        // --- 2. 数据库与标签系统 ---
-        // 你的核心数据库，刚才被误删了，现在给它请回来！
         let todoList = JSON.parse(localStorage.getItem('LINKGO_TODO_DATA')) || [];
-
-        function saveTodoData() {
-            localStorage.setItem('LINKGO_TODO_DATA', JSON.stringify(todoList));
-        }
+        function saveTodoData() { localStorage.setItem('LINKGO_TODO_DATA', JSON.stringify(todoList)); }
 
         let todoTagPool = ['日常', '论文', '游戏'];
         let todoSelectedTags = new Set(); 
 
+        // ✨ 过滤器菜单系统
+        function openTodoFilterSheet() {
+            let html = `<div onclick="setTodoFilter(null)" style="padding: 16px; text-align: center; font-size: 17px; color: ${activeFilterTag === null ? 'var(--accent)' : 'var(--text-main)'}; font-weight: ${activeFilterTag === null ? '600' : '500'}; border-bottom: 0.5px solid var(--border); cursor: pointer;">全部任务</div>`;
+            todoTagPool.forEach(tag => {
+                const isAct = activeFilterTag === tag;
+                html += `<div onclick="setTodoFilter('${tag}')" style="padding: 16px; text-align: center; font-size: 17px; color: ${isAct ? 'var(--accent)' : 'var(--text-main)'}; font-weight: ${isAct ? '600' : '500'}; border-bottom: 0.5px solid var(--border); cursor: pointer;">${tag}</div>`;
+            });
+            document.getElementById('todo-filter-options').innerHTML = html;
+            document.getElementById('todo-filter-overlay').classList.add('active');
+            document.getElementById('todo-filter-sheet').style.transform = 'translateY(0)';
+        }
+        function closeTodoFilterSheet() {
+            document.getElementById('todo-filter-overlay').classList.remove('active');
+            document.getElementById('todo-filter-sheet').style.transform = 'translateY(100%)';
+        }
+        function setTodoFilter(tag) { 
+            activeFilterTag = tag; 
+            closeTodoFilterSheet();
+            renderTodoList();
+            const icon = document.getElementById('todo-filter-icon');
+            if (icon) icon.style.color = tag ? 'var(--accent)' : 'var(--text-main)';
+        }
+
         function renderTodoTags() {
             const container = document.getElementById('todo-tags-container');
-            if (!container) return;
             const inputWrapper = container.querySelector('.todo-tag-input-wrapper');
-            
-            const oldTags = container.querySelectorAll('.todo-tag-pill');
-            oldTags.forEach(tag => tag.remove());
 
+            // 1. 清空旧标签（保留输入框）
+            Array.from(container.children).forEach(child => {
+                if (!child.classList.contains('todo-tag-input-wrapper')) {
+                    child.remove();
+                }
+            });
+
+            // 🌟 全局防误触锁：判断当前到底是在拖拽还是在点击
+            window.isTagDragging = false; 
+
+            // 2. 生成新标签
             todoTagPool.forEach(tag => {
                 const tagEl = document.createElement('div');
                 tagEl.className = `todo-tag-pill ${todoSelectedTags.has(tag) ? 'selected' : ''}`;
+                tagEl.dataset.tag = tag; 
                 
-                const textSpan = document.createElement('span');
-                textSpan.textContent = tag;
-                textSpan.onclick = () => {
-                    if (todoSelectedTags.has(tag)) todoSelectedTags.delete(tag);
-                    else todoSelectedTags.add(tag);
-                    renderTodoTags(); 
-                };
+                // 注意：这里把数据存在了图标上，确保点到图标时能抓到名字
+                tagEl.innerHTML = `
+                    <i class="fa-solid fa-xmark todo-tag-delete" data-tag="${tag}"></i>
+                    <span>${tag}</span>
+                `;
                 
-                const delIcon = document.createElement('i');
-                delIcon.className = 'fa-solid fa-xmark todo-tag-delete';
-                delIcon.onclick = (e) => {
-                    e.stopPropagation(); 
-                    todoTagPool = todoTagPool.filter(t => t !== tag); 
-                    todoSelectedTags.delete(tag); 
-                    renderTodoTags();
+                // 🎯 极简原生点击：配合 Sortable 的 delay 属性完美工作
+                tagEl.onclick = (e) => {
+                    // 如果正在拖拽，就无视点击
+                    if (window.isTagDragging) return; 
+                    
+                    // 哪怕点在 FontAwesome 生成的 SVG 内部线条上，也能精准识别
+                    const deleteBtn = e.target.closest('.todo-tag-delete');
+                    if (deleteBtn) {
+                        deleteTodoTag(deleteBtn.dataset.tag);
+                    } else {
+                        toggleTodoTag(tag);
+                    }
                 };
-
-                tagEl.appendChild(delIcon); // ✨ 修复：叉叉在左侧，防误触！
-                tagEl.appendChild(textSpan);
                 
                 container.insertBefore(tagEl, inputWrapper);
             });
+
+            // 🚀 3. 接入 SortableJS (化繁为简版)
+            if (window.todoTagSortable) window.todoTagSortable.destroy(); 
+            window.todoTagSortable = new Sortable(container, {
+                animation: 350,           
+                easing: "cubic-bezier(0.25, 1, 0.5, 1)", 
+                delay: 200,               
+                fallbackTolerance: 5,
+                
+                filter: '.todo-tag-input-wrapper', 
+                preventOnFilter: false, 
+
+                direction: 'horizontal', 
+                swapThreshold: 1,        
+                invertSwap: true,        
+
+                forceFallback: true,
+                fallbackClass: "todo-tag-chosen",
+                ghostClass: 'todo-tag-ghost',      
+                chosenClass: 'todo-tag-chosen',    
+                
+                onStart: function () {
+                    // 抓起标签时，立刻锁死点击事件
+                    window.isTagDragging = true; 
+                },
+                onEnd: function () {
+                    // 松手后延迟 50 毫秒再解锁，完美防止拖拽结束瞬间触发点击！
+                    setTimeout(() => { window.isTagDragging = false; }, 50);
+                    
+                    // 保存新顺序
+                    const newPool = [];
+                    container.querySelectorAll('.todo-tag-pill').forEach(el => {
+                        if (el.dataset.tag) newPool.push(el.dataset.tag);
+                    });
+                    todoTagPool = newPool;
+                }
+            });
         }
 
-        function handleNewTagKeyPress(e) {
-            if ((e.key === 'Enter' || e.keyCode === 13) && !e.isComposing) {
-                e.preventDefault();
-                const input = document.getElementById('todo-new-tag-input');
-                const newTag = input.value.trim();
-                
-                if (newTag && !todoTagPool.includes(newTag)) {
-                    todoTagPool.push(newTag); 
-                    todoSelectedTags.add(newTag); 
-                    input.value = ''; 
-                    renderTodoTags(); 
-                }
+        // --- 修复 1：删除标签逻辑 ---
+        function deleteTodoTag(tag) {
+            // 从标签池中过滤掉该标签
+            todoTagPool = todoTagPool.filter(t => t !== tag);
+            // 如果它目前是选中状态，也要从选中集合中移除
+            todoSelectedTags.delete(tag);
+            // 重新渲染视图
+            renderTodoTags();
+        }
+
+        // --- 修复 2：选中和取消选中逻辑 ---
+        function toggleTodoTag(tag) {
+            // 如果已经被选中，则取消选中；否则添加选中
+            if (todoSelectedTags.has(tag)) {
+                todoSelectedTags.delete(tag);
+            } else {
+                todoSelectedTags.add(tag);
+            }
+            // 重新渲染视图
+            renderTodoTags();
+        }
+
+        function processNewTag(newTag) {
+            if (newTag && !todoTagPool.includes(newTag)) {
+                todoTagPool.push(newTag); todoSelectedTags.add(newTag); 
+                document.getElementById('todo-new-tag-input').value = ''; 
+                renderTodoTags(); 
             }
         }
+        function handleNewTagKeyPress(e) { if ((e.key === 'Enter' || e.keyCode === 13) && !e.isComposing) { e.preventDefault(); processNewTag(e.target.value.trim()); } }
+        function handleNewTagBlur() { processNewTag(document.getElementById('todo-new-tag-input').value.trim()); }
 
-        // --- 3. 面板呼出与日期时间 ---
         function openTodoSheet() {
-            todoSelectedTags.clear();
-            renderTodoTags(); 
-            
+            todoSelectedTags.clear(); renderTodoTags(); 
             delete document.getElementById('todo-bottom-sheet').dataset.editingId;
-            document.getElementById('todo-input-title').value = '';
-            document.getElementById('todo-date-picker').value = '';
-            document.getElementById('todo-time-picker').value = '';
+            const titleInput = document.getElementById('todo-input-title');
+            titleInput.value = ''; titleInput.style.height = 'auto'; 
+            // 如果在“今天”Tab（索引为1），自动填入今天日期，否则留空
+            if (todoCurrentIndex === 1) {
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                document.getElementById('todo-date-picker').value = `${yyyy}-${mm}-${dd}`;
+            } else {
+                document.getElementById('todo-date-picker').value = '';
+            }
+            
+            // 新建任务时，隐藏左上角的删除按钮（设为 hidden 可以占据位置，保持“保存”按钮还在最右边）
+            const topDelete = document.getElementById('todo-sheet-top-delete');
+            if (topDelete) topDelete.style.visibility = 'hidden';
+            document.getElementById('todo-subtasks-container').innerHTML = ''; 
             updateTodoDDL();
-
             document.getElementById('todo-sheet-overlay').classList.add('active');
             document.getElementById('todo-bottom-sheet').classList.add('active');
-            setTimeout(() => document.getElementById('todo-input-title').focus(), 100);
         }
 
         function closeTodoSheet() {
@@ -13853,103 +13722,213 @@ ${chatContent}
             document.getElementById('todo-bottom-sheet').classList.remove('active');
         }
 
+        // ✨ 新增：带有回滚数据的取消操作
+        function cancelTodoSheet() {
+            if (window.originalTagPool) todoTagPool = [...window.originalTagPool];
+            if (window.originalSelectedTags) todoSelectedTags = new Set(window.originalSelectedTags);
+            renderTodoTags();
+            closeTodoSheet();
+        }
+
         function updateTodoDDL() {
-            const dateVal = document.getElementById('todo-date-picker').value;
-            const timeVal = document.getElementById('todo-time-picker').value;
-            
-            const dateText = document.getElementById('todo-ddl-date-text');
-            const timeText = document.getElementById('todo-ddl-time-text');
-            
+            const dateVal = document.getElementById('todo-date-picker').value; const timeVal = document.getElementById('todo-time-picker').value;
+            const dateText = document.getElementById('todo-ddl-date-text'); const timeText = document.getElementById('todo-ddl-time-text');
             if (dateVal) {
-                const [y, m, d] = dateVal.split('-');
-                const today = new Date();
-                const selected = new Date(y, m - 1, d); 
-                
-                const isToday = today.toDateString() === selected.toDateString();
-                const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-                const isTomorrow = tomorrow.toDateString() === selected.toDateString();
-
-                if (isToday) dateText.textContent = "今天";
-                else if (isTomorrow) dateText.textContent = "明天";
-                else dateText.textContent = `${m}月${d}日`;
-                
+                const [y, m, d] = dateVal.split('-'); const today = new Date(); const selected = new Date(y, m - 1, d); 
+                if (today.toDateString() === selected.toDateString()) dateText.textContent = "今天";
+                else { const tom = new Date(today); tom.setDate(tom.getDate() + 1); dateText.textContent = tom.toDateString() === selected.toDateString() ? "明天" : `${m}月${d}日`; }
                 dateText.parentElement.style.color = 'var(--accent)'; 
-            } else {
-                dateText.textContent = "日期";
-                dateText.parentElement.style.color = 'var(--text-main)';
-            }
+            } else { dateText.textContent = "日期"; dateText.parentElement.style.color = 'var(--text-main)'; }
+            if (timeVal) { timeText.textContent = timeVal; timeText.parentElement.style.color = 'var(--accent)'; }
+            else { timeText.textContent = "时间"; timeText.parentElement.style.color = 'var(--text-main)'; }
+        }
 
-            if (timeVal) {
-                timeText.textContent = timeVal;
-                timeText.parentElement.style.color = 'var(--accent)';
-            } else {
-                timeText.textContent = "时间";
-                timeText.parentElement.style.color = 'var(--text-main)';
+        function addTodoSubtaskRow(text = '', completed = false, autoFocus = true) {
+            const container = document.getElementById('todo-subtasks-container');
+            const row = document.createElement('div');
+            row.className = 'todo-subtask-item'; row.dataset.completed = completed;
+            row.innerHTML = `<i class="${completed ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'}" style="color:${completed ? 'var(--accent)' : 'var(--text-sub)'}; font-size:16px; margin-top:2px;" onclick="this.parentElement.dataset.completed = this.parentElement.dataset.completed === 'true' ? 'false' : 'true'; this.className = this.parentElement.dataset.completed === 'true' ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'; this.style.color = this.parentElement.dataset.completed === 'true' ? 'var(--accent)' : 'var(--text-sub)';"></i><input type="text" class="todo-subtask-input" placeholder="子任务内容..." value="${text}"><i class="fa-solid fa-xmark todo-subtask-delete" onclick="this.parentElement.remove()"></i>`;
+            container.appendChild(row);
+            
+           // 获取输入框
+            const input = row.querySelector('.todo-subtask-input');
+            if (input) {
+                // ✨ 新增：监听键盘按下事件
+                input.addEventListener('keydown', (e) => {
+                    // 如果按下的是回车键 (Enter)
+                    if (e.key === 'Enter') {
+                        e.preventDefault(); // 阻止原本的回车换行默认行为
+                        // 自动添加一行新的空子任务，并且允许它自动聚焦（弹出键盘）
+                        addTodoSubtaskRow('', false, true); 
+                    }
+                });
+
+                // 根据开关决定是否自动聚焦
+                if (autoFocus) input.focus();
             }
         }
 
-        // --- 4. 渲染任务与状态打勾 ---
+        function toggleSubTaskStatus(taskId, subIdx) {
+            const task = todoList.find(t => t.id === taskId);
+            if (!task || !task.subTasks) return;
+            task.subTasks[subIdx].completed = !task.subTasks[subIdx].completed;
+            saveTodoData(); renderTodoList();
+        }
+
+        // ✨ 新增：子任务展开/收起开关逻辑 (丝滑动画版)
+        function toggleSubtasks(taskId) {
+            const task = todoList.find(t => t.id === taskId);
+            if (!task) return;
+            task.isExpanded = !task.isExpanded; // 切换状态
+            saveTodoData();
+            
+            // 只做局部 DOM 更新，保留丝滑过渡动画，不触发全局重新渲染
+            const wrapper = document.getElementById(`subtasks-wrapper-${taskId}`);
+            const arrow = document.getElementById(`subtasks-arrow-${taskId}`);
+            if (wrapper) wrapper.classList.toggle('expanded', task.isExpanded);
+            if (arrow) arrow.style.transform = task.isExpanded ? 'rotate(180deg) translateZ(0)' : 'rotate(0deg) translateZ(0)';
+        }
+
         function renderTodoList() {
-            const pages = [
-                document.getElementById('todo-page-0'), 
-                document.getElementById('todo-page-1'), 
-                document.getElementById('todo-page-2')  
-            ];
+            const pages = [document.getElementById('todo-page-0'), document.getElementById('todo-page-1'), document.getElementById('todo-page-2')];
             if (!pages[0]) return;
             pages.forEach(p => p.innerHTML = '');
 
-            todoList.forEach(task => {
+            const filteredTasks = todoList.filter(task => {
+                if (!activeFilterTag) return true;
+                return task.tags && task.tags.includes(activeFilterTag);
+            });
+
+            filteredTasks.forEach(task => {
                 let tagsHtml = task.tags.map(t => `<span class="todo-tag">${t}</span>`).join('');
-                
                 if (task.ddl_date || task.ddl_time) {
                     let ddlDisplay = '';
                     if (task.ddl_date) {
-                        const [y, m, d] = task.ddl_date.split('-');
-                        const today = new Date();
-                        const selected = new Date(y, m - 1, d);
+                        const [y, m, d] = task.ddl_date.split('-'); const today = new Date(); const selected = new Date(y, m - 1, d);
                         if (today.toDateString() === selected.toDateString()) ddlDisplay = "今天";
-                        else {
-                            const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-                            if (tomorrow.toDateString() === selected.toDateString()) ddlDisplay = "明天";
-                            else ddlDisplay = `${m}月${d}日`;
-                        }
+                        else { const tom = new Date(today); tom.setDate(tom.getDate() + 1); ddlDisplay = tom.toDateString() === selected.toDateString() ? "明天" : `${m}月${d}日`; }
                     }
                     if (task.ddl_time) ddlDisplay += (ddlDisplay ? ' ' : '') + task.ddl_time;
-                    
                     tagsHtml += `<span class="todo-tag highlight"><i class="fa-regular fa-calendar"></i> ${ddlDisplay}</span>`;
                 }
 
                 const titleStyle = task.status === 2 ? 'text-decoration: line-through; opacity: 0.5;' : '';
                 const checkClass = task.status === 2 ? 'checked' : '';
 
-                const cardHtml = `
-                    <div class="todo-card" onclick="openTodoAction(${task.id})">
-                        <div class="todo-header">
-                            <div class="todo-checkbox ${checkClass}" onclick="event.stopPropagation(); toggleTodoStatus(${task.id})">
-                                <i class="fa-solid fa-check" style="font-size: 11px;"></i>
-                            </div>
-                            <div style="flex:1;">
-                                <div class="todo-title" style="${titleStyle}">${task.title}</div>
-                                <div class="todo-tags">${tagsHtml}</div>
+                let subtasksHtml = '';
+                let expandBtnHtml = '';
+                
+                if (task.subTasks && task.subTasks.length > 0) {
+                    const completedCount = task.subTasks.filter(st => st.completed).length;
+                    const totalCount = task.subTasks.length;
+
+                    expandBtnHtml = `
+                        <span class="todo-tag" style="cursor: pointer; background: transparent; border: 0.5px solid var(--border); color: var(--text-main);" 
+                            onclick="event.stopPropagation(); toggleSubtasks(${task.id})" 
+                            ontouchstart="event.stopPropagation(); const p = this.closest('.todo-list-item'); if(p) p.style.setProperty('transform', 'none', 'important');" 
+                            ontouchend="event.stopPropagation(); const p = this.closest('.todo-list-item'); if(p) setTimeout(() => p.style.removeProperty('transform'), 150);" 
+                            ontouchcancel="event.stopPropagation(); const p = this.closest('.todo-list-item'); if(p) p.style.removeProperty('transform');" 
+                            onmousedown="event.stopPropagation()" 
+                            onpointerdown="event.stopPropagation()">
+                            <i id="subtasks-arrow-${task.id}" class="fa-solid fa-chevron-down" style="transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); transform-origin: center; backface-visibility: hidden; transform: ${task.isExpanded ? 'rotate(180deg) translateZ(0)' : 'translateZ(0)'};"></i>
+                            ${completedCount}/${totalCount}
+                        </span>
+                    `;
+
+                    // 不管是否展开，始终渲染子任务DOM，但用 class 控制高度隐藏/显示
+                    let subListHtml = task.subTasks.map((st, idx) => `
+                        <div style="display:flex; align-items:flex-start; gap:8px; padding: 4px 0;" onclick="event.stopPropagation(); toggleSubTaskStatus(${task.id}, ${idx})" ontouchstart="event.stopPropagation()">
+                            <i class="${st.completed ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'}" style="color: ${st.completed ? 'var(--accent)' : 'var(--text-sub)'}; font-size:15px; margin-top:2px;"></i>
+                            <span style="flex:1; font-size:14px; color: ${st.completed ? 'var(--text-sub)' : 'var(--text-main)'}; text-decoration: ${st.completed ? 'line-through' : 'none'}; line-height:1.3;">${st.title}</span>
+                        </div>
+                    `).join('');
+
+                    subtasksHtml = `
+                        <div id="subtasks-wrapper-${task.id}" class="subtasks-grid-wrapper ${task.isExpanded ? 'expanded' : ''}">
+                            <div class="subtasks-inner">
+                                <div style="margin-top: ${(tagsHtml || expandBtnHtml) ? '6px' : '2px'}; margin-left: 30px; padding-top: 4px;">
+                                    ${subListHtml}
+                                </div>
                             </div>
                         </div>
+                    `;
+                }
+
+                let targetPage = task.status;
+                if (task.status === 0 && task.ddl_date) {
+                    const [y, m, d] = task.ddl_date.split('-');
+                    if (new Date().toDateString() === new Date(y, m - 1, d).toDateString()) targetPage = 1;
+                }
+
+                const tagsContainerHtml = (tagsHtml || expandBtnHtml) ? `<div class="todo-tags">${tagsHtml}${expandBtnHtml}</div>` : '';
+
+                const cardHtml = `
+                    <div class="todo-list-item" id="todo-item-${task.id}" onclick="activeTodoId = ${task.id}; editCurrentTodo();">
+                        <div class="todo-header">
+                            <div class="todo-checkbox-hitbox" onclick="event.stopPropagation(); toggleTodoStatus(${task.id})" ontouchstart="event.stopPropagation()">
+                                <div class="todo-checkbox ${checkClass}"><i class="fa-solid fa-check" style="font-size: 11px;"></i></div>
+                            </div>
+                            <div style="flex:1; padding-top: 1px;">
+                                <div class="todo-title" style="${titleStyle}">${task.title}</div>
+                                ${tagsContainerHtml}
+                            </div>
+                        </div>
+                        ${subtasksHtml}
                     </div>
                 `;
-                if (pages[task.status]) pages[task.status].insertAdjacentHTML('beforeend', cardHtml);
+                if (pages[targetPage]) pages[targetPage].insertAdjacentHTML('beforeend', cardHtml);
             });
             
-            if (!pages[0].innerHTML) pages[0].innerHTML = '<div style="text-align:center; color:var(--text-sub); margin-top:60px; font-size:13px;">空空如也，点击右上角添加任务吧</div>';
-            if (!pages[1].innerHTML) pages[1].innerHTML = '<div style="text-align:center; color:var(--text-sub); margin-top:60px; font-size:13px;">没有进行中的任务，保持专注</div>';
+            if (!pages[0].innerHTML) pages[0].innerHTML = '<div style="text-align:center; color:var(--text-sub); margin-top:60px; font-size:13px;">没有待办任务，享受休息吧</div>';
+            if (!pages[1].innerHTML) pages[1].innerHTML = '<div style="text-align:center; color:var(--text-sub); margin-top:60px; font-size:13px;">今天很清闲，或者你可以从待办挑几个</div>';
             if (!pages[2].innerHTML) pages[2].innerHTML = '<div style="text-align:center; color:var(--text-sub); margin-top:60px; font-size:13px;">完成的任务会沉淀在这里</div>';
         }
 
         function toggleTodoStatus(id) {
             const task = todoList.find(t => t.id === id);
             if (!task) return;
-            
-            task.status = (task.status + 1) % 3; 
-            saveTodoData();
-            renderTodoList();
+            const listItem = document.getElementById(`todo-item-${id}`);
+            if (listItem) {
+                // 1. 瞬间打勾，同时立即把底部分割线设为透明，彻底消除时间差！
+                const checkbox = listItem.querySelector('.todo-checkbox');
+                if (checkbox) checkbox.classList.toggle('checked');
+                listItem.style.borderColor = 'transparent'; 
+                
+                // ✨ 修复：如果被勾选的是最后一项，立刻让它上一项的底部分割线也变透明，实现横线同时消失
+                if (!listItem.nextElementSibling && listItem.previousElementSibling) {
+                    listItem.previousElementSibling.style.borderColor = 'transparent';
+                }
+
+                // 2. 第一阶段：任务原位渐隐消失 (0.2秒)
+                listItem.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                listItem.style.opacity = '0';
+                listItem.style.transform = 'scale(0.95)';
+                
+                // 3. 第二阶段：等文字消失后，平滑收缩高度，让下方任务补位上滑 (0.25秒)
+                setTimeout(() => {
+                    listItem.style.height = listItem.offsetHeight + 'px'; 
+                    listItem.style.overflow = 'hidden';
+                    listItem.offsetHeight; // 强制重绘
+                    
+                    listItem.style.transition = 'all 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
+                    listItem.style.height = '0px';
+                    listItem.style.paddingTop = '0px';
+                    listItem.style.paddingBottom = '0px';
+                    listItem.style.marginTop = '0px';
+                    listItem.style.marginBottom = '0px';
+                }, 200);
+                
+                // 4. 等动画完全播完，再修改数据重新渲染
+                setTimeout(() => {
+                    task.status = (task.status === 2) ? 0 : 2; 
+                    saveTodoData(); 
+                    renderTodoList();
+                }, 450);
+            } else {
+                task.status = (task.status === 2) ? 0 : 2; 
+                saveTodoData(); 
+                renderTodoList();
+            }
         }
 
         function submitNewTodo() {
@@ -13959,86 +13938,182 @@ ${chatContent}
             const title = titleEl.value.trim();
             if (!title) { alert("任务内容不能为空哦！"); return; }
 
+            const subTasks = Array.from(document.querySelectorAll('.todo-subtask-item')).map(row => {
+                const input = row.querySelector('.todo-subtask-input');
+                return {
+                    title: input.value.trim(), 
+                    completed: row.dataset.completed === 'true'
+                };
+            }).filter(st => st.title !== '');
+
             const editingId = document.getElementById('todo-bottom-sheet').dataset.editingId;
 
             if (editingId) {
                 const task = todoList.find(t => t.id === parseInt(editingId));
                 if (task) {
-                    task.title = title;
-                    task.tags = Array.from(todoSelectedTags);
-                    task.ddl_date = dateEl.value; 
-                    task.ddl_time = timeEl.value; 
+                    task.title = title; task.tags = Array.from(todoSelectedTags);
+                    task.ddl_date = dateEl.value; task.ddl_time = timeEl.value; task.subTasks = subTasks; 
                 }
                 delete document.getElementById('todo-bottom-sheet').dataset.editingId;
             } else {
-                const newTask = {
-                    id: Date.now(), 
-                    title: title,
-                    tags: Array.from(todoSelectedTags), 
-                    ddl_date: dateEl.value,
-                    ddl_time: timeEl.value,
-                    status: 0, progress: 0 
-                };
-                todoList.unshift(newTask); 
+                todoList.unshift({
+                    id: Date.now(), title: title, tags: Array.from(todoSelectedTags), 
+                    ddl_date: dateEl.value, ddl_time: timeEl.value, subTasks: subTasks, status: 0
+                }); 
             }
 
             saveTodoData(); renderTodoList(); 
+            // 强制收起键盘
+            if (document.activeElement) document.activeElement.blur();
             
-            titleEl.value = ''; dateEl.value = ''; timeEl.value = '';
-            updateTodoDDL(); closeTodoSheet();
-            if (!editingId) switchTodoTab(0); 
+            // 稍微等一下键盘滑下去的动画，然后再关闭抽屉，就不会卡住了
+            setTimeout(() => {
+                closeTodoSheet();
+            }, 250);
         }
 
-        // --- 5. 操作菜单 (单击唤出) ---
         let activeTodoId = null;
-
         function openTodoAction(taskId) {
+            // 备份初始状态，用于取消时回滚
+            window.originalTagPool = [...todoTagPool];
+            window.originalSelectedTags = new Set(todoSelectedTags);
             activeTodoId = taskId;
             document.getElementById('todo-action-overlay').classList.add('active');
             document.getElementById('todo-action-sheet').style.transform = 'translateY(0)';
         }
+        function closeTodoAction() { activeTodoId = null; document.getElementById('todo-action-overlay').classList.remove('active'); document.getElementById('todo-action-sheet').style.transform = 'translateY(100%)'; }
 
-        function closeTodoAction() {
-            activeTodoId = null;
-            document.getElementById('todo-action-overlay').classList.remove('active');
-            document.getElementById('todo-action-sheet').style.transform = 'translateY(100%)';
-        }
-
-        function deleteCurrentTodo() {
-            if (!activeTodoId) return;
-            todoList = todoList.filter(t => t.id !== activeTodoId);
-            saveTodoData(); renderTodoList(); closeTodoAction();
-        }
+        function deleteCurrentTodo() { if (!activeTodoId) return; todoList = todoList.filter(t => t.id !== activeTodoId); saveTodoData(); renderTodoList(); closeTodoAction(); }
 
         function editCurrentTodo() {
             if (!activeTodoId) return;
             const task = todoList.find(t => t.id === activeTodoId);
             if (!task) return;
             
-            document.getElementById('todo-input-title').value = task.title;
+            const titleInput = document.getElementById('todo-input-title');
+            titleInput.value = task.title; titleInput.style.height = 'auto'; titleInput.style.height = titleInput.scrollHeight + 'px';
             
-            document.getElementById('todo-date-picker').value = task.ddl_date || '';
-            document.getElementById('todo-time-picker').value = task.ddl_time || '';
+            document.getElementById('todo-date-picker').value = task.ddl_date || ''; document.getElementById('todo-time-picker').value = task.ddl_time || '';
             updateTodoDDL();
 
             todoSelectedTags.clear();
-            task.tags.forEach(tag => {
-                if (!todoTagPool.includes(tag)) todoTagPool.push(tag);
-                todoSelectedTags.add(tag);
-            });
+            task.tags.forEach(tag => { if (!todoTagPool.includes(tag)) todoTagPool.push(tag); todoSelectedTags.add(tag); });
+            // 备份初始状态，用于取消时回滚
+            window.originalTagPool = [...todoTagPool];
+            window.originalSelectedTags = new Set(todoSelectedTags);
             renderTodoTags();
+
+            document.getElementById('todo-subtasks-container').innerHTML = '';
+            if (task.subTasks) task.subTasks.forEach(st => addTodoSubtaskRow(st.title, st.completed, false));
 
             document.getElementById('todo-bottom-sheet').dataset.editingId = task.id;
             
+            // 编辑任务时，显示左上角的删除按钮
+            const topDelete = document.getElementById('todo-sheet-top-delete');
+            if (topDelete) topDelete.style.visibility = 'visible';
+
             closeTodoAction();
-            setTimeout(() => {
-                document.getElementById('todo-sheet-overlay').classList.add('active');
-                document.getElementById('todo-bottom-sheet').classList.add('active');
-            }, 100); 
+            setTimeout(() => { document.getElementById('todo-sheet-overlay').classList.add('active'); document.getElementById('todo-bottom-sheet').classList.add('active'); }, 100); 
         }
 
+        document.addEventListener('DOMContentLoaded', () => { setTimeout(() => { renderTodoList(); }, 200); });
         document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(renderTodoList, 200);
+            const todoSheet = document.getElementById('todo-bottom-sheet');
+            if (!todoSheet) return;
+
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', function() {
+                    if (todoSheet.classList.contains('active')) {
+                        const keyboardHeight = window.innerHeight - window.visualViewport.height;
+                        
+                        if (keyboardHeight > 50) {
+                            // 1. 把底边距设置为键盘高度
+                            todoSheet.style.bottom = `${keyboardHeight}px`;
+                            
+                            // 2. 核心修复：限制抽屉的最大高度，确保它正好填满键盘上方的可视区域
+                            // 减去 15px 是为了给顶部留一点呼吸空间，不至于死死贴住屏幕最上边缘
+                            todoSheet.style.maxHeight = `${window.visualViewport.height - 15}px`; 
+                            
+                            window.scrollTo(0, 0); 
+                        } else {
+                            // 键盘收起，恢复原位
+                            todoSheet.style.bottom = '0px';
+                            // 清除动态设置的最大高度，恢复你原本在 CSS 中写的样式（比如 max-height: 90vh）
+                            todoSheet.style.maxHeight = ''; 
+                        }
+                    }
+                });
+            }
+
+            todoSheet.addEventListener('focusin', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    setTimeout(() => {
+                        e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                }
+            });
+        });
+
+        // ==========================================
+        // 抽屉拖拽拉伸逻辑 (赋予原生 App 质感)
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            const bottomSheet = document.getElementById('todo-bottom-sheet');
+            const dragHandle = document.querySelector('.todo-sheet-handle');
+            if (!bottomSheet || !dragHandle) return;
+
+            let dragStartY = 0;
+            let sheetStartHeight = 0;
+
+            // 1. 手指按住小把手时
+            dragHandle.addEventListener('touchstart', (e) => {
+                dragStartY = e.touches[0].clientY;
+                window.dragStartTime = Date.now(); // ✨ 记录起手时间，用于计算速度
+                sheetStartHeight = bottomSheet.clientHeight;
+                bottomSheet.style.transition = 'none'; 
+            }, { passive: true });
+
+            // 2. 手指向上/下拉动时
+            dragHandle.addEventListener('touchmove', (e) => {
+                const currentY = e.touches[0].clientY;
+                const deltaY = dragStartY - currentY; 
+                let newHeight = sheetStartHeight + deltaY;
+                
+                // ✨ 限制最高只能滑到 Tab 栏下方 (大概距离屏幕顶部 100px)
+                const maxHeight = window.innerHeight - 100;
+                if (newHeight > maxHeight) newHeight = maxHeight;
+                
+                bottomSheet.style.height = newHeight + 'px';
+            }, { passive: true });
+
+            // 3. 手指松开时
+            dragHandle.addEventListener('touchend', (e) => {
+                const springAnim = 'height 0.4s cubic-bezier(0.32, 0.72, 0, 1), transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)';
+                bottomSheet.style.transition = springAnim;
+                
+                const currentY = e.changedTouches ? e.changedTouches[0].clientY : dragStartY;
+                const deltaY = dragStartY - currentY; 
+                
+                // ✨ 核心物理引擎：计算滑动速度 (像素/毫秒)
+                const dragTime = Date.now() - window.dragStartTime;
+                const velocity = deltaY / dragTime; 
+                
+                // 🚀 场景一：猛地向下拉 (速度很快) 或者 慢慢拉到底部 -> 直接取消保存并关闭
+                if (velocity < -0.8 || deltaY < -150) {
+                    cancelTodoSheet();
+                    // 悄悄恢复默认高度，为下次打开做准备
+                    setTimeout(() => { bottomSheet.style.height = '65vh'; }, 300);
+                    return;
+                }
+                
+                // 🚀 场景二：向上拉超过一点点 -> 吸附到最高处遮住所有任务
+                if (deltaY > 20 || bottomSheet.clientHeight > window.innerHeight * 0.75) {
+                    bottomSheet.style.height = 'calc(100vh - 100px)';
+                } else {
+                    // 🚀 场景三：没怎么动或者轻微向下拉 -> 恢复到默认 65vh 高度
+                    bottomSheet.style.height = '65vh'; 
+                }
+            });
         });
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
@@ -14120,13 +14195,15 @@ ${chatContent}
             <i class="fa-solid fa-plus clickable" style="font-size:18px; color:var(--text-main);" onclick="openTodoSheet()"></i>
         </div>
         
-        <div style="padding: 8px 16px 12px; background: var(--bg-color);">
+        <div style="padding: 8px 16px 8px; background: var(--bg-color);">
             <div class="todo-tabs" id="todo-tabs-container">
-                <div class="todo-tab active" onclick="switchTodoTab(0)">待办</div>
-                <div class="todo-tab" onclick="switchTodoTab(1)">进行中</div>
+                <div class="todo-tab" onclick="switchTodoTab(0)">待办</div>
+                <div class="todo-tab active" onclick="switchTodoTab(1)">今天</div>
                 <div class="todo-tab" onclick="switchTodoTab(2)">已完成</div>
             </div>
         </div>
+
+        <div id="todo-filter-bar" class="todo-filter-bar"></div>
 
         <div class="todo-swiper-viewport">
             <div class="todo-swiper-track" id="todo-main-track">
@@ -14135,76 +14212,53 @@ ${chatContent}
                 <div class="todo-page" id="todo-page-2"></div>
             </div>
         </div>
-    </div>   
-    
-    <div id="scene-post-detail" class="sub-page-scene" style="z-index: 3000;">
-    <div class="nav-header" style="background: var(--card-bg); border-bottom: 0.5px solid var(--border);">
-        <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('scene-post-detail')"></i>
-            <span class="nav-title">帖子详情</span>
-            <div style="width:20px;"></div>
-        </div>
-        <div style="overflow-y:auto; flex:1; background: var(--bg-color);">
-            <div id="detail-post-container" style="background: var(--card-bg); padding: 16px 20px;"></div>
-            
-            <div class="comment-section">
-                <div class="comment-header">全部评论 (随机生成)</div>
-                <div id="detail-comments-list">
-                    </div>
-            </div>
-        </div>
     </div>
+
     <div id="todo-action-overlay" class="todo-sheet-overlay" style="z-index: 4002;" onclick="closeTodoAction()"></div>
     <div id="todo-action-sheet" style="position: fixed; left: 0; right: 0; bottom: 0; z-index: 4003; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1); padding-bottom: calc(env(safe-area-inset-bottom) + 16px);">
         <div style="margin: 0 16px; display: flex; flex-direction: column; gap: 8px;">
             <div style="background: var(--card-bg); border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
-                <div style="padding: 12px; text-align: center; font-size: 13px; color: var(--text-sub); border-bottom: 0.5px solid var(--border);">
-                    请选择操作
-                </div>
-                <div onclick="editCurrentTodo()" style="padding: 16px; text-align: center; font-size: 17px; color: var(--accent); font-weight: 500; border-bottom: 0.5px solid var(--border); background: var(--card-bg); cursor: pointer;">
-                    编辑任务
-                </div>
-                <div onclick="deleteCurrentTodo()" style="padding: 16px; text-align: center; font-size: 17px; color: #FF3B30; font-weight: 500; background: var(--card-bg); cursor: pointer;">
-                    删除任务
-                </div>
+                <div onclick="editCurrentTodo()" style="padding: 16px; text-align: center; font-size: 17px; color: var(--accent); font-weight: 500; border-bottom: 0.5px solid var(--border); cursor: pointer;">编辑任务</div>
+                <div onclick="deleteCurrentTodo()" style="padding: 16px; text-align: center; font-size: 17px; color: #FF3B30; font-weight: 500; cursor: pointer;">删除任务</div>
             </div>
-            <div onclick="closeTodoAction()" style="background: var(--card-bg); border-radius: 14px; padding: 16px; text-align: center; font-size: 17px; color: var(--text-main); font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
-                取消
-            </div>
+            <div onclick="closeTodoAction()" style="background: var(--card-bg); border-radius: 14px; padding: 16px; text-align: center; font-size: 17px; color: var(--text-main); font-weight: 600; cursor: pointer;">取消</div>
         </div>
     </div>
-    <div id="todo-sheet-overlay" class="todo-sheet-overlay" onclick="closeTodoSheet()"></div>
-    
-    <div id="todo-bottom-sheet" class="todo-bottom-sheet">
+
+    <div id="todo-sheet-overlay" class="todo-sheet-overlay" onclick="cancelTodoSheet()"></div>
+    <div id="todo-bottom-sheet" class="todo-bottom-sheet" style="padding: 16px 20px 80px; gap: 8px;">
         <div class="todo-sheet-handle"></div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 4px;">
+    <div id="todo-sheet-top-delete" onclick="if(document.getElementById('todo-bottom-sheet').dataset.editingId){ activeTodoId = parseInt(document.getElementById('todo-bottom-sheet').dataset.editingId); deleteCurrentTodo(); } else { cancelTodoSheet(); }" style="color: var(--text-sub); font-size: 16px; cursor: pointer; padding: 8px 0; font-weight: 400; transition: opacity 0.2s;">删除</div>
+    
+    <button onclick="submitNewTodo()" style="background: none; border: none; padding: 8px 0; color: var(--text-sub); font-size: 16px; font-weight: 500; cursor: pointer; display: flex; align-items: center; transition: opacity 0.2s;">
+                保存
+            </button>
+</div>
         
-        <textarea id="todo-input-title" class="todo-input-large" placeholder="准备做什么？（输入大任务可呼唤 AI 拆解）" rows="2"></textarea>
+        <textarea id="todo-input-title" class="todo-input-large" placeholder="准备做什么？" rows="1" style="min-height:24px; max-height:100px; padding:0; overflow-y:auto;" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px';"></textarea>
         
-        <div class="todo-tools-row">
+        <div id="todo-subtasks-container" style="display: flex; flex-direction: column;"></div>
+        <div class="todo-add-subtask-btn" onclick="addTodoSubtaskRow()"><i class="fa-solid fa-plus" style="font-size:10px;"></i> 添加子任务</div>
+        
+        <div class="todo-tools-row" style="margin-top: 8px;">
             <label class="todo-tool-btn" style="position: relative; overflow: hidden; padding: 6px 10px;">
-                <i class="fa-regular fa-calendar"></i>
-                <span id="todo-ddl-date-text">日期</span>
+                <i class="fa-regular fa-calendar"></i> <span id="todo-ddl-date-text">日期</span>
                 <input type="date" id="todo-date-picker" style="position: absolute; opacity: 0; left: 0; top: 0; width: 100%; height: 100%; cursor: pointer;" onchange="updateTodoDDL()">
             </label>
-
             <label class="todo-tool-btn" style="position: relative; overflow: hidden; padding: 6px 10px;">
-                <i class="fa-regular fa-clock"></i>
-                <span id="todo-ddl-time-text">时间</span>
+                <i class="fa-regular fa-clock"></i> <span id="todo-ddl-time-text">时间</span>
                 <input type="time" id="todo-time-picker" style="position: absolute; opacity: 0; left: 0; top: 0; width: 100%; height: 100%; cursor: pointer;" onchange="updateTodoDDL()">
             </label>
-            
-            <button class="todo-tool-btn highlight" style="margin-left: auto;">
-                <i class="fa-solid fa-bolt"></i> 智能拆解
-            </button>
         </div>
 
-        <div class="todo-dynamic-tags" id="todo-tags-container">
+        <div class="todo-dynamic-tags" id="todo-tags-container" style="margin-top: 4px;">
             <div class="todo-tag-input-wrapper">
                 <i class="fa-solid fa-plus" style="color: var(--text-sub); font-size: 12px;"></i>
-                <input type="text" id="todo-new-tag-input" class="todo-tag-input" placeholder="新标签" onkeypress="handleNewTagKeyPress(event)">
+                <input type="text" id="todo-new-tag-input" class="todo-tag-input" placeholder="新标签" onkeydown="handleNewTagKeyPress(event)" onblur="handleNewTagBlur()">
             </div>
         </div>
-
-        <button class="todo-submit-btn" onclick="submitNewTodo()">创建任务</button>
     </div>
 </body>
 </html>
