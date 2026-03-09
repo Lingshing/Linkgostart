@@ -1,5 +1,5 @@
 {
-  "name": "Linkgo测试版",
+  "name": "Linkgo",
   "short_name": "Linkgo",
   "description": "LINK AND GO",
   "start_url": "./app.html",
@@ -15,4 +15,5 @@
     }
   ]
 }
+
 
