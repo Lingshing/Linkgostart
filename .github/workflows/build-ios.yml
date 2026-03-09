@@ -46,13 +46,13 @@ jobs:
     - name: 编译无签名 iOS App
       run: |
         cd ios/App
-        # ✨ 终极手段 1：强制将编译产生的所有文件锁死在名为 derived_data 的本地文件夹内
+        # 强制指定在 derived_data 文件夹生成
         xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -derivedDataPath derived_data CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
 
     - name: 打包为 IPA 文件
       run: |
         mkdir -p Payload
-        # ✨ 终极手段 2：启动地毯式搜索，把那个隐藏的 App.app 揪出来！
+        # 启动地毯式搜索，把 App.app 揪出来！
         APP_PATH=$(find ios/App/derived_data -name "App.app" -type d | head -n 1)
         echo "成功揪出目标文件，位置在: $APP_PATH"
         mv "$APP_PATH" Payload/
