@@ -42,6 +42,11 @@ jobs:
       run: |
         npx cap add ios
         npx cap sync ios
+        # ✨ 终极代码：在苹果配置表里注册 linkgo:// 专属唤醒协议！
+        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" ios/App/App/Info.plist
+        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" ios/App/App/Info.plist
+        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" ios/App/App/Info.plist
+        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string linkgo" ios/App/App/Info.plist
 
     - name: 编译无签名 iOS App
       run: |
