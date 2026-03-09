@@ -46,14 +46,16 @@ jobs:
     - name: 编译无签名 iOS App
       run: |
         cd ios/App
-        # ✨ 核心修复：加上 CONFIGURATION_BUILD_DIR=$PWD/build/Release-iphoneos，强制指定输出路径，不许乱跑！
-        xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO CONFIGURATION_BUILD_DIR=$PWD/build/Release-iphoneos build
+        # ✨ 终极手段 1：强制将编译产生的所有文件锁死在名为 derived_data 的本地文件夹内
+        xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -derivedDataPath derived_data CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
 
     - name: 打包为 IPA 文件
       run: |
         mkdir -p Payload
-        # 现在一定能在这个路径下找到 App.app 了
-        mv ios/App/build/Release-iphoneos/App.app Payload/
+        # ✨ 终极手段 2：启动地毯式搜索，把那个隐藏的 App.app 揪出来！
+        APP_PATH=$(find ios/App/derived_data -name "App.app" -type d | head -n 1)
+        echo "成功揪出目标文件，位置在: $APP_PATH"
+        mv "$APP_PATH" Payload/
         zip -r Linkgo.ipa Payload
 
     - name: 上传 IPA 供下载
