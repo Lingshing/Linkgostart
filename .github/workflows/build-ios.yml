@@ -19,7 +19,6 @@ jobs:
     - name: 安装 Capacitor 环境并创建占位目录
       run: |
         npm init -y
-        # ✨ 核心修复：强制锁定极其稳定的 Capacitor V6 版本，拒绝最新版带来的系统冲突！
         npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6
         mkdir www
         echo "Linkgo" > www/index.html
@@ -47,11 +46,13 @@ jobs:
     - name: 编译无签名 iOS App
       run: |
         cd ios/App
-        xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
+        # ✨ 核心修复：加上 CONFIGURATION_BUILD_DIR=$PWD/build/Release-iphoneos，强制指定输出路径，不许乱跑！
+        xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO CONFIGURATION_BUILD_DIR=$PWD/build/Release-iphoneos build
 
     - name: 打包为 IPA 文件
       run: |
         mkdir -p Payload
+        # 现在一定能在这个路径下找到 App.app 了
         mv ios/App/build/Release-iphoneos/App.app Payload/
         zip -r Linkgo.ipa Payload
 
