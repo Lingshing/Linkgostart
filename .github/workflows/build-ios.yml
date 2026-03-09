@@ -1,0 +1,60 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch: # 设置为手动触发，避免你每次修改网页代码都触发无意义的打包
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+    - name: 获取代码
+      uses: actions/checkout@v4
+
+    - name: 安装 Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: 安装 Capacitor 环境
+      run: |
+        npm init -y
+        npm install @capacitor/core @capacitor/cli @capacitor/ios
+
+    - name: 初始化并配置热更新
+      run: |
+        npx cap init Linkgo com.lingshing.linkgo --web-dir .
+        # 将你的在线网页地址配置为原生 App 的启动首页
+        cat <<EOF > capacitor.config.json
+        {
+          "appId": "com.lingshing.linkgo",
+          "appName": "Linkgo",
+          "webDir": ".",
+          "server": {
+            "url": "https://lingshing.github.io/Linkgostart/app.html",
+            "cleartext": true
+          }
+        }
+        EOF
+
+    - name: 生成 iOS 工程
+      run: |
+        npx cap add ios
+        npx cap sync ios
+
+    - name: 编译无签名 iOS App
+      run: |
+        cd ios/App
+        xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
+
+    - name: 打包为 IPA 文件
+      run: |
+        mkdir -p Payload
+        mv ios/App/build/Release-iphoneos/App.app Payload/
+        zip -r Linkgo.ipa Payload
+
+    - name: 上传 IPA 供下载
+      uses: actions/upload-artifact@v4
+      with:
+        name: Linkgo-IPA
+        path: Linkgo.ipa
