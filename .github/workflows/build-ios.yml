@@ -1,7 +1,7 @@
 name: Build iOS IPA
 
 on:
-  workflow_dispatch: # 设置为手动触发，避免你每次修改网页代码都触发无意义的打包
+  workflow_dispatch: 
 
 jobs:
   build-ios:
@@ -16,20 +16,23 @@ jobs:
       with:
         node-version: '20'
 
-    - name: 安装 Capacitor 环境
+    - name: 安装 Capacitor 环境并创建占位目录
       run: |
         npm init -y
         npm install @capacitor/core @capacitor/cli @capacitor/ios
+        # ✨ 修复点：建一个空的 www 文件夹，随便放个假文件糊弄 Capacitor
+        mkdir www
+        echo "Linkgo" > www/index.html
 
     - name: 初始化并配置热更新
       run: |
-        npx cap init Linkgo com.lingshing.linkgo --web-dir .
-        # 将你的在线网页地址配置为原生 App 的启动首页
+        # ✨ 修复点：让 Capacitor 只去读那个空的 www 文件夹，不再俄罗斯套娃
+        npx cap init Linkgo com.lingshing.linkgo --web-dir www
         cat <<EOF > capacitor.config.json
         {
           "appId": "com.lingshing.linkgo",
           "appName": "Linkgo",
-          "webDir": ".",
+          "webDir": "www",
           "server": {
             "url": "https://lingshing.github.io/Linkgostart/app.html",
             "cleartext": true
