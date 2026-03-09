@@ -3831,10 +3831,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${config.key}`, // 这里你原本有的是加号拼接，有的是${}，都可以保留你原来的写法
-                        'X-Target-API': apiUrl,
-                        // ✨ 加上这两行秘密开关
-                        'X-Bark-Key': 'JanxutGCNrZgNBjEsuaeen',
-                        'X-Background-Mode': 'true' 
+                        'X-Target-API': apiUrl
                     },
                     body: JSON.stringify({
                         model: config.model || 'gpt-3.5-turbo',
@@ -3882,17 +3879,10 @@
                     }
                     
                     const finalFullMessage = backgroundAIReply.fullMessage;
+                    backgroundAIReply.inProgress = false;
+                    backgroundAIReply.contactId = null;
                     if (finalFullMessage) {
-                        backgroundAIReply.inProgress = false;
-                        backgroundAIReply.contactId = null;
                         handleFinalAIResponse(currentChatContactId, finalFullMessage);
-                    } else {
-                        // ✨ 核心修复2：重新生成时转入后台，同样保留“呼吸动画”并开启轮询
-                        if (!window.activeSyncInterval) {
-                            window.activeSyncInterval = setInterval(() => {
-                                if (typeof syncCloudMessages === 'function') syncCloudMessages();
-                            }, 2000);
-                        }
                     }
                     if (onComplete) onComplete(finalFullMessage);
                     
@@ -3929,6 +3919,10 @@
                 if (onError) onError(error);
             } finally {
                 isTyping = false;
+                // 🔇 关掉续命音频
+                if (window.chatWakeAudio) {
+                    window.chatWakeAudio.pause();
+                }
             }
         }
 
@@ -4717,40 +4711,22 @@
             }
         }
         
-        // 实际发送通知的函数（本地高精度版）
+        // 实际发送通知的函数（本地高精度版 - 完美适配 Bark）
         async function sendPushNotification(messageText) {
-            // 🎯 核心要求 1：打断逻辑
-            // 如果用户当前回到了网页里（页面可见），立刻停止执行！
-            // 效果：如果在 b 气泡显示前你回到了网页，这里直接 return，b 气泡就不会推送通知。
+            // 🎯 最核心逻辑：如果你当前在网页里（前台），立刻停止执行！绝对不弹 Bark！
             if (document.visibilityState === 'visible') return; 
             
             if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') return;
             
-            // 🎯 直接读取你通用设置里的真实开关状态，绝对不会断联！
-            if (!GENERAL_CONFIG.notification.pushEnabled) return; 
-            
-            // 🎯 检查“显示内容”开关
-            const isShowContent = GENERAL_CONFIG.notification.showContent;
-            const finalContent = isShowContent ? messageText.substring(0, 100) : "收到一条新消息";
-            
             try {
-                if (!('serviceWorker' in navigator)) return;
-                const registration = await navigator.serviceWorker.ready;
+                // 悄悄由前端自己调用 Bark API，只有在后台时才会触发！
+                const barkKey = 'JanxutGCNrZgNBjEsuaeen';
+                const title = encodeURIComponent('Linkgo');
+                const body = encodeURIComponent(messageText.substring(0, 100));
                 
-                // 这样 100% 保证能把气泡内容打印在通知栏上，告别“一条通知”
-                if (Notification.permission === 'granted') {
-                    await registration.showNotification('Linkgo', {
-                        body: finalContent,
-                        icon: 'https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg',
-                        vibrate: [200, 100, 200],
-                        // 🌟 核心魔法：使用固定的标签名！
-                        // 这样当气泡 b 出来时，系统会瞬间用 b 替换掉屏幕上的 a，绝不排队滞后！
-                        tag: 'linkgo-active-reply', 
-                        renotify: true // 替换时也轻轻震动一下提示有新内容
-                    });
-                }
+                fetch(`https://api.day.app/${barkKey}/${title}/${body}?group=Linkgo&icon=https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg`).catch(e => e);
             } catch (error) {
-                console.error("本地推送失败:", error);
+                console.log('Bark 通知发送失败:', error);
             }
         }
         
@@ -8326,6 +8302,17 @@ ${chatContent}
             
             scrollToBottom();
             
+            // ✨ PWA 续命防杀机制！发消息时播放静音，让 iOS 切后台不断网，正常接收流！
+            const isPWA = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+            if (isPWA) {
+                if (!window.chatWakeAudio) {
+                    window.chatWakeAudio = new Audio('https://raw.githubusercontent.com/anars/blank-audio/master/10-seconds-of-silence.mp3');
+                    window.chatWakeAudio.loop = true;
+                }
+                window.chatWakeAudio.play().catch(e => console.log('唤醒音频播放失败', e));
+            }
+
+
             // --- 修复1：引入 AbortController 防止并发 429 报错 ---
             if (window.currentChatController) {
                 window.currentChatController.abort();
@@ -8389,10 +8376,7 @@ ${chatContent}
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${config.key}`,
-                        'X-Target-API': apiUrl,
-                        // ✨ 装上真正的云端开关
-                        'X-Bark-Key': 'JanxutGCNrZgNBjEsuaeen',
-                        'X-Background-Mode': 'true'
+                        'X-Target-API': apiUrl
                     },
                     body: JSON.stringify({
                         model: config.model || 'gpt-3.5-turbo',
@@ -8446,17 +8430,10 @@ ${chatContent}
                     }
                     
                     const finalFullMessage = backgroundAIReply.fullMessage;
+                    backgroundAIReply.inProgress = false;
+                    backgroundAIReply.contactId = null;
                     if (finalFullMessage) {
-                        backgroundAIReply.inProgress = false;
-                        backgroundAIReply.contactId = null;
                         handleFinalAIResponse(currentChatContactId, finalFullMessage);
-                    } else {
-                        // ✨ 核心修复1：如果 Worker 转入后台导致流提前断开，保留屏幕上的“呼吸动画”，并主动开启高频轮询！
-                        if (!window.activeSyncInterval) {
-                            window.activeSyncInterval = setInterval(() => {
-                                if (typeof syncCloudMessages === 'function') syncCloudMessages();
-                            }, 2000); // 每2秒去云端找一次新气泡
-                        }
                     }
                     
                 } else {
@@ -8492,6 +8469,7 @@ ${chatContent}
                 updateChatListLastMessage(currentChatContactId, rawErrorMsg);
                 scrollToBottom();
             }
+            
         }
         
         // --- 输入框回车发送 + 自动调整高度 ---
