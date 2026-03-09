@@ -3624,12 +3624,7 @@
                         'X-Bark-Key': 'JanxutGCNrZgNBjEsuaeen', // <--- ⚠️ 记得换成你自己的 Bark Key
                         'X-Background-Mode': 'true' 
                     },
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + config.key,
-                        'X-Target-API': apiUrl
-                    },
+
                     body: JSON.stringify({
                         model: config.model || 'gpt-3.5-turbo',
                         messages: messages,
@@ -3838,8 +3833,11 @@
                     signal: window.currentChatController.signal, // 挂载打断信号
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${config.key}`,
-                        'X-Target-API': apiUrl
+                        'Authorization': `Bearer ${config.key}`, // 这里你原本有的是加号拼接，有的是${}，都可以保留你原来的写法
+                        'X-Target-API': apiUrl,
+                        // ✨ 加上这两行秘密开关
+                        'X-Bark-Key': 'JanxutGCNrZgNBjEsuaeen',
+                        'X-Background-Mode': 'true' 
                     },
                     body: JSON.stringify({
                         model: config.model || 'gpt-3.5-turbo',
