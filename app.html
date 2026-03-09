@@ -3619,10 +3619,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': 'Bearer ' + config.key,
-                        'X-Target-API': apiUrl,
-                        // ✨ 开启云端大脑的秘密开关！
-                        'X-Bark-Key': 'JanxutGCNrZgNBjEsuaeen', // <--- ⚠️ 记得换成你自己的 Bark Key
-                        'X-Background-Mode': 'true' 
+                        'X-Target-API': apiUrl
                     },
 
                     body: JSON.stringify({
@@ -8386,7 +8383,10 @@ ${chatContent}
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${config.key}`,
-                        'X-Target-API': apiUrl
+                        'X-Target-API': apiUrl,
+                        // ✨ 装上真正的云端开关
+                        'X-Bark-Key': 'JanxutGCNrZgNBjEsuaeen',
+                        'X-Background-Mode': 'true'
                     },
                     body: JSON.stringify({
                         model: config.model || 'gpt-3.5-turbo',
@@ -14434,3 +14434,4 @@ ${chatContent}
     </div>
 </body>
 </html>
+
