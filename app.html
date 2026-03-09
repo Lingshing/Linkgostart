@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <title>Linkgo</title>
-    <link rel="manifest" href="https://lingshing.github.io/Linkgostart/manifest_app.json">
+    <link rel="manifest" href="https://lingshing.github.io/Linkgostart/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Linkgo">
@@ -3882,11 +3882,17 @@
                     }
                     
                     const finalFullMessage = backgroundAIReply.fullMessage;
-                    backgroundAIReply.inProgress = false;
-                    backgroundAIReply.contactId = null;
-
                     if (finalFullMessage) {
+                        backgroundAIReply.inProgress = false;
+                        backgroundAIReply.contactId = null;
                         handleFinalAIResponse(currentChatContactId, finalFullMessage);
+                    } else {
+                        // ✨ 核心修复2：重新生成时转入后台，同样保留“呼吸动画”并开启轮询
+                        if (!window.activeSyncInterval) {
+                            window.activeSyncInterval = setInterval(() => {
+                                if (typeof syncCloudMessages === 'function') syncCloudMessages();
+                            }, 2000);
+                        }
                     }
                     if (onComplete) onComplete(finalFullMessage);
                     
@@ -8440,11 +8446,17 @@ ${chatContent}
                     }
                     
                     const finalFullMessage = backgroundAIReply.fullMessage;
-                    backgroundAIReply.inProgress = false;
-                    backgroundAIReply.contactId = null;
-
                     if (finalFullMessage) {
+                        backgroundAIReply.inProgress = false;
+                        backgroundAIReply.contactId = null;
                         handleFinalAIResponse(currentChatContactId, finalFullMessage);
+                    } else {
+                        // ✨ 核心修复1：如果 Worker 转入后台导致流提前断开，保留屏幕上的“呼吸动画”，并主动开启高频轮询！
+                        if (!window.activeSyncInterval) {
+                            window.activeSyncInterval = setInterval(() => {
+                                if (typeof syncCloudMessages === 'function') syncCloudMessages();
+                            }, 2000); // 每2秒去云端找一次新气泡
+                        }
                     }
                     
                 } else {
@@ -14225,15 +14237,14 @@ ${chatContent}
         });
 
         // ==========================================
-        // ☁️ 云端数据同步引擎 (Supabase 实时拉取)
+        // ☁️ 云端数据同步引擎 (无痕追加气泡版)
         // ==========================================
         async function syncCloudMessages() {
-            // ⚠️ 把你刚刚在 Supabase 拿到的两把钥匙填在这里（保留双引号）
+            // ⚠️ 填入你的 Supabase 钥匙（保留双引号）
             const SUPABASE_URL = "https://pavkgtcjaocxxnpvwzid.supabase.co";
             const SUPABASE_KEY = "sb_publishable_MBc4WxndEyNjXgTkVSHYMw_vj6sUuPb";
-            
+
             try {
-                // 去云端拉取最新的 5 条 AI 回复
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/messages?select=*&order=created_at.desc&limit=5`, {
                     headers: {
                         "apikey": SUPABASE_KEY,
@@ -14241,43 +14252,90 @@ ${chatContent}
                     }
                 });
                 const cloudMessages = await res.json();
-                
-                // 拿到你当前正在聊天的角色
+
                 const contactId = currentChatContactId || (mockContacts.length > 0 ? mockContacts[0].id : null);
                 if (!contactId) return;
-                
+
                 const conversation = getConversation(contactId);
-                let hasNew = false;
-                
-                // 把云端的消息按时间倒序拿回来，我们需要反转一下再存入本地
+                let newMessages = []; // ✨ 专门用来收集这次新抓到的气泡
+
                 cloudMessages.reverse().forEach(cloudMsg => {
-                    // 智能去重：如果手机本地没有这句话，才加进去
                     const isDuplicate = conversation.some(localMsg => localMsg.content === cloudMsg.content);
                     if (!isDuplicate) {
-                        conversation.push({ 
-                            role: cloudMsg.role, 
-                            content: cloudMsg.content, 
-                            timestamp: new Date(cloudMsg.created_at).getTime() || Date.now() 
-                        });
-                        
-                        // 更新外面聊天列表的最后一条消息预览
+                        const newMsg = {
+                            role: cloudMsg.role,
+                            content: cloudMsg.content,
+                            timestamp: new Date(cloudMsg.created_at).getTime() || Date.now()
+                        };
+                        conversation.push(newMsg);
+                        newMessages.push(newMsg); // 存入新消息队列
+
                         const contact = mockContacts.find(c => c.id === contactId);
                         if (contact) {
                             contact.lastMsg = cloudMsg.content.substring(0, 50);
                             contact.time = new Date().toISOString();
                         }
-                        hasNew = true;
                     }
                 });
-                
-                // 如果发现了新消息，立刻自动刷新手机屏幕！
-                if (hasNew) {
+
+                // 如果拿到了新消息，直接无缝塞入屏幕！
+                if (newMessages.length > 0) {
+                    backgroundAIReply.inProgress = false;
+                    backgroundAIReply.contactId = null;
+                    
+                    // 撤下呼吸动画
+                    const streamCont = document.getElementById('active-stream-container');
+                    if (streamCont) streamCont.remove();
+                    
+                    // 清理后台状态和轮询
+                    if (window.currentChatController) {
+                        window.currentChatController.abort();
+                        window.currentChatController = null;
+                    }
+                    if (window.activeSyncInterval) {
+                        clearInterval(window.activeSyncInterval);
+                        window.activeSyncInterval = null;
+                    }
+                    if (window.chatWakeAudio) {
+                        window.chatWakeAudio.pause();
+                    }
+
                     saveToLocal();
                     renderChatList();
+                    
+                    // ✨ 核心修复：不刷新屏幕，直接构造气泡 HTML 追加到底部！
                     if (document.getElementById('scene-chat').classList.contains('show')) {
-                        renderChatMessages(contactId);
+                        const container = document.getElementById('chat-messages-container');
+                        
+                        newMessages.forEach(msg => {
+                            const messageDiv = document.createElement('div');
+                            const isUser = msg.role === 'user';
+                            messageDiv.className = `chat-message ${isUser ? 'user' : 'ai'}`;
+                            
+                            // 生成头像
+                            const avatarHtml = typeof generateAvatarHtml === 'function' ? generateAvatarHtml(isUser, contactId) : '';
+                            
+                            if (isUser) {
+                                messageDiv.innerHTML = `
+                                    ${avatarHtml}
+                                    <div class="chat-bubble">${typeof escapeHtml === 'function' ? escapeHtml(msg.content) : msg.content}</div>
+                                `;
+                            } else {
+                                // AI 气泡带上点击重新生成的按钮，保持原本的 UI 一致
+                                messageDiv.innerHTML = `
+                                    ${avatarHtml}
+                                    <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${typeof escapeHtml === 'function' ? escapeHtml(msg.content) : msg.content}</div>
+                                    <div class="regenerate-btn" onclick="regenerateMessage(event, this)">
+                                        <i class="fas fa-rotate-right"></i>
+                                    </div>
+                                `;
+                            }
+                            container.appendChild(messageDiv);
+                        });
+                        
+                        scrollToBottom(); // 滚动到底部
                     }
-                    console.log("✅ 成功从云端抓取到 AI 的最新回复！");
+                    console.log("✅ 成功从云端无缝追加回复！");
                 }
             } catch (e) {
                 console.error("❌ 同步云端数据失败:", e);
@@ -14450,6 +14508,5 @@ ${chatContent}
     </div>
 </body>
 </html>
-
 
 
