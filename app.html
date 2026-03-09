@@ -14287,6 +14287,16 @@ ${chatContent}
         // App 冷启动时也同步一次
         window.addEventListener('DOMContentLoaded', syncCloudMessages);
 
+        // 🗡️ 刺客指令：强行卸载以前所有的 Service Worker 缓存（不碰聊天数据）
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister().then(function(boolean) {
+                        console.log("✅ 成功清除旧版缓存管家！");
+                    });
+                }
+            });
+        }
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
@@ -14434,4 +14444,5 @@ ${chatContent}
     </div>
 </body>
 </html>
+
 
