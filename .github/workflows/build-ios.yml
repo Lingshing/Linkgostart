@@ -19,14 +19,13 @@ jobs:
     - name: 安装 Capacitor 环境并创建占位目录
       run: |
         npm init -y
-        npm install @capacitor/core @capacitor/cli @capacitor/ios
-        # ✨ 修复点：建一个空的 www 文件夹，随便放个假文件糊弄 Capacitor
+        # ✨ 核心修复：强制锁定极其稳定的 Capacitor V6 版本，拒绝最新版带来的系统冲突！
+        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6
         mkdir www
         echo "Linkgo" > www/index.html
 
     - name: 初始化并配置热更新
       run: |
-        # ✨ 修复点：让 Capacitor 只去读那个空的 www 文件夹，不再俄罗斯套娃
         npx cap init Linkgo com.lingshing.linkgo --web-dir www
         cat <<EOF > capacitor.config.json
         {
