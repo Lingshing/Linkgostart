@@ -14290,33 +14290,35 @@ ${chatContent}
             });
         }
 
-        // 🗡️ 原生完美同步键盘：彻底修复幽灵抽屉 + 修复闪现掉帧
+        // 🗡️ 原生完美同步键盘：彻底告别残留 + 完美贴合无缝隙
         document.addEventListener('DOMContentLoaded', () => {
             if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
                 const Keyboard = window.Capacitor.Plugins.Keyboard;
                 Keyboard.setAccessoryBarVisible({ isVisible: false });
                 Keyboard.setResizeMode({ mode: 'none' }).catch(e => console.log(e));
 
-                const style = document.createElement('style');
-                style.innerHTML = `
-                    .kb-animated {
-                        transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1) !important;
-                    }
-                `;
-                document.head.appendChild(style);
+                // ✨ 视觉魔术：给聊天输入框加一个向下的超长拖尾阴影！
+                // 这样即使由于 JS 延迟导致输入框追不上键盘，阴影也会完美填补缝隙，绝不会漏底！
+                const chatBar = document.getElementById('chat-input-bar');
+                if (chatBar) {
+                    // 假设你的输入框背景是 var(--card-bg) 或白底，如果是其他颜色你可以改这里
+                    chatBar.style.boxShadow = '0 500px 0 var(--card-bg)';
+                }
 
                 function setShift(el, shiftValue) {
                     if (!el) return;
-                    if (!el.hasAttribute('data-orig-transform')) {
-                        el.setAttribute('data-orig-transform', el.style.transform || '');
+                    
+                    // 强制重排，确保浏览器准备好动画
+                    if (!el.dataset.kbShifted) {
+                        el.style.translate = '0px 0px'; // ✨ 改用完全独立的 translate 属性！
+                        void el.offsetWidth; 
                     }
-                    el.classList.add('kb-animated');
+
+                    // 直接在内联赋予严格的苹果阻尼动画
+                    el.style.transition = 'translate 0.25s cubic-bezier(0.32, 0.72, 0, 1)';
                     
-                    // ✨ 核心修复 1：强制浏览器重排 (Reflow)
-                    // 这行看似无用的代码能逼迫苹果 Safari 立即认领上一行的动画属性，彻底解决“啪一下”没有缓动的Bug！
-                    void el.offsetWidth; 
-                    
-                    el.style.transform = `translateY(${shiftValue}px)`;
+                    // 执行位移
+                    el.style.translate = `0px ${shiftValue}px`;
                     el.dataset.kbShifted = "true";
                 }
 
@@ -14325,27 +14327,22 @@ ${chatContent}
                     const activeEl = document.activeElement;
                     if (!activeEl) return;
 
-                    // ✨ 核心修复 2：精准定位当前活跃的页面容器，绝对不再无脑推 body！
-                    // 这将彻底斩断“底部固定抽屉被连根拔起”的幽灵 Bug。
                     const activePage = document.querySelector('.sub-page-scene.show') || document.querySelector('.tab-page.active');
 
                     // 1️⃣ 场景一：聊天主界面
                     if (activeEl.id === 'chat-message-input' || activeEl.closest('#chat-input-bar')) {
-                        // 推送当前的聊天页面，不再推 body
-                        if (activePage) setShift(activePage, -kbHeight);
-                        else setShift(document.body, -kbHeight); 
+                        const target = activePage || document.body;
+                        setShift(target, -kbHeight);
 
                         const headers = document.querySelectorAll('.chat-nav-header');
                         headers.forEach(h => setShift(h, kbHeight));
                         return;
                     }
 
-                    // 2️⃣ 场景二：弹窗/抽屉等其他所有输入框
+                    // 2️⃣ 场景二：其他弹窗和抽屉
                     setTimeout(() => { 
                         const rect = activeEl.getBoundingClientRect();
-                        const inputBottom = rect.bottom;
-                        const keyboardTop = window.innerHeight - kbHeight;
-                        const overlap = inputBottom - keyboardTop + 20;
+                        const overlap = rect.bottom - (window.innerHeight - kbHeight) + 20;
 
                         if (overlap > 0) {
                             let container = activeEl.closest('#todo-bottom-sheet') || 
@@ -14354,32 +14351,36 @@ ${chatContent}
                                             activeEl.closest('.prompt-modal');
                             
                             if (container) {
-                                const finalShift = Math.min(overlap, kbHeight);
-                                setShift(container, -finalShift);
+                                setShift(container, -Math.min(overlap, kbHeight));
                             } else {
-                                // 兜底：如果不在弹窗里（比如设置页的输入框），推 activePage 而不是 body！
-                                if (activePage) setShift(activePage, -overlap);
-                                else setShift(document.body, -overlap);
+                                const target = activePage || document.body;
+                                setShift(target, -overlap);
                             }
                         }
                     }, 50); 
                 });
 
                 Keyboard.addListener('keyboardWillHide', () => {
+                    // 彻底、干净地清理战场
                     document.querySelectorAll('[data-kb-shifted="true"]').forEach(el => {
-                        const orig = el.getAttribute('data-orig-transform');
-                        el.style.transform = orig || '';
-                        delete el.dataset.kbShifted;
+                        // 平滑回落
+                        el.style.translate = '0px 0px';
+                        
+                        // 等待 260 毫秒（刚好是动画落下的时间），然后彻底剥离内联属性，绝不留任何悬空残骸！
+                        setTimeout(() => {
+                            el.style.translate = '';
+                            el.style.transition = '';
+                            delete el.dataset.kbShifted;
+                        }, 260); 
                     });
                     
                     setTimeout(() => { 
-                        document.querySelectorAll('.kb-animated').forEach(el => el.classList.remove('kb-animated'));
                         window.scrollTo({ top: 0, behavior: 'instant' }); 
-                    }, 350);
+                    }, 300);
                 });
             }
         });
-
+        
         let activeTodoId = null;
 
         // 🗑️ 终极纯净版：删除任务
