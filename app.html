@@ -14325,27 +14325,6 @@ ${chatContent}
             });
         }
 
-       // 🗡️ Capacitor 原生键盘刺客指令（完美丝滑修复版）
-        document.addEventListener('DOMContentLoaded', () => {
-            if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
-                const Keyboard = window.Capacitor.Plugins.Keyboard;
-                
-                // 1. 坚持干掉灰条！
-                Keyboard.setAccessoryBarVisible({ isVisible: false });
-
-                // 2. 接管底层：当键盘将要出现时，强制页面立刻重绘，消除时间差
-                Keyboard.addListener('keyboardWillShow', info => {
-                    document.body.style.transform = 'translateY(0)'; 
-                });
-
-                // 3. 解决收起时的回弹抖动：强制归位，安抚苹果底层的安全区逻辑
-                Keyboard.addListener('keyboardWillHide', () => {
-                    setTimeout(() => {
-                        window.scrollTo({ top: 0, behavior: 'instant' });
-                    }, 10);
-                });
-            }
-        });
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
