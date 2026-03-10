@@ -14290,46 +14290,62 @@ ${chatContent}
             });
         }
 
-        // 🗡️ 原生完美同步键盘：彻底告别残留 + 完美贴合无缝隙
+        // 🗡️ 原生完美同步键盘：彻底修复残影 + 完美强制阻尼动画
         document.addEventListener('DOMContentLoaded', () => {
             if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
                 const Keyboard = window.Capacitor.Plugins.Keyboard;
                 Keyboard.setAccessoryBarVisible({ isVisible: false });
                 Keyboard.setResizeMode({ mode: 'none' }).catch(e => console.log(e));
 
-                // ✨ 视觉魔术：给聊天输入框加一个向下的超长拖尾阴影！
-                // 这样即使由于 JS 延迟导致输入框追不上键盘，阴影也会完美填补缝隙，绝不会漏底！
+                // 1. 注入完美的 iOS 原生阻尼动画
+                const style = document.createElement('style');
+                style.innerHTML = `
+                    .kb-animated {
+                        transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+                    }
+                `;
+                document.head.appendChild(style);
+
+                // 2. 视觉魔术：给聊天输入框加个超长拖尾，彻底杜绝哪怕 1 毫米的缝隙
                 const chatBar = document.getElementById('chat-input-bar');
                 if (chatBar) {
-                    // 假设你的输入框背景是 var(--card-bg) 或白底，如果是其他颜色你可以改这里
                     chatBar.style.boxShadow = '0 500px 0 var(--card-bg)';
                 }
 
                 function setShift(el, shiftValue) {
                     if (!el) return;
                     
-                    // 强制重排，确保浏览器准备好动画
-                    if (!el.dataset.kbShifted) {
-                        el.style.translate = '0px 0px'; // ✨ 改用完全独立的 translate 属性！
-                        void el.offsetWidth; 
+                    // 记录原始位置，只有在没有记录过的时候才记录
+                    if (!el.hasAttribute('data-orig-transform')) {
+                        el.setAttribute('data-orig-transform', el.style.transform || '');
                     }
-
-                    // 直接在内联赋予严格的苹果阻尼动画
-                    el.style.transition = 'translate 0.25s cubic-bezier(0.32, 0.72, 0, 1)';
                     
-                    // 执行位移
-                    el.style.translate = `0px ${shiftValue}px`;
+                    // 加上动画类名
+                    el.classList.add('kb-animated');
                     el.dataset.kbShifted = "true";
+
+                    // ✨ 核心神技：双重 requestAnimationFrame
+                    // 这能强迫 Safari 浏览器先渲染好上一行的 transition，在下一帧再执行位移！
+                    // 绝对保证 100% 触发缓动，彻底告别“啪一下”！
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            el.style.transform = `translateY(${shiftValue}px)`;
+                        });
+                    });
                 }
 
                 Keyboard.addListener('keyboardWillShow', info => {
                     const kbHeight = info.keyboardHeight;
                     const activeEl = document.activeElement;
-                    if (!activeEl) return;
+                    
+                    // ✨ 致命 Bug 修复 1：严格白名单拦截！
+                    // 只有当你点击的【真正是输入框（INPUT 或 TEXTAREA）】时，才允许发生位移！
+                    // 这将彻底斩断所有“莫名其妙点错地方导致上顶”的幽灵现象！
+                    if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) return;
 
                     const activePage = document.querySelector('.sub-page-scene.show') || document.querySelector('.tab-page.active');
 
-                    // 1️⃣ 场景一：聊天主界面
+                    // 1️⃣ 聊天主界面
                     if (activeEl.id === 'chat-message-input' || activeEl.closest('#chat-input-bar')) {
                         const target = activePage || document.body;
                         setShift(target, -kbHeight);
@@ -14339,7 +14355,7 @@ ${chatContent}
                         return;
                     }
 
-                    // 2️⃣ 场景二：其他弹窗和抽屉
+                    // 2️⃣ 其他弹窗和抽屉
                     setTimeout(() => { 
                         const rect = activeEl.getBoundingClientRect();
                         const overlap = rect.bottom - (window.innerHeight - kbHeight) + 20;
@@ -14361,26 +14377,26 @@ ${chatContent}
                 });
 
                 Keyboard.addListener('keyboardWillHide', () => {
-                    // 彻底、干净地清理战场
                     document.querySelectorAll('[data-kb-shifted="true"]').forEach(el => {
-                        // 平滑回落
-                        el.style.translate = '0px 0px';
+                        const orig = el.getAttribute('data-orig-transform');
+                        // 带着动画平滑回落
+                        el.style.transform = orig || '';
                         
-                        // 等待 260 毫秒（刚好是动画落下的时间），然后彻底剥离内联属性，绝不留任何悬空残骸！
+                        // ✨ 致命 Bug 修复 2：案发现场彻底大扫除！
+                        // 必须把所有的自定义标记全部删掉！绝不允许它们遗留到下一次操作！
                         setTimeout(() => {
-                            el.style.translate = '';
-                            el.style.transition = '';
+                            el.classList.remove('kb-animated');
                             delete el.dataset.kbShifted;
-                        }, 260); 
+                            el.style.transform = orig || ''; // 完璧归赵
+                            el.removeAttribute('data-orig-transform'); // 最关键的一步，必须抹除记忆！
+                        }, 350); 
                     });
                     
-                    setTimeout(() => { 
-                        window.scrollTo({ top: 0, behavior: 'instant' }); 
-                    }, 300);
+                    setTimeout(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, 100);
                 });
             }
         });
-        
+
         let activeTodoId = null;
 
         // 🗑️ 终极纯净版：删除任务
