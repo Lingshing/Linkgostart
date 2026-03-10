@@ -14324,16 +14324,33 @@ ${chatContent}
                     el.dataset.kbShifted = "true";
                 }
 
-                // ✨ 终极修复 2：全局拦截点击，退出页面前强制失焦，斩断幽灵键盘！
-                // 无论你是点返回按钮，还是点顶部导航的任何地方，立刻没收键盘焦点！
-                document.addEventListener('click', (e) => {
-                    if (e.target.closest('.chat-nav-header') || e.target.closest('.back-btn') || e.target.closest('.nav-item')) {
+                // ✨ 终极核弹级修复 2：双重拦截，绝对斩断幽灵键盘！
+
+                // 第一重：只要你的手指按在非输入框区域，立刻没收当前焦点！(使用 touchstart 比 click 反应快 100 毫秒，赢在起跑线)
+                document.addEventListener('touchstart', (e) => {
+                    // 如果你摸的不是输入框、也不是底部的输入栏区域
+                    if (!e.target.closest('input') && !e.target.closest('textarea') && !e.target.closest('#chat-input-bar')) {
                         const active = document.activeElement;
                         if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
-                            active.blur();
+                            active.blur(); // 瞬间剥夺焦点
                         }
                     }
-                }, true); // true 表示捕获阶段，确保在路由跳转前第一时间执行
+                }, { passive: true, capture: true });
+
+                // 第二重：切页/退出前的无差别大扫除！
+                document.addEventListener('click', (e) => {
+                    // 只要你点击了：返回按钮、顶部标题栏、底栏导航、或者任意一个【聊天列表项】
+                    // (请根据你实际的列表项 class 补充，比如 .chat-item, .list-item)
+                    if (e.target.closest('.back-btn') || 
+                        e.target.closest('.chat-nav-header') || 
+                        e.target.closest('.nav-item') || 
+                        e.target.closest('.chat-list-item') || 
+                        e.target.closest('[onclick*="openChat"]')) { // 匹配带有打开聊天函数的元素
+                        
+                        // 不管三七二十一，把全网所有的输入框强制失焦！把 iOS 的记忆彻底清零！
+                        document.querySelectorAll('input, textarea').forEach(el => el.blur());
+                    }
+                }, true);
 
                 Keyboard.addListener('keyboardWillShow', info => {
                     const kbHeight = info.keyboardHeight;
