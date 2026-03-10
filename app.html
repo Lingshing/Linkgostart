@@ -14178,7 +14178,112 @@ ${chatContent}
             });
         });
 
-        
+        // ==========================================
+        // ☁️ 云端数据同步引擎 (无痕追加气泡版)
+        // ==========================================
+        async function syncCloudMessages() {
+           return;
+            const SUPABASE_URL = "https://pavkgtcjaocxxnpvwzid.supabase.co";
+            const SUPABASE_KEY = "sb_publishable_MBc4WxndEyNjXgTkVSHYMw_vj6sUuPb";
+
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/messages?select=*&order=created_at.desc&limit=5`, {
+                    headers: {
+                        "apikey": SUPABASE_KEY,
+                        "Authorization": `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+                const cloudMessages = await res.json();
+
+                const contactId = currentChatContactId || (mockContacts.length > 0 ? mockContacts[0].id : null);
+                if (!contactId) return;
+
+                const conversation = getConversation(contactId);
+                let newMessages = []; // ✨ 专门用来收集这次新抓到的气泡
+
+                cloudMessages.reverse().forEach(cloudMsg => {
+                    const isDuplicate = conversation.some(localMsg => localMsg.content === cloudMsg.content);
+                    if (!isDuplicate) {
+                        const newMsg = {
+                            role: cloudMsg.role,
+                            content: cloudMsg.content,
+                            timestamp: new Date(cloudMsg.created_at).getTime() || Date.now()
+                        };
+                        conversation.push(newMsg);
+                        newMessages.push(newMsg); // 存入新消息队列
+
+                        const contact = mockContacts.find(c => c.id === contactId);
+                        if (contact) {
+                            contact.lastMsg = cloudMsg.content.substring(0, 50);
+                            contact.time = new Date().toISOString();
+                        }
+                    }
+                });
+
+                // 如果拿到了新消息，直接无缝塞入屏幕！
+                if (newMessages.length > 0) {
+                    backgroundAIReply.inProgress = false;
+                    backgroundAIReply.contactId = null;
+                    
+                    // 撤下呼吸动画
+                    const streamCont = document.getElementById('active-stream-container');
+                    if (streamCont) streamCont.remove();
+                    
+                    // 清理后台状态和轮询
+                    if (window.currentChatController) {
+                        window.currentChatController.abort();
+                        window.currentChatController = null;
+                    }
+                    if (window.activeSyncInterval) {
+                        clearInterval(window.activeSyncInterval);
+                        window.activeSyncInterval = null;
+                    }
+                    if (window.chatWakeAudio) {
+                        window.chatWakeAudio.pause();
+                    }
+
+                    saveToLocal();
+                    renderChatList();
+                    
+                    // ✨ 核心修复：不刷新屏幕，直接构造气泡 HTML 追加到底部！
+                    if (document.getElementById('scene-chat').classList.contains('show')) {
+                        const container = document.getElementById('chat-messages-container');
+                        
+                        newMessages.forEach(msg => {
+                            const messageDiv = document.createElement('div');
+                            const isUser = msg.role === 'user';
+                            messageDiv.className = `chat-message ${isUser ? 'user' : 'ai'}`;
+                            
+                            // 生成头像
+                            const avatarHtml = typeof generateAvatarHtml === 'function' ? generateAvatarHtml(isUser, contactId) : '';
+                            
+                            if (isUser) {
+                                messageDiv.innerHTML = `
+                                    ${avatarHtml}
+                                    <div class="chat-bubble">${typeof escapeHtml === 'function' ? escapeHtml(msg.content) : msg.content}</div>
+                                `;
+                            } else {
+                                // AI 气泡带上点击重新生成的按钮，保持原本的 UI 一致
+                                messageDiv.innerHTML = `
+                                    ${avatarHtml}
+                                    <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${typeof escapeHtml === 'function' ? escapeHtml(msg.content) : msg.content}</div>
+                                    <div class="regenerate-btn" onclick="regenerateMessage(event, this)">
+                                        <i class="fas fa-rotate-right"></i>
+                                    </div>
+                                `;
+                            }
+                            container.appendChild(messageDiv);
+                        });
+                        
+                        scrollToBottom(); // 滚动到底部
+                    }
+                    console.log("✅ 成功从云端无缝追加回复！");
+                }
+            } catch (e) {
+                console.error("❌ 同步云端数据失败:", e);
+            }
+        }
+
         // ✨ 极致原生体验：每次从手机锁屏点开通知，或者把网页从后台切回来，瞬间自动同步！
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
@@ -14267,16 +14372,13 @@ ${chatContent}
                     const activeEl = document.activeElement;
                     if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) return;
 
-                    activeEl.style.caretColor = 'transparent';
-                    setTimeout(() => {
-                        activeEl.style.caretColor = ''; 
-                    }, 400); 
-
                     const activePage = document.querySelector('.sub-page-scene.show') || document.querySelector('.tab-page.active');
                     const sab = getSafeAreaBottom();
 
                     // 1️⃣ 聊天主界面
                     if (activeEl.id === 'chat-message-input' || activeEl.closest('#chat-input-bar')) {
+                        activeEl.style.caretColor = 'transparent';
+                        setTimeout(() => { activeEl.style.caretColor = ''; }, 400);
                         const targetPage = activePage || document.body;
                         const exactShift = kbHeight - sab; 
 
@@ -14299,6 +14401,8 @@ ${chatContent}
                         const overlap = rect.bottom - (window.innerHeight - kbHeight) + 20;
 
                         if (overlap > 0) {
+                            activeEl.style.caretColor = 'transparent';
+                            setTimeout(() => { activeEl.style.caretColor = ''; }, 400);
                             let container = activeEl.closest('#todo-bottom-sheet') || 
                                             activeEl.closest('.modal-content') || 
                                             activeEl.closest('.config-modal-content') || 
