@@ -14290,14 +14290,13 @@ ${chatContent}
             });
         }
 
-        // 🗡️ 原生完美同步键盘：智能判定场景 + 苹果原生阻尼缓动版
+        // 🗡️ 原生完美同步键盘：智能动态计算遮挡 + 修复光标跳动
         document.addEventListener('DOMContentLoaded', () => {
             if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
                 const Keyboard = window.Capacitor.Plugins.Keyboard;
                 Keyboard.setAccessoryBarVisible({ isVisible: false });
                 Keyboard.setResizeMode({ mode: 'none' }).catch(e => console.log(e));
 
-                // ✨ 核心 1：注入苹果 iOS 原生键盘的丝滑阻尼缓动曲线
                 const style = document.createElement('style');
                 style.innerHTML = `
                     .kb-animated {
@@ -14306,7 +14305,6 @@ ${chatContent}
                 `;
                 document.head.appendChild(style);
 
-                // 安全位移函数（自动记录原本状态，防止收起键盘时样式错乱）
                 function setShift(el, shiftValue) {
                     if (!el) return;
                     if (!el.hasAttribute('data-orig-transform')) {
@@ -14322,47 +14320,55 @@ ${chatContent}
                     const activeEl = document.activeElement;
                     if (!activeEl) return;
 
-                    // 🔍 获取头部元素（你可以根据你的实际 ID 补充）
-                    const headers = document.querySelectorAll('header, .header, #chat-header, .top-bar, .nav-bar');
-
-                    // 1️⃣ 场景一：主聊天界面的大输入框
-                    if (activeEl.id === 'chat-input') {
-                        // 主体上推
+                    // 1️⃣ 场景一：聊天主界面 (✨已修复：严格匹配你真实的输入框 ID 和顶部导航栏 ID)
+                    if (activeEl.id === 'chat-message-input' || activeEl.closest('#chat-input-bar')) {
+                        // 聊天界面输入框在最下面，绝对会被挡住，所以整个页面满推
                         setShift(document.body, -kbHeight);
-                        // ✨ 核心 2：让 Header 反向下移相同的距离！
-                        // 这样在视觉上，Header 就像钉死在屏幕顶部一样纹丝不动！
+                        // 让聊天界面的头部反向下移，保持原地不动
+                        const headers = document.querySelectorAll('.chat-nav-header');
                         headers.forEach(h => setShift(h, kbHeight));
-                    } 
-                    // 2️⃣ 场景二：任务站的底部大抽屉
-                    else if (activeEl.closest('#todo-bottom-sheet')) {
-                        const sheet = activeEl.closest('#todo-bottom-sheet');
-                        // 抽屉原本就在底部，推满整个键盘高度
-                        setShift(sheet, -kbHeight);
+                        return;
                     }
-                    // 3️⃣ 场景三：其他的中间层弹窗（比如编辑 Prompt）
-                    else {
-                        // 智能寻找这个输入框是不是在一个弹窗里
-                        let container = activeEl.closest('.modal') || activeEl.closest('[style*="position: fixed"]') || activeEl.closest('.dialog-overlay');
+
+                    // 2️⃣ 场景二：弹窗/抽屉等其他所有输入框（✨ 动态精准计算遮挡）
+                    setTimeout(() => { 
+                        // 获取输入框在屏幕上的真实物理位置
+                        const rect = activeEl.getBoundingClientRect();
+                        const inputBottom = rect.bottom;
+                        // 算出键盘顶部的位置
+                        const keyboardTop = window.innerHeight - kbHeight;
                         
-                        if (container) {
-                            // 弹窗只要微微上推键盘高度的 35% 就够了，保证不遮挡且不夸张
-                            setShift(container, -(kbHeight * 0.35));
-                        } else {
-                            // 兜底防御：轻微上推一点点
-                            setShift(document.body, -100);
+                        // 计算遮挡高度（预留 20px 安全留白，避免键盘贴脸）
+                        const overlap = inputBottom - keyboardTop + 20;
+
+                        // 💡 核心逻辑：只有被键盘挡住了（overlap > 0）才上推！
+                        // 完美解决：母任务输入框没遮挡时不推，因此绝不会触发动画，光标绝对不再跳动！
+                        if (overlap > 0) {
+                            // 寻找这属于哪个弹窗容器
+                            let container = activeEl.closest('#todo-bottom-sheet') || 
+                                            activeEl.closest('.modal-content') || 
+                                            activeEl.closest('.config-modal-content') || 
+                                            activeEl.closest('.prompt-modal');
+                            
+                            if (container) {
+                                // 弹窗只需上推【刚刚好】能露出输入框的距离，最大不超过键盘高度
+                                const finalShift = Math.min(overlap, kbHeight);
+                                setShift(container, -finalShift);
+                            } else {
+                                // 兜底：如果没找到容器，就推 body
+                                setShift(document.body, -overlap);
+                            }
                         }
-                    }
+                    }, 50); // 极小延迟确保 DOM 物理位置已渲染稳定
                 });
 
                 Keyboard.addListener('keyboardWillHide', () => {
-                    // 还原所有被这波操作修改过的元素
                     document.querySelectorAll('[data-kb-shifted="true"]').forEach(el => {
                         const orig = el.getAttribute('data-orig-transform');
-                        el.style.transform = orig || ''; // 完美恢复它原本的样式
+                        el.style.transform = orig || '';
                         delete el.dataset.kbShifted;
                     });
                     
-                    // 等待缓动动画结束后，彻底打扫干净战场
                     setTimeout(() => { 
                         document.querySelectorAll('.kb-animated').forEach(el => el.classList.remove('kb-animated'));
                         window.scrollTo({ top: 0, behavior: 'instant' }); 
