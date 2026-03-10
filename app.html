@@ -14289,7 +14289,7 @@ ${chatContent}
             });
         }
 
-       // 🗡️ 原生完美同步键盘：极致 0 延迟对齐，微信级 1:1 贴合
+       // 🗡️ 原生完美同步键盘：绝对固定 Header + 拦截幽灵键盘
         document.addEventListener('DOMContentLoaded', () => {
             if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
                 const Keyboard = window.Capacitor.Plugins.Keyboard;
@@ -14318,36 +14318,51 @@ ${chatContent}
                         el.setAttribute('data-orig-transform', el.style.transform || '');
                     }
                     
-                    // ✨ 核心调校 1：采用你测出的 0.38s 黄金时间
-                    // ✨ 核心调校 2：更换缓动曲线 (0.15, 0.85, 0.3, 1)
-                    // 这个曲线的特点是：起步不会猛冲（防止超车拉出缝隙），最后平滑减速与键盘完美吻合！
                     el.style.transition = 'transform 0.38s cubic-bezier(0.15, 0.85, 0.3, 1)';
-                    
-                    // 强制浏览器立刻认领动画
                     void el.offsetWidth;
-                    
-                    // 执行位移
                     el.style.transform = `translateY(${shiftValue}px)`;
                     el.dataset.kbShifted = "true";
                 }
+
+                // ✨ 终极修复 2：全局拦截点击，退出页面前强制失焦，斩断幽灵键盘！
+                // 无论你是点返回按钮，还是点顶部导航的任何地方，立刻没收键盘焦点！
+                document.addEventListener('click', (e) => {
+                    if (e.target.closest('.chat-nav-header') || e.target.closest('.back-btn') || e.target.closest('.nav-item')) {
+                        const active = document.activeElement;
+                        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+                            active.blur();
+                        }
+                    }
+                }, true); // true 表示捕获阶段，确保在路由跳转前第一时间执行
 
                 Keyboard.addListener('keyboardWillShow', info => {
                     const kbHeight = info.keyboardHeight;
                     const activeEl = document.activeElement;
                     if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) return;
 
+                    activeEl.style.caretColor = 'transparent';
+                    setTimeout(() => {
+                        activeEl.style.caretColor = ''; 
+                    }, 400); 
+
                     const activePage = document.querySelector('.sub-page-scene.show') || document.querySelector('.tab-page.active');
                     const sab = getSafeAreaBottom();
 
                     // 1️⃣ 聊天主界面
                     if (activeEl.id === 'chat-message-input' || activeEl.closest('#chat-input-bar')) {
-                        const target = activePage || document.body;
+                        const targetPage = activePage || document.body;
                         const exactShift = kbHeight - sab; 
 
-                        setShift(target, -exactShift);
-
-                        const headers = document.querySelectorAll('.chat-nav-header');
-                        headers.forEach(h => setShift(h, exactShift));
+                        // ✨ 终极修复 1：绝对物理隔离法！
+                        // 不再整体推 targetPage，而是遍历它里面的元素
+                        Array.from(targetPage.children).forEach(child => {
+                            // 只要你是 Header，就绝对不碰你，物理层面彻底钉死在原地！
+                            if (child.classList.contains('chat-nav-header') || child.tagName === 'HEADER' || child.id === 'chat-header') {
+                                return;
+                            }
+                            // 只把聊天记录和输入框推上去
+                            setShift(child, -exactShift);
+                        });
                         return;
                     }
 
@@ -14365,8 +14380,12 @@ ${chatContent}
                             if (container) {
                                 setShift(container, -Math.min(overlap, kbHeight));
                             } else {
-                                const target = activePage || document.body;
-                                setShift(target, -overlap);
+                                const targetPage = activePage || document.body;
+                                // 同样，对其他页面也实施精准推升，绕过 Header
+                                Array.from(targetPage.children).forEach(child => {
+                                    if (child.classList.contains('header') || child.tagName === 'HEADER') return;
+                                    setShift(child, -overlap);
+                                });
                             }
                         }
                     }, 50); 
@@ -14378,14 +14397,14 @@ ${chatContent}
                         el.style.transform = orig || '';
                         
                         setTimeout(() => {
-                            el.style.transition = ''; // 及时清理，绝不污染页面自带的动画
+                            el.style.transition = ''; 
                             delete el.dataset.kbShifted;
                             el.style.transform = orig || '';
                             el.removeAttribute('data-orig-transform');
-                        }, 260); 
+                        }, 400); 
                     });
                     
-                    setTimeout(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, 100);
+                    // ❌ 彻底删除了以前用于补偿的 window.scrollTo(0,0)，从根源拔除了页面闪跳。
                 });
             }
         });
