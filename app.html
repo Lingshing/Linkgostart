@@ -45,7 +45,7 @@
         /* --- 底部导航栏 --- */
         .bottom-tab-bar {
             position: fixed; bottom: 0; width: 100%; 
-            height: calc(65px + var(--safe-bottom)); /* ✨ 自动计算安全高度 */
+            height: calc(57px + var(--safe-bottom)); /* ✨ 自动计算安全高度 */
             background: var(--tab-bar-bg);
             backdrop-filter: blur(30px);
             -webkit-backdrop-filter: blur(30px);
@@ -873,7 +873,7 @@
             border-top: 0.5px solid var(--border);
             display: flex;
             flex-direction: column;
-            padding-bottom: calc(var(--safe-bottom) + 15px);
+            padding-bottom: var(--safe-bottom); 
         }
         
         /* 主输入栏 */
@@ -4272,14 +4272,13 @@
         }
         
         function selectThemeMode(mode) {
-            // 1. 保存模式到localStorage
-            localStorage.setItem('themeMode', mode);
+            // 1. 核心魔法：直接调用内置引擎，它会瞬间自动改写 CSS 变量和顶部的状态栏颜色！
+            applyThemeMode(mode);
             
-            // 2. 设置刷新后要打开的页面标记
-            localStorage.setItem('RELOAD_TARGET_PAGE', 'sub-appearance');
+            // 2. 平滑地把底部选择弹窗收回去
+            closeThemeModeSelector();
             
-            // 3. 立即刷新页面（这会强制更新状态栏）
-            location.reload();
+            // ❌ 彻底抛弃那一套重新加载逻辑，告别白屏闪烁！
         }
         
         // --- 关闭主题模式选择器 ---
