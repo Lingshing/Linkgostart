@@ -14289,14 +14289,13 @@ ${chatContent}
             });
         }
 
-       // 🗡️ 原生完美同步键盘：彻底消灭安全区缝隙，实现微信级 1:1 贴合
+       // 🗡️ 原生完美同步键盘：极致 0 延迟对齐，微信级 1:1 贴合
         document.addEventListener('DOMContentLoaded', () => {
             if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
                 const Keyboard = window.Capacitor.Plugins.Keyboard;
                 Keyboard.setAccessoryBarVisible({ isVisible: false });
                 Keyboard.setResizeMode({ mode: 'none' }).catch(e => console.log(e));
 
-                // 📐 核心魔法 1：获取真实的底部安全区高度 (刘海屏通常是 34px，老机型是 0)
                 function getSafeAreaBottom() {
                     const div = document.createElement('div');
                     div.style.height = 'env(safe-area-inset-bottom)';
@@ -14308,18 +14307,8 @@ ${chatContent}
                     return sab;
                 }
 
-                // ⏱️ 核心魔法 2：极其精准的苹果原生阻尼动画 (0.25秒完美贴合)
-                const style = document.createElement('style');
-                style.innerHTML = `
-                    .kb-animated {
-                        transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1) !important;
-                    }
-                `;
-                document.head.appendChild(style);
-
                 const chatBar = document.getElementById('chat-input-bar');
                 if (chatBar) {
-                    // 保留垫底阴影，作为兜底防御，保护视觉边缘
                     chatBar.style.boxShadow = '0 500px 0 var(--card-bg)';
                 }
 
@@ -14328,14 +14317,17 @@ ${chatContent}
                     if (!el.hasAttribute('data-orig-transform')) {
                         el.setAttribute('data-orig-transform', el.style.transform || '');
                     }
-                    el.classList.add('kb-animated');
+                    
+                    // 1. 采用最纯正的 Apple 阻尼曲线，并且用内联确保最高优先级
+                    el.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                    
+                    // 2. ✨ 核心魔法：仅用一次 offsetWidth 强制浏览器认领 transition 属性！
+                    // 彻底删去 requestAnimationFrame 的两帧（约33毫秒）等待时间，让它和键盘在同一毫秒起步！绝不超车！
+                    void el.offsetWidth;
+                    
+                    // 3. 立刻执行位移
+                    el.style.transform = `translateY(${shiftValue}px)`;
                     el.dataset.kbShifted = "true";
-
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            el.style.transform = `translateY(${shiftValue}px)`;
-                        });
-                    });
                 }
 
                 Keyboard.addListener('keyboardWillShow', info => {
@@ -14346,12 +14338,9 @@ ${chatContent}
                     const activePage = document.querySelector('.sub-page-scene.show') || document.querySelector('.tab-page.active');
                     const sab = getSafeAreaBottom();
 
-                    // 1️⃣ 聊天主界面 (微信级无缝贴合)
+                    // 1️⃣ 聊天主界面
                     if (activeEl.id === 'chat-message-input' || activeEl.closest('#chat-input-bar')) {
                         const target = activePage || document.body;
-                        
-                        // ✨ 终极计算：只上推“键盘高度 减去 安全区高度”
-                        // 这样键盘弹起时，刚好覆盖底部的透明安全区，输入框大框的边缘稳稳压在键盘上！
                         const exactShift = kbHeight - sab; 
 
                         setShift(target, -exactShift);
@@ -14361,7 +14350,7 @@ ${chatContent}
                         return;
                     }
 
-                    // 2️⃣ 其他弹窗和抽屉 (保持原有智能计算)
+                    // 2️⃣ 其他弹窗和抽屉
                     setTimeout(() => { 
                         const rect = activeEl.getBoundingClientRect();
                         const overlap = rect.bottom - (window.innerHeight - kbHeight) + 20;
@@ -14388,11 +14377,11 @@ ${chatContent}
                         el.style.transform = orig || '';
                         
                         setTimeout(() => {
-                            el.classList.remove('kb-animated');
+                            el.style.transition = ''; // 及时清理，绝不污染页面自带的动画
                             delete el.dataset.kbShifted;
                             el.style.transform = orig || '';
                             el.removeAttribute('data-orig-transform');
-                        }, 300); 
+                        }, 260); 
                     });
                     
                     setTimeout(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, 100);
