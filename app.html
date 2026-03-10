@@ -4719,36 +4719,47 @@
             }
         }
         
-        // 实际发送通知的函数（完美接入通用设置引擎版）
+        // --- ✨ 全局严格状态追踪 ---
+        window.appRealActive = (document.visibilityState === 'visible');
+        document.addEventListener('visibilitychange', () => {
+            window.appRealActive = (document.visibilityState === 'visible');
+        });
+        if (window.Capacitor && window.Capacitor.Plugins.App) {
+            window.Capacitor.Plugins.App.addListener('appStateChange', ({ isActive }) => {
+                window.appRealActive = isActive;
+            });
+        }
+
+        // 实际发送通知的函数（防 iOS 唤醒爆发版）
         async function sendPushNotification(messageText) {
-            // 🛡️ 逻辑 1：检查总开关：如果你在设置里关了“推送通知”，绝对不发！
             if (!GENERAL_CONFIG.notification.pushEnabled) return;
 
-            // 🛡️ 逻辑 2：检查前台状态：如果你当前正盯着屏幕（前台），绝对不发！不打扰！
-            if (document.visibilityState === 'visible') return;
+            // 🛡️ 初步拦截：如果在前台，直接拦住
+            if (document.visibilityState === 'visible' || window.appRealActive) return;
+
+            // ✨ 核心魔法：让子弹飞 100 毫秒 (Event Loop Yield)
+            // 解决 iOS 休眠唤醒时，计时器解冻导致瞬间爆发连发通知的底层 Bug！
+            // 强行把当前代码挂起 100 毫秒，给系统充足的时间更新前台状态。
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // 100 毫秒后再次检测！如果此时你已经点开 App 回到了前台，剩下的请求会被无情阻断！绝对不会连击！
+            if (document.visibilityState === 'visible' || window.appRealActive) return;
 
             if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') return;
 
             try {
                 const barkKey = 'JanxutGCNrZgNBjEsuaeen';
-                const title = encodeURIComponent('Linkgo');
-                
-                // 🛡️ 逻辑 3：检查隐私锁：如果关了“显示内容”，就把文字糊掉！
                 let finalMessage = messageText;
                 if (!GENERAL_CONFIG.notification.showContent) {
                     finalMessage = '收到一条新消息';
                 }
                 
-                // 截取前 100 个字并转码
+                const title = encodeURIComponent('Linkgo');
                 const body = encodeURIComponent(finalMessage.substring(0, 100));
-                
-                // ✨ 唤醒协议与图标配置
                 const appUrl = encodeURIComponent('linkgo://');
                 const iconUrl = encodeURIComponent('https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg');
                 
-                // 正式向 Bark 下发指令！
                 fetch(`https://api.day.app/${barkKey}/${title}/${body}?group=Linkgo&icon=${iconUrl}&url=${appUrl}`);
-                
             } catch (error) {
                 console.error('Bark 推送失败:', error);
             }
