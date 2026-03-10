@@ -19,7 +19,7 @@ jobs:
     - name: 安装 Capacitor 环境、键盘插件并创建占位目录
       run: |
         npm init -y
-        # ✨ 关键修改：在这里偷偷加上了 @capacitor/keyboard@6 这个键盘刺客插件！
+        # ✨ 偷偷加上了 @capacitor/keyboard@6 这个键盘刺客插件！
         npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6
         mkdir www
         echo "Linkgo" > www/index.html
@@ -39,11 +39,19 @@ jobs:
         }
         EOF
 
-    - name: 生成 iOS 工程
+    - name: 生成 iOS 工程与自动切图标
       run: |
         npx cap add ios
+        
+        # ✨ 图标修复魔法：自动把你的 linkgo-icon.jpg 裁切成苹果需要的几十个尺寸！
+        npm install @capacitor/assets --save-dev
+        mkdir assets
+        sips -s format png linkgo-icon.jpg --out assets/icon.png
+        npx @capacitor/assets generate --ios
+        
         npx cap sync ios
-        # ✨ 终极代码：在苹果配置表里注册 linkgo:// 专属唤醒协议！
+        
+        # ✨ 注册 linkgo:// 专属唤醒协议（这是 Bark 跳转你 App 的关键！）
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" ios/App/App/Info.plist
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" ios/App/App/Info.plist
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" ios/App/App/Info.plist
@@ -52,15 +60,12 @@ jobs:
     - name: 编译无签名 iOS App
       run: |
         cd ios/App
-        # 强制指定在 derived_data 文件夹生成
         xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -derivedDataPath derived_data CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
 
     - name: 打包为 IPA 文件
       run: |
         mkdir -p Payload
-        # 启动地毯式搜索，把 App.app 揪出来！
         APP_PATH=$(find ios/App/derived_data -name "App.app" -type d | head -n 1)
-        echo "成功揪出目标文件，位置在: $APP_PATH"
         mv "$APP_PATH" Payload/
         zip -r Linkgo.ipa Payload
 
