@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     
     <title>Linkgo</title>
     <link rel="manifest" href="https://lingshing.github.io/Linkgostart/manifest.json">
@@ -14325,12 +14325,25 @@ ${chatContent}
             });
         }
 
-        // 🗡️ Capacitor 原生键盘刺客指令：干掉苹果丑陋的辅助灰条
+       // 🗡️ Capacitor 原生键盘刺客指令（完美丝滑修复版）
         document.addEventListener('DOMContentLoaded', () => {
             if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
-                window.Capacitor.Plugins.Keyboard.setAccessoryBarVisible({ isVisible: false })
-                    .then(() => console.log("✅ 苹果键盘灰条已被成功干掉！"))
-                    .catch(err => console.error("❌ 隐藏灰条失败:", err));
+                const Keyboard = window.Capacitor.Plugins.Keyboard;
+                
+                // 1. 坚持干掉灰条！
+                Keyboard.setAccessoryBarVisible({ isVisible: false });
+
+                // 2. 接管底层：当键盘将要出现时，强制页面立刻重绘，消除时间差
+                Keyboard.addListener('keyboardWillShow', info => {
+                    document.body.style.transform = 'translateY(0)'; 
+                });
+
+                // 3. 解决收起时的回弹抖动：强制归位，安抚苹果底层的安全区逻辑
+                Keyboard.addListener('keyboardWillHide', () => {
+                    setTimeout(() => {
+                        window.scrollTo({ top: 0, behavior: 'instant' });
+                    }, 10);
+                });
             }
         });
     </script>
