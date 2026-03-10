@@ -14289,43 +14289,48 @@ ${chatContent}
             });
         }
 
-        // 🗡️ 原生完美同步键盘：彻底修复残影 + 完美强制阻尼动画
+       // 🗡️ 原生完美同步键盘：彻底消灭安全区缝隙，实现微信级 1:1 贴合
         document.addEventListener('DOMContentLoaded', () => {
             if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
                 const Keyboard = window.Capacitor.Plugins.Keyboard;
                 Keyboard.setAccessoryBarVisible({ isVisible: false });
                 Keyboard.setResizeMode({ mode: 'none' }).catch(e => console.log(e));
 
-                // 1. 注入完美的 iOS 原生阻尼动画
+                // 📐 核心魔法 1：获取真实的底部安全区高度 (刘海屏通常是 34px，老机型是 0)
+                function getSafeAreaBottom() {
+                    const div = document.createElement('div');
+                    div.style.height = 'env(safe-area-inset-bottom)';
+                    div.style.position = 'absolute';
+                    div.style.visibility = 'hidden';
+                    document.body.appendChild(div);
+                    const sab = div.clientHeight || 0;
+                    document.body.removeChild(div);
+                    return sab;
+                }
+
+                // ⏱️ 核心魔法 2：极其精准的苹果原生阻尼动画 (0.25秒完美贴合)
                 const style = document.createElement('style');
                 style.innerHTML = `
                     .kb-animated {
-                        transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+                        transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1) !important;
                     }
                 `;
                 document.head.appendChild(style);
 
-                // 2. 视觉魔术：给聊天输入框加个超长拖尾，彻底杜绝哪怕 1 毫米的缝隙
                 const chatBar = document.getElementById('chat-input-bar');
                 if (chatBar) {
+                    // 保留垫底阴影，作为兜底防御，保护视觉边缘
                     chatBar.style.boxShadow = '0 500px 0 var(--card-bg)';
                 }
 
                 function setShift(el, shiftValue) {
                     if (!el) return;
-                    
-                    // 记录原始位置，只有在没有记录过的时候才记录
                     if (!el.hasAttribute('data-orig-transform')) {
                         el.setAttribute('data-orig-transform', el.style.transform || '');
                     }
-                    
-                    // 加上动画类名
                     el.classList.add('kb-animated');
                     el.dataset.kbShifted = "true";
 
-                    // ✨ 核心神技：双重 requestAnimationFrame
-                    // 这能强迫 Safari 浏览器先渲染好上一行的 transition，在下一帧再执行位移！
-                    // 绝对保证 100% 触发缓动，彻底告别“啪一下”！
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
                             el.style.transform = `translateY(${shiftValue}px)`;
@@ -14336,25 +14341,27 @@ ${chatContent}
                 Keyboard.addListener('keyboardWillShow', info => {
                     const kbHeight = info.keyboardHeight;
                     const activeEl = document.activeElement;
-                    
-                    // ✨ 致命 Bug 修复 1：严格白名单拦截！
-                    // 只有当你点击的【真正是输入框（INPUT 或 TEXTAREA）】时，才允许发生位移！
-                    // 这将彻底斩断所有“莫名其妙点错地方导致上顶”的幽灵现象！
                     if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) return;
 
                     const activePage = document.querySelector('.sub-page-scene.show') || document.querySelector('.tab-page.active');
+                    const sab = getSafeAreaBottom();
 
-                    // 1️⃣ 聊天主界面
+                    // 1️⃣ 聊天主界面 (微信级无缝贴合)
                     if (activeEl.id === 'chat-message-input' || activeEl.closest('#chat-input-bar')) {
                         const target = activePage || document.body;
-                        setShift(target, -kbHeight);
+                        
+                        // ✨ 终极计算：只上推“键盘高度 减去 安全区高度”
+                        // 这样键盘弹起时，刚好覆盖底部的透明安全区，输入框大框的边缘稳稳压在键盘上！
+                        const exactShift = kbHeight - sab; 
+
+                        setShift(target, -exactShift);
 
                         const headers = document.querySelectorAll('.chat-nav-header');
-                        headers.forEach(h => setShift(h, kbHeight));
+                        headers.forEach(h => setShift(h, exactShift));
                         return;
                     }
 
-                    // 2️⃣ 其他弹窗和抽屉
+                    // 2️⃣ 其他弹窗和抽屉 (保持原有智能计算)
                     setTimeout(() => { 
                         const rect = activeEl.getBoundingClientRect();
                         const overlap = rect.bottom - (window.innerHeight - kbHeight) + 20;
@@ -14378,17 +14385,14 @@ ${chatContent}
                 Keyboard.addListener('keyboardWillHide', () => {
                     document.querySelectorAll('[data-kb-shifted="true"]').forEach(el => {
                         const orig = el.getAttribute('data-orig-transform');
-                        // 带着动画平滑回落
                         el.style.transform = orig || '';
                         
-                        // ✨ 致命 Bug 修复 2：案发现场彻底大扫除！
-                        // 必须把所有的自定义标记全部删掉！绝不允许它们遗留到下一次操作！
                         setTimeout(() => {
                             el.classList.remove('kb-animated');
                             delete el.dataset.kbShifted;
-                            el.style.transform = orig || ''; // 完璧归赵
-                            el.removeAttribute('data-orig-transform'); // 最关键的一步，必须抹除记忆！
-                        }, 350); 
+                            el.style.transform = orig || '';
+                            el.removeAttribute('data-orig-transform');
+                        }, 300); 
                     });
                     
                     setTimeout(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, 100);
