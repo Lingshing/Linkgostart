@@ -4722,7 +4722,6 @@
         // --- ✨ 全局严格状态追踪 (究极敏感雷达版) ---
         window.appRealActive = (document.visibilityState === 'visible' || document.hasFocus());
         
-        // 只要屏幕有一丁点动静(聚焦、触摸、点击)，立刻强行判定为前台，绝不放过一毫秒！
         ['visibilitychange', 'focus', 'pageshow', 'touchstart', 'click'].forEach(evt => {
             document.addEventListener(evt, () => {
                 if (document.visibilityState === 'visible' || document.hasFocus()) {
@@ -4737,23 +4736,38 @@
             });
         }
 
-        // 实际发送通知的函数（拦截飞行子弹版）
+        window.lastBarkSendTime = 0; // ✨ 弹药库：记录上一发子弹的发射时间
+
+        // 实际发送通知的函数（3秒冷却巡逻版）
         async function sendPushNotification(messageText) {
             if (!GENERAL_CONFIG.notification.pushEnabled) return;
+            if (document.visibilityState === 'visible' || window.appRealActive) return;
 
-            // 🛡️ 第一道防线：雷达发现前台，直接拦截
-            if (document.visibilityState === 'visible' || document.hasFocus() || window.appRealActive) return;
+            // ✨ 核心魔法：3秒物理冷却与高频巡逻
+            const now = Date.now();
+            const timeSinceLast = now - window.lastBarkSendTime;
+            // 强制拉开至少 3000 毫秒的间距，完美对齐 iOS 的通知展示时间
+            const waitTime = Math.max(0, 3000 - timeSinceLast); 
 
-            // ✨ 核心魔法升级：屏息时间由 100ms 延长到 300 毫秒！
-            // 给你的“切回App动作”留出充足的时间。如果你正准备切回来，这300毫秒内雷达一定会报警，然后掐断这颗子弹！
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            // 🛡️ 第二道防线：屏息结束后最后确认，如有异常立刻掐断！
-            if (document.visibilityState === 'visible' || document.hasFocus() || window.appRealActive) return;
+            // 在等待的这几秒里，我们不傻等，而是每隔 100 毫秒疯狂扫描雷达
+            const scanTimes = Math.ceil(waitTime / 100);
+            for (let i = 0; i < scanTimes; i++) {
+                await new Promise(r => setTimeout(r, 100));
+                // 只要你在这 3 秒内点开通知回到了前台，立刻销毁后面的子弹，绝不发射！
+                if (document.visibilityState === 'visible' || document.hasFocus() || window.appRealActive) {
+                    return; 
+                }
+            }
+
+            // 发射前的最后一次绝杀确认
+            if (document.visibilityState === 'visible' || window.appRealActive) return;
 
             if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') return;
 
             try {
+                // 扣下扳机，记录本次发射时间
+                window.lastBarkSendTime = Date.now();
+
                 const barkKey = 'JanxutGCNrZgNBjEsuaeen';
                 let finalMessage = messageText;
                 if (!GENERAL_CONFIG.notification.showContent) {
@@ -4765,7 +4779,6 @@
                 const appUrl = encodeURIComponent('linkgo://');
                 const iconUrl = encodeURIComponent('https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg');
                 
-                // 确认绝对安全后，真正发射
                 fetch(`https://api.day.app/${barkKey}/${title}/${body}?group=Linkgo&icon=${iconUrl}&url=${appUrl}`);
             } catch (error) {
                 console.error('Bark 推送失败:', error);
