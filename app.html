@@ -110,7 +110,7 @@
         /* 🎯 修复 1：改为全局绝对顶层定位，随着下拉从屏幕外侧滑入 */
         .pull-refresh-indicator {
             position: fixed; 
-            top: 0; 
+            top: calc(env(safe-area-inset-top) + 10px); /* ✨ 避开灵动岛，完美下移！ */
             left: 50%;
             width: 40px;
             height: 40px;
@@ -4722,7 +4722,6 @@
         
         // 实际发送通知的函数（本地高精度版 - 完美适配 Bark 并支持自动跳转）
         async function sendPushNotification(messageText) {
-            return;
             // 🎯 最核心逻辑：如果你当前在网页里（前台），立刻停止执行！绝对不弹 Bark！
             if (document.visibilityState === 'visible') return; 
             
