@@ -45,13 +45,13 @@
         /* --- 底部导航栏 --- */
         .bottom-tab-bar {
             position: fixed; bottom: 0; width: 100%; 
-            height: 96px;
+            height: calc(65px + var(--safe-bottom)); /* ✨ 自动计算安全高度 */
             background: var(--tab-bar-bg);
             backdrop-filter: blur(30px);
             -webkit-backdrop-filter: blur(30px);
             border-top: 0.5px solid var(--border);
             display: flex; justify-content: space-around;
-            padding-bottom: calc(30px + var(--safe-bottom)); 
+            padding-bottom: var(--safe-bottom); /* ✨ 只保留黑线空间 */
             align-items: center; 
             z-index: 100;
         }
@@ -1127,11 +1127,12 @@
 
         .detail-header {
             padding: 12px 16px;
+            padding-top: calc(12px + env(safe-area-inset-top)); /* ✨ 加上灵动岛高度 */
             background: var(--bg-color);
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 50px;
+            height: calc(50px + env(safe-area-inset-top)); /* ✨ 撑开总高度 */
             flex-shrink: 0;
             position: relative;
         }
@@ -1139,6 +1140,7 @@
         .detail-back-btn {
             position: absolute;
             left: 16px;
+            bottom: 12px; /* ✨ 强制靠下对齐，防止返回键跑偏 */
             font-size: 20px;
             color: var(--text-main);
             cursor: pointer;
@@ -2378,7 +2380,7 @@
             <div class="pull-refresh-spinner"></div>
         </div>
         
-        <div style="position: relative; padding-top: 25px; padding-bottom: 15px; display: flex; justify-content: center; align-items: center;">
+        <div style="position: relative; padding-top: calc(25px + env(safe-area-inset-top)); padding-bottom: 15px; display: flex; justify-content: center; align-items: center;">
             <div class="seg-control-container" style="margin: 0;">
                 <div class="seg-glider" id="seg-glider"></div>
                 <div class="seg-item active" onclick="switchExplore(0)">微博</div>
@@ -13803,10 +13805,15 @@ ${chatContent}
             // 新建任务时，隐藏左上角的删除按钮（设为 hidden 可以占据位置，保持“保存”按钮还在最右边）
             const topDelete = document.getElementById('todo-sheet-top-delete');
             if (topDelete) topDelete.style.visibility = 'hidden';
-            document.getElementById('todo-subtasks-container').innerHTML = ''; 
+            document.getElementById('todo-subtasks-container').innerHTML = '';
             updateTodoDDL();
+
+            // ✨ 加入这两行代码找回丝滑动画
+            const sheet = document.getElementById('todo-bottom-sheet');
+            sheet.offsetHeight; 
+
             document.getElementById('todo-sheet-overlay').classList.add('active');
-            document.getElementById('todo-bottom-sheet').classList.add('active');
+            sheet.classList.add('active');
         }
 
         function closeTodoSheet() {
