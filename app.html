@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <title>Linkgo</title>
     <link rel="manifest" href="https://lingshing.github.io/Linkgostart/manifest.json">
@@ -95,7 +95,12 @@
         .sub-page-scene.swiping { transition: none; }
 
         /* --- UI 组件 --- */
-        .large-header { padding: 20px 20px 10px; background: transparent; display: flex; justify-content: space-between; align-items: flex-end; height: 44px; box-sizing: content-box; }
+        /* 3. 大标题顶部 (Apps, Chat 首页) */
+        .large-header {
+            background: transparent; display: flex; justify-content: space-between; align-items: flex-end; height: 44px; box-sizing: content-box;
+            /* ✨ 修改上边距，加入安全区 */
+            padding: calc(20px + env(safe-area-inset-top)) 20px 10px;
+        }
         .large-title { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; color: var(--text-main); margin: 0; line-height: 1; }
 
         .status-badge-hero { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 20px; background: var(--accent-light); border-radius: 100px; color: var(--accent); font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
@@ -147,7 +152,13 @@
         .explore-section { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding-bottom: 100px; box-sizing: border-box; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
         .explore-section.active { opacity: 1; pointer-events: auto; }
 
-        .nav-header { position: sticky; top: 0; z-index: 50; background: var(--nav-bg); backdrop-filter: blur(20px); height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 0.5px solid var(--border); }
+        /* 2. 其他子页面顶部（设置、API等） */
+        .nav-header {
+            position: sticky; top: 0; z-index: 50; background: var(--nav-bg); backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid var(--border);
+            /* ✨ 新增安全区高度和内边距 */
+            height: calc(44px + env(safe-area-inset-top));
+            padding: env(safe-area-inset-top) 16px 0 16px;
+        }
         .clean-nav { background: transparent !important; backdrop-filter: none !important; border-bottom: none !important; }
         .nav-title { font-size: 17px; font-weight: 600; color: var(--text-main); }
         .ios-list { background: var(--card-bg); margin: 20px; border-radius: 12px; overflow: hidden; }
@@ -754,17 +765,13 @@
             color: var(--card-bg);
         }
         
-        /* --- 聊天界面样式 --- */
+        /* 1. 聊天界面顶部 */
         .chat-nav-header {
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            background: var(--bg-color);
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 16px;
+            /* 保留原来的 sticky、z-index、background 等属性 */
+            position: sticky; top: 0; z-index: 50; background: var(--bg-color); display: flex; align-items: center; justify-content: space-between;
+            /* ✨ 新增安全区高度和内边距 */
+            height: calc(50px + env(safe-area-inset-top));
+            padding: env(safe-area-inset-top) 16px 0 16px;
         }
         
         /* 聊天消息容器 */
@@ -4711,7 +4718,7 @@
             }
         }
         
-        // 实际发送通知的函数（本地高精度版 - 完美适配 Bark）
+        // 实际发送通知的函数（本地高精度版 - 完美适配 Bark 并支持自动跳转）
         async function sendPushNotification(messageText) {
             // 🎯 最核心逻辑：如果你当前在网页里（前台），立刻停止执行！绝对不弹 Bark！
             if (document.visibilityState === 'visible') return; 
@@ -4719,12 +4726,16 @@
             if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') return;
             
             try {
-                // 悄悄由前端自己调用 Bark API，只有在后台时才会触发！
+                // 悄悄由前端自己调用 Bark API
                 const barkKey = 'JanxutGCNrZgNBjEsuaeen';
                 const title = encodeURIComponent('Linkgo');
                 const body = encodeURIComponent(messageText.substring(0, 100));
                 
-                fetch(`https://api.day.app/${barkKey}/${title}/${body}?group=Linkgo&icon=https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg`).catch(e => e);
+                // ✨ 替换成你的原生唤醒协议：
+                const appUrl = encodeURIComponent('linkgo://');
+                
+                // 在请求最后面加上 &url=你的网址
+                fetch(`https://api.day.app/${barkKey}/${title}/${body}?group=Linkgo&icon=https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg&url=${appUrl}`).catch(e => e);
             } catch (error) {
                 console.log('Bark 通知发送失败:', error);
             }
@@ -7509,8 +7520,6 @@ ${chatContent}
             // 显示聊天窗口
             showChatWindow();
             
-            // 🎯 召唤实时时间戳
-            checkAndAppendRealtimeTimestamp();
             // 重置输入框和扩展面板
             document.getElementById('chat-message-input').value = '';
             chatExtensionsPanelOpen = false;
@@ -8237,6 +8246,8 @@ ${chatContent}
 
        // --- 发送聊天消息（真正的数据驱动流式版） ---
         async function sendChatMessage() {
+            // ✨ 在发送消息的第一时间，检查并追加时间戳
+            checkAndAppendRealtimeTimestamp();
             const input = document.getElementById('chat-message-input');
             if (!input) return;
             
@@ -14104,30 +14115,6 @@ ${chatContent}
             const todoSheet = document.getElementById('todo-bottom-sheet');
             if (!todoSheet) return;
 
-            if (window.visualViewport) {
-                window.visualViewport.addEventListener('resize', function() {
-                    if (todoSheet.classList.contains('active')) {
-                        const keyboardHeight = window.innerHeight - window.visualViewport.height;
-                        
-                        if (keyboardHeight > 50) {
-                            // 1. 把底边距设置为键盘高度
-                            todoSheet.style.bottom = `${keyboardHeight}px`;
-                            
-                            // 2. 核心修复：限制抽屉的最大高度，确保它正好填满键盘上方的可视区域
-                            // 减去 15px 是为了给顶部留一点呼吸空间，不至于死死贴住屏幕最上边缘
-                            todoSheet.style.maxHeight = `${window.visualViewport.height - 15}px`; 
-                            
-                            window.scrollTo(0, 0); 
-                        } else {
-                            // 键盘收起，恢复原位
-                            todoSheet.style.bottom = '0px';
-                            // 清除动态设置的最大高度，恢复你原本在 CSS 中写的样式（比如 max-height: 90vh）
-                            todoSheet.style.maxHeight = ''; 
-                        }
-                    }
-                });
-            }
-
             todoSheet.addEventListener('focusin', (e) => {
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
                     setTimeout(() => {
@@ -14137,21 +14124,6 @@ ${chatContent}
             });
         });
 
-        // ✨ 聊天输入框键盘顶起优化逻辑
-        document.addEventListener('DOMContentLoaded', () => {
-            const chatInputBar = document.getElementById('chat-input-bar');
-            if (chatInputBar) {
-                chatInputBar.addEventListener('focusin', (e) => {
-                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                        setTimeout(() => {
-                            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            // 附赠一个小优化：键盘弹起时，顺便让聊天列表也滚到底部
-                            scrollToBottomInstant(); 
-                        }, 300);
-                    }
-                });
-            }
-        });
         // ==========================================
         // 抽屉拖拽拉伸逻辑 (赋予原生 App 质感)
         // ==========================================
@@ -14186,30 +14158,35 @@ ${chatContent}
 
             // 3. 手指松开时
             dragHandle.addEventListener('touchend', (e) => {
-                const springAnim = 'height 0.4s cubic-bezier(0.32, 0.72, 0, 1), transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)';
-                bottomSheet.style.transition = springAnim;
-                
                 const currentY = e.changedTouches ? e.changedTouches[0].clientY : dragStartY;
-                const deltaY = dragStartY - currentY; 
-                
-                // ✨ 核心物理引擎：计算滑动速度 (像素/毫秒)
+                const deltaY = dragStartY - currentY;
                 const dragTime = Date.now() - window.dragStartTime;
-                const velocity = deltaY / dragTime; 
-                
-                // 🚀 场景一：猛地向下拉 (速度很快) 或者 慢慢拉到底部 -> 直接取消保存并关闭
+                const velocity = deltaY / dragTime;
+
+                // 🚀 场景一：猛地向下拉 (速度很快) 或者 慢慢拉到底部 -> 关闭抽屉
                 if (velocity < -0.8 || deltaY < -150) {
-                    cancelTodoSheet();
-                    // 悄悄恢复默认高度，为下次打开做准备
-                    setTimeout(() => { bottomSheet.style.height = '65vh'; }, 300);
+                    // ✨ 修复反弹：关闭时换成普通的平滑退出动画，绝对不使用弹簧！
+                    bottomSheet.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), height 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+                    cancelTodoSheet(); 
+                    
+                    // ✨ 修复反弹：等抽屉彻底掉出屏幕后，先强行关闭动画，再悄悄恢复高度
+                    setTimeout(() => {
+                        bottomSheet.style.transition = 'none'; // 彻底关闭动画
+                        bottomSheet.style.height = '65vh';     // 瞬间恢复高度，为下次打开做准备
+                    }, 350);
                     return;
                 }
-                
+
+                // ✨ 如果没关闭（弹回原位或者吸顶），才赋予它带有弹性的果冻动画
+                const springAnim = 'height 0.4s cubic-bezier(0.32, 0.72, 0, 1), transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)';
+                bottomSheet.style.transition = springAnim;
+
                 // 🚀 场景二：向上拉超过一点点 -> 吸附到最高处遮住所有任务
                 if (deltaY > 20 || bottomSheet.clientHeight > window.innerHeight * 0.75) {
                     bottomSheet.style.height = 'calc(100vh - 100px)';
                 } else {
                     // 🚀 场景三：没怎么动或者轻微向下拉 -> 恢复到默认 65vh 高度
-                    bottomSheet.style.height = '65vh'; 
+                    bottomSheet.style.height = '65vh';
                 }
             });
         });
