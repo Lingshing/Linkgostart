@@ -4722,6 +4722,7 @@
         
         // 实际发送通知的函数（本地高精度版 - 完美适配 Bark 并支持自动跳转）
         async function sendPushNotification(messageText) {
+            return;
             // 🎯 最核心逻辑：如果你当前在网页里（前台），立刻停止执行！绝对不弹 Bark！
             if (document.visibilityState === 'visible') return; 
             
@@ -14323,6 +14324,15 @@ ${chatContent}
                 }
             });
         }
+
+        // 🗡️ Capacitor 原生键盘刺客指令：干掉苹果丑陋的辅助灰条
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
+                window.Capacitor.Plugins.Keyboard.setAccessoryBarVisible({ isVisible: false })
+                    .then(() => console.log("✅ 苹果键盘灰条已被成功干掉！"))
+                    .catch(err => console.error("❌ 隐藏灰条失败:", err));
+            }
+        });
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
