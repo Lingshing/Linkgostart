@@ -20,7 +20,8 @@ jobs:
       run: |
         npm init -y
         # ✨ 偷偷加上了 @capacitor/keyboard@6 这个键盘刺客插件！
-        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6
+        # ✨ 新增：加入了 app 和 background-task 后台保活神仙插件！
+        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 @capacitor/app@6 @capacitor/background-task@6
         mkdir www
         echo "Linkgo" > www/index.html
 
