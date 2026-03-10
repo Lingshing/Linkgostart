@@ -4719,31 +4719,37 @@
             }
         }
         
-        // --- ✨ 全局严格状态追踪 ---
-        window.appRealActive = (document.visibilityState === 'visible');
-        document.addEventListener('visibilitychange', () => {
-            window.appRealActive = (document.visibilityState === 'visible');
+        // --- ✨ 全局严格状态追踪 (究极敏感雷达版) ---
+        window.appRealActive = (document.visibilityState === 'visible' || document.hasFocus());
+        
+        // 只要屏幕有一丁点动静(聚焦、触摸、点击)，立刻强行判定为前台，绝不放过一毫秒！
+        ['visibilitychange', 'focus', 'pageshow', 'touchstart', 'click'].forEach(evt => {
+            document.addEventListener(evt, () => {
+                if (document.visibilityState === 'visible' || document.hasFocus()) {
+                    window.appRealActive = true;
+                }
+            }, { capture: true, passive: true });
         });
+
         if (window.Capacitor && window.Capacitor.Plugins.App) {
             window.Capacitor.Plugins.App.addListener('appStateChange', ({ isActive }) => {
                 window.appRealActive = isActive;
             });
         }
 
-        // 实际发送通知的函数（防 iOS 唤醒爆发版）
+        // 实际发送通知的函数（拦截飞行子弹版）
         async function sendPushNotification(messageText) {
             if (!GENERAL_CONFIG.notification.pushEnabled) return;
 
-            // 🛡️ 初步拦截：如果在前台，直接拦住
-            if (document.visibilityState === 'visible' || window.appRealActive) return;
+            // 🛡️ 第一道防线：雷达发现前台，直接拦截
+            if (document.visibilityState === 'visible' || document.hasFocus() || window.appRealActive) return;
 
-            // ✨ 核心魔法：让子弹飞 100 毫秒 (Event Loop Yield)
-            // 解决 iOS 休眠唤醒时，计时器解冻导致瞬间爆发连发通知的底层 Bug！
-            // 强行把当前代码挂起 100 毫秒，给系统充足的时间更新前台状态。
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // ✨ 核心魔法升级：屏息时间由 100ms 延长到 300 毫秒！
+            // 给你的“切回App动作”留出充足的时间。如果你正准备切回来，这300毫秒内雷达一定会报警，然后掐断这颗子弹！
+            await new Promise(resolve => setTimeout(resolve, 300));
             
-            // 100 毫秒后再次检测！如果此时你已经点开 App 回到了前台，剩下的请求会被无情阻断！绝对不会连击！
-            if (document.visibilityState === 'visible' || window.appRealActive) return;
+            // 🛡️ 第二道防线：屏息结束后最后确认，如有异常立刻掐断！
+            if (document.visibilityState === 'visible' || document.hasFocus() || window.appRealActive) return;
 
             if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') return;
 
@@ -4759,6 +4765,7 @@
                 const appUrl = encodeURIComponent('linkgo://');
                 const iconUrl = encodeURIComponent('https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg');
                 
+                // 确认绝对安全后，真正发射
                 fetch(`https://api.day.app/${barkKey}/${title}/${body}?group=Linkgo&icon=${iconUrl}&url=${appUrl}`);
             } catch (error) {
                 console.error('Bark 推送失败:', error);
