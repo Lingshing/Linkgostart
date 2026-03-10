@@ -35,6 +35,12 @@ jobs:
           "server": {
             "url": "https://lingshing.github.io/Linkgostart/app.html",
             "cleartext": true
+          },
+          "plugins": {
+            "Keyboard": {
+              "resize": "Native",
+              "resizeOnFullScreen": true
+            }
           }
         }
         EOF
