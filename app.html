@@ -14397,6 +14397,46 @@ ${chatContent}
                 document.getElementById('todo-bottom-sheet').classList.add('active');
             }, 10);
         }
+
+        // 🛡️ 终极神级特性：iOS 原生后台强力保活引擎
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.Capacitor && window.Capacitor.Plugins.App && window.Capacitor.Plugins.BackgroundTask) {
+                const App = window.Capacitor.Plugins.App;
+                const BackgroundTask = window.Capacitor.Plugins.BackgroundTask;
+
+                App.addListener('appStateChange', async ({ isActive }) => {
+                    if (!isActive) {
+                        // 🚨 警报：App 被划到后台了！立刻向 iOS 申请免死金牌！
+                        const taskId = await BackgroundTask.beforeExit(async () => {
+                            console.log('🛡️ 后台保活已启动，JS 引擎继续运行...');
+                            let secondsCount = 0;
+
+                            const watchdog = setInterval(() => {
+                                secondsCount++;
+                                
+                                // 检查 AI 是不是还在回复，或者气泡队列还没吐完
+                                const isThinking = window.backgroundAIReply && window.backgroundAIReply.inProgress;
+                                const hasQueue = window.globalBubbleQueue && window.globalBubbleQueue.length > 0;
+
+                                // 如果 AI 闭嘴了，且队列吐干净了（没有气泡了）
+                                if (!isThinking && !hasQueue) {
+                                    console.log('✅ 后台任务圆满完成，Bark 已全部推完，允许系统休眠省电。');
+                                    clearInterval(watchdog);
+                                    BackgroundTask.finish({ taskId }); // 把特权还给 iOS
+                                }
+
+                                // 兜底防御：iOS 极限保活时间快到了 (约3分钟)，强制结单，防崩溃
+                                if (secondsCount >= 160) {
+                                    console.log('⚠️ 到达后台保活极限时间，强制安全退出。');
+                                    clearInterval(watchdog);
+                                    BackgroundTask.finish({ taskId });
+                                }
+                            }, 1000);
+                        });
+                    }
+                });
+            }
+        });
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
