@@ -14073,7 +14073,6 @@ ${chatContent}
             }, 250);
         }
 
-        let activeTodoId = null;
         function openTodoAction(taskId) {
             // 备份初始状态，用于取消时回滚
             window.originalTagPool = [...todoTagPool];
@@ -14083,39 +14082,6 @@ ${chatContent}
             document.getElementById('todo-action-sheet').style.transform = 'translateY(0)';
         }
         function closeTodoAction() { activeTodoId = null; document.getElementById('todo-action-overlay').classList.remove('active'); document.getElementById('todo-action-sheet').style.transform = 'translateY(100%)'; }
-
-        function deleteCurrentTodo() { if (!activeTodoId) return; todoList = todoList.filter(t => t.id !== activeTodoId); saveTodoData(); renderTodoList(); closeTodoAction(); }
-
-        function editCurrentTodo() {
-            if (!activeTodoId) return;
-            const task = todoList.find(t => t.id === activeTodoId);
-            if (!task) return;
-            
-            const titleInput = document.getElementById('todo-input-title');
-            titleInput.value = task.title; titleInput.style.height = 'auto'; titleInput.style.height = titleInput.scrollHeight + 'px';
-            
-            document.getElementById('todo-date-picker').value = task.ddl_date || ''; document.getElementById('todo-time-picker').value = task.ddl_time || '';
-            updateTodoDDL();
-
-            todoSelectedTags.clear();
-            task.tags.forEach(tag => { if (!todoTagPool.includes(tag)) todoTagPool.push(tag); todoSelectedTags.add(tag); });
-            // 备份初始状态，用于取消时回滚
-            window.originalTagPool = [...todoTagPool];
-            window.originalSelectedTags = new Set(todoSelectedTags);
-            renderTodoTags();
-
-            document.getElementById('todo-subtasks-container').innerHTML = '';
-            if (task.subTasks) task.subTasks.forEach(st => addTodoSubtaskRow(st.title, st.completed, false));
-
-            document.getElementById('todo-bottom-sheet').dataset.editingId = task.id;
-            
-            // 编辑任务时，显示左上角的删除按钮
-            const topDelete = document.getElementById('todo-sheet-top-delete');
-            if (topDelete) topDelete.style.visibility = 'visible';
-
-            closeTodoAction();
-            setTimeout(() => { document.getElementById('todo-sheet-overlay').classList.add('active'); document.getElementById('todo-bottom-sheet').classList.add('active'); }, 100); 
-        }
 
         document.addEventListener('DOMContentLoaded', () => { setTimeout(() => { renderTodoList(); }, 200); });
         document.addEventListener('DOMContentLoaded', () => {
@@ -14324,40 +14290,143 @@ ${chatContent}
             });
         }
 
-        // 🗡️ 原生完美同步键盘：终极形态！让整个页面作为整体被推上去！
+        // 🗡️ 原生完美同步键盘：智能判定场景 + 苹果原生阻尼缓动版
         document.addEventListener('DOMContentLoaded', () => {
             if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
                 const Keyboard = window.Capacitor.Plugins.Keyboard;
-                
-                // 1. 彻底干掉苹果自带的丑陋灰条
                 Keyboard.setAccessoryBarVisible({ isVisible: false });
-                
-                // 2. 极其关键：越权覆盖上次打包的配置，彻底关闭苹果的 WebView 压缩机制！
-                // 这行代码会让键盘变成“纯覆盖”模式，你的网页再也不会被挤压变形了
                 Keyboard.setResizeMode({ mode: 'none' }).catch(e => console.log(e));
 
-                // 3. 监听键盘即将弹出的瞬间
+                // ✨ 核心 1：注入苹果 iOS 原生键盘的丝滑阻尼缓动曲线
+                const style = document.createElement('style');
+                style.innerHTML = `
+                    .kb-animated {
+                        transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1) !important;
+                    }
+                `;
+                document.head.appendChild(style);
+
+                // 安全位移函数（自动记录原本状态，防止收起键盘时样式错乱）
+                function setShift(el, shiftValue) {
+                    if (!el) return;
+                    if (!el.hasAttribute('data-orig-transform')) {
+                        el.setAttribute('data-orig-transform', el.style.transform || '');
+                    }
+                    el.classList.add('kb-animated');
+                    el.style.transform = `translateY(${shiftValue}px)`;
+                    el.dataset.kbShifted = "true";
+                }
+
                 Keyboard.addListener('keyboardWillShow', info => {
-                    // 把整个 body (整个页面连同顶部的 Header) 像一张纸一样瞬间往上推！
-                    // 加入了苹果原生键盘的阻尼动画曲线
-                    document.body.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)';
-                    document.body.style.transform = `translateY(-${info.keyboardHeight}px)`;
+                    const kbHeight = info.keyboardHeight;
+                    const activeEl = document.activeElement;
+                    if (!activeEl) return;
+
+                    // 🔍 获取头部元素（你可以根据你的实际 ID 补充）
+                    const headers = document.querySelectorAll('header, .header, #chat-header, .top-bar, .nav-bar');
+
+                    // 1️⃣ 场景一：主聊天界面的大输入框
+                    if (activeEl.id === 'chat-input') {
+                        // 主体上推
+                        setShift(document.body, -kbHeight);
+                        // ✨ 核心 2：让 Header 反向下移相同的距离！
+                        // 这样在视觉上，Header 就像钉死在屏幕顶部一样纹丝不动！
+                        headers.forEach(h => setShift(h, kbHeight));
+                    } 
+                    // 2️⃣ 场景二：任务站的底部大抽屉
+                    else if (activeEl.closest('#todo-bottom-sheet')) {
+                        const sheet = activeEl.closest('#todo-bottom-sheet');
+                        // 抽屉原本就在底部，推满整个键盘高度
+                        setShift(sheet, -kbHeight);
+                    }
+                    // 3️⃣ 场景三：其他的中间层弹窗（比如编辑 Prompt）
+                    else {
+                        // 智能寻找这个输入框是不是在一个弹窗里
+                        let container = activeEl.closest('.modal') || activeEl.closest('[style*="position: fixed"]') || activeEl.closest('.dialog-overlay');
+                        
+                        if (container) {
+                            // 弹窗只要微微上推键盘高度的 35% 就够了，保证不遮挡且不夸张
+                            setShift(container, -(kbHeight * 0.35));
+                        } else {
+                            // 兜底防御：轻微上推一点点
+                            setShift(document.body, -100);
+                        }
+                    }
                 });
 
-                // 4. 监听键盘即将收起的瞬间
                 Keyboard.addListener('keyboardWillHide', () => {
-                    // 整个页面完美丝滑落回原位
-                    document.body.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)';
-                    document.body.style.transform = 'translateY(0)';
+                    // 还原所有被这波操作修改过的元素
+                    document.querySelectorAll('[data-kb-shifted="true"]').forEach(el => {
+                        const orig = el.getAttribute('data-orig-transform');
+                        el.style.transform = orig || ''; // 完美恢复它原本的样式
+                        delete el.dataset.kbShifted;
+                    });
                     
-                    // 苹果底层焦点残留的经典补偿，防止偶尔出现底部白边
-                    setTimeout(() => {
-                        window.scrollTo({ top: 0, behavior: 'instant' });
-                    }, 50);
+                    // 等待缓动动画结束后，彻底打扫干净战场
+                    setTimeout(() => { 
+                        document.querySelectorAll('.kb-animated').forEach(el => el.classList.remove('kb-animated'));
+                        window.scrollTo({ top: 0, behavior: 'instant' }); 
+                    }, 350);
                 });
             }
         });
 
+        let activeTodoId = null;
+
+        // 🗑️ 终极纯净版：删除任务
+        function deleteCurrentTodo() {
+            if (!activeTodoId) return;
+            todoList = todoList.filter(t => t.id !== activeTodoId);
+            saveTodoData();
+            renderTodoList();
+            
+            // 删完之后，直接关掉新的大抽屉，极其丝滑
+            closeTodoSheet(); 
+        }
+
+        // ✏️ 终极纯净版：打开大抽屉编辑任务
+        function editCurrentTodo() {
+            if (!activeTodoId) return;
+            const task = todoList.find(t => t.id === activeTodoId);
+            if (!task) return;
+            
+            const titleInput = document.getElementById('todo-input-title');
+            titleInput.value = task.title;
+            titleInput.style.height = 'auto';
+            titleInput.style.height = titleInput.scrollHeight + 'px';
+            
+            document.getElementById('todo-date-picker').value = task.ddl_date || '';
+            document.getElementById('todo-time-picker').value = task.ddl_time || '';
+            updateTodoDDL();
+            
+            todoSelectedTags.clear();
+            task.tags.forEach(tag => {
+                if (!todoTagPool.includes(tag)) todoTagPool.push(tag);
+                todoSelectedTags.add(tag);
+            });
+            // 备份初始状态，用于取消时回滚
+            window.originalTagPool = [...todoTagPool];
+            window.originalSelectedTags = new Set(todoSelectedTags);
+            
+            renderTodoTags();
+            
+            document.getElementById('todo-subtasks-container').innerHTML = '';
+            if (task.subTasks) task.subTasks.forEach(st => addTodoSubtaskRow(st.title, st.completed, false));
+            
+            document.getElementById('todo-bottom-sheet').dataset.editingId = task.id;
+            
+            // 编辑任务时，显示左上角的删除按钮
+            const topDelete = document.getElementById('todo-sheet-top-delete');
+            if (topDelete) topDelete.style.visibility = 'visible';
+            
+            // ❌ 彻底移除了那句会引发崩溃的报错代码
+
+            // 顺利弹出大抽屉
+            setTimeout(() => {
+                document.getElementById('todo-sheet-overlay').classList.add('active');
+                document.getElementById('todo-bottom-sheet').classList.add('active');
+            }, 10);
+        }
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
