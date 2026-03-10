@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <title>Linkgo</title>
     <link rel="manifest" href="https://lingshing.github.io/Linkgostart/manifest.json">
@@ -14323,6 +14323,13 @@ ${chatContent}
                 }
             });
         }
+
+        // 🗡️ 原生完美同步键盘：干掉灰条，依靠底层自动推拉
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
+                window.Capacitor.Plugins.Keyboard.setAccessoryBarVisible({ isVisible: false });
+            }
+        });
 
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
