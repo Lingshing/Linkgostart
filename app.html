@@ -14198,7 +14198,7 @@ ${chatContent}
             });
         }
 
-       // 🗡️ 原生完美同步键盘：绝对固定 Header + 拦截幽灵键盘 + 智能光标防跳
+       // 🗡️ 原生完美同步键盘：绝对固定 Header + 拦截幽灵键盘
         document.addEventListener('DOMContentLoaded', () => {
             if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
                 const Keyboard = window.Capacitor.Plugins.Keyboard;
@@ -14226,30 +14226,37 @@ ${chatContent}
                     if (!el.hasAttribute('data-orig-transform')) {
                         el.setAttribute('data-orig-transform', el.style.transform || '');
                     }
+                    
                     el.style.transition = 'transform 0.38s cubic-bezier(0.15, 0.85, 0.3, 1)';
                     void el.offsetWidth;
                     el.style.transform = `translateY(${shiftValue}px)`;
                     el.dataset.kbShifted = "true";
                 }
 
-                // 拦截 1：点击空白处失焦
+                // ✨ 终极核弹级修复 2：双重拦截，绝对斩断幽灵键盘！
+
+                // 第一重：只要你的手指按在非输入框区域，立刻没收当前焦点！(使用 touchstart 比 click 反应快 100 毫秒，赢在起跑线)
                 document.addEventListener('touchstart', (e) => {
+                    // 如果你摸的不是输入框、也不是底部的输入栏区域
                     if (!e.target.closest('input') && !e.target.closest('textarea') && !e.target.closest('#chat-input-bar')) {
                         const active = document.activeElement;
                         if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
-                            active.blur();
+                            active.blur(); // 瞬间剥夺焦点
                         }
                     }
                 }, { passive: true, capture: true });
 
-                // 拦截 2：切页时强制清理残余焦点
+                // 第二重：切页/退出前的无差别大扫除！
                 document.addEventListener('click', (e) => {
+                    // 只要你点击了：返回按钮、顶部标题栏、底栏导航、或者任意一个【聊天列表项】
+                    // (请根据你实际的列表项 class 补充，比如 .chat-item, .list-item)
                     if (e.target.closest('.back-btn') || 
                         e.target.closest('.chat-nav-header') || 
                         e.target.closest('.nav-item') || 
                         e.target.closest('.chat-list-item') || 
-                        e.target.closest('[onclick*="openChat"]')) { 
+                        e.target.closest('[onclick*="openChat"]')) { // 匹配带有打开聊天函数的元素
                         
+                        // 不管三七二十一，把全网所有的输入框强制失焦！把 iOS 的记忆彻底清零！
                         document.querySelectorAll('input, textarea').forEach(el => el.blur());
                     }
                 }, true);
@@ -14259,22 +14266,27 @@ ${chatContent}
                     const activeEl = document.activeElement;
                     if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) return;
 
+                    activeEl.style.caretColor = 'transparent';
+                    setTimeout(() => {
+                        activeEl.style.caretColor = ''; 
+                    }, 400); 
+
                     const activePage = document.querySelector('.sub-page-scene.show') || document.querySelector('.tab-page.active');
                     const sab = getSafeAreaBottom();
 
                     // 1️⃣ 聊天主界面
                     if (activeEl.id === 'chat-message-input' || activeEl.closest('#chat-input-bar')) {
-                        // ✨ 修复：因为聊天框肯定被推起，所以只在这里触发光标隐身防跳！
-                        activeEl.style.caretColor = 'transparent';
-                        setTimeout(() => { activeEl.style.caretColor = ''; }, 400);
-
                         const targetPage = activePage || document.body;
                         const exactShift = kbHeight - sab; 
-                        
+
+                        // ✨ 终极修复 1：绝对物理隔离法！
+                        // 不再整体推 targetPage，而是遍历它里面的元素
                         Array.from(targetPage.children).forEach(child => {
+                            // 只要你是 Header，就绝对不碰你，物理层面彻底钉死在原地！
                             if (child.classList.contains('chat-nav-header') || child.tagName === 'HEADER' || child.id === 'chat-header') {
                                 return;
                             }
+                            // 只把聊天记录和输入框推上去
                             setShift(child, -exactShift);
                         });
                         return;
@@ -14286,10 +14298,6 @@ ${chatContent}
                         const overlap = rect.bottom - (window.innerHeight - kbHeight) + 20;
 
                         if (overlap > 0) {
-                            // ✨ 修复：只有当键盘真的挡住输入框（产生上移位移）时，才触发光标隐身！
-                            activeEl.style.caretColor = 'transparent';
-                            setTimeout(() => { activeEl.style.caretColor = ''; }, 400);
-
                             let container = activeEl.closest('#todo-bottom-sheet') || 
                                             activeEl.closest('.modal-content') || 
                                             activeEl.closest('.config-modal-content') || 
@@ -14299,6 +14307,7 @@ ${chatContent}
                                 setShift(container, -Math.min(overlap, kbHeight));
                             } else {
                                 const targetPage = activePage || document.body;
+                                // 同样，对其他页面也实施精准推升，绕过 Header
                                 Array.from(targetPage.children).forEach(child => {
                                     if (child.classList.contains('header') || child.tagName === 'HEADER') return;
                                     setShift(child, -overlap);
@@ -14320,6 +14329,8 @@ ${chatContent}
                             el.removeAttribute('data-orig-transform');
                         }, 400); 
                     });
+                    
+                    // ❌ 彻底删除了以前用于补偿的 window.scrollTo(0,0)，从根源拔除了页面闪跳。
                 });
             }
         });
