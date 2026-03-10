@@ -14457,17 +14457,6 @@ ${chatContent}
         </div>
     </div>
 
-    <div id="todo-action-overlay" class="todo-sheet-overlay" style="z-index: 4002;" onclick="closeTodoAction()"></div>
-    <div id="todo-action-sheet" style="position: fixed; left: 0; right: 0; bottom: 0; z-index: 4003; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1); padding-bottom: calc(env(safe-area-inset-bottom) + 16px);">
-        <div style="margin: 0 16px; display: flex; flex-direction: column; gap: 8px;">
-            <div style="background: var(--card-bg); border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
-                <div onclick="editCurrentTodo()" style="padding: 16px; text-align: center; font-size: 17px; color: var(--accent); font-weight: 500; border-bottom: 0.5px solid var(--border); cursor: pointer;">编辑任务</div>
-                <div onclick="deleteCurrentTodo()" style="padding: 16px; text-align: center; font-size: 17px; color: #FF3B30; font-weight: 500; cursor: pointer;">删除任务</div>
-            </div>
-            <div onclick="closeTodoAction()" style="background: var(--card-bg); border-radius: 14px; padding: 16px; text-align: center; font-size: 17px; color: var(--text-main); font-weight: 600; cursor: pointer;">取消</div>
-        </div>
-    </div>
-
     <div id="todo-sheet-overlay" class="todo-sheet-overlay" onclick="cancelTodoSheet()"></div>
     <div id="todo-bottom-sheet" class="todo-bottom-sheet" style="padding: 16px 20px 80px; gap: 8px;">
         <div class="todo-sheet-handle"></div>
