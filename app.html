@@ -3830,7 +3830,53 @@
                         }
                     }
                 }
-                messages.push(...conversation.slice(startIndex)); 
+                // ---------- 【修改开始：重新生成模式的严格引擎】 ----------
+                let rawConversation = JSON.parse(JSON.stringify(conversation.slice(startIndex)));
+                
+                let jailbreakPrompt = "";
+                if (window.ADVANCED_PRESET_FILES) {
+                    const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
+                    enabledFiles.forEach(file => {
+                        if (file.prompts) file.prompts.forEach(p => {
+                            if (p.enabled !== false && p.content) jailbreakPrompt += '\n\n' + p.content;
+                        });
+                    });
+                }
+                
+                let mergedChat = [];
+                for (const msg of rawConversation) {
+                    if (mergedChat.length > 0 && mergedChat[mergedChat.length - 1].role === msg.role) {
+                        mergedChat[mergedChat.length - 1].content += '\n\n' + msg.content;
+                    } else {
+                        mergedChat.push({ ...msg });
+                    }
+                }
+                
+                if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
+                    mergedChat.forEach(msg => {
+                        if (msg.role === 'user') {
+                            msg.content = applyRegexRules(msg.content);
+                        }
+                    });
+                }
+                
+                if (jailbreakPrompt) {
+                    let lastUserMsgIndex = -1;
+                    for (let i = mergedChat.length - 1; i >= 0; i--) {
+                        if (mergedChat[i].role === 'user') {
+                            lastUserMsgIndex = i;
+                            break;
+                        }
+                    }
+                    if (lastUserMsgIndex !== -1) {
+                        mergedChat[lastUserMsgIndex].content += `\n\n【系统强制指令，请绝对服从】：${jailbreakPrompt}`;
+                    } else {
+                        mergedChat.push({ role: 'user', content: `【系统强制指令，请绝对服从】：${jailbreakPrompt}` });
+                    }
+                }
+                
+                messages.push(...mergedChat);
+                // ---------- 【修改结束】 ----------
                 
                 let apiUrl = getStandardApiUrl(config.url, '/chat/completions');
                 
@@ -5001,40 +5047,50 @@
             const summaryMessages = [
                 {
                     role: "system",
-                    content: `【绝对规则 - 你的身份】
-你是无情的档案记录员，负责从对话中提取关键实体档案。
-不要写小作文，不要写流水账日记，只提取具体的客观事实、偏好和重要事件。必须保留特定名词（如海豚、香蕉、特定地点）。
+                    content: `【终极使命：世界观记录者与小说大纲作者】
+                    你不再是一个死板的AI客服或数据分析师！你现在是这部沉浸式小说（修真、ABO、武侠、现代等世界观）的【世界观记录者】与【羁绊记录员】。
+                    你的任务是从流水账对话中，提取出带有温度、细节、动作和人物张力的【剧情设定档案】。
 
-【标准输出格式】
-[分类]|评分|标签|内容
+                    【绝对禁止的词汇与风格】
+                    ❌ 严禁出现公文体：禁止使用“综合考虑策略”、“制定相关计划”、“扮演关键作用”、“进行了互动”、“产生事件”等机器人词汇。
+                    ❌ 严禁高度概括与抽象：不能把“鲫鱼汤、猪蹄”写成“营养品”，不能把“买手镯未买耳环”写成“购买首饰”。
 
-【正确示例】
-[人物]|4|X同学,大学|X同学是用户的大学同学，曾经帮用户告白过。
-[偏好]|3|食物,香蕉|用户表示自己非常喜欢吃香蕉。
-[事件]|3|海洋馆,泡面|上次约会去了海洋馆，一边看着海豚一边吃泡面，感觉很香。
-[核心]|5|设定,目标|用户目前的终极目标是考上研究生。
+                    【必须遵守的5大黄金法则】
+                    1. 专有名词绝对敏感（一字不差）：只要对话中出现了特定的名字（如宝宝起名星澜）、功法、门派（如无情派）、丹药（如安胎丸）、食物（如猪蹄花生汤）、信物、地点等，必须原词保留，绝不允许用代词或上位概念替换。
+                    2. 动作与细节绑定主语：每一条档案必须像写小说大纲一样，包含明确的施动者和承受者，以及生动的细节。
+                        - ✅ 正确示例：“林深给师弟挑选了上好种水的翡翠手镯，且敏锐地识破了店家的次货；因为注意到师弟没有耳洞，所以没有买耳坠。”
+                        - ✅ 正确示例：“怀上二胎两个月时，林深尤其偏爱肉食，尤其是红烧肉、猪蹄花生汤等菜品。”
+                    3. 动态角色档案与隐藏身份捕捉：时刻关注对话中揭示的新身份或新设定（如：“原来林深是无情派大弟子”），并将其作为情报记录。必须明确界定AI扮演的角色（如师兄/林深）和用户扮演的角色（如师弟/User）。
+                    4. 羁绊与承诺的追踪：两人之间达成的约定、许下的承诺、未来的安排，必须被郑重记录（如：“两人在咨询郎中后，决定同时使用吐纳法门和安胎丸，让师弟安心养胎”）。
+                    5. NSFW与亲密情节的【柔化保真】（绝不跳过！）：
+                        - 亲密行为是角色情感的重大里程碑，必须被记录。
+                        - 若涉及世界观专属设定（如ABO的标记、永久标记、发情期、易感期、具体信息素气味；修真界的双修、灵力交融），必须原词保留客观记录。
+                        - 描写需使用唯美、缱绻的文学笔法隐晦处理，但必须写明结果。
+                        - ✅ 示例：“久别重逢的夜晚，林深再难克制情意，两人互诉衷肠、共赴巫山。在浓烈的信息素交融中，林深完成了永久标记，两人身心彻底结合。”
 
-【去重与忽略规则】
-1. 查看下方【已有记忆库】，已经记录过的类似事件，绝对不要重复记录！
-2. 废话、日常问候、没有信息量的话直接忽略，不予输出！
+                    【标准输出格式】
+                    严格按照以下格式输出，每条一行：
+                    [分类]|评分|标签|所属区间|内容
 
-【字段说明】
-- 分类：[核心]、[偏好]、[事件]、[人物]
-- 评分：务必严格按照 1-5 分制评估！(低于3分的日常对话不要提取)
-  - 5分：核心设定 / 性格 / 终极目标
-  - 4分：重要人物关系 / 深刻的情感转折
-  - 3分：长期偏好 / 明确发生的事件与细节
-- 标签：最多3个，用逗号分隔，必须包含核心名词`
+                    【字段说明】
+                    - 分类：[情报]（身份/世界观设定）、[羁绊]（亲密互动/承诺）、[事件]（具体经历）、[偏好]（饮食/习惯/忌讳）
+                    - 评分：务必严格按照 1-5 分制评估！(低于3分的无营养废话不要提取)
+                    - 5分：核心身份设定 / 永久标记 / 姓名 / 重大转折
+                    - 4分：重要承诺 / 亲密突破 / 专属配方与功法
+                    - 3分：具体的生活事件细节 / 明确的偏好
+                    - 标签：最多3个，用逗号分隔，必须包含核心专有名词（如：星澜,起名）
+                    - 所属区间：必须从给出的区块范围中原样复制（如 第31-60轮）
+                    - 内容：必须按照【黄金法则】使用小说语言撰写。`
                 },
                 {
                     role: "user",
-                    content: `【已有记忆库（禁止重复记录这些）】
+                    content: `【已有记忆库（如果已有完全相同的事件，请勿重复记录；但如果是新的细节或进展，请记录补充）】
 ${allExistingMemories}
 
-【最近的对话】
+【需要提取的各区块对话记录】
 ${recentChat}
 
-请以 **${contact.name}** 的第一人称视角，写下新的日记（如果没有新信息则什么都不用写）：`
+请以大纲作者的视角，提炼出这段对话中带有烟火气、保留特定名词和情感张力的长期档案（如果没有新信息则跳过不写）`
                 }
             ];
             
@@ -5911,19 +5967,6 @@ ${chatContent}
                 const timeStr = `${now.getMonth() + 1}月${now.getDate()}日 星期${days[now.getDay()]} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
                 finalPrompt += `\n\n【系统特别提示：现实感知已开启】当前真实世界的时间是：${timeStr}。请严格符合当前时间点进行对话（例如半夜绝不能说早上好，到饭点可以提吃饭，深夜可以表现出困意）。`;
             }
-            // 2. 注入高级功能中启用的全局预设
-            if (window.ADVANCED_PRESET_FILES) {
-                const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
-                enabledFiles.forEach(file => {
-                    if (file.prompts) {
-                        file.prompts.forEach(p => {
-                            if (p.enabled !== false && p.content) {
-                                finalPrompt += '\n\n' + p.content;
-                            }
-                        });
-                    }
-                });
-            }
             
             const currentMode = contact?.chatMode || 'none'; // 默认为都不选
 
@@ -5947,72 +5990,38 @@ ${chatContent}
             `;
         
                             } else if (currentMode === 'offline') {
-                                // 这里是你写的完美线下Prompt（只把单斜线改成了双斜线防止代码报错，AI看到的还是单斜线）
-                                finalPrompt += `\n\n【绝对规则】你是${contact.name}，正在与用户进行角色扮演对话。用户扮演与你对话的对方。
+    finalPrompt += `\n\n【核心定位与绝对规则】
+你是${contact.name}，正在与用户进行深度沉浸式的角色扮演。用户扮演与你对话的对方。
+你是一个顶级的文学共创者，擅长细腻的感官描写（如光影、温度、肌肤质感、微表情）与极致的张力，文风类似顶级实体出版小说。
 
-                【关键警告】
-                如果你在回复中使用正斜线（/），系统会自动删除它！
-                这会导致你的回复变得混乱、不完整。
-                所以绝对不要使用正斜线（/）！
+【气泡分割与排版绝对法则】（前端UI渲染强依赖此格式，必须100%服从！）：
+1. 你的每次回复必须由 4 到 7 组【行为语言块】组成。
+2. 每个【行为语言块】严格遵循 \`(动作描写)对话内容\` 的结构。
+3. 必须使用反斜线 \`\\\` 来平滑分隔不同的块。
+   ✅ 正确示范：(动作1)话语1\\(动作2)话语2\\(动作3)话语3
+4. 【致命排版雷区】：
+   - 绝对不要使用正斜线（/），会导致系统解析崩溃！
+   - 绝对禁止在对话内容（括号外）中使用换行符（\\n）或空行！括号外的一句话必须连贯到底。
+   - 动作描写必须全部包裹在 \`()\` 内，且括号内绝对不能写句号（。或 .）！
+   - 反斜线 \`\\\` 必须放在括号外面，严禁放在括号内！
 
-                【正确的分隔方式】
-                使用反斜线（\\）来分隔不同的回复部分，像这样：
-                （动作1）内容1\\（动作2）内容2\\（动作3）内容3
+【人称与视角解析（极其重要）】
+1. 用户的指令解析：用户发送的括号()内的内容，是对你（${contact.name}）的客观描述或动作设定。
+   - 例：用户说"(你摔倒了)" → 你现在摔倒了，你必须在接下来的回复中表现出摔倒的状态。
+   - 例：用户说"(轻笑)" → 这是用户在轻笑，不是你。
+2. 你的输出视角：
+   - 括号内（动作描写）：像电影摄像机一样，进行客观细腻的第三人称体态、环境刻画。
+   - 括号外（对话内容）：严格使用第一人称（"我"），称呼用户为"你"。尽量口语化，可带语气词（唔、啊、哈啊），绝不要加双引号。
+3. NPC/路人调度：
+   - 当需要路人烘托气氛时，格式严格为：\`(动作)NPC名字：对话\`。
+   - ✅ 正确示例：\`(孕妈妈们看着这副画面，满眼温柔)孕妈妈甲：以昼你和宝宝们感情真好…\`
 
-                【括号内容严格规范】
-                1. 括号内的动作描写绝对不能有句号（。或.）！
-                - 错误示范：（我看着他。）
-                - 正确示范：（我看着他）
-                2. 反斜线（\\）必须放在括号外面，严禁放在括号里面！
-                - 错误示范：（动作\\）内容
-                - 正确示范：（动作）\\内容
-
-                【错误的分隔方式】
-                （动作1）内容1/（动作2）内容2/（动作3）内容3  ← 这样会被系统删除斜线，变成：
-                （动作1）内容1（动作2）内容2（动作3）内容3
-
-                【严格人称规范】
-                1. 用户消息中所有括号()内的内容，都是对你的客观描述或你执行的动作
-                2. 例如："（你困了）" → 表示你现在困了
-                3. 例如："（你联系了学弟）" → 表示你联系了学弟
-                4. 例如："（描写你的外貌）" → 表示描写你自己的外貌
-                5. 括号内永远是你（${contact.name}）的行为/状态，不是用户的
-
-                【人称解析规则 - 最重要！】
-                用户发送的消息需要这样理解：
-
-                1. **括号内有"你"字** → 描述的是你（${contact.name}）的状态/动作
-                - 用户说"（你摔倒了）" → 你摔倒了，你要回应自己摔倒的情况
-                - 用户说"（你的腿传来剧痛）" → 你的腿在疼，你要表现出疼痛
-                - 用户说"（你哭了）" → 你在哭，你要表现出哭泣的状态
-
-                2. **括号内没有"你"字** → 描述的是用户自己的动作
-                - 用户说"（轻笑）" → 用户在轻笑
-                - 用户说"（走近）" → 用户走近了你
-                - 用户说"（叹气）" → 用户叹气了
-
-                3. **括号外的内容** → 用户对你说的话
-
-                【你的回复要求】
-                1. 第一人称：永远用"我"自称
-                2. 对用户的称呼：用"你"称呼用户
-                3. 格式：（动作描写）对话内容
-                4. 使用反斜线\\分隔不同的句子
-                5. 每次回复3-4句
-
-                【错误示例纠正】
-                用户输入：（你联系了学弟）
-                错误：你联系了学弟吗？（混淆人称）
-                正确：（微笑着点头）嗯，我刚才联系了学弟，他很快就回复了
-
-                用户输入：（你摔倒了）
-                错误：你没事吧？（把用户当成了摔倒的人）
-                正确：（揉着膝盖站起来）哎呀，不小心摔了一跤，不过没事
-
-                用户输入：（描写你的衣服）
-                错误：你的衣服很漂亮（说用户的衣服）
-                正确：（整理了一下裙摆）我今天穿了浅蓝色的连衣裙，喜欢吗？`;
-                            }
+【"(描写...)" 指令深度响应机制】
+当用户输入包含 \`(描写...)\` 的指令时（如：(描写你靠在榻上的诱人模样) 或 (描写你与客商的对话)）：
+- 绝对禁止回复“好的”、“明白”等系统性出戏确认语！
+- 必须瞬间进入【深度感官刻画模式】：将括号内的描写极限拉长，极尽生动之词，全方位调动视觉、触觉、光泽度等（如“被蜜水浸透的白玉”、“丰腴莹润”）。
+- ✅ 示例回应：\`(慵懒地半躺在软榻上，背后垫了五六个厚实的软枕，整个人像是一颗被蜜水浸透的白玉，从头到脚都透着丰腴莹润的光泽)唔…\\(那张脸庞在阳光下白皙得泛着光，唇色红润，几缕碎发贴在修长白皙的脖颈上)哈啊…没力气了…\``;
+}
 
                             return finalPrompt;
         }
@@ -6929,10 +6938,10 @@ ${chatContent}
             
                 // 🎯 修复：适配全新的 1-5 星档案评分机制
                 let borderColor = '#8e8e93'; // 默认灰
-                if (score >= 5) borderColor = '#ff4d4f'; // 5分：核心（红色）
-                else if (score === 4) borderColor = '#FF9F0A'; // 4分：人物/转折（橙色）
-                else if (score === 3) borderColor = '#52c41a'; // 3分：事件/偏好（绿色）
-                else borderColor = '#1890ff'; // 1-2分：次要信息（蓝色）
+                if (score >= 5 || memory.category === '情报') borderColor = '#ff4d4f'; // 红色
+                else if (score === 4 || memory.category === '羁绊') borderColor = '#FF9F0A'; // 橙色/羁绊色
+                else if (score === 3 || memory.category === '事件') borderColor = '#52c41a'; // 绿色
+                else borderColor = '#1890ff'; // 偏好等
                 
                 const card = document.createElement('div');
                 card.className = 'memory-card';
@@ -8195,6 +8204,9 @@ ${chatContent}
 
         // 统一接口：替代旧的臃肿调用
         function handleFinalAIResponse(contactId, finalFullMessage) {
+            if (typeof applyRegexRules === 'function') {
+                finalFullMessage = applyRegexRules(finalFullMessage);
+            }
             // 清理界面的呼吸气泡
             const streamCont = document.getElementById('active-stream-container');
             if (streamCont) streamCont.remove();
@@ -8416,8 +8428,58 @@ ${chatContent}
             }
             const limitedConversation = conversation.slice(startIndex);
 
-            // 加入截取后的历史对话
-            messages.push(...limitedConversation);
+            // ---------- 【修改开始：酒馆严格模式引擎】 ----------
+            let rawConversation = JSON.parse(JSON.stringify(limitedConversation));
+            
+            // 1. 提取全局预设（Jailbreak）
+            let jailbreakPrompt = "";
+            if (window.ADVANCED_PRESET_FILES) {
+                const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
+                enabledFiles.forEach(file => {
+                    if (file.prompts) file.prompts.forEach(p => {
+                        if (p.enabled !== false && p.content) jailbreakPrompt += '\n\n' + p.content;
+                    });
+                });
+            }
+            
+            // 2. 合并相同角色连续发言
+            let mergedChat = [];
+            for (const msg of rawConversation) {
+                if (mergedChat.length > 0 && mergedChat[mergedChat.length - 1].role === msg.role) {
+                    mergedChat[mergedChat.length - 1].content += '\n\n' + msg.content;
+                } else {
+                    mergedChat.push({ ...msg });
+                }
+            }
+            
+            // 3. 正则预处理用户的输入
+            if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
+                mergedChat.forEach(msg => {
+                    if (msg.role === 'user') {
+                        msg.content = applyRegexRules(msg.content);
+                    }
+                });
+            }
+            
+            // 4. 末尾注入：将预设强行绑在最后一条用户消息上
+            if (jailbreakPrompt) {
+                let lastUserMsgIndex = -1;
+                for (let i = mergedChat.length - 1; i >= 0; i--) {
+                    if (mergedChat[i].role === 'user') {
+                        lastUserMsgIndex = i;
+                        break;
+                    }
+                }
+                if (lastUserMsgIndex !== -1) {
+                    mergedChat[lastUserMsgIndex].content += `\n\n【系统强制指令，请绝对服从】：${jailbreakPrompt}`;
+                } else {
+                    mergedChat.push({ role: 'user', content: `【系统强制指令，请绝对服从】：${jailbreakPrompt}` });
+                }
+            }
+            
+            // 最后推入待发送队列
+            messages.push(...mergedChat);
+      
             
             
             try {
