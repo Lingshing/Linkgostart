@@ -2687,12 +2687,6 @@
                         <div class="api-param-indicator" id="general-keepalive-switch" onclick="toggleGeneralKeepAlive()"></div>
                     </div>
                 </div>
-                
-                <div class="api-input-item" style="padding: 16px; border-bottom: none; justify-content: center;">
-                    <button onclick="startSurvivalTest()" style="width: 100%; padding: 12px; background: #ff4757; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer;">
-                        🧪 运行 2 分钟后台生死测试
-                    </button>
-                </div>
             </div>
             
             <!-- 数据管理 -->
@@ -14655,58 +14649,42 @@ ${chatContent}
             }
         };
 
-        // 🧪 2分钟生死测试函数
-        window.startSurvivalTest = function() {
-            alert('🧪 测试准备就绪！\n\n点击“确定”后，请【立刻】把 App 退到后台，然后去打开抖音狂刷视频！\n\n我们 2 分钟后见分晓！');
-            
-            const startTime = new Date().getTime();
-
-            // 让代码在后台默默倒计时 120 秒
-            setTimeout(async () => {
-                const endTime = new Date().getTime();
-                const passedSeconds = Math.round((endTime - startTime) / 1000);
-
-                try {
-                    if (window.Capacitor && window.Capacitor.Plugins.LocalNotifications) {
-                        await window.Capacitor.Plugins.LocalNotifications.schedule({
-                            notifications: [{
-                                title: "🔥 测试结果：我还活着！",
-                                body: `后台坚挺成功！我在后台默默数了 ${passedSeconds} 秒！没被抖音杀死！`,
-                                id: Math.floor(Math.random() * 100000),
-                                schedule: { at: new Date(Date.now() + 1000) } // 延迟1秒弹通知
-                            }]
-                        });
-                    }
-                } catch (error) {
-                    console.error('测试通知发送失败:', error);
-                }
-            }, 120000); // 120000 毫秒 = 2 分钟
-        };
-        
         // ==========================================
-        // 🌟 极简 Toast 通知组件
+        // 🌟 极简 Toast 通知组件 (支持深色模式)
         // ==========================================
         window.showLinkgoToast = function(msg) {
             let toast = document.getElementById('linkgo-toast');
+            
+            // 核心魔法：自动探测手机是不是深色模式
+            const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            // 深色模式用带有磨砂质感的亮色底+深色字，浅色模式用黑底白字
+            const bgColor = isDarkMode ? 'rgba(255, 255, 255, 0.85)' : 'rgba(0, 0, 0, 0.75)';
+            const textColor = isDarkMode ? '#222222' : 'white';
+
             if (!toast) {
-                // 如果不存在，则动态创建一个优美的黑色小胶囊
                 toast = document.createElement('div');
                 toast.id = 'linkgo-toast';
-                toast.style.cssText = 'position: fixed; top: 40px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: white; padding: 10px 20px; border-radius: 100px; font-size: 14px; font-weight: 500; z-index: 9999; opacity: 0; transition: opacity 0.3s ease, top 0.3s ease; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1);';
+                // 预设好动画和样式
+                toast.style.cssText = `position: fixed; top: 40px; left: 50%; transform: translateX(-50%); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 10px 20px; border-radius: 100px; font-size: 14px; font-weight: 500; z-index: 9999; opacity: 0; transition: opacity 0.3s ease, top 0.3s ease, background-color 0.3s ease; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15);`;
                 document.body.appendChild(toast);
             }
             
+            // 每次弹出前，实时更新颜色（防止用户中途切了深浅模式）
+            toast.style.background = bgColor;
+            toast.style.color = textColor;
             toast.innerHTML = msg;
-            toast.style.top = '60px'; // 向下滑动出现
+            
+            // 弹出动画
+            toast.style.top = '60px'; 
             toast.style.opacity = '1';
             
-            // 自动隐藏逻辑：如果之前有定时器，先清掉（防连点闪烁）
             if (window.linkgoToastTimer) clearTimeout(window.linkgoToastTimer);
             
+            // 1秒后消失
             window.linkgoToastTimer = setTimeout(() => {
                 toast.style.opacity = '0';
-                toast.style.top = '40px'; // 向上滑动消失
-            }, 2000); // 2秒后自动消失
+                toast.style.top = '40px'; 
+            }, 1000); 
         };
 
         // ==========================================
