@@ -4813,21 +4813,37 @@
             try {
                 // 扣下扳机，记录本次发射时间
                 window.lastBarkSendTime = Date.now();
-
-                const barkKey = 'JanxutGCNrZgNBjEsuaeen';
+                
                 let finalMessage = messageText;
                 if (!GENERAL_CONFIG.notification.showContent) {
                     finalMessage = '收到一条新消息';
                 }
+
+                // 🌟 核心魔法：呼叫 iOS 原生本地通知
+                if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+                    const { LocalNotifications } = window.Capacitor.Plugins;
+                    
+                    // 申请通知权限（仅安装后第一次会弹窗询问）
+                    await LocalNotifications.requestPermissions();
+                    
+                    // 安排系统级原生通知！
+                    await LocalNotifications.schedule({
+                        notifications: [
+                            {
+                                title: "Linkgo", 
+                                body: finalMessage.substring(0, 100), 
+                                id: new Date().getTime(), 
+                                sound: null // 使用原生默认的清脆“叮”声
+                            }
+                        ]
+                    });
+                } else {
+                    // 如果在电脑网页上测试，就在控制台打印一下
+                    console.log("网页端模拟收到通知:", finalMessage);
+                }
                 
-                const title = encodeURIComponent('Linkgo');
-                const body = encodeURIComponent(finalMessage.substring(0, 100));
-                const appUrl = encodeURIComponent('linkgo://');
-                const iconUrl = encodeURIComponent('https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg');
-                
-                fetch(`https://api.day.app/${barkKey}/${title}/${body}?group=Linkgo&icon=${iconUrl}&url=${appUrl}`);
             } catch (error) {
-                console.error('Bark 推送失败:', error);
+                console.error('原生通知推送失败:', error);
             }
         }
         
