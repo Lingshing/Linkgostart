@@ -19,8 +19,9 @@ jobs:
     - name: 安装 Capacitor 环境、键盘插件并创建占位目录
       run: |
         npm init -y
-        # ✨ 加入了官方 geolocation 插件用于定位保活
-        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 @capacitor/app@6 @capawesome/capacitor-background-task@6 @capacitor/local-notifications@6 @capacitor-community/background-geolocation        mkdir www
+        # ✨ 终极修复：安装专门针对外卖抢单、跑步记录的真·后台保活强力社区定位插件！
+        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 @capacitor/app@6 @capawesome/capacitor-background-task@6 @capacitor/local-notifications@6 @capacitor-community/background-geolocation
+        mkdir -p www
         echo "Linkgo" > www/index.html
 
     - name: 初始化并配置热更新
@@ -48,20 +49,21 @@ jobs:
       run: |
         npx cap add ios
         
+        # ✨ 图标修复魔法：自动把你的 linkgo-icon.jpg 裁切成苹果需要的几十个尺寸！
         npm install @capacitor/assets --save-dev
-        mkdir assets
+        mkdir -p assets
         sips -s format png linkgo-icon.jpg --out assets/icon.png
         npx @capacitor/assets generate --ios
         
         npx cap sync ios
         
-        # ✨ 注册专属唤醒协议
+        # ✨ 注册 linkgo:// 专属唤醒协议
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string linkgo" ios/App/App/Info.plist || true
         
-        # ✨ 核心魔法：注入后台定位权限 (真正抗击杀的保活必需品)
+        # ✨ 核心魔法：注入后台定位权限 (真正抗击杀的保活必需品，取代没用的音频保活)
         /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string location" ios/App/App/Info.plist || true
         
