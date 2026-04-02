@@ -2335,19 +2335,18 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            z-index: 999999; /* 保证它盖住所有白屏框架 */
+            z-index: 999999; 
             display: flex;
             justify-content: center;
             align-items: center;
-            /* 默认浅色模式：纯白背景 */
             background-color: #FFFFFF;
-            /* 核心魔法：消失时的丝滑过渡效果（耗时 0.8 秒） */
+            /* 兼容 iOS 底层的 filter 滤镜动画 */
             transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1), 
+                        -webkit-filter 0.8s cubic-bezier(0.25, 1, 0.5, 1),
                         filter 0.8s cubic-bezier(0.25, 1, 0.5, 1), 
                         transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
-        /* 适配深色模式：自动变成深空灰背景 */
         @media (prefers-color-scheme: dark) {
             #linkgo-splash {
                 background-color: #121212;
@@ -2355,9 +2354,9 @@
         }
 
         .splash-icon {
-            width: 64px;
-            height: 64px;
-            /* 无荧光的克制呼吸感：仅做微小的比例缩放 */
+            /* 🌟 修复：放大到 140px，与 iOS 原生启动图的大小完美吻合！ */
+            width: 140px;
+            height: 140px;
             animation: softBreathe 2.5s infinite ease-in-out;
         }
 
@@ -2366,10 +2365,9 @@
             50% { transform: scale(1.06); }
         }
 
-        /* 散开渐变消失的触发类 */
         .splash-disperse {
             opacity: 0 !important;
-            /* 高斯模糊 + 放大，营造出“化开”和“散去”的高级视觉欺骗 */
+            -webkit-filter: blur(12px);
             filter: blur(12px); 
             transform: scale(1.15);
             pointer-events: none;
@@ -14796,16 +14794,15 @@ ${chatContent}
         window.addEventListener('load', () => {
             const splashEl = document.getElementById('linkgo-splash');
             if (splashEl) {
-                // 故意稍微延迟 600 毫秒，掩盖住底层那些还没渲染好的丑陋白框
+                // 🎯 核心修复：原生幕布会停留 1.5 秒，然后用 0.5 秒淡出。
+                // 我们必须强制让 HTML 等待 2 秒钟（2000毫秒），正好等幕布完全透明时接管舞台！
                 setTimeout(() => {
-                    // 加上这个类，触发那段绝美的“模糊散开” CSS 动画
                     splashEl.classList.add('splash-disperse');
                     
-                    // 动画播完后（800毫秒），把它从文档里彻底删掉，不占内存
                     setTimeout(() => {
                         splashEl.remove();
                     }, 800);
-                }, 600); 
+                }, 2000); 
             }
         });
     </script>
