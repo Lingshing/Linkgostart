@@ -2329,11 +2329,6 @@
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 <body>
-    <button 
-        onclick="startSurvivalTest()" 
-        style="margin: 20px; padding: 15px; background: #ff4757; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-        🧪 开始 2 分钟后台生死测试
-        </button>
     <div id="backfill-progress-bar"></div>
     <!-- 顶部输入状态 -->
     <div class="typing-status" id="typingStatus">
@@ -2686,11 +2681,17 @@
                         <div class="api-param-indicator" id="general-content-switch" onclick="toggleGeneralContent()"></div>
                     </div>
                 </div>
-                <div class="api-input-item" style="padding: 16px; border-bottom: none;">
+                <div class="api-input-item" style="padding: 16px; border-bottom: 0.5px solid var(--border);">
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                         <div class="api-input-label" style="width: auto; margin: 0; font-size: 15px;">保持唤醒</div>
                         <div class="api-param-indicator" id="general-keepalive-switch" onclick="toggleGeneralKeepAlive()"></div>
                     </div>
+                </div>
+                
+                <div class="api-input-item" style="padding: 16px; border-bottom: none; justify-content: center;">
+                    <button onclick="startSurvivalTest()" style="width: 100%; padding: 12px; background: #ff4757; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer;">
+                        🧪 运行 2 分钟后台生死测试
+                    </button>
                 </div>
             </div>
             
@@ -14629,38 +14630,75 @@ ${chatContent}
                 });
             }
         });
+        // ==========================================
+        // 🌟 终极定位保活引擎 & 生死测试逻辑
+        // ==========================================
+        let keepAliveWatchId = null;
 
-        // 后台保活测试函数
-        function startSurvivalTest() {
-            // 1. 给你一个弹窗反馈，证明测试开始了
-            alert('🧪 测试开始！\n请在点击“确定”后，立刻把 App 退到后台，然后去打开抖音看视频。\n我们 2 分钟后见分晓！');
+        // 强行覆盖原有的 startKeepAlive，改为定位保活
+        window.startKeepAlive = async function() {
+            try {
+                // 如果之前有静音音频，强行停掉，它没用了
+                if (window.chatWakeAudio) {
+                    window.chatWakeAudio.pause();
+                }
+                
+                if (window.Capacitor && window.Capacitor.Plugins.Geolocation) {
+                    // 1. 申请定位权限
+                    await window.Capacitor.Plugins.Geolocation.requestPermissions();
+                    
+                    // 2. 开启极低精度的后台定位监听（省电模式）
+                    keepAliveWatchId = await window.Capacitor.Plugins.Geolocation.watchPosition({
+                        enableHighAccuracy: false, 
+                        timeout: 10000,
+                        maximumAge: 30000
+                    }, (position, err) => {
+                        if (position) {
+                            console.log("📍 定位保活滴答，App在后台坚挺中:", position.timestamp);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error("定位保活启动失败:", error);
+            }
+        };
 
-            // 2. 记录开始时间
+        // 强行覆盖原有的 stopKeepAlive
+        window.stopKeepAlive = async function() {
+            if (keepAliveWatchId !== null && window.Capacitor && window.Capacitor.Plugins.Geolocation) {
+                await window.Capacitor.Plugins.Geolocation.clearWatch({ id: keepAliveWatchId });
+                keepAliveWatchId = null;
+            }
+        };
+
+        // 🧪 2分钟生死测试函数
+        window.startSurvivalTest = function() {
+            alert('🧪 测试准备就绪！\n\n点击“确定”后，请【立刻】把 App 退到后台，然后去打开抖音狂刷视频！\n\n我们 2 分钟后见分晓！');
+            
             const startTime = new Date().getTime();
 
-            // 3. 使用 setTimeout 让 JS 引擎在后台倒计时 120,000 毫秒（2分钟）
+            // 让代码在后台默默倒计时 120 秒
             setTimeout(async () => {
                 const endTime = new Date().getTime();
-                // 计算实际经过了多少秒（如果 App 被冻结，实际经过的时间会远远大于 2 分钟）
                 const passedSeconds = Math.round((endTime - startTime) / 1000);
 
                 try {
-                    // 4. 倒计时结束，调用 Capacitor 插件发送即时原生通知
-                    await window.Capacitor.Plugins.LocalNotifications.schedule({
-                        notifications: [
-                            {
+                    if (window.Capacitor && window.Capacitor.Plugins.LocalNotifications) {
+                        await window.Capacitor.Plugins.LocalNotifications.schedule({
+                            notifications: [{
                                 title: "🔥 测试结果：我还活着！",
-                                body: `后台坚挺成功！我在后台默默数了 ${passedSeconds} 秒！没有被抖音杀死！`,
-                                id: Math.floor(Math.random() * 100000), // 随机生成一个通知ID
-                                schedule: { at: new Date(Date.now() + 1000) } // 延迟1秒发送，确保不会被系统拦截
-                            }
-                        ]
-                    });
+                                body: `后台坚挺成功！我在后台默默数了 ${passedSeconds} 秒！没被抖音杀死！`,
+                                id: Math.floor(Math.random() * 100000),
+                                schedule: { at: new Date(Date.now() + 1000) } // 延迟1秒弹通知
+                            }]
+                        });
+                    }
                 } catch (error) {
-                    console.error('通知发送失败:', error);
+                    console.error('测试通知发送失败:', error);
                 }
             }, 120000); // 120000 毫秒 = 2 分钟
-        }
+        };
+        
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
