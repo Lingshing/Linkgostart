@@ -41,6 +41,9 @@ jobs:
             "Keyboard": {
               "resize": "Native",
               "resizeOnFullScreen": true
+            },
+            "CapacitorHttp": {
+              "enabled": true
             }
           }
         }
