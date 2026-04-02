@@ -4953,45 +4953,31 @@
             localStorage.setItem('KEEP_ALIVE_ENABLED', KEEP_ALIVE_CONFIG.enabled ? 'true' : 'false');
         }
         
-        // --- 启动保活 ---
         function startKeepAlive() {
-            if (!KEEP_ALIVE_CONFIG.audioElement) {
-                // 创建audio元素
-                const audio = document.createElement('audio');
-                audio.id = 'silent-audio';
-                audio.loop = true;
-                audio.volume = 0.01; // 极低音量
-                audio.style.display = 'none';
+            // 如果还没生成播放器，就建一个全局唯一的
+            if (!window.keepAliveAudioPlayer) {
+                window.keepAliveAudioPlayer = document.createElement('audio');
+                window.keepAliveAudioPlayer.id = 'silent-audio-player';
+                window.keepAliveAudioPlayer.loop = true;
+                window.keepAliveAudioPlayer.volume = 0.01; // 极低音量
                 
-                const source = document.createElement('source');
-                source.src = KEEP_ALIVE_CONFIG.audioUrl;
-                source.type = 'audio/mpeg';
+                // ✨ 加上这两个属性，防止 iOS 强制全屏或拦截
+                window.keepAliveAudioPlayer.setAttribute('playsinline', 'true');
+                window.keepAliveAudioPlayer.setAttribute('webkit-playsinline', 'true');
                 
-                audio.appendChild(source);
-                document.body.appendChild(audio);
-                
-                KEEP_ALIVE_CONFIG.audioElement = audio;
-                
-                // 监听音频结束事件，自动重新播放
-                audio.addEventListener('ended', function() {
-                    if (KEEP_ALIVE_CONFIG.enabled) {
-                        this.play().catch(e => console.log('保活音频重播失败:', e));
-                    }
-                });
+                // 读取你原本配置的音频源
+                window.keepAliveAudioPlayer.src = KEEP_ALIVE_CONFIG.audioUrl;
+                document.body.appendChild(window.keepAliveAudioPlayer);
             }
             
-            // 播放音频
-            KEEP_ALIVE_CONFIG.audioElement.play().catch(e => {
-                console.warn('保活音频播放失败:', e);
-                KEEP_ALIVE_CONFIG.enabled = false;
-            });
+            // 执行播放
+            window.keepAliveAudioPlayer.play().catch(err => console.log('保活启动被拦截:', err));
         }
         
         // --- 停止保活 ---
         function stopKeepAlive() {
-            if (KEEP_ALIVE_CONFIG.audioElement) {
-                KEEP_ALIVE_CONFIG.audioElement.pause();
-                KEEP_ALIVE_CONFIG.audioElement.currentTime = 0;
+            if (window.keepAliveAudioPlayer) {
+                window.keepAliveAudioPlayer.pause();
             }
         }
         
@@ -10331,14 +10317,20 @@ ${chatContent}
             saveGeneralConfig();
         }
         
-        // --- 切换保持唤醒 ---
         function toggleGeneralKeepAlive() {
+            // 切换真实状态 (开变关，关变开)
             GENERAL_CONFIG.notification.keepAlive = !GENERAL_CONFIG.notification.keepAlive;
+            
+            // 更新页面上的 UI 按钮显示
             updateGeneralSwitch('general-keepalive-switch', GENERAL_CONFIG.notification.keepAlive);
             saveGeneralConfig();
-            
-            // 同步到保活系统
-            toggleKeepAlive();
+
+            // ✨ 核心修复：严格根据状态执行！开就播放，关就暂停！绝对不再反向！
+            if (GENERAL_CONFIG.notification.keepAlive === true) {
+                startKeepAlive();
+            } else {
+                stopKeepAlive();
+            }
         }
         
         // --- 计算并更新缓存大小 ---
