@@ -4939,6 +4939,10 @@
             audioElement: null
         };
         
+        // 🌟 防崩溃安全补丁：确保变量存在，防止页面 JS 假死
+        window.KEEP_ALIVE_CONFIG = window.KEEP_ALIVE_CONFIG || { audioElement: null, audioUrl: '' };
+        if (!window.GENERAL_CONFIG) window.GENERAL_CONFIG = { notification: { keepAlive: false } };
+
         // --- 切换保活功能 ---
         function toggleKeepAlive(isEnable) {
             if (isEnable) {
