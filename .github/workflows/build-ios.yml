@@ -14,7 +14,7 @@ jobs:
     - name: 安装 Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '24'
+        node-version: '22'
 
     - name: 安装 Capacitor 环境、键盘插件并创建占位目录
       run: |
@@ -28,7 +28,7 @@ jobs:
     - name: 初始化并配置热更新
       run: |
         npx cap init Linkgo com.lingshing.linkgo --web-dir www
-        cat <<EOF > capacitor.config.json
+       cat <<EOF > capacitor.config.json
         {
           "appId": "com.lingshing.linkgo",
           "appName": "Linkgo",
@@ -41,9 +41,6 @@ jobs:
             "Keyboard": {
               "resize": "Native",
               "resizeOnFullScreen": true
-            },
-            "CapacitorHttp": {
-              "enabled": true
             }
           }
         }
