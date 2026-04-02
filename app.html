@@ -4951,33 +4951,54 @@
             localStorage.setItem('KEEP_ALIVE_ENABLED', KEEP_ALIVE_CONFIG.enabled ? 'true' : 'false');
         }
         
-        function startKeepAlive() {
-            // 如果还没生成播放器，就建一个全局唯一的
-            if (!window.keepAliveAudioPlayer) {
-                window.keepAliveAudioPlayer = document.createElement('audio');
-                window.keepAliveAudioPlayer.id = 'silent-audio-player';
-                window.keepAliveAudioPlayer.loop = true;
-                window.keepAliveAudioPlayer.volume = 0.01; // 极低音量
-                
-                // ✨ 加上这两个属性，防止 iOS 强制全屏或拦截
-                window.keepAliveAudioPlayer.setAttribute('playsinline', 'true');
-                window.keepAliveAudioPlayer.setAttribute('webkit-playsinline', 'true');
-                
-                // 读取你原本配置的音频源
-                window.keepAliveAudioPlayer.src = KEEP_ALIVE_CONFIG.audioUrl;
-                document.body.appendChild(window.keepAliveAudioPlayer);
-            }
-            
-            // 执行播放
-            window.keepAliveAudioPlayer.play().catch(err => console.log('保活启动被拦截:', err));
-        }
+        // ==========================================
+        // 🌟 终极防失忆定位保活引擎
+        // ==========================================
         
-        // --- 停止保活 ---
-        function stopKeepAlive() {
-            if (window.keepAliveAudioPlayer) {
-                window.keepAliveAudioPlayer.pause();
+        window.startKeepAlive = async function() {
+            try {
+                if (window.chatWakeAudio) window.chatWakeAudio.pause();
+                
+                if (window.Capacitor && window.Capacitor.Plugins.BackgroundGeolocation) {
+                    // 1. 启动前先尝试清理一下旧的，防止重复开启
+                    await window.stopKeepAlive();
+
+                    // 2. 开启强力定位
+                    const watchId = await window.Capacitor.Plugins.BackgroundGeolocation.addWatcher({
+                        backgroundMessage: "Linkgo 正在后台守护您的连接",
+                        backgroundTitle: "后台保活已开启",
+                        requestPermissions: true,
+                        stale: false,
+                        distanceFilter: 0 
+                    }, function(location, error) {
+                        if (location) console.log("📍 定位保活中...");
+                    });
+
+                    // 3. ✨ 核心修复：把 ID 存入永久记忆，防止刷新后失控
+                    localStorage.setItem('LINKGO_KEEP_ALIVE_ID', watchId);
+                    console.log("✅ 保活任务已开启，ID已记录:", watchId);
+                }
+            } catch (error) {
+                console.error("定位保活启动失败:", error);
             }
-        }
+        };
+
+        window.stopKeepAlive = async function() {
+            // ✨ 核心修复：从记忆中找回 ID
+            const savedId = localStorage.getItem('LINKGO_KEEP_ALIVE_ID');
+            
+            if (savedId && window.Capacitor && window.Capacitor.Plugins.BackgroundGeolocation) {
+                try {
+                    // 彻底关掉底层的定位任务
+                    await window.Capacitor.Plugins.BackgroundGeolocation.removeWatcher({ id: savedId });
+                    // 清除记忆
+                    localStorage.removeItem('LINKGO_KEEP_ALIVE_ID');
+                    console.log("🚫 保活任务已彻底关闭并清除记忆");
+                } catch (e) {
+                    console.error("停止保活失败:", e);
+                }
+            }
+        };
         
         // --- 检查保活状态 ---
         function isKeepAliveEnabled() {
