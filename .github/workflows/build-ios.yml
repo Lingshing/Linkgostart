@@ -46,6 +46,7 @@ jobs:
               "launchShowDuration": 1500,
               "launchAutoHide": true,
               "backgroundColor": "#FFFFFF",
+              "iosSplashCornerRadius": 10,
               "showSpinner": false,
               "splashFullScreen": true,
               "splashImmersive": true
