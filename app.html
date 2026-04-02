@@ -10418,7 +10418,6 @@ ${chatContent}
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             navigator.share({
                 files: [file],
-                title: 'Linkgo 数据备份'
             }).then(() => {
                 closeExportSheet();
                 // 分享成功后不再弹很丑的 alert，iOS 原生面板本身就是最好的反馈
