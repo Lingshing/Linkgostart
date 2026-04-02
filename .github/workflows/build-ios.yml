@@ -46,10 +46,15 @@ jobs:
               "launchShowDuration": 1500,
               "launchAutoHide": true,
               "backgroundColor": "#FFFFFF",
-              "iosSplashCornerRadius": 10,
               "showSpinner": false,
+              "androidScaleType": "CENTER_CROP",
+              "iosSpinnerStyle": "small",
               "splashFullScreen": true,
-              "splashImmersive": true
+              "splashImmersive": true,
+              "layoutName": "launch_screen",
+              "useDialog": false,
+              "iosSplashCornerRadius": 13,
+              "iosSplashImageContentMode": "center" 
             }
           }
         }
