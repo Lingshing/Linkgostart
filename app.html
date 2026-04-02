@@ -4027,10 +4027,6 @@
                 if (onError) onError(error);
             } finally {
                 isTyping = false;
-                // 🔇 关掉续命音频
-                if (window.chatWakeAudio) {
-                    window.chatWakeAudio.pause();
-                }
             }
         }
 
@@ -8423,16 +8419,6 @@ ${chatContent}
             });
             
             scrollToBottom();
-            
-            // ✨ PWA 续命防杀机制！发消息时播放静音，让 iOS 切后台不断网，正常接收流！
-            const isPWA = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-            if (isPWA) {
-                if (!window.chatWakeAudio) {
-                    window.chatWakeAudio = new Audio('https://raw.githubusercontent.com/anars/blank-audio/master/10-seconds-of-silence.mp3');
-                    window.chatWakeAudio.loop = true;
-                }
-                window.chatWakeAudio.play().catch(e => console.log('唤醒音频播放失败', e));
-            }
 
 
             // --- 修复1：引入 AbortController 防止并发 429 报错 ---
@@ -14697,6 +14683,54 @@ ${chatContent}
             }, 120000); // 120000 毫秒 = 2 分钟
         };
         
+        // ==========================================
+        // 🌟 极简 Toast 通知组件
+        // ==========================================
+        window.showLinkgoToast = function(msg) {
+            let toast = document.getElementById('linkgo-toast');
+            if (!toast) {
+                // 如果不存在，则动态创建一个优美的黑色小胶囊
+                toast = document.createElement('div');
+                toast.id = 'linkgo-toast';
+                toast.style.cssText = 'position: fixed; top: 40px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: white; padding: 10px 20px; border-radius: 100px; font-size: 14px; font-weight: 500; z-index: 9999; opacity: 0; transition: opacity 0.3s ease, top 0.3s ease; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1);';
+                document.body.appendChild(toast);
+            }
+            
+            toast.innerHTML = msg;
+            toast.style.top = '60px'; // 向下滑动出现
+            toast.style.opacity = '1';
+            
+            // 自动隐藏逻辑：如果之前有定时器，先清掉（防连点闪烁）
+            if (window.linkgoToastTimer) clearTimeout(window.linkgoToastTimer);
+            
+            window.linkgoToastTimer = setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.top = '40px'; // 向上滑动消失
+            }, 2000); // 2秒后自动消失
+        };
+
+        // ==========================================
+        // 🌟 绑定“保持唤醒”开关与定位引擎
+        // ==========================================
+        let isGeneralKeepAliveEnabled = false; // 记录开关状态
+        
+        // 强行覆盖之前的开关函数
+        window.toggleGeneralKeepAlive = function() {
+            const switchEl = document.getElementById('general-keepalive-switch');
+            isGeneralKeepAliveEnabled = !isGeneralKeepAliveEnabled; 
+            
+            if (isGeneralKeepAliveEnabled) {
+                // 开启状态
+                switchEl.classList.add('active'); 
+                if (window.startKeepAlive) window.startKeepAlive(); // 触发底层的定位保活
+                showLinkgoToast('📍 已开启定位保活');
+            } else {
+                // 关闭状态
+                switchEl.classList.remove('active'); 
+                if (window.stopKeepAlive) window.stopKeepAlive(); // 停止底层的定位保活
+                showLinkgoToast('已关闭后台保活');
+            }
+        };
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
