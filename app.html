@@ -14688,25 +14688,29 @@ ${chatContent}
         };
 
         // ==========================================
-        // 🌟 绑定“保持唤醒”开关与定位引擎
+        // 🌟 绑定“保持唤醒”开关与定位引擎 (彻底修复状态同步)
         // ==========================================
-        let isGeneralKeepAliveEnabled = false; // 记录开关状态
-        
-        // 强行覆盖之前的开关函数
+        // 强行覆盖开关函数，完美接入你原生的配置记忆系统！
         window.toggleGeneralKeepAlive = function() {
-            const switchEl = document.getElementById('general-keepalive-switch');
-            isGeneralKeepAliveEnabled = !isGeneralKeepAliveEnabled; 
+            // 1. 读取你 app 本身的记忆并翻转状态
+            GENERAL_CONFIG.notification.keepAlive = !GENERAL_CONFIG.notification.keepAlive;
             
-            if (isGeneralKeepAliveEnabled) {
-                // 开启状态
+            // 2. 立刻存入本地数据库，保证切页面不丢失
+            saveGeneralConfig();
+            
+            // 3. 同步底层的保活变量（让每次彻底杀后台重启 App 都能记住状态）
+            localStorage.setItem('KEEP_ALIVE_ENABLED', GENERAL_CONFIG.notification.keepAlive ? 'true' : 'false');
+            
+            // 4. 控制 UI 和底层定位
+            const switchEl = document.getElementById('general-keepalive-switch');
+            if (GENERAL_CONFIG.notification.keepAlive) {
                 switchEl.classList.add('active'); 
-                if (window.startKeepAlive) window.startKeepAlive(); // 触发底层的定位保活
-                showLinkgoToast('📍 已开启定位保活');
+                if (window.startKeepAlive) window.startKeepAlive(); 
+                if (window.showLinkgoToast) showLinkgoToast('📍 已开启定位保活');
             } else {
-                // 关闭状态
                 switchEl.classList.remove('active'); 
-                if (window.stopKeepAlive) window.stopKeepAlive(); // 停止底层的定位保活
-                showLinkgoToast('已关闭后台保活');
+                if (window.stopKeepAlive) window.stopKeepAlive(); 
+                if (window.showLinkgoToast) showLinkgoToast('已关闭后台保活');
             }
         };
     </script>
