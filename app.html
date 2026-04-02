@@ -3880,22 +3880,69 @@
                 
                 let apiUrl = getStandardApiUrl(config.url, '/chat/completions');
                 
-                const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
-                    method: 'POST',
-                    signal: window.currentChatController.signal, // 挂载打断信号
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${config.key}`, // 这里你原本有的是加号拼接，有的是${}，都可以保留你原来的写法
-                        'X-Target-API': apiUrl
-                    },
-                    body: JSON.stringify({
-                        model: config.model || 'gpt-3.5-turbo',
-                        messages: messages,
-                        stream: PARAM_CONFIG.stream,
-                        temperature: PARAM_CONFIG.temperature,
-                        max_tokens: PARAM_CONFIG.maxTokens
-                    })
-                });
+                // --- 🌟 替换开始：重新生成使用原生请求 ---
+                let response;
+                const isIOSNative = window.Capacitor && window.Capacitor.isNativePlatform();
+                
+                if (isIOSNative) {
+                    const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
+                        url: 'https://api.ginkgo-yinxing.workers.dev/',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${config.key}`,
+                            'X-Target-API': apiUrl
+                        },
+                        data: {
+                            model: config.model || 'gpt-3.5-turbo',
+                            messages: messages,
+                            stream: false, 
+                            temperature: PARAM_CONFIG.temperature, // ⚠️ 注意这里和上面的变量名不同
+                            max_tokens: PARAM_CONFIG.maxTokens
+                        }
+                    });
+                    
+                    response = {
+                        ok: nativeResponse.status >= 200 && nativeResponse.status < 300,
+                        status: nativeResponse.status,
+                        text: async () => JSON.stringify(nativeResponse.data),
+                        json: async () => nativeResponse.data
+                    };
+                    
+                    if (PARAM_CONFIG.stream) {
+                        response.body = {
+                            getReader: () => {
+                                let done = false;
+                                return {
+                                    read: async () => {
+                                        if (done) return { done: true };
+                                        done = true;
+                                        const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
+                                        const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
+                                        return { done: false, value: new TextEncoder().encode(mockSse) };
+                                    }
+                                };
+                            }
+                        };
+                    }
+                } else {
+                    response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
+                        method: 'POST',
+                        signal: window.currentChatController.signal,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${config.key}`,
+                            'X-Target-API': apiUrl
+                        },
+                        body: JSON.stringify({
+                            model: config.model || 'gpt-3.5-turbo',
+                            messages: messages,
+                            stream: PARAM_CONFIG.stream,
+                            temperature: PARAM_CONFIG.temperature,
+                            max_tokens: PARAM_CONFIG.maxTokens
+                        })
+                    });
+                }
+                // --- 🌟 替换结束 ---
                 
                 if (!response.ok) throw new Error(`API请求失败: ${response.status}`);
                 
@@ -8503,22 +8550,73 @@ ${chatContent}
                 const randomOffset = (Math.random() - 0.5) * 0.4; 
                 const adjustedTemp = Math.max(0.1, Math.min(2.0, PARAM_CONFIG.temperature + randomOffset));
                 
-                const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
-                    method: 'POST',
-                    signal: window.currentChatController.signal, // 挂载打断信号
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${config.key}`,
-                        'X-Target-API': apiUrl
-                    },
-                    body: JSON.stringify({
-                        model: config.model || 'gpt-3.5-turbo',
-                        messages: messages,
-                        stream: PARAM_CONFIG.stream,
-                        temperature: adjustedTemp, 
-                        max_tokens: PARAM_CONFIG.maxTokens
-                    })
-                });
+                // --- 🌟 替换开始：使用原生请求引擎防杀后台 ---
+                let response;
+                const isIOSNative = window.Capacitor && window.Capacitor.isNativePlatform();
+                
+                if (isIOSNative) {
+                    // 原生层请求：无视 WKWebView 浏览器休眠，强行在系统后台完成请求！
+                    const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
+                        url: 'https://api.ginkgo-yinxing.workers.dev/',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${config.key}`,
+                            'X-Target-API': apiUrl
+                        },
+                        data: {
+                            model: config.model || 'gpt-3.5-turbo',
+                            messages: messages,
+                            stream: false, // ⚠️ 核心魔法：原生请求必须关闭流式打字机，后台才能安稳接收到最后的一长串完整数据
+                            temperature: adjustedTemp,
+                            max_tokens: PARAM_CONFIG.maxTokens
+                        }
+                    });
+                    
+                    // 伪装成普通的 fetch 返回格式，欺骗下面的代码
+                    response = {
+                        ok: nativeResponse.status >= 200 && nativeResponse.status < 300,
+                        status: nativeResponse.status,
+                        text: async () => JSON.stringify(nativeResponse.data),
+                        json: async () => nativeResponse.data
+                    };
+                    
+                    // 伪装一个流式 reader，让原有的流式处理代码正常运作，不用改下面的代码！
+                    if (PARAM_CONFIG.stream) {
+                        response.body = {
+                            getReader: () => {
+                                let done = false;
+                                return {
+                                    read: async () => {
+                                        if (done) return { done: true };
+                                        done = true;
+                                        const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
+                                        const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
+                                        return { done: false, value: new TextEncoder().encode(mockSse) };
+                                    }
+                                };
+                            }
+                        };
+                    }
+                } else {
+                    // 如果是用电脑浏览器测试，继续使用原版 fetch
+                    response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
+                        method: 'POST',
+                        signal: window.currentChatController.signal,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${config.key}`,
+                            'X-Target-API': apiUrl
+                        },
+                        body: JSON.stringify({
+                            model: config.model || 'gpt-3.5-turbo',
+                            messages: messages,
+                            stream: PARAM_CONFIG.stream,
+                            temperature: adjustedTemp,
+                            max_tokens: PARAM_CONFIG.maxTokens
+                        })
+                    });
+                }
+                // --- 🌟 替换结束 ---
                 
                 if (!response.ok) {
                     let errorText = await response.text().catch(e => '无法读取错误信息');
