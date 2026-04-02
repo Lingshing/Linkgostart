@@ -46,7 +46,7 @@ jobs:
         }
         EOF
 
-    - name: 生成 iOS 工程与自动切图标
+    - name: 生成 iOS 工程与自动切图标 (含保活及混音修复)
       run: |
         npx cap add ios
         
@@ -58,33 +58,25 @@ jobs:
         
         npx cap sync ios
         
-        # ✨ 开启 iOS 混音特权魔法！让静音音频和抖音共存，不被杀后台！
-        perl -pi -e 's/import UIKit/import UIKit\nimport AVFoundation/g' ios/App/App/AppDelegate.swift
-        perl -pi -e 's/return true/do { try AVAudioSession.sharedInstance().setCategory(.playback, options: .mixWithOthers); try AVAudioSession.sharedInstance().setActive(true) } catch {}\n        return true/g' ios/App/App/AppDelegate.swift
+        # ✨ 开启 iOS 混音特权魔法！(改用 Python 注入，彻底杜绝 Bash 括号报错)
+        python3 -c "
+        path = 'ios/App/App/AppDelegate.swift'
+        with open(path, 'r') as f: c = f.read()
+        c = c.replace('import UIKit', 'import UIKit\nimport AVFoundation')
+        audio_code = 'do { try AVAudioSession.sharedInstance().setCategory(.playback, options: .mixWithOthers); try AVAudioSession.sharedInstance().setActive(true) } catch {}\n        return true'
+        c = c.replace('return true', audio_code)
+        with open(path, 'w') as f: f.write(c)
+        "
         
-        # ✨ 注册 linkgo:// 专属唤醒协议（这是 Bark 跳转你 App 的关键！）
-        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" ios/App/App/Info.plist
-        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" ios/App/App/Info.plist
-        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" ios/App/App/Info.plist
-        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string linkgo" ios/App/App/Info.plist
-
-        - name: 解决后台保活音频与抖音打架 (注入混音代码与保活权限)
-        run: |
-          SWIFT_FILE="ios/App/App/AppDelegate.swift"
-          PLIST_FILE="ios/App/App/Info.plist"
-  
-          # 1. 注入 AVFoundation 库
-          sed -i '' 's/import UIKit/import UIKit\nimport AVFoundation/g' $SWIFT_FILE
-          
-          # 2. 在 AppDelegate 的 return true 前面注入 AVAudioSession 混音代码
-          # 这段原生的 options: .mixWithOthers 就是让你的静音音频和抖音声音不打架的核心魔法！
-          AUDIO_CODE='        do {\n            try AVAudioSession.sharedInstance().setCategory(.playback, options: .mixWithOthers)\n            try AVAudioSession.sharedInstance().setActive(true)\n        } catch {}\n'
-          sed -i '' "s/return true/$AUDIO_CODE        return true/g" $SWIFT_FILE
-          
-          # 3. 注入 UIBackgroundModes 的 audio 权限
-          # 苹果极其严格，如果不加这个权限，哪怕你静音音频混音成功了，切后台依然会被杀进程。
-          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" $PLIST_FILE || true
-          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes: string audio" $PLIST_FILE || true
+        # ✨ 注册 linkgo:// 专属唤醒协议
+        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" ios/App/App/Info.plist || true
+        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" ios/App/App/Info.plist || true
+        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" ios/App/App/Info.plist || true
+        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string linkgo" ios/App/App/Info.plist || true
+        
+        # ✨ 注入后台播放音频权限 (保活必需，不加这个静音音频也白搭！)
+        /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" ios/App/App/Info.plist || true
+        /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string audio" ios/App/App/Info.plist || true
 
     - name: 编译无签名 iOS App
       run: |
