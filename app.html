@@ -4825,66 +4825,68 @@
             });
         }
 
-        window.lastBarkSendTime = 0; // ✨ 弹药库：记录上一发子弹的发射时间
+        window.expectedNextBarkTime = 0; // ✨ 弹药库：记录下一次"计划"的发射时间
 
-        // 实际发送通知的函数（3秒冷却巡逻版）
+        // 实际发送通知的函数（强制排队绝不乱序版）
         async function sendPushNotification(messageText) {
             if (!GENERAL_CONFIG.notification.pushEnabled) return;
             if (document.visibilityState === 'visible' || window.appRealActive) return;
+            if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') return;
 
-            // ✨ 核心魔法：3秒物理冷却与高频巡逻
+            // ✨ 核心魔法：利用事前预占时间戳，强制排队，绝不乱序！
             const now = Date.now();
-            const timeSinceLast = now - window.lastBarkSendTime;
-            // 强制拉开至少 3000 毫秒的间距，完美对齐 iOS 的通知展示时间
-            const waitTime = Math.max(0, 3000 - timeSinceLast); 
+            let waitTime = 0;
+            
+            if (now < window.expectedNextBarkTime) {
+                // 如果当前时间还没到下一次允许发射的时间，说明撞车了，计算需要排队等多久
+                waitTime = window.expectedNextBarkTime - now;
+                // 帮它把下一次允许发射的时间再往后推 3 秒，给后面来的气泡留位置
+                window.expectedNextBarkTime += 3000;
+            } else {
+                // 如果已经过了冷却期，无需等待，但要把下一个气泡的发射时间定在 3 秒后
+                window.expectedNextBarkTime = now + 3000;
+            }
 
-            // 在等待的这几秒里，我们不傻等，而是每隔 100 毫秒疯狂扫描雷达
-            const scanTimes = Math.ceil(waitTime / 100);
-            for (let i = 0; i < scanTimes; i++) {
-                await new Promise(r => setTimeout(r, 100));
-                // 只要你在这 3 秒内点开通知回到了前台，立刻销毁后面的子弹，绝不发射！
-                if (document.visibilityState === 'visible' || document.hasFocus() || window.appRealActive) {
-                    return; 
+            // 在等待的这几秒里，每隔 100 毫秒扫描雷达
+            if (waitTime > 0) {
+                const scanTimes = Math.ceil(waitTime / 100);
+                for (let i = 0; i < scanTimes; i++) {
+                    await new Promise(r => setTimeout(r, 100));
+                    // 如果期间用户点开了 App 切回了前台，立刻销毁后面的子弹，绝不打扰！
+                    if (document.visibilityState === 'visible' || document.hasFocus() || window.appRealActive) {
+                        return; 
+                    }
                 }
             }
 
             // 发射前的最后一次绝杀确认
             if (document.visibilityState === 'visible' || window.appRealActive) return;
 
-            if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') return;
-
             try {
-                // 扣下扳机，记录本次发射时间
-                window.lastBarkSendTime = Date.now();
-                
                 let finalMessage = messageText;
                 if (!GENERAL_CONFIG.notification.showContent) {
                     finalMessage = '收到一条新消息';
                 }
-
+                
                 // 🌟 核心魔法：呼叫 iOS 原生本地通知
                 if (window.Capacitor && window.Capacitor.isNativePlatform()) {
                     const { LocalNotifications } = window.Capacitor.Plugins;
-                    
-                    // 申请通知权限（仅安装后第一次会弹窗询问）
                     await LocalNotifications.requestPermissions();
                     
-                    // 安排系统级原生通知！
                     await LocalNotifications.schedule({
                         notifications: [
                             {
-                                title: "Linkgo", 
-                                body: finalMessage.substring(0, 100), 
-                                id: new Date().getTime(), 
+                                title: "Linkgo",
+                                body: finalMessage.substring(0, 100),
+                                // ⚠️ 修复：改用百万级随机数做 ID，彻底防止同一毫秒并发覆盖导致的丢消息！
+                                id: Math.floor(Math.random() * 1000000), 
                                 sound: null // 使用原生默认的清脆“叮”声
                             }
                         ]
                     });
                 } else {
-                    // 如果在电脑网页上测试，就在控制台打印一下
                     console.log("网页端模拟收到通知:", finalMessage);
                 }
-                
             } catch (error) {
                 console.error('原生通知推送失败:', error);
             }
