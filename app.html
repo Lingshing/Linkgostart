@@ -2325,10 +2325,75 @@
         .todo-tag-ghost { opacity: 0; } 
         /* 拿在手上的标签变成深色胶囊并放大，极其有质感 */
         .todo-tag-chosen { transform: scale(1.05); background-color: var(--text-main) !important; color: var(--card-bg) !important; border-radius: 100px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: none !important; }
+    
+        /* ==========================================
+        🌟 Linkgo 极简开屏动画样式
+        ========================================== */
+        #linkgo-splash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 999999; /* 保证它盖住所有白屏框架 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* 默认浅色模式：纯白背景 */
+            background-color: #FFFFFF;
+            /* 核心魔法：消失时的丝滑过渡效果（耗时 0.8 秒） */
+            transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1), 
+                        filter 0.8s cubic-bezier(0.25, 1, 0.5, 1), 
+                        transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* 适配深色模式：自动变成深空灰背景 */
+        @media (prefers-color-scheme: dark) {
+            #linkgo-splash {
+                background-color: #121212;
+            }
+            /* 深色模式下图标准备纯白 */
+            #splash-logo-path {
+                fill: #FFFFFF;
+            }
+        }
+
+        /* 浅色模式下图标准备纯黑 */
+        @media (prefers-color-scheme: light) {
+            #splash-logo-path {
+                fill: #000000;
+            }
+        }
+
+        .splash-icon {
+            width: 64px;
+            height: 64px;
+            /* 无荧光的克制呼吸感：仅做微小的比例缩放 */
+            animation: softBreathe 2.5s infinite ease-in-out;
+        }
+
+        @keyframes softBreathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+        }
+
+        /* 散开渐变消失的触发类 */
+        .splash-disperse {
+            opacity: 0 !important;
+            /* 高斯模糊 + 放大，营造出“化开”和“散去”的高级视觉欺骗 */
+            filter: blur(12px); 
+            transform: scale(1.15);
+            pointer-events: none;
+        }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 <body>
+    <div id="linkgo-splash">
+        <svg class="splash-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path id="splash-logo-path" d="M10.59 13.41c.41.39.41 1.03 0 1.42-.39.39-1.03.39-1.42 0a5.003 5.003 0 0 1 0-7.07l3.54-3.54a5.003 5.003 0 0 1 7.07 0 5.003 5.003 0 0 1 0 7.07l-1.49 1.49c.01-.82-.12-1.64-.4-2.42l.47-.48a2.982 2.982 0 0 0 0-4.24 2.982 2.982 0 0 0-4.24 0l-3.53 3.53a2.982 2.982 0 0 0 0 4.24zm2.82-4.24c.39-.39 1.03-.39 1.42 0a5.003 5.003 0 0 1 0 7.07l-3.54 3.54a5.003 5.003 0 0 1-7.07 0 5.003 5.003 0 0 1 0-7.07l1.49-1.49c-.01.82.12 1.64.4 2.43l-.47.47a2.982 2.982 0 0 0 0 4.24 2.982 2.982 0 0 0 4.24 0l3.53-3.53a2.982 2.982 0 0 0 0-4.24.973.973 0 0 1 0-1.42z"/>
+        </svg>
+    </div>
     <div id="backfill-progress-bar"></div>
     <!-- 顶部输入状态 -->
     <div class="typing-status" id="typingStatus">
@@ -14736,6 +14801,25 @@ ${chatContent}
                 if (window.showLinkgoToast) showLinkgoToast('已关闭后台保活');
             }
         };
+
+        // ==========================================
+        // 🌟 触发开屏动画散开消失
+        // ==========================================
+        window.addEventListener('load', () => {
+            const splashEl = document.getElementById('linkgo-splash');
+            if (splashEl) {
+                // 故意稍微延迟 600 毫秒，掩盖住底层那些还没渲染好的丑陋白框
+                setTimeout(() => {
+                    // 加上这个类，触发那段绝美的“模糊散开” CSS 动画
+                    splashEl.classList.add('splash-disperse');
+                    
+                    // 动画播完后（800毫秒），把它从文档里彻底删掉，不占内存
+                    setTimeout(() => {
+                        splashEl.remove();
+                    }, 800);
+                }, 600); 
+            }
+        });
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
