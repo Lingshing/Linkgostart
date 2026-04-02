@@ -21,7 +21,7 @@ jobs:
         npm init -y
         # ✨ 偷偷加上了 @capacitor/keyboard@6 这个键盘刺客插件！
         # ✨ 修复：换回了真正的官方神级后台保活插件 @capawesome/capacitor-background-task@6 ！
-        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 @capacitor/app@6 @capawesome/capacitor-background-task@6
+        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 @capacitor/app@6 @capawesome/capacitor-background-task@6 @capacitor/local-notifications@6
         mkdir www
         echo "Linkgo" > www/index.html
 
