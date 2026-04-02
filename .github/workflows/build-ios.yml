@@ -20,8 +20,7 @@ jobs:
       run: |
         npm init -y
         # ✨ 加入了官方 geolocation 插件用于定位保活
-        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 @capacitor/app@6 @capawesome/capacitor-background-task@6 @capacitor/local-notifications@6 @capacitor/geolocation@6
-        mkdir www
+        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 @capacitor/app@6 @capawesome/capacitor-background-task@6 @capacitor/local-notifications@6 @capacitor-community/background-geolocation        mkdir www
         echo "Linkgo" > www/index.html
 
     - name: 初始化并配置热更新
