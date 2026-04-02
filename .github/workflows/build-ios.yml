@@ -28,23 +28,22 @@ jobs:
     - name: 初始化并配置热更新
       run: |
         npx cap init Linkgo com.lingshing.linkgo --web-dir www
-         cat <<EOF > capacitor.config.json
-          {
-            "appId": "com.lingshing.linkgo",
-            "appName": "Linkgo",
-            "webDir": "www",
-            "server": {
-              "url": "https://lingshing.github.io/Linkgostart/app.html",
-              "cleartext": true
-            },
-            "plugins": {
-              "Keyboard": {
-                "resize": "Native",
-                "resizeOnFullScreen": true
-              }
+        rm -f capacitor.config.ts
+        echo '{
+          "appId": "com.lingshing.linkgo",
+          "appName": "Linkgo",
+          "webDir": "www",
+          "server": {
+            "url": "https://lingshing.github.io/Linkgostart/app.html",
+            "cleartext": true
+          },
+          "plugins": {
+            "Keyboard": {
+              "resize": "Native",
+              "resizeOnFullScreen": true
             }
           }
-          EOF
+        }' > capacitor.config.json
 
     - name: 生成 iOS 工程与自动切图标
       run: |
