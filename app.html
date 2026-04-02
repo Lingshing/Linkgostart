@@ -14635,38 +14635,36 @@ ${chatContent}
         // ==========================================
         let keepAliveWatchId = null;
 
-        // 强行覆盖原有的 startKeepAlive，改为定位保活
+        // 强行覆盖原有的 startKeepAlive，改为“真·后台强力定位”
         window.startKeepAlive = async function() {
             try {
-                // 如果之前有静音音频，强行停掉，它没用了
                 if (window.chatWakeAudio) {
                     window.chatWakeAudio.pause();
                 }
                 
-                if (window.Capacitor && window.Capacitor.Plugins.Geolocation) {
-                    // 1. 申请定位权限
-                    await window.Capacitor.Plugins.Geolocation.requestPermissions();
-                    
-                    // 2. 开启极低精度的后台定位监听（省电模式）
-                    keepAliveWatchId = await window.Capacitor.Plugins.Geolocation.watchPosition({
-                        enableHighAccuracy: false, 
-                        timeout: 10000,
-                        maximumAge: 30000
-                    }, (position, err) => {
-                        if (position) {
-                            console.log("📍 定位保活滴答，App在后台坚挺中:", position.timestamp);
+                // 使用新安装的强力后台定位插件
+                if (window.Capacitor && window.Capacitor.Plugins.BackgroundGeolocation) {
+                    keepAliveWatchId = await window.Capacitor.Plugins.BackgroundGeolocation.addWatcher({
+                        backgroundMessage: "为了保持 WebSocket 连接稳定，Linkgo 正在后台运行。",
+                        backgroundTitle: "Linkgo 保持连接中",
+                        requestPermissions: true, // 自动请求权限
+                        stale: false,
+                        distanceFilter: 0 // 核心魔法：设为0，哪怕你坐着不动，它也会疯狂唤醒 JS！
+                    }, function(location, error) {
+                        if (location) {
+                            console.log("📍 真后台滴答，App还活着:", location.time);
                         }
                     });
                 }
             } catch (error) {
-                console.error("定位保活启动失败:", error);
+                console.error("后台强力定位启动失败:", error);
             }
         };
 
         // 强行覆盖原有的 stopKeepAlive
         window.stopKeepAlive = async function() {
-            if (keepAliveWatchId !== null && window.Capacitor && window.Capacitor.Plugins.Geolocation) {
-                await window.Capacitor.Plugins.Geolocation.clearWatch({ id: keepAliveWatchId });
+            if (keepAliveWatchId && window.Capacitor && window.Capacitor.Plugins.BackgroundGeolocation) {
+                await window.Capacitor.Plugins.BackgroundGeolocation.removeWatcher({ id: keepAliveWatchId });
                 keepAliveWatchId = null;
             }
         };
