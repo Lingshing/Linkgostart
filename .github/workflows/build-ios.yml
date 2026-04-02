@@ -19,9 +19,8 @@ jobs:
     - name: 安装 Capacitor 环境、键盘插件并创建占位目录
       run: |
         npm init -y
-        # ✨ 偷偷加上了 @capacitor/keyboard@6 这个键盘刺客插件！
-        # ✨ 修复：换回了真正的官方神级后台保活插件 @capawesome/capacitor-background-task@6 ！
-        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 @capacitor/app@6 @capawesome/capacitor-background-task@6 @capacitor/local-notifications@6
+        # ✨ 加入了官方 geolocation 插件用于定位保活
+        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 @capacitor/app@6 @capawesome/capacitor-background-task@6 @capacitor/local-notifications@6 @capacitor/geolocation@6
         mkdir www
         echo "Linkgo" > www/index.html
 
@@ -46,11 +45,10 @@ jobs:
         }
         EOF
 
-    - name: 生成 iOS 工程与自动切图标 (含保活及混音修复)
+    - name: 生成 iOS 工程与自动切图标 (含无感定位保活修复)
       run: |
         npx cap add ios
         
-        # ✨ 图标修复魔法：自动把你的 linkgo-icon.jpg 裁切成苹果需要的几十个尺寸！
         npm install @capacitor/assets --save-dev
         mkdir assets
         sips -s format png linkgo-icon.jpg --out assets/icon.png
@@ -58,25 +56,19 @@ jobs:
         
         npx cap sync ios
         
-        # ✨ 开启 iOS 混音特权魔法！(改用 Python 注入，彻底杜绝 Bash 括号报错)
-        python3 -c "
-        path = 'ios/App/App/AppDelegate.swift'
-        with open(path, 'r') as f: c = f.read()
-        c = c.replace('import UIKit', 'import UIKit\nimport AVFoundation')
-        audio_code = 'do { try AVAudioSession.sharedInstance().setCategory(.playback, options: .mixWithOthers); try AVAudioSession.sharedInstance().setActive(true) } catch {}\n        return true'
-        c = c.replace('return true', audio_code)
-        with open(path, 'w') as f: f.write(c)
-        "
-        
-        # ✨ 注册 linkgo:// 专属唤醒协议
+        # ✨ 注册专属唤醒协议
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string linkgo" ios/App/App/Info.plist || true
         
-        # ✨ 注入后台播放音频权限 (保活必需，不加这个静音音频也白搭！)
+        # ✨ 核心魔法：注入后台定位权限 (真正抗击杀的保活必需品)
         /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" ios/App/App/Info.plist || true
-        /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string audio" ios/App/App/Info.plist || true
+        /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string location" ios/App/App/Info.plist || true
+        
+        # ✨ 注入苹果强制要求的定位提示语（必须加，否则一申请权限就闪退）
+        /usr/libexec/PlistBuddy -c "Add :NSLocationAlwaysAndWhenInUseUsageDescription string '需要使用定位服务以保持后台连接，确保您能随时接收最新消息'" ios/App/App/Info.plist || true
+        /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string '需要使用定位服务以保持后台连接，确保您能随时接收最新消息'" ios/App/App/Info.plist || true
 
     - name: 编译无签名 iOS App
       run: |
