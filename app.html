@@ -3817,7 +3817,10 @@
                     })
                 });
                 
-                if (!response.ok) throw new Error(`API请求失败 (${response.status})`);
+                if (!response.ok) {
+                    let errorText = await response.text().catch(e => '无法读取错误信息');
+                    throw new Error(`API请求失败 (${response.status}): ${errorText}`);
+                }
                 
                 if (PARAM_CONFIG.stream) {
                     const reader = response.body.getReader();
@@ -3848,7 +3851,7 @@
                             }
                         }
                     }
-                    if (fullMessage) addMessage(contactId, 'assistant', fullMessage);
+ 
                     if (onComplete) onComplete(fullMessage);
                     if (typeof handleFinalAIResponse === 'function') handleFinalAIResponse(contactId, fullMessage);
                 } else {
@@ -3968,7 +3971,10 @@
                     })
                 });
                 
-                if (!response.ok) throw new Error(`API请求失败 (${response.status})`);
+                if (!response.ok) {
+                    let errorText = await response.text().catch(e => '无法读取错误信息');
+                    throw new Error(`API请求失败 (${response.status}): ${errorText}`);
+                }
                 
                 if (PARAM_CONFIG.stream) {
                     const reader = response.body.getReader();
@@ -3999,7 +4005,7 @@
                             }
                         }
                     }
-                    if (fullMessage) addMessage(contactId, 'assistant', fullMessage);
+                    
                     if (onComplete) onComplete(fullMessage);
                 } else {
                     const data = await response.json();
@@ -8847,8 +8853,6 @@ ${chatContent}
                                     if (content) {
                                         backgroundAIReply.fullMessage += content;
                                         backgroundAIReply.lastUpdate = Date.now();
-                                        // 🌟 修复：禁止流式接收时疯狂重绘列表界面，防止主线程卡死
-                                        if (typeof syncActiveStreamToDOM === 'function') syncActiveStreamToDOM();
                                     }
                                 } catch (e) {
                                     // 解析失败不报错，因为极小概率还会有残缺的 JSON 块
@@ -8862,10 +8866,33 @@ ${chatContent}
                     backgroundAIReply.contactId = null;
                     
                     if (finalFullMessage) {
-                        addMessage(currentChatContactId, 'assistant', finalFullMessage);
-                        updateChatListLastMessage(currentChatContactId, finalFullMessage);
-                        handleFinalAIResponse(currentChatContactId, finalFullMessage);
+                    let displayMsg = finalFullMessage;
+                    let metaData = '';
+                    
+                    // 1. 剥离生词本的抽屉数据
+                    if (finalFullMessage.includes('===METADATA===')) {
+                        const parts = finalFullMessage.split('===METADATA===');
+                        displayMsg = parts[0].trim();
+                        metaData = '\n\n===METADATA===' + parts[1];
                     }
+                    
+                    // 2. 调用你代码里写好的气泡分隔引擎！
+                    const sentences = typeof splitTextIntoSentences === 'function' ? splitTextIntoSentences(displayMsg) : [displayMsg];
+                    
+                    if (sentences.length > 0) {
+                        sentences.forEach((sentence, index) => {
+                            let textToSave = sentence.trim();
+                            // 把隐藏的生词数据挂在最后一个气泡上
+                            if (index === sentences.length - 1 && metaData) textToSave += metaData;
+                            // 3. 将每个切分好的气泡作为独立对话保存！
+                            if (textToSave) addMessage(currentChatContactId, 'assistant', textToSave);
+                        });
+                        updateChatListLastMessage(currentChatContactId, sentences[sentences.length - 1]);
+                    } else {
+                        addMessage(currentChatContactId, 'assistant', finalFullMessage);
+                    }
+                    handleFinalAIResponse(currentChatContactId, finalFullMessage);
+                }
                     
                 } else {
                     const data = await response.json();
@@ -9962,13 +9989,38 @@ ${chatContent}
             regenerateResponse(currentChatContactId, 
                 (chunk, displayMsg) => {
                     backgroundAIReply.fullMessage = displayMsg; 
-                    if (typeof syncActiveStreamToDOM === 'function') syncActiveStreamToDOM(); 
                 },
                 (fullMessage) => {
                     backgroundAIReply.fullMessage = fullMessage; 
                     backgroundAIReply.inProgress = false;
-                    const targetId = backgroundAIReply.contactId;
+                    const targetId = backgroundAIReply.contactId || currentChatContactId;
                     backgroundAIReply.contactId = null;
+
+                    // 🌟 核心补齐：重新生成的消息也必须拆分并保存！
+                    if (fullMessage) {
+                        let displayMsg = fullMessage;
+                        let metaData = '';
+                        if (fullMessage.includes('===METADATA===')) {
+                            const parts = fullMessage.split('===METADATA===');
+                            displayMsg = parts[0].trim();
+                            metaData = '\n\n===METADATA===' + parts[1];
+                        }
+
+                        const sentences = typeof splitTextIntoSentences === 'function' ? splitTextIntoSentences(displayMsg) : [displayMsg];
+                        
+                        if (sentences.length > 0) {
+                            sentences.forEach((sentence, index) => {
+                                let textToSave = sentence.trim();
+                                if (index === sentences.length - 1 && metaData) textToSave += metaData;
+                                if (textToSave) addMessage(targetId, 'assistant', textToSave);
+                            });
+                            updateChatListLastMessage(targetId, sentences[sentences.length - 1]);
+                        } else {
+                            addMessage(targetId, 'assistant', fullMessage);
+                            updateChatListLastMessage(targetId, fullMessage);
+                        }
+                    }
+                    
                     if (typeof handleFinalAIResponse === 'function') handleFinalAIResponse(targetId, fullMessage);
                 },
                 (error) => {
