@@ -16,13 +16,11 @@ jobs:
       with:
         node-version: '20'
 
-    - name: 安装依赖与 Python 图像库
+    - name: 安装依赖
       run: |
         npm init -y
-        # ✨ 安装所需插件
+        # ✨ 安装所需插件 (去掉了上面容易引起环境错乱的 pip 命令)
         npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 @capacitor/app@6 @capawesome/capacitor-background-task@6 @capacitor/local-notifications@6 @capacitor-community/background-geolocation @capacitor/splash-screen@6        
-        # ✨ 必须安装这个库！这是切圆角的终极武器
-        pip install Pillow
         mkdir -p www
         echo "Linkgo" > www/index.html
 
@@ -67,7 +65,10 @@ jobs:
         # 1. 转成 png
         sips -s format png linkgo-icon.jpg --out assets/icon.png
         
-        # 2. ✨ 黑科技：让 Python 在服务器上硬生生把四个角锯掉！
+        # 2. ✨ 核心修复：强制当前执行脚本的 python3 先装好库，打破 macOS 限制！
+        python3 -m pip install Pillow --break-system-packages
+        
+        # 3. 开始执行物理锯角手术
         python3 - <<EOF
         from PIL import Image, ImageDraw
         img = Image.open('assets/icon.png').convert("RGBA")
@@ -81,35 +82,9 @@ jobs:
         img.save('assets/icon.png')
         EOF
         
-        # 3. 基于已经切好圆角的图片，生成所有启动图
+        # 4. 基于已经切好圆角的图片，生成所有启动图
         npx @capacitor/assets generate --ios
         
         npx cap sync ios
         
         # ✨ 权限注入
-        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" ios/App/App/Info.plist || true
-        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" ios/App/App/Info.plist || true
-        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" ios/App/App/Info.plist || true
-        /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string linkgo" ios/App/App/Info.plist || true
-        /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" ios/App/App/Info.plist || true
-        /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string location" ios/App/App/Info.plist || true
-        /usr/libexec/PlistBuddy -c "Add :NSLocationAlwaysAndWhenInUseUsageDescription string '需要使用定位服务以保持后台连接'" ios/App/App/Info.plist || true
-        /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string '需要使用定位服务以保持后台连接'" ios/App/App/Info.plist || true
-
-    - name: 编译无签名 iOS App
-      run: |
-        cd ios/App
-        xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -derivedDataPath derived_data CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
-
-    - name: 打包为 IPA 文件
-      run: |
-        mkdir -p Payload
-        APP_PATH=$(find ios/App/derived_data -name "App.app" -type d | head -n 1)
-        mv "$APP_PATH" Payload/
-        zip -r Linkgo.ipa Payload
-
-    - name: 上传 IPA 供下载
-      uses: actions/upload-artifact@v4
-      with:
-        name: Linkgo-IPA
-        path: Linkgo.ipa
