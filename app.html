@@ -2327,7 +2327,7 @@
         /* 拿在手上的标签变成深色胶囊并放大，极其有质感 */
         .todo-tag-chosen { transform: scale(1.05); background-color: var(--text-main) !important; color: var(--card-bg) !important; border-radius: 100px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: none !important; }
     
-        /* ================= 学习模式：4 款护眼主题 ================= */
+        /* ================= 学习模式：双色自适应主题 ================= */
         /* 顶部 Badge & 生词卡样式 */
         .learning-badge { font-size: 11px; padding: 4px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px; font-weight: 500; margin-left: 8px; vertical-align: middle; }
         .bottom-sheet { position: fixed; bottom: -100%; left: 0; width: 100%; background: var(--bg-color); border-radius: 24px 24px 0 0; padding: 24px 20px; box-shadow: 0 -10px 25px rgba(0,0,0,0.1); transition: bottom 0.35s ease-out; z-index: 5000; display: flex; flex-direction: column; }
@@ -2344,21 +2344,19 @@
         /* --- 小工具栏和交互样式 (平时隐藏，学习模式显示) --- */
         .tools { display: none; gap: 8px; margin-top: 6px; padding-left: 4px; }
         .learning-active .tools { display: flex; }
-        /* 彻底修复手机端点击后灰色背景黏住不消失的 Bug */
         .tool-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; cursor: pointer; border-radius: 50%; transition: all 0.2s; font-size: 14px; opacity: 0.5; -webkit-tap-highlight-color: transparent; }
-        @media (hover: hover) {
-            .tool-btn:hover { background: rgba(128,128,128,0.2); opacity: 1; }
-        }
+        @media (hover: hover) { .tool-btn:hover { background: rgba(128,128,128,0.2); opacity: 1; } }
         .tool-btn.active { opacity: 1; }
         .feedback-box { margin-top: 6px; font-size: 14px; display: none; animation: fadeIn 0.3s ease; line-height: 1.5; padding: 6px 10px; border-radius: 8px; opacity: 0.9; }
         .show-feedback .feedback-box { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        
         /* 点读单词样式 */
         .clickable-word { transition: border-color 0.3s, background-color 0.2s; padding-bottom: 1px; border-bottom: 1px dashed transparent; font-weight: 500; }
         .show-words .clickable-word { cursor: pointer; border-bottom: 1px dashed var(--text-sub); }
         .show-words .clickable-word:active { background: var(--hover-bg); border-radius: 4px; }
 
-        /* 🌙 智能学习模式双色主题 (自动跟随深浅模式) */
+        /* 🌙 智能学习模式双色主题 (自动跟随系统深浅模式) */
         
         /* 1. 浅色模式：薄荷抹茶 (Matcha) */
         .learning-active.theme-matcha, .learning-active.theme-matcha #chat-messages-container, .learning-active.theme-matcha #chat-extensions-panel { background-color: #F4F8F4 !important; }
@@ -2387,75 +2385,6 @@
         .learning-active.theme-dark .chat-message.ai .chat-bubble { background-color: #1c1c1e !important; border: 1px solid rgba(255,255,255,0.05) !important; color: #E5E5EA !important; }
         .learning-active.theme-dark .feedback-box { background: rgba(255, 255, 255, 0.1); color: #E5E5EA; }
         .learning-active.theme-dark .tool-btn.active { background: rgba(255, 255, 255, 0.2); color: #07C160 !important; }
-        .feedback-box { margin-top: 6px; font-size: 14px; display: none; animation: fadeIn 0.3s ease; line-height: 1.5; padding: 6px 10px; border-radius: 8px; opacity: 0.9; }
-        .show-feedback .feedback-box { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-        /* 点读单词样式 */
-        .clickable-word { transition: border-color 0.3s, background-color 0.2s; padding-bottom: 1px; border-bottom: 1px dashed transparent; font-weight: 500; }
-        .show-words .clickable-word { cursor: pointer; border-bottom: 1px dashed var(--text-sub); }
-        .show-words .clickable-word:active { background: var(--hover-bg); border-radius: 4px; }
-
-        /* 1. 薄荷抹茶 (Matcha) */
-        .learning-active.theme-matcha, .learning-active.theme-matcha #chat-messages-container, .learning-active.theme-matcha #chat-extensions-panel { background-color: #F4F8F4 !important; }
-        .learning-active.theme-matcha .chat-nav-header { background-color: rgba(244,248,244,0.9) !important; border-bottom: 1px solid #E0EBE0 !important; }
-        .learning-active.theme-matcha #chat-input-bar { background-color: #F4F8F4 !important; border-top: 1px solid #E0EBE0 !important; }
-        .learning-active.theme-matcha .chat-nav-header *, .learning-active.theme-matcha .tools { color: #2C3E35 !important; }
-        .learning-active.theme-matcha .chat-input-field { background-color: #FFF !important; color: #2C3E35 !important; }
-        .learning-active.theme-matcha .chat-plus-btn svg { fill: #2C3E35 !important; }
-        .learning-active.theme-matcha .chat-send-btn { background: #6B8E76 !important; color: #FFF !important; }
-        .learning-active.theme-matcha .learning-badge { background: #E0EBE0; color: #4A6B52; }
-        .learning-active.theme-matcha .chat-message.user .chat-bubble { background-color: #6B8E76 !important; color: #FFF !important; }
-        .learning-active.theme-matcha .chat-message.ai .chat-bubble { background-color: #FFF !important; border: 1px solid #E0EBE0 !important; color: #2C3E35 !important; }
-        .learning-active.theme-matcha .feedback-box { background: rgba(107,142,118,0.1); color: #2C3E35; }
-
-        /* 2. 羊皮纸 (Parchment) */
-        .learning-active.theme-parchment, .learning-active.theme-parchment #chat-messages-container, .learning-active.theme-parchment #chat-extensions-panel { background-color: #FDF6E3 !important; }
-        .learning-active.theme-parchment .chat-nav-header { background-color: rgba(253,246,227,0.9) !important; border-bottom: 1px solid #EFE0C2 !important; }
-        .learning-active.theme-parchment #chat-input-bar { background-color: #FDF6E3 !important; border-top: 1px solid #EFE0C2 !important; }
-        .learning-active.theme-parchment .chat-nav-header *, .learning-active.theme-parchment .tools { color: #4A4036 !important; }
-        .learning-active.theme-parchment .chat-input-field { background-color: #FFFDF8 !important; color: #4A4036 !important; }
-        .learning-active.theme-parchment .chat-plus-btn svg { fill: #4A4036 !important; }
-        .learning-active.theme-parchment .chat-send-btn { background: #D4A373 !important; color: #FFF !important; }
-        .learning-active.theme-parchment .learning-badge { background: #F2E4C9; color: #8A7056; }
-        .learning-active.theme-parchment .chat-message.user .chat-bubble { background-color: #D4A373 !important; color: #FFF !important; }
-        .learning-active.theme-parchment .chat-message.ai .chat-bubble { background-color: #FAEDCD !important; border: 1px solid #EFE0C2 !important; color: #4A4036 !important; }
-        .learning-active.theme-parchment .feedback-box { background: rgba(212,163,115,0.15); color: #4A4036; }
-
-        /* 3. 极夜蓝影 (高级暗黑) */
-        .learning-active.theme-nordic, .learning-active.theme-nordic #chat-messages-container, .learning-active.theme-nordic #chat-extensions-panel { background-color: #121212 !important; }
-        .learning-active.theme-nordic .chat-nav-header { background-color: rgba(18,18,18,0.85) !important; border-bottom: 1px solid #2C2C2E !important; backdrop-filter: blur(20px); }
-        .learning-active.theme-nordic #chat-input-bar { background-color: #121212 !important; border-top: 1px solid #2C2C2E !important; }
-        .learning-active.theme-nordic .chat-nav-header *, .learning-active.theme-nordic .tools { color: #FFFFFF !important; }
-        .learning-active.theme-nordic .chat-input-field { background-color: #2C2C2E !important; color: #FFFFFF !important; }
-        .learning-active.theme-nordic .chat-plus-btn svg { fill: #FFFFFF !important; }
-        .learning-active.theme-nordic .chat-send-btn { background: #0A84FF !important; color: #FFF !important; }
-        .learning-active.theme-nordic .learning-badge { background: #2C2C2E; color: #0A84FF; }
-        .learning-active.theme-nordic .chat-message.user .chat-bubble { background-color: #0A84FF !important; color: #FFF !important; }
-        .learning-active.theme-nordic .chat-message.ai .chat-bubble { background-color: #2C2C2E !important; border: 1px solid rgba(255,255,255,0.05) !important; color: #E5E5EA !important; }
-        .learning-active.theme-nordic .feedback-box { background: rgba(10, 132, 255, 0.15); color: #E5E5EA; }
-
-        /* 4. 暖拿铁 (Latte) */
-        .learning-active.theme-latte, .learning-active.theme-latte #chat-messages-container, .learning-active.theme-latte #chat-extensions-panel { background-color: #F5EBE0 !important; }
-        .learning-active.theme-latte .chat-nav-header { background-color: rgba(245,235,224,0.9) !important; border-bottom: 1px solid #E8DDD3 !important; }
-        .learning-active.theme-latte #chat-input-bar { background-color: #F5EBE0 !important; border-top: 1px solid #E8DDD3 !important; }
-        .learning-active.theme-latte .chat-nav-header *, .learning-active.theme-latte .tools { color: #403632 !important; }
-        .learning-active.theme-latte .chat-input-field { background-color: #FFF !important; color: #403632 !important; }
-        .learning-active.theme-latte .chat-plus-btn svg { fill: #403632 !important; }
-        .learning-active.theme-latte .chat-send-btn { background: #B59F91 !important; color: #FFF !important; }
-        .learning-active.theme-latte .learning-badge { background: #E3D5CA; color: #7B6255; }
-        .learning-active.theme-latte .chat-message.user .chat-bubble { background-color: #B59F91 !important; color: #FFF !important; }
-        .learning-active.theme-latte .chat-message.ai .chat-bubble { background-color: #FFF !important; border: 1px solid #E8DDD3 !important; color: #403632 !important; }
-        .learning-active.theme-latte .feedback-box { background: rgba(181,159,145,0.15); color: #403632; }
-
-        /* 外观设置里的圆形选色器样式 */
-        .theme-option { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: 0.2s; opacity: 0.4; }
-        .theme-option.active { opacity: 1; }
-        .theme-option.active .theme-label { font-weight: bold; color: var(--text-main); }
-        .color-circle { width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(0,0,0,0.05); transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1); transform: translateZ(0); overflow: hidden; }
-        .theme-option.active .color-circle { box-shadow: 0 0 0 2px var(--card-bg), 0 0 0 4px #0A84FF, inset 0 0 0 1px rgba(0,0,0,0.05); }
-        .theme-label { font-size: 12px; color: var(--text-sub); transition: 0.2s; }
-
-        
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
@@ -6211,8 +6140,10 @@ ${chatContent}
                 learningIndicator.classList.toggle('active', isLearning);
             }
 
-            // 🎨 核心：每次刷新状态时，顺便涂抹聊天页面的颜色
-            applyLearningThemeToChat();
+            // 🎨 核心修复：点击开关时立刻调用智能换色系统！
+            if (typeof applyLearningThemeToChat === 'function') {
+                applyLearningThemeToChat();
+            }
         }
 
         // --- 触发：切换学习模式 (独立开关) ---
@@ -15100,53 +15031,6 @@ ${chatContent}
                 }, 2000); 
             }
         });
-
-        // 默认主题是抹茶
-        let currentLearningTheme = localStorage.getItem('linkgo_learning_theme') || 'theme-matcha';
-
-        // 1. 点击切换外观主题
-        function setLearningTheme(themeName) {
-            currentLearningTheme = themeName;
-            localStorage.setItem('linkgo_learning_theme', themeName);
-            updateThemeSelectorUI();
-            applyLearningThemeToChat(); // 实时预览
-        }
-
-        // 2. 更新外观面板上的圆圈高亮状态
-        function updateThemeSelectorUI() {
-            // 移除所有 active
-            ['theme-matcha', 'theme-parchment', 'theme-nordic', 'theme-latte'].forEach(theme => {
-                const btn = document.getElementById(`btn-${theme}`);
-                if (btn) btn.classList.remove('active');
-            });
-            // 高亮当前选中的
-            const activeBtn = document.getElementById(`btn-${currentLearningTheme}`);
-            if (activeBtn) activeBtn.classList.add('active');
-        }
-
-       // 3. 将主题应用到聊天界面
-        function applyLearningThemeToChat() {
-            const contact = mockContacts.find(c => c.id === currentChatContactId);
-            if (!contact) return;
-
-            // 获取聊天场景容器
-            const chatScene = document.getElementById('scene-chat'); 
-            const badge = document.getElementById('learning-mode-badge');
-
-            if (!chatScene) return;
-
-            // 先清除所有主题
-            chatScene.classList.remove('theme-matcha', 'theme-parchment', 'theme-nordic', 'theme-latte', 'learning-active');
-
-            // 如果开启了学习模式
-            if (contact.isLearningMode) {
-                chatScene.classList.add('learning-active'); // 激活标志
-                chatScene.classList.add(currentLearningTheme); // 涂上颜色
-                if (badge) badge.style.display = 'flex'; // 显示顶部徽章
-            } else {
-                if (badge) badge.style.display = 'none'; // 隐藏徽章
-            }
-        }
 
        // --- 切换翻译/批改框 ---
         function toggleFeedback(msgId, btnElement) {
