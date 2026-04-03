@@ -2347,9 +2347,11 @@
         .tool-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; cursor: pointer; border-radius: 50%; transition: all 0.2s; font-size: 14px; opacity: 0.5; -webkit-tap-highlight-color: transparent; }
         @media (hover: hover) { .tool-btn:hover { background: rgba(128,128,128,0.2); opacity: 1; } }
         .tool-btn.active { opacity: 1; }
-        .feedback-box { margin-top: 6px; font-size: 14px; display: none; animation: fadeIn 0.3s ease; line-height: 1.5; padding: 6px 10px; border-radius: 8px; opacity: 0.9; }
-        .show-feedback .feedback-box { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        /* 🌟 极致丝滑的反馈框伸缩动画 (CSS Grid Hack) */
+        .feedback-box { display: grid; grid-template-rows: 0fr; margin-top: 0; opacity: 0; pointer-events: none; transition: grid-template-rows 0.35s cubic-bezier(0.25, 1, 0.5, 1), margin-top 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.35s ease; border-radius: 8px; }
+        .show-feedback .feedback-box { grid-template-rows: 1fr; margin-top: 6px; opacity: 0.9; pointer-events: auto; }
+        .feedback-content { overflow: hidden; font-size: 14px; line-height: 1.5; padding: 0 10px; }
+        .show-feedback .feedback-content { padding: 6px 10px; transition: padding 0.35s ease; }
         
         /* 点读单词样式 (基础过渡) */
         .clickable-word { transition: background-color 0.2s; padding-bottom: 1px; border-bottom: 1px dashed transparent; font-weight: 500; }
@@ -7873,8 +7875,8 @@ ${chatContent}
                                 <div class="tools">
                                     <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="批改"><i class="fa-solid fa-pen-nib"></i></div>
                                 </div>
-                                <div class="feedback-box" id="${uniqueMsgId}" style="align-self: flex-end;">
-                                    ${correctionText}
+                                <div class="feedback-box" id="${uniqueMsgId}">
+                                    <div class="feedback-content">${correctionText}</div>
                                 </div>
                             </div>
                         `;
@@ -7952,7 +7954,7 @@ ${chatContent}
                                     ${toolsHTML}
                                 </div>
                                 <div class="feedback-box" id="${uniqueMsgId}">
-                                    ${translationText}
+                                    <div class="feedback-content">${translationText}</div>
                                 </div>
                             </div>
                         `;
@@ -8521,7 +8523,7 @@ ${chatContent}
                             <div class="tool-btn" onclick="toggleWordsMode('${uniqueMsgId}', this)" title="点读模式"><i class="fa-solid fa-book-open"></i></div>
                         </div>
                         <div class="feedback-box" id="${uniqueMsgId}">
-                            ${translationText}
+                            <div class="feedback-content">${translationText}</div>
                         </div>
                     </div>
                 `;
@@ -8534,7 +8536,7 @@ ${chatContent}
                             <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="批改"><i class="fa-solid fa-pen-nib"></i></div>
                         </div>
                         <div class="feedback-box" id="${uniqueMsgId}">
-                            💡 (正在等待AI批改...)
+                            <div class="feedback-content">💡 (正在等待AI批改...)</div>
                         </div>
                     </div>
                 `;
@@ -15029,7 +15031,7 @@ ${chatContent}
             if (typeof isHighlighterMode !== 'undefined' && isHighlighterMode) {
                 const toast = document.getElementById('learning-toast');
                 if(toast) {
-                    toast.innerHTML = "<i class='fa-solid fa-circle-exclamation'></i> 如需查看释义请先退出摘录模式";
+                    toast.innerHTML = "<i class='fa-solid fa-circle-exclamation'></i> 如需查看释义</br>请退出摘录模式";
                     toast.style.opacity = '1';
                     toast.style.transform = 'translateX(-50%) translateY(0) scale(1)';
                     setTimeout(() => { 
@@ -15174,6 +15176,8 @@ ${chatContent}
         let highlightDragMode = true; // true 为涂亮，false 为擦除
         let currentDragPath = [];     // 记忆手指划过的历史路径
 
+        let lastHlTouchTime = 0; // 🌟 核心护盾：记录触摸时间，秒杀幽灵点击
+
         function getEventPoint(e) {
             if (e.touches && e.touches.length > 0) return e.touches[0];
             if (e.changedTouches && e.changedTouches.length > 0) return e.changedTouches[0];
@@ -15182,7 +15186,14 @@ ${chatContent}
 
         function handleHlDown(e) {
             if (!isHighlighterMode) return;
-            if (e.type === 'mousedown' && e.button !== 0) return; 
+            
+            // 🌟 核心防误触盾：拦截手机端引发闪烁和取消选中的“幽灵鼠标点击”
+            if (e.type.startsWith('touch')) {
+                lastHlTouchTime = Date.now();
+            } else if (e.type.startsWith('mouse')) {
+                if (Date.now() - lastHlTouchTime < 500) return; 
+                if (e.button !== 0) return; 
+            }
             
             const pt = getEventPoint(e);
             const target = document.elementFromPoint(pt.clientX, pt.clientY);
@@ -15201,6 +15212,10 @@ ${chatContent}
 
         function handleHlMove(e) {
             if (!isHighlighterMode || !isHighlightDragging) return;
+            
+            // 幽灵鼠标移动拦截
+            if (e.type.startsWith('mouse') && Date.now() - lastHlTouchTime < 500) return;
+            
             if (e.cancelable) e.preventDefault(); 
 
             const pt = getEventPoint(e);
@@ -15223,6 +15238,7 @@ ${chatContent}
         }
 
         function handleHlUp(e) {
+            if (e.type.startsWith('mouse') && Date.now() - lastHlTouchTime < 500) return;
             if (isHighlightDragging) {
                 isHighlightDragging = false;
                 currentDragPath = []; 
@@ -15230,7 +15246,7 @@ ${chatContent}
             }
         }
 
-        // 🌟 回退到最稳固的原生 Touch 和 Mouse 事件，彻底解决移动端滑动失效 Bug
+        // 监听器绑定不变
         document.addEventListener('touchstart', handleHlDown, {passive: false});
         document.addEventListener('touchmove', handleHlMove, {passive: false});
         document.addEventListener('touchend', handleHlUp);
