@@ -3902,23 +3902,6 @@
             if (isTyping) return;
             isTyping = true;
             
-            // 🌟 修复 Bug：重新生成时加入“呼吸等待”气泡
-            const container = document.getElementById('chat-messages-container');
-            const streamContainer = document.createElement('div');
-            streamContainer.id = 'active-stream-container';
-            streamContainer.style.display = 'flex';
-            streamContainer.style.flexDirection = 'column';
-            streamContainer.style.gap = '16px';
-            streamContainer.style.width = '100%';
-            
-            const aiMessageDiv = document.createElement('div');
-            aiMessageDiv.className = 'chat-message ai';
-            const avatarHtml = generateAvatarHtml(false, currentChatContactId);
-            aiMessageDiv.innerHTML = `${avatarHtml}<div class="chat-bubble breathing-mode" id="active-typing-bubble" onclick="abortCurrentAiReply()" title="点击中止生成"></div>`;
-            streamContainer.appendChild(aiMessageDiv);
-            if(container) container.appendChild(streamContainer);
-            scrollToBottom();
-            
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             const systemPrompt = getSystemPromptWithMode(contact);
 
@@ -8462,14 +8445,9 @@ ${chatContent}
             const streamCont = document.getElementById('active-stream-container');
             if (streamCont) streamCont.remove();
 
-            // 🌟 终极同步：AI打字结束后，强制重绘当前聊天区
-            // 这样潜藏在历史记录里的 JSON 就会瞬间化为真实的批改和翻译按钮！
-            const contact = mockContacts.find(c => c.id === contactId);
-            if (contact && contact.isLearningMode) {
-                setTimeout(() => {
-                    renderChatMessages(contactId);
-                }, 50);
-            }
+            setTimeout(() => {
+                renderChatMessages(contactId);
+            }, 50);
         }
         
         // --- 创建聊天气泡 (修改为无内联动画版) ---
@@ -8870,7 +8848,7 @@ ${chatContent}
                                         backgroundAIReply.fullMessage += content;
                                         backgroundAIReply.lastUpdate = Date.now();
                                         // 🌟 修复：禁止流式接收时疯狂重绘列表界面，防止主线程卡死
-                                        // updateChatListLastMessage(backgroundAIReply.contactId, backgroundAIReply.fullMessage);
+                                        if (typeof syncActiveStreamToDOM === 'function') syncActiveStreamToDOM();
                                     }
                                 } catch (e) {
                                     // 解析失败不报错，因为极小概率还会有残缺的 JSON 块
@@ -8882,7 +8860,10 @@ ${chatContent}
                     const finalFullMessage = backgroundAIReply.fullMessage;
                     backgroundAIReply.inProgress = false;
                     backgroundAIReply.contactId = null;
+                    
                     if (finalFullMessage) {
+                        addMessage(currentChatContactId, 'assistant', finalFullMessage);
+                        updateChatListLastMessage(currentChatContactId, finalFullMessage);
                         handleFinalAIResponse(currentChatContactId, finalFullMessage);
                     }
                     
