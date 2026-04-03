@@ -2351,12 +2351,11 @@
         .show-feedback .feedback-box { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* 点读单词样式 */
-        .clickable-word { transition: border-color 0.3s, background-color 0.2s; padding-bottom: 1px; border-bottom: 1px dashed transparent; font-weight: 500; }
+        /* 点读单词样式 (基础过渡) */
+        .clickable-word { transition: border-color 0.3s, background-color 0.2s, color 0.3s; padding-bottom: 1px; border-bottom: 1px dashed transparent; font-weight: 500; }
         .show-words .clickable-word { cursor: pointer; border-bottom: 1px dashed var(--text-sub); }
-        .show-words .clickable-word:active { background: var(--hover-bg); border-radius: 4px; }
 
-        /* 🌙 智能学习模式双色主题 (自动跟随系统深浅模式) */
+        /* 🌙 智能学习模式双色主题 (自动跟随深浅模式) */
         
         /* 1. 浅色模式：薄荷抹茶 (Matcha) */
         .learning-active.theme-matcha, .learning-active.theme-matcha #chat-messages-container, .learning-active.theme-matcha #chat-extensions-panel { background-color: #F4F8F4 !important; }
@@ -2371,6 +2370,9 @@
         .learning-active.theme-matcha .chat-message.ai .chat-bubble { background-color: #FFF !important; border: 1px solid #E0EBE0 !important; color: #2C3E35 !important; }
         .learning-active.theme-matcha .feedback-box { background: rgba(107,142,118,0.1); color: #2C3E35; }
         .learning-active.theme-matcha .tool-btn.active { background: rgba(107,142,118,0.2); color: #4A6B52 !important; }
+        /* 🎨 抹茶点读配色 */
+        .learning-active.theme-matcha .show-words .clickable-word { border-bottom: 1px dashed #4A6B52; color: #2C3E35; }
+        .learning-active.theme-matcha .show-words .clickable-word:active { background: rgba(107,142,118,0.2); border-radius: 4px; }
 
         /* 2. 深色模式：原味深色 (Dark) */
         .learning-active.theme-dark, .learning-active.theme-dark #chat-messages-container, .learning-active.theme-dark #chat-extensions-panel { background-color: #000000 !important; }
@@ -2380,11 +2382,14 @@
         .learning-active.theme-dark .chat-input-field { background-color: #1c1c1e !important; color: #FFFFFF !important; }
         .learning-active.theme-dark .chat-plus-btn svg { fill: #FFFFFF !important; }
         .learning-active.theme-dark .chat-send-btn { background: #07C160 !important; color: #FFF !important; }
-        .learning-active.theme-dark .learning-badge { background: #1c1c1e; color: #07C160; }
-        .learning-active.theme-dark .chat-message.user .chat-bubble { background-color: #07C160 !important; color: #FFF !important; }
+        .learning-active.theme-dark .learning-badge { background: #3A3A3C; color: #07C160; } /* 🎨 换成了更显眼的浅灰色背景 */
+        .learning-active.theme-dark .chat-message.user .chat-bubble { background-color: #05A050 !important; color: #FFF !important; } /* 🎨 换成了略微深一点的高级绿 */
         .learning-active.theme-dark .chat-message.ai .chat-bubble { background-color: #1c1c1e !important; border: 1px solid rgba(255,255,255,0.05) !important; color: #E5E5EA !important; }
         .learning-active.theme-dark .feedback-box { background: rgba(255, 255, 255, 0.1); color: #E5E5EA; }
         .learning-active.theme-dark .tool-btn.active { background: rgba(255, 255, 255, 0.2); color: #07C160 !important; }
+        /* 🎨 深色点读配色 */
+        .learning-active.theme-dark .show-words .clickable-word { border-bottom: 1px dashed #07C160; color: #07C160; }
+        .learning-active.theme-dark .show-words .clickable-word:active { background: rgba(7, 193, 96, 0.2); border-radius: 4px; }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
@@ -7805,7 +7810,7 @@ ${chatContent}
                         messageDiv.innerHTML = `
                             ${avatarHtml}
                             <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-start; position: relative;">
-                                <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
+                                <div class="chat-bubble" onclick="if(!this.closest('.chat-message').classList.contains('show-words')) toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
                                 <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
                                 <div class="tools">
                                     <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="翻译全文"><i class="fa-solid fa-language"></i></div>
@@ -8191,12 +8196,10 @@ ${chatContent}
         function splitTextIntoSentences(fullText) {
             if (!fullText) return [];
             
-            // 🌟 终极防火墙：把隐藏数据摘出来，保护它不被碎纸机切碎！
-            let metaDataBlock = "";
+            // 🌟 核心修复：如果包含学习模式的 JSON 数据，【绝对不切碎】气泡！
+            // 这保证了 AI 的一段回复就是一个完整的气泡，点翻译时完美对应！
             if (fullText.includes('===METADATA===')) {
-                const parts = fullText.split('===METADATA===');
-                fullText = parts[0];
-                metaDataBlock = '\n===METADATA===\n' + parts[1];
+                return [fullText];
             }
             
             let text = fullText.replace(/([!?！？])\1+/g, '$1');
@@ -8226,12 +8229,6 @@ ${chatContent}
             if (result.length === 0) {
                 result = [text];
             }
-            
-            // 🌟 神级修复：把剥离出来的翻译数据，克隆并绑定给分切出的【每一个】子气泡！
-            if (metaDataBlock) {
-                result = result.map(sentence => sentence + metaDataBlock);
-            }
-            
             return result;
         }
 
@@ -8317,50 +8314,18 @@ ${chatContent}
             if (typeof applyRegexRules === 'function') {
                 finalFullMessage = applyRegexRules(finalFullMessage);
             }
-            
-            // 🌟 实时更新上一条用户消息的批改结果
-            if (finalFullMessage.includes('===METADATA===')) {
-                try {
-                    const jsonMatch = finalFullMessage.split('===METADATA===')[1].match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        const meta = JSON.parse(jsonMatch[0]);
-                        if (meta.correction) {
-                            const container = document.getElementById('chat-messages-container');
-                            if (container) {
-                                const userBubbles = container.querySelectorAll('.chat-message.user .feedback-box');
-                                if (userBubbles.length > 0) {
-                                    const lastUserFeedbackBox = userBubbles[userBubbles.length - 1];
-                                    lastUserFeedbackBox.innerHTML = "💡 " + meta.correction;
-                                }
-                            }
-                        }
-                    }
-                } catch(e) {}
-            }
 
             // 清理界面的呼吸气泡
             const streamCont = document.getElementById('active-stream-container');
             if (streamCont) streamCont.remove();
 
-            // 丢给后台队列排队（无论用户在哪，都会默默执行）
-            startGlobalBubbleQueue(contactId, finalFullMessage);
-            
-            // 如果用户在当前页面，立刻显示一个呼吸占位符
-            const isCurrentPage = document.getElementById('scene-chat') && document.getElementById('scene-chat').classList.contains('show') && currentChatContactId === contactId;
-            if (isCurrentPage) {
-                const container = document.getElementById('chat-messages-container');
-                const streamContainer = document.createElement('div');
-                streamContainer.id = 'active-stream-container';
-                streamContainer.style.display = 'flex';
-                streamContainer.style.flexDirection = 'column';
-                streamContainer.style.gap = '16px';
-                streamContainer.style.width = '100%';
-                const aiMessageDiv = document.createElement('div');
-                aiMessageDiv.className = 'chat-message ai';
-                aiMessageDiv.innerHTML = `${generateAvatarHtml(false, contactId)}<div class="chat-bubble breathing-mode" id="active-typing-bubble" onclick="abortCurrentAiReply()" title="点击中止生成"></div>`;
-                streamContainer.appendChild(aiMessageDiv);
-                container.appendChild(streamContainer);
-                scrollToBottom();
+            // 🌟 终极同步：AI打字结束后，强制重绘当前聊天区
+            // 这样潜藏在历史记录里的 JSON 就会瞬间化为真实的批改和翻译按钮！
+            const contact = mockContacts.find(c => c.id === contactId);
+            if (contact && contact.isLearningMode) {
+                setTimeout(() => {
+                    renderChatMessages(contactId);
+                }, 50);
             }
         }
         
@@ -8412,7 +8377,7 @@ ${chatContent}
                 messageDiv.innerHTML = `
                     ${avatarHtml}
                     <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-start; position: relative;">
-                        <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
+                        <div class="chat-bubble" onclick="if(!this.closest('.chat-message').classList.contains('show-words')) toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
                         <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
                         <div class="tools">
                             <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="翻译全文"><i class="fa-solid fa-language"></i></div>
@@ -14892,7 +14857,7 @@ ${chatContent}
 
         // --- 处理单词点击 ---
         function handleWordClick(event, word, pronounce, meaning) {
-            // 找到包含这个词的外层气泡容器
+            event.stopPropagation(); // 🌟 拦截穿透：阻止点击事件漏到下方的气泡导致跳出“重新生成”！
             const msgRow = event.target.closest('.chat-message');
             if (msgRow && msgRow.classList.contains('show-words')) {
                 showWord(word, pronounce, meaning);
