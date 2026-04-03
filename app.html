@@ -2326,57 +2326,10 @@
         /* 拿在手上的标签变成深色胶囊并放大，极其有质感 */
         .todo-tag-chosen { transform: scale(1.05); background-color: var(--text-main) !important; color: var(--card-bg) !important; border-radius: 100px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: none !important; }
     
-        /* ==========================================
-        🌟 Linkgo 极简开屏动画样式
-        ========================================== */
-        #linkgo-splash {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 999999; 
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #FFFFFF;
-            /* 兼容 iOS 底层的 filter 滤镜动画 */
-            transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1), 
-                        -webkit-filter 0.8s cubic-bezier(0.25, 1, 0.5, 1),
-                        filter 0.8s cubic-bezier(0.25, 1, 0.5, 1), 
-                        transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
-        }
-
-        @media (prefers-color-scheme: dark) {
-            #linkgo-splash {
-                background-color: #121212;
-            }
-        }
-
-        .splash-icon {
-            /* 🌟 继续缩小！如果这个大小还是不吻合，请以 5px 为单位改动这里（比如改成 80px 或 95px） */
-            width: 85px; 
-            height: 85px;
-            /* 已经删除了呼吸动画，让它保持绝对静止 */
-        }
-
-        /* 注意：把你原来代码里的 @keyframes softBreathe {...} 这一整段彻底删掉！ */
-
-        .splash-disperse {
-            opacity: 0 !important;
-            /* 取消了原本消失时的放大效果，现在它只会原地化作一团雾气自然消散 */
-            -webkit-filter: blur(10px);
-            filter: blur(10px); 
-            pointer-events: none;
-        }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 <body>
-    <div id="linkgo-splash">
-        <img class="splash-icon" src="linkgo-icon.jpg" alt="Linkgo Logo" style="border-radius: 22%; width: 85px; height: 85px;">
-    </div>
-    
     <div id="backfill-progress-bar"></div>
     <!-- 顶部输入状态 -->
     <div class="typing-status" id="typingStatus">
