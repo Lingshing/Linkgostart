@@ -2421,10 +2421,11 @@
         .learning-active.theme-dark .hl-word.hl-selected { background: rgba(7, 193, 96, 0.3) !important; box-shadow: 0 0 0 1px rgba(7, 193, 96, 0.5); }
 
         /* 底部抽屉遮罩与发音动画 */
-        .sheet-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 4999; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .sheet-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 4999; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
         .sheet-backdrop.show { opacity: 1; pointer-events: auto; }
-        .pronounce-btn { cursor:pointer; display:inline-flex; align-items:center; gap:6px; padding: 4px 8px; margin-left: -8px; border-radius: 6px; transition: all 0.3s ease; }
-        .pronounce-btn.playing { opacity: 0.5; color: var(--accent); transform: scale(0.95); }
+        .pronounce-btn { cursor:pointer; display:inline-flex; align-items:center; gap:6px; padding: 4px 8px; margin-left: -8px; border-radius: 6px; transition: all 0.3s cubic-bezier(0.1, 0.8, 0.2, 1); }
+        /* 🌟 发音高亮：深色模式/浅色模式下都会发光变亮，轻微放大 */
+        .pronounce-btn.playing { opacity: 1 !important; color: var(--text-main) !important; text-shadow: 0 0 15px currentColor; transform: scale(1.05); }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
@@ -3311,13 +3312,17 @@
     </div>
     
     <div id="wordSheetBackdrop" class="sheet-backdrop" onclick="closeWord()"></div>
-    <div id="wordSheet" class="bottom-sheet">
-        <div class="sheet-handle" id="wordSheetHandle" ontouchstart="startDragSheet(event)"></div>
+    <div id="wordSheet" class="bottom-sheet" ontouchstart="startDragSheet(event)">
+        <div class="sheet-handle" id="wordSheetHandle"></div>
         <div class="word-title" id="sheetTitle">Word</div>
         <div class="word-pronounce" id="sheetPronounce"></div>
         <div class="word-meaning" id="sheetMeaning">n. 单词，字</div>
+        
+        <div class="word-context" id="sheetContext" style="margin-top: 12px; font-size: 14px; opacity: 0.85; line-height: 1.5; display: none;"></div>
+        <div class="word-example" id="sheetExample" style="margin-top: 12px; font-size: 14px; padding: 12px; border-radius: 8px; background: var(--hover-bg); margin-bottom: 20px; line-height: 1.5; display: none;"></div>
+        
         <div class="sheet-btn-group">
-            <button class="btn-save" onclick="saveWord()" style="width: 100%;"><i class="fa-regular fa-star"></i> 收藏</button>
+            <button class="btn-save" onclick="saveWord()" style="width: 100%;"><i class="fa-regular fa-star"></i> 加入生词本</button>
         </div>
     </div>
 
@@ -3724,7 +3729,13 @@
         "translation": "你刚才那段正常回复的全文精确中文翻译",
         "correction": "如果我（用户）刚才的表达有语法或语感错误，指出并给出修改建议。如果完全没问题，请输出：✨ 表达非常地道，完美！",
         "words": [
-            {"w": "原文外语生词", "r": "音标或假名", "m": "中文释义"}
+            {
+            "w": "原文外语生词", 
+            "r": "音标或假名", 
+            "m": "核心基础释义", 
+            "c": "该词在当前语境下的精确用法/情感色彩", 
+            "e": "附带一段简短地道的使用例句（包含中文翻译）"
+            }
         ]
         }`;
                 finalSystemPrompt += learningPrompt;
@@ -3787,6 +3798,7 @@
                     }
                     if (fullMessage) addMessage(contactId, 'assistant', fullMessage);
                     if (onComplete) onComplete(fullMessage);
+                    if (typeof handleFinalAIResponse === 'function') handleFinalAIResponse(contactId, fullMessage);
                 } else {
                     const data = await response.json();
                     const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
@@ -3836,6 +3848,19 @@
             renderChatMessages(currentChatContactId);
             
             if (isTyping) return;
+            isTyping = true;
+            
+            // 🌟 修复 Bug：重新生成时加入“呼吸等待”气泡
+            const container = document.getElementById('chat-messages-container');
+            const streamContainer = document.createElement('div');
+            streamContainer.className = 'chat-message ai active-stream';
+            streamContainer.id = 'active-stream-container';
+            streamContainer.innerHTML = `
+                ${generateAvatarHtml(false, currentChatContactId)}
+                <div class="chat-bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>
+            `;
+            if(container) container.appendChild(streamContainer);
+            scrollToBottom();
             
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             const systemPrompt = getSystemPromptWithMode(contact);
@@ -3858,7 +3883,13 @@
         "translation": "你刚才那段正常回复的全文精确中文翻译",
         "correction": "如果我（用户）刚才的表达有语法或语感错误，指出并给出修改建议。如果没问题，请输出：✨ 表达非常地道，完美！",
         "words": [
-            {"w": "原文外语生词", "r": "音标或假名", "m": "中文释义"}
+            {
+            "w": "原文外语生词", 
+            "r": "音标或假名", 
+            "m": "核心基础释义", 
+            "c": "该词在当前语境下的精确用法/情感色彩", 
+            "e": "附带一段简短地道的使用例句（包含中文翻译）"
+            }
         ]
         }`;
                 finalSystemPrompt += learningPrompt;
@@ -7847,8 +7878,10 @@ ${chatContent}
                                             const safeW = escapeHtml(w.w);
                                             const safeR = escapeHtml(w.r || '');
                                             const safeM = escapeHtml(w.m || '');
-                                            safeMsg = safeMsg.split(safeW).join(`<span class="clickable-word" onclick="handleWordClick(event, '${safeW}', '${safeR}', '${safeM}')">${safeW}</span>`);
-                                        });
+                                            const safeC = escapeHtml(w.c || '');
+                                            const safeE = escapeHtml(w.e || '');
+                                            safeMsg = safeMsg.split(safeW).join(`<span class="clickable-word" onclick="handleWordClick(event, '${safeW}', '${safeR}', '${safeM}', '${safeC}', '${safeE}')">${safeW}</span>`);
+                                                });
                                     }
                                     displayMsg = safeMsg; 
                                 } else {
@@ -8413,7 +8446,9 @@ ${chatContent}
                                     const safeW = escapeHtml(w.w);
                                     const safeR = escapeHtml(w.r || '');
                                     const safeM = escapeHtml(w.m || '');
-                                    safeMsg = safeMsg.split(safeW).join(`<span class="clickable-word" onclick="handleWordClick(event, '${safeW}', '${safeR}', '${safeM}')">${safeW}</span>`);
+                                    const safeC = escapeHtml(w.c || '');
+                                    const safeE = escapeHtml(w.e || '');
+                                    safeMsg = safeMsg.split(safeW).join(`<span class="clickable-word" onclick="handleWordClick(event, '${safeW}', '${safeR}', '${safeM}', '${safeC}', '${safeE}')">${safeW}</span>`);
                                 });
                             }
                             displayMsg = safeMsg; 
@@ -14937,49 +14972,57 @@ ${chatContent}
             window.speechSynthesis.speak(utterance);
         }
 
-        // --- 显示单词底部卡片 ---
-        function showWord(word, pronounce, meaning) {
+        // --- 修复点击透传 ---
+        function handleWordClick(event, word, pronounce, meaning, context, example) {
+            event.stopPropagation();
+            const msgRow = event.target.closest('.chat-message');
+            if (msgRow && msgRow.classList.contains('show-words')) {
+                showWord(word, pronounce, meaning, context, example);
+            }
+        }
+
+        // --- 显示高级单词底部卡片 ---
+        function showWord(word, pronounce, meaning, contextInfo, exampleInfo) {
             document.getElementById('sheetTitle').innerText = word;
             document.getElementById('sheetPronounce').innerHTML = `<span id="pronounce-btn" class="pronounce-btn" onclick="playPronunciation('${word.replace(/'/g, "\\'")}')"><i class="fa-solid fa-volume-high"></i> ${pronounce}</span>`;
             document.getElementById('sheetMeaning').innerText = meaning;
             
+            const ctxEl = document.getElementById('sheetContext');
+            const exEl = document.getElementById('sheetExample');
+            
+            if(contextInfo) { ctxEl.style.display = 'block'; ctxEl.innerHTML = `💡 <b>语境用法：</b>${contextInfo}`; } else { ctxEl.style.display = 'none'; }
+            if(exampleInfo) { exEl.style.display = 'block'; exEl.innerHTML = `📝 <b>例句：</b>${exampleInfo}`; } else { exEl.style.display = 'none'; }
+            
             const sheet = document.getElementById('wordSheet');
             const backdrop = document.getElementById('wordSheetBackdrop');
             if(sheet) {
-                sheet.style.bottom = ''; // 🌟 修复 Bug：彻底清空死板的内联控制，让 CSS 接管
+                sheet.style.transition = 'bottom 0.4s cubic-bezier(0.1, 0.8, 0.2, 1)';
+                sheet.style.transform = 'translateY(0)'; // 清理可能存在的拖拽位移
                 sheet.classList.add('show');
             }
             if(backdrop) backdrop.classList.add('show');
-            
-            const saveBtn = document.querySelector('.btn-save');
-            if(saveBtn) {
-                saveBtn.innerHTML = '<i class="fa-regular fa-star"></i> 收藏';
-                saveBtn.style.opacity = "1";
-            }
         }
 
-        // --- 关闭单词底部卡片 ---
+        // --- 丝滑关闭单词底部卡片 ---
         function closeWord() {
             const sheet = document.getElementById('wordSheet');
             const backdrop = document.getElementById('wordSheetBackdrop');
             if(sheet) {
-                sheet.style.bottom = ''; 
-                sheet.classList.remove('show');
+                sheet.style.transition = 'bottom 0.35s cubic-bezier(0.1, 0.8, 0.2, 1), transform 0.35s ease';
+                sheet.style.transform = 'translateY(0)'; 
+                sheet.classList.remove('show'); // CSS 将接管，丝滑降下
             }
             if(backdrop) backdrop.classList.remove('show');
-            window.speechSynthesis.cancel(); // 顺便切断语音
+            window.speechSynthesis.cancel(); 
         }
 
         function saveWord() {
             const btn = document.querySelector('.btn-save');
-            if(btn) {
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> 已收藏';
-                btn.style.opacity = "0.8"; 
-            }
+            if(btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> 已收藏'; btn.style.opacity = "0.8"; }
             setTimeout(() => { closeWord(); }, 600);
         }
 
-        // --- 🌟 底部卡片下拉手势逻辑 ---
+        // --- 🌟 优化：触摸全抽屉下滑退出 ---
         let sheetStartY = 0;
         let isDraggingSheet = false;
         
@@ -14987,27 +15030,26 @@ ${chatContent}
             sheetStartY = e.touches[0].clientY;
             isDraggingSheet = true;
             const sheet = document.getElementById('wordSheet');
-            sheet.style.transition = 'none'; // 拖拽时取消顺滑动画，使其跟随手指
+            sheet.style.transition = 'none'; // 取消动画，让抽屉死死跟住手指
         }
         
         document.addEventListener('touchmove', (e) => {
             if (!isDraggingSheet) return;
             const sheet = document.getElementById('wordSheet');
             let deltaY = e.touches[0].clientY - sheetStartY;
-            if (deltaY > 0) sheet.style.bottom = `calc(0px - ${deltaY}px)`;
+            if (deltaY > 0) sheet.style.transform = `translateY(${deltaY}px)`; // 用 transform 实现 120Hz 丝滑拖拽
         });
         
         document.addEventListener('touchend', (e) => {
             if (!isDraggingSheet) return;
             isDraggingSheet = false;
             const sheet = document.getElementById('wordSheet');
-            sheet.style.transition = 'bottom 0.35s cubic-bezier(0.1, 0.8, 0.2, 1)';
+            sheet.style.transition = 'transform 0.35s cubic-bezier(0.1, 0.8, 0.2, 1), bottom 0.35s';
             let deltaY = e.changedTouches[0].clientY - sheetStartY;
-            if (deltaY > 80) {
-                closeWord(); // 下拉超过 80px 触发关闭
+            if (deltaY > 60) { // 下滑超过 60px 就认定为关闭
+                closeWord();
             } else {
-                sheet.style.bottom = '0px'; // 否则回弹
-                setTimeout(() => sheet.style.bottom = '', 350);
+                sheet.style.transform = 'translateY(0)'; // 否则自动回弹
             }
         });
 
