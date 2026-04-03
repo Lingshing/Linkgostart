@@ -2344,9 +2344,12 @@
         /* --- 小工具栏和交互样式 (平时隐藏，学习模式显示) --- */
         .tools { display: none; gap: 8px; margin-top: 6px; padding-left: 4px; }
         .learning-active .tools { display: flex; }
-        .tool-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; cursor: pointer; border-radius: 50%; transition: all 0.2s; font-size: 14px; opacity: 0.5; }
-        .tool-btn:hover { background: rgba(128,128,128,0.2); opacity: 1; }
-        .tool-btn.active { opacity: 1; }
+        /* 彻底修复手机端点击后灰色背景黏住不消失的 Bug */
+        .tool-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; cursor: pointer; border-radius: 50%; transition: all 0.2s; font-size: 14px; opacity: 0.5; -webkit-tap-highlight-color: transparent; }
+        @media (hover: hover) {
+            .tool-btn:hover { background: rgba(128,128,128,0.2); opacity: 1; }
+        }
+        .tool-btn.active { opacity: 1; background: rgba(128,128,128,0.25); color: var(--accent); }
         .feedback-box { margin-top: 6px; font-size: 14px; display: none; animation: fadeIn 0.3s ease; line-height: 1.5; padding: 6px 10px; border-radius: 8px; opacity: 0.9; }
         .show-feedback .feedback-box { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
@@ -3839,13 +3842,11 @@
                                     if (content) {
                                         fullMessage += content;
                                         let displayMsg = fullMessage;
-                                        let delta = content;
-                                        // 🌟 核心拦截：如果遇到了数据区域，截断它，不给 UI 渲染
                                         if (fullMessage.includes('===METADATA===')) {
                                             displayMsg = fullMessage.split('===METADATA===')[0].trim();
-                                            delta = ""; 
                                         }
-                                        if (onChunk && delta) onChunk(delta, displayMsg);
+                                        // 正常触发打字机，虽然屏幕上显示的是清洗后的 displayMsg，但 fullMessage 仍保全了所有数据！
+                                        if (onChunk) onChunk(content, displayMsg);
                                     }
                                 } catch (e) {
                                     console.error('解析流数据失败:', e);
@@ -3854,17 +3855,13 @@
                         }
                     }
                     
-                    // 保存完整的助手消息（包含隐藏的 JSON 数据）
                     if (fullMessage) {
                         addMessage(contactId, 'assistant', fullMessage);
                     }
                     
                     if (onComplete) {
-                        let displayMsg = fullMessage;
-                        if (fullMessage.includes('===METADATA===')) {
-                            displayMsg = fullMessage.split('===METADATA===')[0].trim();
-                        }
-                        onComplete(displayMsg);
+                        // 🔥 致命修复：必须把完整的、带有 JSON 的 fullMessage 交给系统保存！绝不能在这里丢弃数据！
+                        onComplete(fullMessage); 
                     }
                     
                     // 🌟 强行刷新一次，把潜藏在历史记录里的批改和翻译解析出来展示！
@@ -8010,14 +8007,15 @@ ${chatContent}
                         const nextMsg = conversation[i + 1];
                         if (nextMsg && (nextMsg.role === 'assistant' || nextMsg.role === 'ai') && nextMsg.content.includes('===METADATA===')) {
                             try {
-                                let jsonStr = nextMsg.content.split('===METADATA===')[1].trim();
-                                // 🌟 强力清洗：剥除 AI 自作聪明加上的 ```json 和 ``` 标记
-                                jsonStr = jsonStr.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
-                                
-                                const metaJson = JSON.parse(jsonStr);
-                                if (metaJson.correction) correctionText = "💡 " + metaJson.correction;
+                                let jsonStr = nextMsg.content.split('===METADATA===')[1];
+                                // 🔥 终极正则：无视任何前缀后缀废话，精准挖出 {...} 里的 JSON 数据！
+                                const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+                                if (jsonMatch) {
+                                    const metaJson = JSON.parse(jsonMatch[0]);
+                                    if (metaJson.correction) correctionText = "💡 " + metaJson.correction;
+                                }
                             } catch(e) {
-                                console.error("批改数据解析失败:", e);
+                                console.error("批改数据提取失败:", e);
                             }
                         }
 
@@ -8066,15 +8064,12 @@ ${chatContent}
                             const parts = aiMsg.content.split('===METADATA===');
                             displayMsg = parts[0].trim();
                             try {
-                                let jsonStr = parts[1].trim();
-                                // 🌟 强力清洗：剥除 AI 自作聪明加上的 ```json 和 ``` 标记
-                                jsonStr = jsonStr.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
-                                
-                                const meta = JSON.parse(jsonStr);
-                                if (meta.translation) translationText = "🌐 " + meta.translation;
-                                
-                                // 智能划词：把原文中 AI 教的生词替换为带点击事件的标签
-                                if (meta.words && meta.words.length > 0) {
+                                let jsonStr = parts[1];
+                                // 🔥 终极正则：精准提取数据，永不报错！
+                                const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+                                if (jsonMatch) {
+                                    const meta = JSON.parse(jsonMatch[0]);
+                                    if (meta.translation) translationText = meta.translation;
                                     let safeMsg = escapeHtml(displayMsg);
                                     meta.words.forEach(w => {
                                         const safeW = escapeHtml(w.w);
