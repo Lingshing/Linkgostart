@@ -2391,18 +2391,34 @@
         .learning-active.theme-dark .show-words .clickable-word { border-bottom: 1px dashed #07C160; color: #07C160; }
         .learning-active.theme-dark .show-words .clickable-word:active { background: rgba(7, 193, 96, 0.2); }
 
-        /* 🎨 生词抽屉双色同步 */
-        .bottom-sheet.theme-matcha { background: #F4F8F4; color: #2C3E35; }
-        .bottom-sheet.theme-matcha .sheet-handle { background: #D0DCD0; }
-        .bottom-sheet.theme-matcha .word-meaning { background: #E0EBE0; color: #2C3E35; }
-        .bottom-sheet.theme-matcha .btn-close { background: #E0EBE0; color: #2C3E35; }
-        .bottom-sheet.theme-matcha .btn-save { background: #6B8E76; color: #FFF; }
+        /* 🎨 生词抽屉双色同步 & 毛玻璃质感 */
+        .bottom-sheet { backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); }
+        .bottom-sheet.theme-matcha { background: rgba(244,248,244,0.85); color: #2C3E35; }
+        .bottom-sheet.theme-matcha .sheet-handle { background: rgba(0,0,0,0.1); }
+        .bottom-sheet.theme-matcha .word-meaning { background: rgba(224,235,224,0.6); color: #2C3E35; }
+        .bottom-sheet.theme-matcha .btn-save { background: rgba(107,142,118,0.9); color: #FFF; }
 
-        .bottom-sheet.theme-dark { background: #1c1c1e; color: #E5E5EA; }
-        .bottom-sheet.theme-dark .sheet-handle { background: #3A3A3C; }
-        .bottom-sheet.theme-dark .word-meaning { background: #2C2C2E; color: #E5E5EA; }
-        .bottom-sheet.theme-dark .btn-close { background: #2C2C2E; color: #E5E5EA; }
-        .bottom-sheet.theme-dark .btn-save { background: #07C160; color: #FFF; }
+        .bottom-sheet.theme-dark { background: rgba(28,28,30,0.85); color: #E5E5EA; }
+        .bottom-sheet.theme-dark .sheet-handle { background: rgba(255,255,255,0.2); }
+        .bottom-sheet.theme-dark .word-meaning { background: rgba(44,44,46,0.6); color: #E5E5EA; }
+        .bottom-sheet.theme-dark .btn-save { background: rgba(7,193,96,0.9); color: #FFF; }
+
+        /* === 🌟 荧光笔摘录模式样式 === */
+        .hl-floating-bar { position: fixed; bottom: -100%; left: 16px; right: 16px; background: var(--card-bg); padding: 12px 20px; border-radius: 16px; box-shadow: 0 4px 30px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; transition: bottom 0.4s cubic-bezier(0.1, 0.8, 0.2, 1); z-index: 4000; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .hl-floating-bar.show { bottom: 85px; } /* 浮在输入框上面 */
+        .hl-save-btn { padding: 8px 16px; background: var(--accent); color: #fff; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .hl-save-btn:active { transform: scale(0.95); }
+        .hl-toggle-btn.active { color: var(--accent) !important; text-shadow: 0 0 10px rgba(0, 122, 255, 0.3); }
+        .learning-active.theme-matcha .hl-toggle-btn.active { color: #4A6B52 !important; text-shadow: 0 0 10px rgba(74, 107, 82, 0.3); }
+        .learning-active.theme-dark .hl-toggle-btn.active { color: #07C160 !important; text-shadow: 0 0 10px rgba(7, 193, 96, 0.3); }
+
+        .highlighter-mode .chat-bubble { -webkit-user-select: none; user-select: none; }
+        .hl-word { transition: all 0.2s; border-radius: 4px; display: inline-block; padding: 0 1px; margin: 0 -1px; }
+        .highlighter-mode .hl-word { cursor: pointer; }
+        .highlighter-mode .hl-word:active { transform: scale(0.95); }
+        .hl-word.hl-selected { background: rgba(10, 132, 255, 0.3) !important; color: inherit; box-shadow: 0 0 0 1px rgba(10, 132, 255, 0.5); }
+        .learning-active.theme-matcha .hl-word.hl-selected { background: rgba(74, 107, 82, 0.3) !important; box-shadow: 0 0 0 1px rgba(74, 107, 82, 0.5); }
+        .learning-active.theme-dark .hl-word.hl-selected { background: rgba(7, 193, 96, 0.3) !important; box-shadow: 0 0 0 1px rgba(7, 193, 96, 0.5); }
 
         /* 底部抽屉遮罩与发音动画 */
         .sheet-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 4999; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
@@ -2961,10 +2977,13 @@
             
             <div style="position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; z-index: 1;">
                 <span class="nav-title" id="chat-title">聊天中</span>
-                <div id="learning-mode-badge" class="learning-badge" style="display: none;"><i class="fa-solid fa-graduation-cap"></i> 学习模式</div>
+                <div id="learning-mode-badge" class="learning-badge" style="display: none;"><div style="display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; background-color: var(--hover-bg); border-radius: 50%; margin-top: 1px;"><i class="fa-solid fa-graduation-cap" style="color: var(--text-main); font-size: 10px;"></i></div></div>
             </div>
             
-            <i class="fas fa-ellipsis clickable" style="font-size:20px; color:var(--icon-color); z-index: 2;" onclick="showOptionsWindow()"></i>
+            <div style="display: flex; gap: 16px; align-items: center; z-index: 2;">
+                <i class="fa-solid fa-highlighter clickable hl-toggle-btn" style="font-size:18px; color:var(--icon-color); transition: 0.2s;" onclick="toggleHighlighterMode()" title="荧光笔模式"></i>
+                <i class="fas fa-ellipsis clickable" style="font-size:20px; color:var(--icon-color);" onclick="showOptionsWindow()"></i>
+            </div>
         </div>
         
         <!-- 聊天消息区域 -->
@@ -3302,6 +3321,10 @@
         </div>
     </div>
 
+    <div id="highlighter-bar" class="hl-floating-bar">
+        <span style="font-size: 14px; font-weight: 500;">已选 <span id="hl-count" style="font-weight: bold; font-size: 16px; margin: 0 4px;">0</span> 词</span>
+        <button class="hl-save-btn" onclick="saveHighlighterWords()"><i class="fa-solid fa-folder-plus"></i> 加生词本</button>
+    </div>
     <div id="scene-options" class="sub-page-scene"><div class="nav-header"><span class="nav-title">设置</span><span class="clickable" onclick="hideOptionsWindow()">完成</span></div><div id="options-content"></div></div>
 
     
@@ -14923,8 +14946,8 @@ ${chatContent}
             const sheet = document.getElementById('wordSheet');
             const backdrop = document.getElementById('wordSheetBackdrop');
             if(sheet) {
-                sheet.style.bottom = '-100%'; // 重置拖拽残留
-                setTimeout(() => sheet.classList.add('show'), 10);
+                sheet.style.bottom = ''; // 🌟 修复 Bug：彻底清空死板的内联控制，让 CSS 接管
+                sheet.classList.add('show');
             }
             if(backdrop) backdrop.classList.add('show');
             
@@ -14988,6 +15011,101 @@ ${chatContent}
             }
         });
 
+        // ================= 🌟 荧光笔摘录模式系统 =================
+        let isHighlighterMode = false;
+        let selectedHlWords = new Set();
+
+        function toggleHighlighterMode() {
+            isHighlighterMode = !isHighlighterMode;
+            const scene = document.getElementById('scene-chat');
+            const btn = document.querySelector('.hl-toggle-btn');
+            const bar = document.getElementById('highlighter-bar');
+
+            if (isHighlighterMode) {
+                scene.classList.add('highlighter-mode');
+                if(btn) btn.classList.add('active');
+                if(bar) bar.classList.add('show');
+                selectedHlWords.clear();
+                updateHlCount();
+                enableHighlighterSpans();
+            } else {
+                scene.classList.remove('highlighter-mode');
+                if(btn) btn.classList.remove('active');
+                if(bar) bar.classList.remove('show');
+                // 取消所有高亮
+                document.querySelectorAll('.hl-word.hl-selected').forEach(el => el.classList.remove('hl-selected'));
+            }
+        }
+
+        function updateHlCount() {
+            const countEl = document.getElementById('hl-count');
+            if(countEl) countEl.innerText = selectedHlWords.size;
+        }
+
+        function handleHlClick(e, span) {
+            if (!isHighlighterMode) return;
+            e.stopPropagation(); // 核心：拦截原生点击事件，彻底干掉系统级复制弹窗
+            
+            span.classList.toggle('hl-selected');
+            if (span.classList.contains('hl-selected')) {
+                selectedHlWords.add(span);
+            } else {
+                selectedHlWords.delete(span);
+            }
+            updateHlCount();
+        }
+
+        function enableHighlighterSpans() {
+            const bubbles = document.querySelectorAll('.chat-bubble');
+            bubbles.forEach(bubble => {
+                if (bubble.dataset.hlWrapped) return;
+                
+                const walker = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT, null, false);
+                const textNodes = [];
+                let currentNode;
+                while (currentNode = walker.nextNode()) {
+                    textNodes.push(currentNode);
+                }
+                
+                textNodes.forEach(textNode => {
+                    const text = textNode.nodeValue;
+                    if (text.trim() === '') return;
+                    
+                    // 核心：像手术刀一样，智能把中、日文字符逐个切开，英文单词保持整体
+                    const fragments = text.split(/([a-zA-Z0-9'-]+|[\u4e00-\u9fa5\u3040-\u30ff]|\s+|[^\sa-zA-Z0-9\u4e00-\u9fa5\u3040-\u30ff'-]+)/g).filter(Boolean);
+                    
+                    const fragmentNode = document.createDocumentFragment();
+                    fragments.forEach(frag => {
+                        if (/^\s+$/.test(frag)) {
+                            fragmentNode.appendChild(document.createTextNode(frag));
+                        } else {
+                            const span = document.createElement('span');
+                            span.className = 'hl-word';
+                            span.innerText = frag;
+                            span.onclick = function(e) { handleHlClick(e, this); };
+                            fragmentNode.appendChild(span);
+                        }
+                    });
+                    textNode.parentNode.replaceChild(fragmentNode, textNode);
+                });
+                bubble.dataset.hlWrapped = "true";
+            });
+        }
+
+        function saveHighlighterWords() {
+            if (selectedHlWords.size === 0) {
+                alert("请先用荧光笔涂选要摘录的内容！");
+                return;
+            }
+            // 提取选中的文本拼成一句话
+            const words = Array.from(selectedHlWords).map(span => span.innerText);
+            const combinedText = words.join(''); 
+            
+            // 这里你可以将其推送到你的"生词本 localStorage"中
+            alert(`✅ 已截取并准备添加到生词本：\n\n「${combinedText}」`);
+            
+            toggleHighlighterMode(); // 存完自动优雅收起
+        }
         
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
