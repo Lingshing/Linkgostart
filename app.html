@@ -2417,7 +2417,8 @@
         .hl-floating-bar:active { transform: translateX(-50%) scale(0.92); }
 
         .highlighter-mode .chat-bubble { -webkit-user-select: none; user-select: none; touch-action: none; }
-        .hl-word { transition: all 0.2s; border-radius: 4px; display: inline-block; padding: 0 1px; margin: 0 -1px; }
+        /* 🌟 加上 relative 和 z-index，保证文字绝对处于最上层，绝不被遮挡 */
+        .hl-word { transition: all 0.2s; border-radius: 4px; display: inline-block; padding: 0 1px; margin: 0 -1px; position: relative; z-index: 2; }
         .highlighter-mode .hl-word { cursor: pointer; }
         .highlighter-mode .hl-word:active { transform: scale(0.95); }
         .hl-word.hl-selected { background: rgba(10, 132, 255, 0.3) !important; color: inherit; box-shadow: 0 0 0 1px rgba(10, 132, 255, 0.5); }
@@ -7926,11 +7927,11 @@ ${chatContent}
                                         toolsHTML += `<div class="tool-btn" onclick="toggleWordsMode('${uniqueMsgId}', this)" title="点读模式"><i class="fa-solid fa-book-open"></i></div>`;
                                         
                                         meta.words.forEach(w => {
-                                            const safeW = escapeHtml(w.w);
-                                            const safeR = escapeHtml(w.r || '');
-                                            const safeM = escapeHtml(w.m || '');
-                                            const safeC = escapeHtml(w.c || '');
-                                            const safeE = escapeHtml(w.e || '');
+                                            const safeW = escapeHtml(w.w).replace(/'/g, "\\'");
+                                            const safeR = escapeHtml(w.r || '').replace(/'/g, "\\'");
+                                            const safeM = escapeHtml(w.m || '').replace(/'/g, "\\'");
+                                            const safeC = escapeHtml(w.c || '').replace(/'/g, "\\'");
+                                            const safeE = escapeHtml(w.e || '').replace(/'/g, "\\'");
                                             safeMsg = safeMsg.split(safeW).join(`<span class="clickable-word" onclick="handleWordClick(event, '${safeW}', '${safeR}', '${safeM}', '${safeC}', '${safeE}')">${safeW}</span>`);
                                                 });
                                     }
@@ -15209,12 +15210,31 @@ ${chatContent}
             }
         }
 
-        // ================= 🌟 巅峰交互：手势路径栈回溯引擎 =================
+        // ================= 🌟 巅峰交互：终极手势路径回溯引擎 =================
+        function toggleHlWord(element, forceSelect) {
+            if (forceSelect) {
+                element.classList.add('hl-selected'); // 加上蓝色高亮背景
+                selectedHlWords.add(element);         // 加入待保存集合
+            } else {
+                element.classList.remove('hl-selected');
+                selectedHlWords.delete(element);
+            }
+        }
+        
         let isHighlightDragging = false;
-        let highlightDragMode = true; // true 为涂亮，false 为擦除
-        let currentDragPath = [];     // 记忆手指划过的历史路径
+        let highlightDragMode = true; 
+        let currentDragPath = [];     
+        let lastHlTouchTime = 0; 
 
-        let lastHlTouchTime = 0; // 🌟 核心护盾：记录触摸时间，秒杀幽灵点击
+        // 🌟 护盾升级：每次触摸（包括按下、移动、抬起）都瞬间刷新无敌时间！绝不过期！
+        function updateTouchTime(e) {
+            if (e.type.startsWith('touch')) lastHlTouchTime = Date.now();
+        }
+
+        // 🌟 护盾判定：时间延长到 1000ms，彻底绞杀任何幽灵点击
+        function isGhostMouse(e) {
+            return e.type.startsWith('mouse') && (Date.now() - lastHlTouchTime < 1000); 
+        }
 
         function getEventPoint(e) {
             if (e.touches && e.touches.length > 0) return e.touches[0];
@@ -15224,17 +15244,11 @@ ${chatContent}
 
         function handleHlDown(e) {
             if (!isHighlighterMode) return;
+            updateTouchTime(e);
+            if (isGhostMouse(e) || (e.type.startsWith('mouse') && e.button !== 0)) return;
             
-            // 🌟 核心防误触盾：拦截手机端引发闪烁和取消选中的“幽灵鼠标点击”
-            if (e.type.startsWith('touch')) {
-                lastHlTouchTime = Date.now();
-            } else if (e.type.startsWith('mouse')) {
-                if (Date.now() - lastHlTouchTime < 500) return; 
-                if (e.button !== 0) return; 
-            }
-            
-            const pt = getEventPoint(e);
-            const target = document.elementFromPoint(pt.clientX, pt.clientY);
+            // 🌟 核心修复：直接使用浏览器底层的 e.target，百发百中，无视任何坐标漂移！
+            const target = e.target;
             
             if (target && target.closest('.chat-bubble')) {
                 isHighlightDragging = true;
@@ -15250,12 +15264,12 @@ ${chatContent}
 
         function handleHlMove(e) {
             if (!isHighlighterMode || !isHighlightDragging) return;
-            
-            // 幽灵鼠标移动拦截
-            if (e.type.startsWith('mouse') && Date.now() - lastHlTouchTime < 500) return;
+            updateTouchTime(e);
+            if (isGhostMouse(e)) return;
             
             if (e.cancelable) e.preventDefault(); 
 
+            // 移动时必须用坐标探测
             const pt = getEventPoint(e);
             const target = document.elementFromPoint(pt.clientX, pt.clientY);
             
@@ -15276,7 +15290,10 @@ ${chatContent}
         }
 
         function handleHlUp(e) {
-            if (e.type.startsWith('mouse') && Date.now() - lastHlTouchTime < 500) return;
+            if (!isHighlighterMode) return;
+            updateTouchTime(e);
+            if (isGhostMouse(e)) return;
+
             if (isHighlightDragging) {
                 isHighlightDragging = false;
                 currentDragPath = []; 
@@ -15284,13 +15301,22 @@ ${chatContent}
             }
         }
 
-        // 监听器绑定不变
+        // 🌟 先清理可能重复绑定的旧监听器，防止代码叠加错乱
+        document.removeEventListener('touchstart', handleHlDown);
+        document.removeEventListener('touchmove', handleHlMove);
+        document.removeEventListener('touchend', handleHlUp);
+        document.removeEventListener('mousedown', handleHlDown);
+        document.removeEventListener('mousemove', handleHlMove);
+        document.removeEventListener('mouseup', handleHlUp);
+
+        // 🌟 重新绑定终极防弹版监听器
         document.addEventListener('touchstart', handleHlDown, {passive: false});
         document.addEventListener('touchmove', handleHlMove, {passive: false});
         document.addEventListener('touchend', handleHlUp);
         document.addEventListener('mousedown', handleHlDown);
         document.addEventListener('mousemove', handleHlMove);
         document.addEventListener('mouseup', handleHlUp);
+        // =====================================================================
 
         function enableHighlighterSpans() {
             const bubbles = document.querySelectorAll('.chat-bubble');
