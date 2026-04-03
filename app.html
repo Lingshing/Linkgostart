@@ -2415,8 +2415,6 @@
         .hl-floating-bar:active { transform: translateX(-50%) scale(0.92); }
 
         .highlighter-mode .chat-bubble { -webkit-user-select: none; user-select: none; touch-action: none; }
-        /* 🌟 摘录模式下自动隐身所有小工具和重新生成按钮，彻底防止误触 */
-        .highlighter-mode .regenerate-btn, .highlighter-mode .tools { pointer-events: none !important; opacity: 0 !important; transform: scale(0.8); transition: all 0.3s cubic-bezier(0.32, 0.72, 0, 1); }
         .hl-word { transition: all 0.2s; border-radius: 4px; display: inline-block; padding: 0 1px; margin: 0 -1px; }
         .highlighter-mode .hl-word { cursor: pointer; }
         .highlighter-mode .hl-word:active { transform: scale(0.95); }
@@ -7948,8 +7946,8 @@ ${chatContent}
                         messageDiv.innerHTML = `
                             ${avatarHtml}
                             <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-start; position: relative;">
-                                <div class="chat-bubble" onclick="if(!this.closest('.chat-message').classList.contains('show-words')) toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
-                                <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
+                                <div class="chat-bubble" onclick="if(typeof isHighlighterMode !== 'undefined' && isHighlighterMode) return; if(!this.closest('.chat-message').classList.contains('show-words')) toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
+<div class="regenerate-btn" onclick="if(typeof isHighlighterMode !== 'undefined' && isHighlighterMode) { event.stopPropagation(); return; } regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
                                 <div class="tools">
                                     ${toolsHTML}
                                 </div>
@@ -8516,8 +8514,8 @@ ${chatContent}
                 messageDiv.innerHTML = `
                     ${avatarHtml}
                     <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-start; position: relative;">
-                        <div class="chat-bubble" onclick="if(!this.closest('.chat-message').classList.contains('show-words')) toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
-                        <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
+                        <div class="chat-bubble" onclick="if(typeof isHighlighterMode !== 'undefined' && isHighlighterMode) return; if(!this.closest('.chat-message').classList.contains('show-words')) toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
+<div class="regenerate-btn" onclick="if(typeof isHighlighterMode !== 'undefined' && isHighlighterMode) { event.stopPropagation(); return; } regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
                         <div class="tools">
                             <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="翻译全文"><i class="fa-solid fa-language"></i></div>
                             <div class="tool-btn" onclick="toggleWordsMode('${uniqueMsgId}', this)" title="点读模式"><i class="fa-solid fa-book-open"></i></div>
@@ -15023,9 +15021,25 @@ ${chatContent}
             window.speechSynthesis.speak(utterance);
         }
 
-        // --- 修复点击透传 ---
+        // --- 修复点击透传及摘录模式拦截 ---
         function handleWordClick(event, word, pronounce, meaning, context, example) {
             event.stopPropagation();
+            
+            // 🌟 如果是在摘录模式下点击，拦截点读功能，优先选中单词，并弹出专属提示！
+            if (typeof isHighlighterMode !== 'undefined' && isHighlighterMode) {
+                const toast = document.getElementById('learning-toast');
+                if(toast) {
+                    toast.innerHTML = "<i class='fa-solid fa-circle-exclamation'></i> 如需查看释义请先退出摘录模式";
+                    toast.style.opacity = '1';
+                    toast.style.transform = 'translateX(-50%) translateY(0) scale(1)';
+                    setTimeout(() => { 
+                        toast.style.opacity = '0'; 
+                        toast.style.transform = 'translateX(-50%) translateY(-15px) scale(0.9)'; 
+                    }, 2000);
+                }
+                return; // 终止执行，绝不弹抽屉！
+            }
+            
             const msgRow = event.target.closest('.chat-message');
             if (msgRow && msgRow.classList.contains('show-words')) {
                 showWord(word, pronounce, meaning, context, example);
@@ -15160,17 +15174,24 @@ ${chatContent}
         let highlightDragMode = true; // true 为涂亮，false 为擦除
         let currentDragPath = [];     // 记忆手指划过的历史路径
 
-        function handleHlPointerDown(e) {
+        function getEventPoint(e) {
+            if (e.touches && e.touches.length > 0) return e.touches[0];
+            if (e.changedTouches && e.changedTouches.length > 0) return e.changedTouches[0];
+            return e;
+        }
+
+        function handleHlDown(e) {
             if (!isHighlighterMode) return;
-            if (e.pointerType === 'mouse' && e.button !== 0) return; // 忽略鼠标右键
+            if (e.type === 'mousedown' && e.button !== 0) return; 
             
-            const target = document.elementFromPoint(e.clientX, e.clientY);
+            const pt = getEventPoint(e);
+            const target = document.elementFromPoint(pt.clientX, pt.clientY);
             
             if (target && target.closest('.chat-bubble')) {
                 isHighlightDragging = true;
                 if (target.classList.contains('hl-word')) {
                     highlightDragMode = !target.classList.contains('hl-selected');
-                    currentDragPath = [target]; // 初始化起点
+                    currentDragPath = [target]; 
                     toggleHlWord(target, highlightDragMode);
                 } else {
                     currentDragPath = [];
@@ -15178,21 +15199,20 @@ ${chatContent}
             }
         }
 
-        function handleHlPointerMove(e) {
+        function handleHlMove(e) {
             if (!isHighlighterMode || !isHighlightDragging) return;
             if (e.cancelable) e.preventDefault(); 
 
-            const target = document.elementFromPoint(e.clientX, e.clientY);
+            const pt = getEventPoint(e);
+            const target = document.elementFromPoint(pt.clientX, pt.clientY);
             
             if (target && target.classList.contains('hl-word')) {
                 if (currentDragPath.length > 0 && target === currentDragPath[currentDragPath.length - 1]) return;
                 
                 const existingIndex = currentDragPath.indexOf(target);
-                
                 if (existingIndex !== -1) {
                     for (let i = currentDragPath.length - 1; i > existingIndex; i--) {
-                        const elToRevert = currentDragPath[i];
-                        toggleHlWord(elToRevert, !highlightDragMode); 
+                        toggleHlWord(currentDragPath[i], !highlightDragMode); 
                         currentDragPath.pop(); 
                     }
                 } else {
@@ -15202,7 +15222,7 @@ ${chatContent}
             }
         }
 
-        function handleHlPointerUp(e) {
+        function handleHlUp(e) {
             if (isHighlightDragging) {
                 isHighlightDragging = false;
                 currentDragPath = []; 
@@ -15210,11 +15230,13 @@ ${chatContent}
             }
         }
 
-        // 🌟 统一使用现代的 Pointer API，彻底解决移动端"点击双重触发"的幽灵 Bug
-        document.addEventListener('pointerdown', handleHlPointerDown, {passive: false});
-        document.addEventListener('pointermove', handleHlPointerMove, {passive: false});
-        document.addEventListener('pointerup', handleHlPointerUp);
-        document.addEventListener('pointercancel', handleHlPointerUp);
+        // 🌟 回退到最稳固的原生 Touch 和 Mouse 事件，彻底解决移动端滑动失效 Bug
+        document.addEventListener('touchstart', handleHlDown, {passive: false});
+        document.addEventListener('touchmove', handleHlMove, {passive: false});
+        document.addEventListener('touchend', handleHlUp);
+        document.addEventListener('mousedown', handleHlDown);
+        document.addEventListener('mousemove', handleHlMove);
+        document.addEventListener('mouseup', handleHlUp);
 
         function enableHighlighterSpans() {
             const bubbles = document.querySelectorAll('.chat-bubble');
