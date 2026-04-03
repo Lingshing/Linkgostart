@@ -2326,6 +2326,93 @@
         /* 拿在手上的标签变成深色胶囊并放大，极其有质感 */
         .todo-tag-chosen { transform: scale(1.05); background-color: var(--text-main) !important; color: var(--card-bg) !important; border-radius: 100px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: none !important; }
     
+        /* ================= 学习模式：4 款护眼主题 ================= */
+        /* 顶部 Badge & 生词卡样式 */
+        .learning-badge { font-size: 11px; padding: 4px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px; font-weight: 500; margin-left: 8px; vertical-align: middle; }
+        .bottom-sheet { position: fixed; bottom: -100%; left: 0; width: 100%; background: var(--bg-color); border-radius: 24px 24px 0 0; padding: 24px 20px; box-shadow: 0 -10px 25px rgba(0,0,0,0.1); transition: bottom 0.35s ease-out; z-index: 5000; display: flex; flex-direction: column; }
+        .bottom-sheet.show { bottom: 0; }
+        .sheet-handle { width: 40px; height: 5px; border-radius: 3px; background: var(--border); margin: 0 auto 15px auto; }
+        .word-title { font-size: 24px; font-weight: bold; margin-bottom: 4px; color: var(--text-main); }
+        .word-pronounce { font-size: 14px; opacity: 0.6; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; color: var(--text-sub); }
+        .word-meaning { font-size: 16px; margin-bottom: 20px; padding: 12px; border-radius: 12px; background: var(--hover-bg); color: var(--text-main); }
+        .sheet-btn-group { display: flex; gap: 10px; }
+        .btn-close, .btn-save { padding: 12px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-close { flex: 1; background: var(--hover-bg); color: var(--text-main); } 
+        .btn-save { flex: 2; background: var(--accent); color: white; }
+
+        /* --- 小工具栏和交互样式 (平时隐藏，学习模式显示) --- */
+        .tools { display: none; gap: 8px; margin-top: 6px; padding-left: 4px; }
+        .learning-active .tools { display: flex; }
+        .tool-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; cursor: pointer; border-radius: 50%; transition: all 0.2s; font-size: 14px; opacity: 0.5; }
+        .tool-btn:hover { background: rgba(128,128,128,0.2); opacity: 1; }
+        .tool-btn.active { opacity: 1; }
+        .feedback-box { margin-top: 6px; font-size: 14px; display: none; animation: fadeIn 0.3s ease; line-height: 1.5; padding: 6px 10px; border-radius: 8px; opacity: 0.9; }
+        .show-feedback .feedback-box { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        /* 点读单词样式 */
+        .clickable-word { transition: border-color 0.3s, background-color 0.2s; padding-bottom: 1px; border-bottom: 1px dashed transparent; font-weight: 500; }
+        .show-words .clickable-word { cursor: pointer; border-bottom: 1px dashed var(--text-sub); }
+        .show-words .clickable-word:active { background: var(--hover-bg); border-radius: 4px; }
+
+        /* 1. 薄荷抹茶 (Matcha) */
+        .learning-active.theme-matcha, .learning-active.theme-matcha #chat-messages-container, .learning-active.theme-matcha #chat-extensions-panel { background-color: #F4F8F4 !important; }
+        .learning-active.theme-matcha .chat-nav-header { background-color: rgba(244,248,244,0.9) !important; border-bottom: 1px solid #E0EBE0 !important; }
+        .learning-active.theme-matcha #chat-input-bar { background-color: #F4F8F4 !important; border-top: 1px solid #E0EBE0 !important; }
+        .learning-active.theme-matcha .chat-nav-header *, .learning-active.theme-matcha .tools { color: #2C3E35 !important; }
+        .learning-active.theme-matcha .chat-input-field { background-color: #FFF !important; color: #2C3E35 !important; }
+        .learning-active.theme-matcha .chat-plus-btn svg { fill: #2C3E35 !important; }
+        .learning-active.theme-matcha .chat-send-btn { background: #6B8E76 !important; color: #FFF !important; }
+        .learning-active.theme-matcha .learning-badge { background: #E0EBE0; color: #4A6B52; }
+        .learning-active.theme-matcha .chat-message.user .chat-bubble { background-color: #6B8E76 !important; color: #FFF !important; }
+        .learning-active.theme-matcha .chat-message.ai .chat-bubble { background-color: #FFF !important; border: 1px solid #E0EBE0 !important; color: #2C3E35 !important; }
+        .learning-active.theme-matcha .feedback-box { background: rgba(107,142,118,0.1); color: #2C3E35; }
+
+        /* 2. 羊皮纸 (Parchment) */
+        .learning-active.theme-parchment, .learning-active.theme-parchment #chat-messages-container, .learning-active.theme-parchment #chat-extensions-panel { background-color: #FDF6E3 !important; }
+        .learning-active.theme-parchment .chat-nav-header { background-color: rgba(253,246,227,0.9) !important; border-bottom: 1px solid #EFE0C2 !important; }
+        .learning-active.theme-parchment #chat-input-bar { background-color: #FDF6E3 !important; border-top: 1px solid #EFE0C2 !important; }
+        .learning-active.theme-parchment .chat-nav-header *, .learning-active.theme-parchment .tools { color: #4A4036 !important; }
+        .learning-active.theme-parchment .chat-input-field { background-color: #FFFDF8 !important; color: #4A4036 !important; }
+        .learning-active.theme-parchment .chat-plus-btn svg { fill: #4A4036 !important; }
+        .learning-active.theme-parchment .chat-send-btn { background: #D4A373 !important; color: #FFF !important; }
+        .learning-active.theme-parchment .learning-badge { background: #F2E4C9; color: #8A7056; }
+        .learning-active.theme-parchment .chat-message.user .chat-bubble { background-color: #D4A373 !important; color: #FFF !important; }
+        .learning-active.theme-parchment .chat-message.ai .chat-bubble { background-color: #FAEDCD !important; border: 1px solid #EFE0C2 !important; color: #4A4036 !important; }
+        .learning-active.theme-parchment .feedback-box { background: rgba(212,163,115,0.15); color: #4A4036; }
+
+        /* 3. 北欧夜航 (Nordic Night) */
+        .learning-active.theme-nordic, .learning-active.theme-nordic #chat-messages-container, .learning-active.theme-nordic #chat-extensions-panel { background-color: #2E3440 !important; }
+        .learning-active.theme-nordic .chat-nav-header { background-color: rgba(46,52,64,0.9) !important; border-bottom: 1px solid #434C5E !important; }
+        .learning-active.theme-nordic #chat-input-bar { background-color: #2E3440 !important; border-top: 1px solid #434C5E !important; }
+        .learning-active.theme-nordic .chat-nav-header *, .learning-active.theme-nordic .tools { color: #ECEFF4 !important; }
+        .learning-active.theme-nordic .chat-input-field { background-color: #3B4252 !important; color: #ECEFF4 !important; }
+        .learning-active.theme-nordic .chat-plus-btn svg { fill: #ECEFF4 !important; }
+        .learning-active.theme-nordic .chat-send-btn { background: #5E81AC !important; color: #ECEFF4 !important; }
+        .learning-active.theme-nordic .learning-badge { background: #3B4252; color: #8FBCBB; }
+        .learning-active.theme-nordic .chat-message.user .chat-bubble { background-color: #5E81AC !important; color: #ECEFF4 !important; }
+        .learning-active.theme-nordic .chat-message.ai .chat-bubble { background-color: #3B4252 !important; border: 1px solid #434C5E !important; color: #D8DEE9 !important; }
+        .learning-active.theme-nordic .feedback-box { background: rgba(136,192,208,0.1); color: #ECEFF4; }
+
+        /* 4. 暖拿铁 (Latte) */
+        .learning-active.theme-latte, .learning-active.theme-latte #chat-messages-container, .learning-active.theme-latte #chat-extensions-panel { background-color: #F5EBE0 !important; }
+        .learning-active.theme-latte .chat-nav-header { background-color: rgba(245,235,224,0.9) !important; border-bottom: 1px solid #E8DDD3 !important; }
+        .learning-active.theme-latte #chat-input-bar { background-color: #F5EBE0 !important; border-top: 1px solid #E8DDD3 !important; }
+        .learning-active.theme-latte .chat-nav-header *, .learning-active.theme-latte .tools { color: #403632 !important; }
+        .learning-active.theme-latte .chat-input-field { background-color: #FFF !important; color: #403632 !important; }
+        .learning-active.theme-latte .chat-plus-btn svg { fill: #403632 !important; }
+        .learning-active.theme-latte .chat-send-btn { background: #B59F91 !important; color: #FFF !important; }
+        .learning-active.theme-latte .learning-badge { background: #E3D5CA; color: #7B6255; }
+        .learning-active.theme-latte .chat-message.user .chat-bubble { background-color: #B59F91 !important; color: #FFF !important; }
+        .learning-active.theme-latte .chat-message.ai .chat-bubble { background-color: #FFF !important; border: 1px solid #E8DDD3 !important; color: #403632 !important; }
+        .learning-active.theme-latte .feedback-box { background: rgba(181,159,145,0.15); color: #403632; }
+
+        /* 外观设置里的圆形选色器样式 */
+        .theme-option { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: 0.2s; opacity: 0.4; }
+        .theme-option.active { opacity: 1; }
+        .theme-option.active .theme-label { font-weight: bold; color: var(--text-main); }
+        .color-circle { width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(0,0,0,0.05); transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1); transform: translateZ(0); overflow: hidden; }
+        .theme-option.active .color-circle { box-shadow: 0 0 0 2px var(--card-bg), 0 0 0 4px #0A84FF, inset 0 0 0 1px rgba(0,0,0,0.05); }
+        .theme-label { font-size: 12px; color: var(--text-sub); transition: 0.2s; }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
@@ -2752,6 +2839,35 @@
                 </div>
             </div>
             
+            <div class="api-section-title">学习模式外观</div>
+            <div class="api-input-group" style="margin: 0 20px;">
+                <div class="api-input-item" style="border-bottom: none; padding: 20px 0; justify-content: center;">
+                    <div class="theme-selector" id="learningThemeSelector" style="display: flex; gap: 24px; justify-content: center; width: 100%;">
+                        
+                        <div class="theme-option active" id="btn-theme-matcha" onclick="setLearningTheme('theme-matcha')">
+                            <div class="color-circle" style="background: linear-gradient(135deg, #F4F8F4 50%, #6B8E76 50%);"></div>
+                            <span class="theme-label">薄荷抹茶</span>
+                        </div>
+                        
+                        <div class="theme-option" id="btn-theme-parchment" onclick="setLearningTheme('theme-parchment')">
+                            <div class="color-circle" style="background: linear-gradient(135deg, #FDF6E3 50%, #D4A373 50%);"></div>
+                            <span class="theme-label">羊皮纸</span>
+                        </div>
+                        
+                        <div class="theme-option" id="btn-theme-nordic" onclick="setLearningTheme('theme-nordic')">
+                            <div class="color-circle" style="background: linear-gradient(135deg, #2E3440 50%, #5E81AC 50%);"></div>
+                            <span class="theme-label">北欧夜航</span>
+                        </div>
+                        
+                        <div class="theme-option" id="btn-theme-latte" onclick="setLearningTheme('theme-latte')">
+                            <div class="color-circle" style="background: linear-gradient(135deg, #F5EBE0 50%, #B59F91 50%);"></div>
+                            <span class="theme-label">暖拿铁</span>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
             <!-- 头像管理 -->
             <div class="api-section-title" style="margin-top: 32px;">头像管理</div>
             
@@ -2875,6 +2991,7 @@
         <div class="chat-nav-header">
             <i class="fas fa-chevron-left clickable" style="font-size:20px; color:var(--icon-color);" onclick="hideChatWindow()"></i>
             <span class="nav-title" id="chat-title">聊天中</span>
+            <div id="learning-mode-badge" class="learning-badge" style="display: none;"><i class="fa-solid fa-graduation-cap"></i> 学习模式</div>
             <i class="fas fa-ellipsis clickable" style="font-size:20px; color:var(--icon-color);" onclick="showOptionsWindow()"></i>
         </div>
         
@@ -3006,28 +3123,33 @@
             </div>
 
             <div class="detail-card">
-                <div class="detail-card-item" onclick="toggleChatMode('online')">
+                
+                <div class="detail-card-item" onclick="toggleOnlineMode()">
                     <div class="detail-card-left">
                         <div class="detail-card-icon">
                             <i class="fas fa-wifi"></i>
                         </div>
                         <div class="detail-card-info">
                             <div class="detail-card-title">线上模式</div>
+                            <div class="detail-card-desc">关闭默认线下模式</div>
                         </div>
                     </div>
-                    <div class="api-param-indicator" id="online-mode-switch" style="margin: 0; pointer-events: none;"></div>
+                    <div class="api-param-indicator" id="mode-online-indicator" style="margin: 0; pointer-events: none;"></div>
                 </div>
-                <div class="detail-card-item" onclick="toggleChatMode('offline')">
+
+                <div class="detail-card-item" onclick="toggleLearningMode()">
                     <div class="detail-card-left">
                         <div class="detail-card-icon">
-                            <i class="fas fa-mug-hot"></i>
+                            <i class="fas fa-graduation-cap"></i>
                         </div>
                         <div class="detail-card-info">
-                            <div class="detail-card-title">线下模式</div>
+                            <div class="detail-card-title">学习模式</div>
+                            <div class="detail-card-desc">开启外语划词与地道纠错</div>
                         </div>
                     </div>
-                    <div class="api-param-indicator" id="offline-mode-switch" style="margin: 0; pointer-events: none;"></div>
+                    <div class="api-param-indicator" id="mode-learning-indicator" style="margin: 0; pointer-events: none;"></div>
                 </div>
+                
             </div>
 
             <!-- 记忆管理卡片 -->
@@ -3197,6 +3319,17 @@
         </div>
     </div>
     
+    <div id="wordSheet" class="bottom-sheet">
+        <div class="sheet-handle"></div>
+        <div class="word-title" id="sheetTitle">Word</div>
+        <div class="word-pronounce" id="sheetPronounce"><i class="fa-solid fa-volume-high"></i> /wɜːrd/</div>
+        <div class="word-meaning" id="sheetMeaning">n. 单词，字</div>
+        <div class="sheet-btn-group">
+            <button class="btn-close" onclick="closeWord()">关闭</button>
+            <button class="btn-save" onclick="saveWord()"><i class="fa-regular fa-star"></i> 收藏</button>
+        </div>
+    </div>
+
     <div id="scene-options" class="sub-page-scene"><div class="nav-header"><span class="nav-title">设置</span><span class="clickable" onclick="hideOptionsWindow()">完成</span></div><div id="options-content"></div></div>
 
     
@@ -5982,26 +6115,88 @@ ${chatContent}
             }
         }
 
-        // --- 更新聊天模式UI (圆圈指示器版) ---
+        // --- 更新呼吸灯 UI 状态 ---
         function updateChatModeUI() {
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             if (!contact) return;
             
-            const mode = contact.chatMode || 'none';
-            const onlineSwitch = document.getElementById('online-mode-switch');
-            const offlineSwitch = document.getElementById('offline-mode-switch');
-            
-            if (onlineSwitch) {
-                if (mode === 'online') onlineSwitch.classList.add('active');
-                else onlineSwitch.classList.remove('active');
+            // 1. 线上模式呼吸灯同步
+            const isOnline = (contact.chatMode === 'online');
+            const onlineIndicator = document.getElementById('mode-online-indicator');
+            if (onlineIndicator) {
+                onlineIndicator.classList.toggle('active', isOnline);
             }
-            if (offlineSwitch) {
-                if (mode === 'offline') offlineSwitch.classList.add('active');
-                else offlineSwitch.classList.remove('active');
+
+            // 2. 学习模式呼吸灯同步
+            const isLearning = (contact.isLearningMode === true);
+            const learningIndicator = document.getElementById('mode-learning-indicator');
+            if (learningIndicator) {
+                learningIndicator.classList.toggle('active', isLearning);
             }
         }
 
-        // --- 切换聊天模式 (互斥逻辑) ---
+        // --- 触发：点击切换线上模式 ---
+        function toggleOnlineMode() {
+            if (!currentChatContactId) return;
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            if (contact) {
+                // 如果当前是线上，则切回线下；反之则切线上
+                contact.chatMode = (contact.chatMode === 'online') ? 'offline' : 'online';
+                saveToLocal();
+                updateChatModeUI(); // 刷新呼吸灯
+            }
+        }
+
+        // --- 更新聊天设置页面的 UI 状态 (呼吸灯) ---
+        function updateChatModeUI() {
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            if (!contact) return;
+            
+            const mode = contact.chatMode || 'offline'; 
+            const onlineIndicator = document.getElementById('mode-online-indicator');
+            if (onlineIndicator) onlineIndicator.classList.toggle('active', mode === 'online');
+
+            const isLearning = contact.isLearningMode || false;
+            const learningIndicator = document.getElementById('mode-learning-indicator');
+            if (learningIndicator) {
+                learningIndicator.classList.toggle('active', isLearning);
+            }
+
+            // 🎨 核心：每次刷新状态时，顺便涂抹聊天页面的颜色
+            applyLearningThemeToChat();
+        }
+
+        // --- 触发：切换学习模式 (独立开关) ---
+        function toggleLearningMode() {
+            if (!currentChatContactId) return;
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            if (contact) {
+                contact.isLearningMode = !contact.isLearningMode;
+                saveToLocal();
+                updateChatModeUI(); 
+            }
+        }
+
+        // --- 核心粉刷匠：将主题应用到聊天界面 ---
+        function applyLearningThemeToChat() {
+            if (!currentChatContactId) return;
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            
+            const chatScene = document.getElementById('scene-chat'); 
+            const badge = document.getElementById('learning-mode-badge');
+            if (!chatScene) return;
+
+            // 先擦干净之前的所有颜色
+            chatScene.classList.remove('theme-matcha', 'theme-parchment', 'theme-nordic', 'theme-latte', 'learning-active');
+
+            if (contact && contact.isLearningMode) {
+                chatScene.classList.add('learning-active'); 
+                chatScene.classList.add(currentLearningTheme || 'theme-matcha'); // 涂上护眼色
+                if (badge) badge.style.display = 'inline-flex'; // 露出帽子
+            } else {
+                if (badge) badge.style.display = 'none'; // 隐藏帽子
+            }
+        }
         // --- 提取并清理气泡的万能公式 (自动修复括号和句号) ---
         function parseBubbles(text) {
             if (!text) return [];
@@ -6053,7 +6248,7 @@ ${chatContent}
 
             【互动规则】
             1. 拒绝话题终结：必须主动推进话题，多反问对方、多抛出新梗、或者顺着话题分享自己身上发生的破事，绝对不能把天聊死。
-            2. 真实网感：要有正常人的情绪波动（吐槽、激动、无语等），语气随意自然，甚至可以带一点点错别字或口语化语气词（如：啊、嘛、草、绝了）。
+            2. 真实网感：要有正常人的情绪波动（吐槽、激动、无语等），语气随意自然，甚至可以带一点点错别字或口语化语气词，禁止说脏话，除非用户要求你说（如：啊、嘛、草、绝了）。
             3. 语言必须极其简短、口语化，像真实网友发消息一样，可以说“在吗”、“我跟你说”等毫无规律的日常短句。
             4. 绝对不要使用任何括号（）来描述肢体动作，纯文字交流。
             `;
@@ -7646,6 +7841,10 @@ ${chatContent}
             document.getElementById('chat-message-input').value = '';
             chatExtensionsPanelOpen = false;
             document.getElementById('chat-extensions-panel').classList.remove('show');
+            // 🎨 每次进入聊天时，自动涂上学习模式的颜色！
+            if (typeof applyLearningThemeToChat === 'function') {
+                applyLearningThemeToChat();
+            }
         }
         
         // --- 渲染聊天消息 ---
@@ -7757,9 +7956,19 @@ ${chatContent}
                             </div>
                         `;
                     } else {
+                        let uniqueMsgId = 'msg-' + Math.random().toString(36).substr(2, 9);
+                        messageDiv.id = uniqueMsgId + '-container';
                         messageDiv.innerHTML = `
                             ${avatarHtml}
-                            <div class="chat-bubble">${escapeHtml(msg.content)}</div>
+                            <div style="display: flex; flex-direction: column; max-width: 85%;">
+                                <div class="chat-bubble">${escapeHtml(msg.content)}</div>
+                                <div class="tools">
+                                    <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="批改"><i class="fa-solid fa-pen-nib"></i></div>
+                                </div>
+                                <div class="feedback-box" id="${uniqueMsgId}">
+                                    💡 (系统占位符，等待 AI 返回批改结果...)
+                                </div>
+                            </div>
                         `;
                     }
                     
@@ -7784,13 +7993,22 @@ ${chatContent}
                         
                         
                         
-                        messageDiv.innerHTML = `
-                            ${avatarHtml}
-                            <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${escapeHtml(aiMsg.content)}</div>
-                            <div class="regenerate-btn" onclick="regenerateMessage(event, this)">
-                                <i class="fas fa-rotate-right"></i>
-                            </div>
-                        `;
+                        let uniqueMsgId = 'msg-' + Math.random().toString(36).substr(2, 9);
+                            messageDiv.id = uniqueMsgId + '-container';
+                            messageDiv.innerHTML = `
+                                ${avatarHtml}
+                                <div style="display: flex; flex-direction: column; max-width: 85%; position: relative;">
+                                    <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${escapeHtml(aiMsg.content)}</div>
+                                    <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
+                                    <div class="tools">
+                                        <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="翻译全文"><i class="fa-solid fa-language"></i></div>
+                                        <div class="tool-btn" onclick="toggleWordsMode('${uniqueMsgId}', this)" title="点读模式"><i class="fa-solid fa-book-open"></i></div>
+                                    </div>
+                                    <div class="feedback-box" id="${uniqueMsgId}">
+                                        (系统占位符，等待 AI 返回翻译结果...)
+                                    </div>
+                                </div>
+                            `;
                         
                         container.appendChild(messageDiv);
                     });
@@ -8308,40 +8526,42 @@ ${chatContent}
             const isUser = role === 'user';
             const messageDiv = document.createElement('div');
             messageDiv.className = `chat-message ${isUser ? 'user' : 'ai'}`;
-        
             const avatarHtml = generateAvatarHtml(isUser, currentChatContactId);
-
+            
+            let uniqueMsgId = 'msg-' + Math.random().toString(36).substr(2, 9);
+            messageDiv.id = uniqueMsgId + '-container';
+            
             if (!isUser) {
-                const bubbleDiv = document.createElement('div');
-                bubbleDiv.className = 'chat-bubble';
-                bubbleDiv.textContent = content;
-                
-                const regenBtn = document.createElement('div');
-                regenBtn.className = 'regenerate-btn';
-                regenBtn.innerHTML = '<i class="fas fa-rotate-right"></i>';
-                
-                messageDiv.innerHTML = avatarHtml;
-                messageDiv.appendChild(bubbleDiv);
-                messageDiv.appendChild(regenBtn);
-                
-                bubbleDiv.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    toggleRegenerate(messageDiv);
-                });
-                
-                regenBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    regenerateMessage(e, regenBtn);
-                });
+                messageDiv.innerHTML = `
+                    ${avatarHtml}
+                    <div style="display: flex; flex-direction: column; max-width: 85%; position: relative;">
+                        <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${escapeHtml(content)}</div>
+                        <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
+                        <div class="tools">
+                            <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="翻译全文"><i class="fa-solid fa-language"></i></div>
+                            <div class="tool-btn" onclick="toggleWordsMode('${uniqueMsgId}', this)" title="点读模式"><i class="fa-solid fa-book-open"></i></div>
+                        </div>
+                        <div class="feedback-box" id="${uniqueMsgId}">
+                            🌐 (系统占位符，等待 AI 返回翻译结果...)
+                        </div>
+                    </div>
+                `;
             } else {
                 messageDiv.innerHTML = `
                     ${avatarHtml}
-                    <div class="chat-bubble">${escapeHtml(content)}</div>
+                    <div style="display: flex; flex-direction: column; max-width: 85%;">
+                        <div class="chat-bubble">${escapeHtml(content)}</div>
+                        <div class="tools">
+                            <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="批改"><i class="fa-solid fa-pen-nib"></i></div>
+                        </div>
+                        <div class="feedback-box" id="${uniqueMsgId}">
+                            💡 (系统占位符，等待 AI 返回批改结果...)
+                        </div>
+                    </div>
                 `;
             }
             
             /* 核心修改：移除所有的内联 opacity 和 transform 动画，保持纯净 */
-            
             return messageDiv;
         }
         
@@ -14755,6 +14975,118 @@ ${chatContent}
                 }, 2000); 
             }
         });
+
+        // 默认主题是抹茶
+        let currentLearningTheme = localStorage.getItem('linkgo_learning_theme') || 'theme-matcha';
+
+        // 1. 点击切换外观主题
+        function setLearningTheme(themeName) {
+            currentLearningTheme = themeName;
+            localStorage.setItem('linkgo_learning_theme', themeName);
+            updateThemeSelectorUI();
+            applyLearningThemeToChat(); // 实时预览
+        }
+
+        // 2. 更新外观面板上的圆圈高亮状态
+        function updateThemeSelectorUI() {
+            // 移除所有 active
+            ['theme-matcha', 'theme-parchment', 'theme-nordic', 'theme-latte'].forEach(theme => {
+                const btn = document.getElementById(`btn-${theme}`);
+                if (btn) btn.classList.remove('active');
+            });
+            // 高亮当前选中的
+            const activeBtn = document.getElementById(`btn-${currentLearningTheme}`);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+       // 3. 将主题应用到聊天界面
+        function applyLearningThemeToChat() {
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            if (!contact) return;
+
+            // 获取聊天场景容器
+            const chatScene = document.getElementById('scene-chat'); 
+            const badge = document.getElementById('learning-mode-badge');
+
+            if (!chatScene) return;
+
+            // 先清除所有主题
+            chatScene.classList.remove('theme-matcha', 'theme-parchment', 'theme-nordic', 'theme-latte', 'learning-active');
+
+            // 如果开启了学习模式
+            if (contact.isLearningMode) {
+                chatScene.classList.add('learning-active'); // 激活标志
+                chatScene.classList.add(currentLearningTheme); // 涂上颜色
+                if (badge) badge.style.display = 'flex'; // 显示顶部徽章
+            } else {
+                if (badge) badge.style.display = 'none'; // 隐藏徽章
+            }
+        }
+
+        // --- 切换翻译/批改框 ---
+        function toggleFeedback(msgId, btnElement) {
+            const msgEl = document.getElementById(msgId + '-container');
+            if(msgEl) {
+                msgEl.classList.toggle('show-feedback');
+                btnElement.classList.toggle('active');
+            }
+        }
+
+        // --- 切换点读模式 ---
+        function toggleWordsMode(msgId, btnElement) {
+            const msgEl = document.getElementById(msgId + '-container');
+            if(msgEl) {
+                msgEl.classList.toggle('show-words'); 
+                btnElement.classList.toggle('active'); 
+                if (!msgEl.classList.contains('show-words')) {
+                    closeWord();
+                }
+            }
+        }
+
+        // --- 处理单词点击 ---
+        function handleWordClick(event, word, pronounce, meaning) {
+            // 找到包含这个词的外层气泡容器
+            const msgRow = event.target.closest('.chat-message');
+            if (msgRow && msgRow.classList.contains('show-words')) {
+                showWord(word, pronounce, meaning);
+            }
+        }
+
+        // --- 显示单词底部卡片 ---
+        function showWord(word, pronounce, meaning) {
+            document.getElementById('sheetTitle').innerText = word;
+            document.getElementById('sheetPronounce').innerHTML = `<i class="fa-solid fa-volume-high"></i> ${pronounce}`;
+            document.getElementById('sheetMeaning').innerText = meaning;
+            
+            const sheet = document.getElementById('wordSheet');
+            if(sheet) sheet.classList.add('show');
+            
+            // 重置收藏按钮状态
+            const saveBtn = document.querySelector('.btn-save');
+            if(saveBtn) {
+                saveBtn.innerHTML = '<i class="fa-regular fa-star"></i> 收藏';
+                saveBtn.style.opacity = "1";
+            }
+        }
+
+        // --- 关闭单词底部卡片 ---
+        function closeWord() {
+            const sheet = document.getElementById('wordSheet');
+            if(sheet) sheet.classList.remove('show');
+        }
+
+        // --- 收藏单词 ---
+        function saveWord() {
+            const btn = document.querySelector('.btn-save');
+            if(btn) {
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> 已收藏';
+                btn.style.opacity = "0.8"; 
+            }
+            setTimeout(() => {
+                closeWord();
+            }, 600);
+        }
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
