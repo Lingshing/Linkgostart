@@ -3905,12 +3905,17 @@
             // 🌟 修复 Bug：重新生成时加入“呼吸等待”气泡
             const container = document.getElementById('chat-messages-container');
             const streamContainer = document.createElement('div');
-            streamContainer.className = 'chat-message ai active-stream';
             streamContainer.id = 'active-stream-container';
-            streamContainer.innerHTML = `
-                ${generateAvatarHtml(false, currentChatContactId)}
-                <div class="chat-bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>
-            `;
+            streamContainer.style.display = 'flex';
+            streamContainer.style.flexDirection = 'column';
+            streamContainer.style.gap = '16px';
+            streamContainer.style.width = '100%';
+            
+            const aiMessageDiv = document.createElement('div');
+            aiMessageDiv.className = 'chat-message ai';
+            const avatarHtml = generateAvatarHtml(false, currentChatContactId);
+            aiMessageDiv.innerHTML = `${avatarHtml}<div class="chat-bubble breathing-mode" id="active-typing-bubble" onclick="abortCurrentAiReply()" title="点击中止生成"></div>`;
+            streamContainer.appendChild(aiMessageDiv);
             if(container) container.appendChild(streamContainer);
             scrollToBottom();
             
@@ -9961,20 +9966,40 @@ ${chatContent}
             }
         }
         
-        // --- 重新生成响应 ---
         function regenerateMessage(event, btn) {
             event.stopPropagation();
-            
             if (!currentChatContactId) return;
             
-            // 隐藏按钮
             btn.classList.remove('show');
             currentRegenerateBtn = null;
             
-            // 调用重新生成函数
-            regenerateResponse(currentChatContactId, null, null, (error) => {
-                console.error('重新生成失败:', error);
-            });
+            // 强行接管文字流
+            backgroundAIReply.inProgress = true;
+            backgroundAIReply.contactId = currentChatContactId;
+            backgroundAIReply.fullMessage = '';
+
+            regenerateResponse(currentChatContactId, 
+                (chunk, displayMsg) => {
+                    backgroundAIReply.fullMessage = displayMsg; 
+                    if (typeof syncActiveStreamToDOM === 'function') syncActiveStreamToDOM(); 
+                },
+                (fullMessage) => {
+                    backgroundAIReply.fullMessage = fullMessage; 
+                    backgroundAIReply.inProgress = false;
+                    const targetId = backgroundAIReply.contactId;
+                    backgroundAIReply.contactId = null;
+                    if (typeof handleFinalAIResponse === 'function') handleFinalAIResponse(targetId, fullMessage);
+                },
+                (error) => {
+                    console.error('重新生成失败:', error);
+                    backgroundAIReply.inProgress = false;
+                    const bubble = document.getElementById('active-typing-bubble');
+                    if (bubble) {
+                        bubble.classList.remove('breathing-mode');
+                        bubble.innerHTML = `<span style="color: #ff3b30; font-size: 0.9em;">[网络或请求错误：${error.message}]</span>`;
+                    }
+                }
+            );
         }
         
         // --- 点击其他地方隐藏按钮 ---
@@ -15220,7 +15245,7 @@ ${chatContent}
                 selectedHlWords.delete(element);
             }
         }
-        
+
         let isHighlightDragging = false;
         let highlightDragMode = true; 
         let currentDragPath = [];     
