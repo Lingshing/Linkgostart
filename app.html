@@ -847,11 +847,12 @@
             display: inline-block;
             cursor: text;
 
-            /* --- 修复：强制换行，防止报错撑爆屏幕 --- */
+            /* 🎯 完美解决中英混排提前换行问题 */
             word-wrap: break-word;
-            word-break: break-all;  /* 这一句最关键 */
-            white-space: pre-wrap;  /* 保留换行格式 */
-            max-width: 100%;        /* 限制最大宽度 */
+            overflow-wrap: break-word;
+            word-break: normal;
+            white-space: pre-wrap;
+            max-width: 100%;
         }
         
         
@@ -2380,18 +2381,18 @@
         .learning-active.theme-parchment .chat-message.ai .chat-bubble { background-color: #FAEDCD !important; border: 1px solid #EFE0C2 !important; color: #4A4036 !important; }
         .learning-active.theme-parchment .feedback-box { background: rgba(212,163,115,0.15); color: #4A4036; }
 
-        /* 3. 北欧夜航 (Nordic Night) */
-        .learning-active.theme-nordic, .learning-active.theme-nordic #chat-messages-container, .learning-active.theme-nordic #chat-extensions-panel { background-color: #2E3440 !important; }
-        .learning-active.theme-nordic .chat-nav-header { background-color: rgba(46,52,64,0.9) !important; border-bottom: 1px solid #434C5E !important; }
-        .learning-active.theme-nordic #chat-input-bar { background-color: #2E3440 !important; border-top: 1px solid #434C5E !important; }
-        .learning-active.theme-nordic .chat-nav-header *, .learning-active.theme-nordic .tools { color: #ECEFF4 !important; }
-        .learning-active.theme-nordic .chat-input-field { background-color: #3B4252 !important; color: #ECEFF4 !important; }
-        .learning-active.theme-nordic .chat-plus-btn svg { fill: #ECEFF4 !important; }
-        .learning-active.theme-nordic .chat-send-btn { background: #5E81AC !important; color: #ECEFF4 !important; }
-        .learning-active.theme-nordic .learning-badge { background: #3B4252; color: #8FBCBB; }
-        .learning-active.theme-nordic .chat-message.user .chat-bubble { background-color: #5E81AC !important; color: #ECEFF4 !important; }
-        .learning-active.theme-nordic .chat-message.ai .chat-bubble { background-color: #3B4252 !important; border: 1px solid #434C5E !important; color: #D8DEE9 !important; }
-        .learning-active.theme-nordic .feedback-box { background: rgba(136,192,208,0.1); color: #ECEFF4; }
+        /* 3. 极夜蓝影 (高级暗黑) */
+        .learning-active.theme-nordic, .learning-active.theme-nordic #chat-messages-container, .learning-active.theme-nordic #chat-extensions-panel { background-color: #121212 !important; }
+        .learning-active.theme-nordic .chat-nav-header { background-color: rgba(18,18,18,0.85) !important; border-bottom: 1px solid #2C2C2E !important; backdrop-filter: blur(20px); }
+        .learning-active.theme-nordic #chat-input-bar { background-color: #121212 !important; border-top: 1px solid #2C2C2E !important; }
+        .learning-active.theme-nordic .chat-nav-header *, .learning-active.theme-nordic .tools { color: #FFFFFF !important; }
+        .learning-active.theme-nordic .chat-input-field { background-color: #2C2C2E !important; color: #FFFFFF !important; }
+        .learning-active.theme-nordic .chat-plus-btn svg { fill: #FFFFFF !important; }
+        .learning-active.theme-nordic .chat-send-btn { background: #0A84FF !important; color: #FFF !important; }
+        .learning-active.theme-nordic .learning-badge { background: #2C2C2E; color: #0A84FF; }
+        .learning-active.theme-nordic .chat-message.user .chat-bubble { background-color: #0A84FF !important; color: #FFF !important; }
+        .learning-active.theme-nordic .chat-message.ai .chat-bubble { background-color: #2C2C2E !important; border: 1px solid rgba(255,255,255,0.05) !important; color: #E5E5EA !important; }
+        .learning-active.theme-nordic .feedback-box { background: rgba(10, 132, 255, 0.15); color: #E5E5EA; }
 
         /* 4. 暖拿铁 (Latte) */
         .learning-active.theme-latte, .learning-active.theme-latte #chat-messages-container, .learning-active.theme-latte #chat-extensions-panel { background-color: #F5EBE0 !important; }
@@ -2413,6 +2414,17 @@
         .color-circle { width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(0,0,0,0.05); transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1); transform: translateZ(0); overflow: hidden; }
         .theme-option.active .color-circle { box-shadow: 0 0 0 2px var(--card-bg), 0 0 0 4px #0A84FF, inset 0 0 0 1px rgba(0,0,0,0.05); }
         .theme-label { font-size: 12px; color: var(--text-sub); transition: 0.2s; }
+
+        /* === 终极修复：彻底粉碎 Safari/Flexbox 的单字符挤压换行 Bug === */
+        .chat-message .chat-bubble,
+        div.chat-bubble {
+            word-wrap: break-word !important;
+            word-break: normal !important;      /* 严禁随地乱断字，必须保持单词完整 */
+            overflow-wrap: anywhere !important; /* 只有遇到超长链接才会强行打断 */
+            white-space: pre-wrap !important;   /* 保持正常的换行和空格 */
+            width: max-content !important;      /* 强行按照文字实际所需的宽度撑开！ */
+            max-width: 100% !important;         /* 最大不超过气泡外壳，超出才正常换行 */
+        }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
@@ -2855,8 +2867,8 @@
                         </div>
                         
                         <div class="theme-option" id="btn-theme-nordic" onclick="setLearningTheme('theme-nordic')">
-                            <div class="color-circle" style="background: linear-gradient(135deg, #2E3440 50%, #5E81AC 50%);"></div>
-                            <span class="theme-label">北欧夜航</span>
+                            <div class="color-circle" style="background: linear-gradient(135deg, #121212 49%, #0A84FF 51%);"></div>
+                            <span class="theme-label">极夜蓝影</span>
                         </div>
                         
                         <div class="theme-option" id="btn-theme-latte" onclick="setLearningTheme('theme-latte')">
@@ -2988,11 +3000,15 @@
     <!-- 聊天窗口 -->
     <div id="scene-chat" class="sub-page-scene">
         <!-- 顶部导航栏 -->
-        <div class="chat-nav-header">
-            <i class="fas fa-chevron-left clickable" style="font-size:20px; color:var(--icon-color);" onclick="hideChatWindow()"></i>
-            <span class="nav-title" id="chat-title">聊天中</span>
-            <div id="learning-mode-badge" class="learning-badge" style="display: none;"><i class="fa-solid fa-graduation-cap"></i> 学习模式</div>
-            <i class="fas fa-ellipsis clickable" style="font-size:20px; color:var(--icon-color);" onclick="showOptionsWindow()"></i>
+        <div class="chat-nav-header" style="position: relative;">
+            <i class="fas fa-chevron-left clickable" style="font-size:20px; color:var(--icon-color); z-index: 2;" onclick="hideChatWindow()"></i>
+            
+            <div style="position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; z-index: 1;">
+                <span class="nav-title" id="chat-title">聊天中</span>
+                <div id="learning-mode-badge" class="learning-badge" style="display: none;"><i class="fa-solid fa-graduation-cap"></i> 学习模式</div>
+            </div>
+            
+            <i class="fas fa-ellipsis clickable" style="font-size:20px; color:var(--icon-color); z-index: 2;" onclick="showOptionsWindow()"></i>
         </div>
         
         <!-- 聊天消息区域 -->
@@ -3735,10 +3751,28 @@
                 }
             }
 
-            if (systemPrompt) {
-                messages.push({ role: 'system', content: systemPrompt + injectedMemoryText });
-            } else if (injectedMemoryText) {
-                messages.push({ role: 'system', content: injectedMemoryText });
+            let finalSystemPrompt = systemPrompt || "";
+            if (injectedMemoryText) finalSystemPrompt += injectedMemoryText;
+            
+            // 🎓 学习模式特权：向 AI 注入强制返回翻译/批改/生词词典的 JSON 格式
+            if (contact.isLearningMode) {
+                const learningPrompt = `
+                \n【语言学习模式指令】
+                1. 正常回复：请保持真实、地道的外语（如英语、日语）年轻人聊天口吻，可包含适当的颜文字或流行缩写。
+                2. 必须在回复的最最最后加上分隔符 \`===METADATA===\`
+                3. 分隔符后，必须且只能输出一个严格的JSON对象，格式如下：
+                {
+                "translation": "你刚才那段正常回复的全文精确中文翻译",
+                "correction": "如果我（用户）刚才的表达有语法或语感错误，在这里指出并给出修改建议。如果完全没问题，请输出：✨ 表达非常地道，完美！",
+                "words": [
+                    {"w": "原文外语生词", "r": "音标或假名", "m": "中文释义"}
+                ]
+                }`;
+                finalSystemPrompt += learningPrompt;
+            }
+
+            if (finalSystemPrompt) {
+                messages.push({ role: 'system', content: finalSystemPrompt });
             }
             
             // 添加历史对话
@@ -3813,7 +3847,14 @@
                                     
                                     if (content) {
                                         fullMessage += content;
-                                        if (onChunk) onChunk(content, fullMessage);
+                                        let displayMsg = fullMessage;
+                                        let delta = content;
+                                        // 🌟 核心拦截：如果遇到了数据区域，截断它，不给 UI 渲染
+                                        if (fullMessage.includes('===METADATA===')) {
+                                            displayMsg = fullMessage.split('===METADATA===')[0].trim();
+                                            delta = ""; 
+                                        }
+                                        if (onChunk && delta) onChunk(delta, displayMsg);
                                     }
                                 } catch (e) {
                                     console.error('解析流数据失败:', e);
@@ -3822,12 +3863,23 @@
                         }
                     }
                     
-                    // 保存完整的助手消息
+                    // 保存完整的助手消息（包含隐藏的 JSON 数据）
                     if (fullMessage) {
                         addMessage(contactId, 'assistant', fullMessage);
                     }
                     
-                    if (onComplete) onComplete(fullMessage);
+                    if (onComplete) {
+                        let displayMsg = fullMessage;
+                        if (fullMessage.includes('===METADATA===')) {
+                            displayMsg = fullMessage.split('===METADATA===')[0].trim();
+                        }
+                        onComplete(displayMsg);
+                    }
+                    
+                    // 🌟 强行刷新一次，把潜藏在历史记录里的批改和翻译解析出来展示！
+                    if (contact.isLearningMode) {
+                        setTimeout(() => renderChatMessages(contactId), 100);
+                    }
                     
                     } else {
                         // 🎯 非流式响应处理
@@ -7958,15 +8010,26 @@ ${chatContent}
                     } else {
                         let uniqueMsgId = 'msg-' + Math.random().toString(36).substr(2, 9);
                         messageDiv.id = uniqueMsgId + '-container';
+                        
+                        // 偷看下一条 AI 消息，提取它顺便带来的批改结果
+                        let correctionText = "💡 (正在思考或无批改...)";
+                        const nextMsg = conversation[i + 1];
+                        if (nextMsg && (nextMsg.role === 'assistant' || nextMsg.role === 'ai') && nextMsg.content.includes('===METADATA===')) {
+                            try {
+                                const metaJson = JSON.parse(nextMsg.content.split('===METADATA===')[1].trim());
+                                if (metaJson.correction) correctionText = "💡 " + metaJson.correction;
+                            } catch(e) {}
+                        }
+
                         messageDiv.innerHTML = `
                             ${avatarHtml}
-                            <div style="display: flex; flex-direction: column; max-width: 85%;">
-                                <div class="chat-bubble">${escapeHtml(msg.content)}</div>
+                            <div style="display: flex; flex-direction: column; max-width: 85%; align-items: flex-end;">
+                                <div class="chat-bubble" style="text-align: left;">${escapeHtml(msg.content)}</div>
                                 <div class="tools">
                                     <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="批改"><i class="fa-solid fa-pen-nib"></i></div>
                                 </div>
-                                <div class="feedback-box" id="${uniqueMsgId}">
-                                    💡 (系统占位符，等待 AI 返回批改结果...)
+                                <div class="feedback-box" id="${uniqueMsgId}" style="align-self: flex-end;">
+                                    ${correctionText}
                                 </div>
                             </div>
                         `;
@@ -7994,21 +8057,52 @@ ${chatContent}
                         
                         
                         let uniqueMsgId = 'msg-' + Math.random().toString(36).substr(2, 9);
-                            messageDiv.id = uniqueMsgId + '-container';
-                            messageDiv.innerHTML = `
-                                ${avatarHtml}
-                                <div style="display: flex; flex-direction: column; max-width: 85%; position: relative;">
-                                    <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${escapeHtml(aiMsg.content)}</div>
-                                    <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
-                                    <div class="tools">
-                                        <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="翻译全文"><i class="fa-solid fa-language"></i></div>
-                                        <div class="tool-btn" onclick="toggleWordsMode('${uniqueMsgId}', this)" title="点读模式"><i class="fa-solid fa-book-open"></i></div>
-                                    </div>
-                                    <div class="feedback-box" id="${uniqueMsgId}">
-                                        (系统占位符，等待 AI 返回翻译结果...)
-                                    </div>
+                        messageDiv.id = uniqueMsgId + '-container';
+                        
+                        let displayMsg = aiMsg.content;
+                        let translationText = "(暂无翻译)";
+                        
+                        if (aiMsg.content.includes('===METADATA===')) {
+                            const parts = aiMsg.content.split('===METADATA===');
+                            displayMsg = parts[0].trim();
+                            try {
+                                const meta = JSON.parse(parts[1].trim());
+                                if (meta.translation) translationText = "🌐 " + meta.translation;
+                                
+                                // 智能划词：把原文中 AI 教的生词替换为带点击事件的标签
+                                if (meta.words && meta.words.length > 0) {
+                                    let safeMsg = escapeHtml(displayMsg);
+                                    meta.words.forEach(w => {
+                                        const safeW = escapeHtml(w.w);
+                                        const safeR = escapeHtml(w.r || '');
+                                        const safeM = escapeHtml(w.m || '');
+                                        safeMsg = safeMsg.split(safeW).join(`<span class="clickable-word" onclick="handleWordClick(event, '${safeW}', '${safeR}', '${safeM}')">${safeW}</span>`);
+                                    });
+                                    displayMsg = safeMsg; 
+                                } else {
+                                    displayMsg = escapeHtml(displayMsg);
+                                }
+                            } catch(e) {
+                                displayMsg = escapeHtml(displayMsg);
+                            }
+                        } else {
+                            displayMsg = escapeHtml(displayMsg);
+                        }
+
+                        messageDiv.innerHTML = `
+                            ${avatarHtml}
+                            <div style="display: flex; flex-direction: column; max-width: 85%; align-items: flex-start; position: relative;">
+                                <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
+                                <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
+                                <div class="tools">
+                                    <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="翻译全文"><i class="fa-solid fa-language"></i></div>
+                                    <div class="tool-btn" onclick="toggleWordsMode('${uniqueMsgId}', this)" title="点读模式"><i class="fa-solid fa-book-open"></i></div>
                                 </div>
-                            `;
+                                <div class="feedback-box" id="${uniqueMsgId}">
+                                    ${translationText}
+                                </div>
+                            </div>
+                        `;
                         
                         container.appendChild(messageDiv);
                     });
@@ -8542,7 +8636,7 @@ ${chatContent}
                             <div class="tool-btn" onclick="toggleWordsMode('${uniqueMsgId}', this)" title="点读模式"><i class="fa-solid fa-book-open"></i></div>
                         </div>
                         <div class="feedback-box" id="${uniqueMsgId}">
-                            🌐 (系统占位符，等待 AI 返回翻译结果...)
+                             (系统占位符，等待 AI 返回翻译结果...)
                         </div>
                     </div>
                 `;
