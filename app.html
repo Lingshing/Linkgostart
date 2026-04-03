@@ -2352,7 +2352,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
         
         /* 点读单词样式 (基础过渡) */
-        .clickable-word { transition: border-color 0.3s, background-color 0.2s, color 0.3s; padding-bottom: 1px; border-bottom: 1px dashed transparent; font-weight: 500; }
+        .clickable-word { transition: background-color 0.2s; padding-bottom: 1px; border-bottom: 1px dashed transparent; font-weight: 500; }
         .show-words .clickable-word { cursor: pointer; border-bottom: 1px dashed var(--text-sub); }
 
         /* 🌙 智能学习模式双色主题 (自动跟随深浅模式) */
@@ -2370,9 +2370,9 @@
         .learning-active.theme-matcha .chat-message.ai .chat-bubble { background-color: #FFF !important; border: 1px solid #E0EBE0 !important; color: #2C3E35 !important; }
         .learning-active.theme-matcha .feedback-box { background: rgba(107,142,118,0.1); color: #2C3E35; }
         .learning-active.theme-matcha .tool-btn.active { background: rgba(107,142,118,0.2); color: #4A6B52 !important; }
-        /* 🎨 抹茶点读配色 */
+        /* 🎨 抹茶点读配色 (去除了 active 时的位移) */
         .learning-active.theme-matcha .show-words .clickable-word { border-bottom: 1px dashed #4A6B52; color: #2C3E35; }
-        .learning-active.theme-matcha .show-words .clickable-word:active { background: rgba(107,142,118,0.2); border-radius: 4px; }
+        .learning-active.theme-matcha .show-words .clickable-word:active { background: rgba(107,142,118,0.2); }
 
         /* 2. 深色模式：原味深色 (Dark) */
         .learning-active.theme-dark, .learning-active.theme-dark #chat-messages-container, .learning-active.theme-dark #chat-extensions-panel { background-color: #000000 !important; }
@@ -2382,14 +2382,27 @@
         .learning-active.theme-dark .chat-input-field { background-color: #1c1c1e !important; color: #FFFFFF !important; }
         .learning-active.theme-dark .chat-plus-btn svg { fill: #FFFFFF !important; }
         .learning-active.theme-dark .chat-send-btn { background: #07C160 !important; color: #FFF !important; }
-        .learning-active.theme-dark .learning-badge { background: #3A3A3C; color: #07C160; } /* 🎨 换成了更显眼的浅灰色背景 */
-        .learning-active.theme-dark .chat-message.user .chat-bubble { background-color: #05A050 !important; color: #FFF !important; } /* 🎨 换成了略微深一点的高级绿 */
+        .learning-active.theme-dark .learning-badge { background: #3A3A3C; color: #07C160; }
+        .learning-active.theme-dark .chat-message.user .chat-bubble { background-color: #05A050 !important; color: #FFF !important; }
         .learning-active.theme-dark .chat-message.ai .chat-bubble { background-color: #1c1c1e !important; border: 1px solid rgba(255,255,255,0.05) !important; color: #E5E5EA !important; }
         .learning-active.theme-dark .feedback-box { background: rgba(255, 255, 255, 0.1); color: #E5E5EA; }
         .learning-active.theme-dark .tool-btn.active { background: rgba(255, 255, 255, 0.2); color: #07C160 !important; }
-        /* 🎨 深色点读配色 */
+        /* 🎨 深色点读配色 (去除了 active 时的位移) */
         .learning-active.theme-dark .show-words .clickable-word { border-bottom: 1px dashed #07C160; color: #07C160; }
-        .learning-active.theme-dark .show-words .clickable-word:active { background: rgba(7, 193, 96, 0.2); border-radius: 4px; }
+        .learning-active.theme-dark .show-words .clickable-word:active { background: rgba(7, 193, 96, 0.2); }
+
+        /* 🎨 生词抽屉双色同步 */
+        .bottom-sheet.theme-matcha { background: #F4F8F4; color: #2C3E35; }
+        .bottom-sheet.theme-matcha .sheet-handle { background: #D0DCD0; }
+        .bottom-sheet.theme-matcha .word-meaning { background: #E0EBE0; color: #2C3E35; }
+        .bottom-sheet.theme-matcha .btn-close { background: #E0EBE0; color: #2C3E35; }
+        .bottom-sheet.theme-matcha .btn-save { background: #6B8E76; color: #FFF; }
+
+        .bottom-sheet.theme-dark { background: #1c1c1e; color: #E5E5EA; }
+        .bottom-sheet.theme-dark .sheet-handle { background: #3A3A3C; }
+        .bottom-sheet.theme-dark .word-meaning { background: #2C2C2E; color: #E5E5EA; }
+        .bottom-sheet.theme-dark .btn-close { background: #2C2C2E; color: #E5E5EA; }
+        .bottom-sheet.theme-dark .btn-save { background: #07C160; color: #FFF; }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
@@ -5930,16 +5943,18 @@ ${chatContent}
             }
         }
 
-        // --- 核心粉刷匠：将主题应用到聊天界面 (自动跟随深浅模式) ---
+       // --- 核心粉刷匠：将主题应用到聊天界面 (自动跟随深浅模式) ---
         function applyLearningThemeToChat() {
             if (!currentChatContactId) return;
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             
             const chatScene = document.getElementById('scene-chat'); 
             const badge = document.getElementById('learning-mode-badge');
+            const wordSheet = document.getElementById('wordSheet'); // 🌟 拿到生词抽屉
             if (!chatScene) return;
 
             chatScene.classList.remove('theme-matcha', 'theme-dark', 'learning-active');
+            if(wordSheet) wordSheet.classList.remove('theme-matcha', 'theme-dark');
 
             if (contact && contact.isLearningMode) {
                 chatScene.classList.add('learning-active'); 
@@ -5948,15 +5963,19 @@ ${chatContent}
                 const isDark = document.documentElement.style.getPropertyValue('--bg-color') === '#000000' || window.currentTheme === 'dark';
                 if (isDark) {
                     chatScene.classList.add('theme-dark');
+                    if(wordSheet) wordSheet.classList.add('theme-dark'); // 抽屉同步深色
                 } else {
                     chatScene.classList.add('theme-matcha');
+                    if(wordSheet) wordSheet.classList.add('theme-matcha'); // 抽屉同步浅色
                 }
                 
-                if (badge) badge.style.display = 'inline-flex'; 
+                if (badge) badge.style.display = 'inline-flex'; // 显示顶部小帽子
             } else {
-                if (badge) badge.style.display = 'none'; 
+                if (badge) badge.style.display = 'none'; // 隐藏顶部小帽子
             }
         }
+                
+                
         // --- 提取并清理气泡的万能公式 (自动修复括号和句号) ---
         function parseBubbles(text) {
             if (!text) return [];
@@ -7731,7 +7750,7 @@ ${chatContent}
                                 const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
                                 if (jsonMatch) {
                                     const metaJson = JSON.parse(jsonMatch[0]);
-                                    if (metaJson.correction) correctionText = "💡 " + metaJson.correction;
+                                    if (metaJson.correction) correctionText = metaJson.correction;
                                 }
                             } catch(e) {
                                 console.error("批改数据提取失败:", e);
@@ -14864,10 +14883,25 @@ ${chatContent}
             }
         }
 
+       // --- 核心：原生发音功能 (TTS) ---
+        function playPronunciation(word) {
+            window.speechSynthesis.cancel(); // 切断前一个没念完的单词
+            const utterance = new SpeechSynthesisUtterance(word);
+            
+            // 🌟 智能语种检测：如果包含日文假名或汉字，优先使用日语发音，否则使用英语
+            if (/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(word)) {
+                utterance.lang = 'ja-JP';
+            } else {
+                utterance.lang = 'en-US';
+            }
+            window.speechSynthesis.speak(utterance);
+        }
+
         // --- 显示单词底部卡片 ---
         function showWord(word, pronounce, meaning) {
             document.getElementById('sheetTitle').innerText = word;
-            document.getElementById('sheetPronounce').innerHTML = `<i class="fa-solid fa-volume-high"></i> ${pronounce}`;
+            // 🌟 绑定点击发音事件，加上鼠标悬浮的交互反馈
+            document.getElementById('sheetPronounce').innerHTML = `<span style="cursor:pointer; display:inline-flex; align-items:center; gap:6px; padding: 4px 8px; margin-left: -8px; border-radius: 6px; transition: 0.2s;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='transparent'" onclick="playPronunciation('${word.replace(/'/g, "\\'")}')"><i class="fa-solid fa-volume-high"></i> ${pronounce}</span>`;
             document.getElementById('sheetMeaning').innerText = meaning;
             
             const sheet = document.getElementById('wordSheet');
