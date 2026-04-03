@@ -2349,7 +2349,44 @@
         @media (hover: hover) {
             .tool-btn:hover { background: rgba(128,128,128,0.2); opacity: 1; }
         }
-        .tool-btn.active { opacity: 1; background: rgba(128,128,128,0.25); color: var(--accent); }
+        .tool-btn.active { opacity: 1; }
+        .feedback-box { margin-top: 6px; font-size: 14px; display: none; animation: fadeIn 0.3s ease; line-height: 1.5; padding: 6px 10px; border-radius: 8px; opacity: 0.9; }
+        .show-feedback .feedback-box { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        /* 点读单词样式 */
+        .clickable-word { transition: border-color 0.3s, background-color 0.2s; padding-bottom: 1px; border-bottom: 1px dashed transparent; font-weight: 500; }
+        .show-words .clickable-word { cursor: pointer; border-bottom: 1px dashed var(--text-sub); }
+        .show-words .clickable-word:active { background: var(--hover-bg); border-radius: 4px; }
+
+        /* 🌙 智能学习模式双色主题 (自动跟随深浅模式) */
+        
+        /* 1. 浅色模式：薄荷抹茶 (Matcha) */
+        .learning-active.theme-matcha, .learning-active.theme-matcha #chat-messages-container, .learning-active.theme-matcha #chat-extensions-panel { background-color: #F4F8F4 !important; }
+        .learning-active.theme-matcha .chat-nav-header { background-color: rgba(244,248,244,0.9) !important; border-bottom: 1px solid #E0EBE0 !important; }
+        .learning-active.theme-matcha #chat-input-bar { background-color: #F4F8F4 !important; border-top: 1px solid #E0EBE0 !important; }
+        .learning-active.theme-matcha .chat-nav-header *, .learning-active.theme-matcha .tools { color: #2C3E35 !important; }
+        .learning-active.theme-matcha .chat-input-field { background-color: #FFF !important; color: #2C3E35 !important; }
+        .learning-active.theme-matcha .chat-plus-btn svg { fill: #2C3E35 !important; }
+        .learning-active.theme-matcha .chat-send-btn { background: #6B8E76 !important; color: #FFF !important; }
+        .learning-active.theme-matcha .learning-badge { background: #E0EBE0; color: #4A6B52; }
+        .learning-active.theme-matcha .chat-message.user .chat-bubble { background-color: #6B8E76 !important; color: #FFF !important; }
+        .learning-active.theme-matcha .chat-message.ai .chat-bubble { background-color: #FFF !important; border: 1px solid #E0EBE0 !important; color: #2C3E35 !important; }
+        .learning-active.theme-matcha .feedback-box { background: rgba(107,142,118,0.1); color: #2C3E35; }
+        .learning-active.theme-matcha .tool-btn.active { background: rgba(107,142,118,0.2); color: #4A6B52 !important; }
+
+        /* 2. 深色模式：原味深色 (Dark) */
+        .learning-active.theme-dark, .learning-active.theme-dark #chat-messages-container, .learning-active.theme-dark #chat-extensions-panel { background-color: #000000 !important; }
+        .learning-active.theme-dark .chat-nav-header { background-color: rgba(28,28,30,0.85) !important; border-bottom: 1px solid rgba(255,255,255,0.15) !important; backdrop-filter: blur(20px); }
+        .learning-active.theme-dark #chat-input-bar { background-color: #000000 !important; border-top: 1px solid rgba(255,255,255,0.15) !important; }
+        .learning-active.theme-dark .chat-nav-header *, .learning-active.theme-dark .tools { color: #FFFFFF !important; }
+        .learning-active.theme-dark .chat-input-field { background-color: #1c1c1e !important; color: #FFFFFF !important; }
+        .learning-active.theme-dark .chat-plus-btn svg { fill: #FFFFFF !important; }
+        .learning-active.theme-dark .chat-send-btn { background: #07C160 !important; color: #FFF !important; }
+        .learning-active.theme-dark .learning-badge { background: #1c1c1e; color: #07C160; }
+        .learning-active.theme-dark .chat-message.user .chat-bubble { background-color: #07C160 !important; color: #FFF !important; }
+        .learning-active.theme-dark .chat-message.ai .chat-bubble { background-color: #1c1c1e !important; border: 1px solid rgba(255,255,255,0.05) !important; color: #E5E5EA !important; }
+        .learning-active.theme-dark .feedback-box { background: rgba(255, 255, 255, 0.1); color: #E5E5EA; }
+        .learning-active.theme-dark .tool-btn.active { background: rgba(255, 255, 255, 0.2); color: #07C160 !important; }
         .feedback-box { margin-top: 6px; font-size: 14px; display: none; animation: fadeIn 0.3s ease; line-height: 1.5; padding: 6px 10px; border-radius: 8px; opacity: 0.9; }
         .show-feedback .feedback-box { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
@@ -2845,35 +2882,7 @@
                 </div>
             </div>
             
-            <div class="api-section-title">学习模式外观</div>
-            <div class="api-input-group" style="margin: 0 20px;">
-                <div class="api-input-item" style="border-bottom: none; padding: 20px 0; justify-content: center;">
-                    <div class="theme-selector" id="learningThemeSelector" style="display: flex; gap: 24px; justify-content: center; width: 100%;">
-                        
-                        <div class="theme-option active" id="btn-theme-matcha" onclick="setLearningTheme('theme-matcha')">
-                            <div class="color-circle" style="background: linear-gradient(135deg, #F4F8F4 50%, #6B8E76 50%);"></div>
-                            <span class="theme-label">薄荷抹茶</span>
-                        </div>
-                        
-                        <div class="theme-option" id="btn-theme-parchment" onclick="setLearningTheme('theme-parchment')">
-                            <div class="color-circle" style="background: linear-gradient(135deg, #FDF6E3 50%, #D4A373 50%);"></div>
-                            <span class="theme-label">羊皮纸</span>
-                        </div>
-                        
-                        <div class="theme-option" id="btn-theme-nordic" onclick="setLearningTheme('theme-nordic')">
-                            <div class="color-circle" style="background: linear-gradient(135deg, #121212 49%, #0A84FF 51%);"></div>
-                            <span class="theme-label">极夜蓝影</span>
-                        </div>
-                        
-                        <div class="theme-option" id="btn-theme-latte" onclick="setLearningTheme('theme-latte')">
-                            <div class="color-circle" style="background: linear-gradient(135deg, #F5EBE0 50%, #B59F91 50%);"></div>
-                            <span class="theme-label">暖拿铁</span>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-
+            
             <!-- 头像管理 -->
             <div class="api-section-title" style="margin-top: 32px;">头像管理</div>
             
@@ -6218,7 +6227,7 @@ ${chatContent}
             }
         }
 
-        // --- 核心粉刷匠：将主题应用到聊天界面 ---
+        // --- 核心粉刷匠：将主题应用到聊天界面 (自动跟随深浅模式) ---
         function applyLearningThemeToChat() {
             if (!currentChatContactId) return;
             const contact = mockContacts.find(c => c.id === currentChatContactId);
@@ -6227,15 +6236,22 @@ ${chatContent}
             const badge = document.getElementById('learning-mode-badge');
             if (!chatScene) return;
 
-            // 先擦干净之前的所有颜色
-            chatScene.classList.remove('theme-matcha', 'theme-parchment', 'theme-nordic', 'theme-latte', 'learning-active');
+            chatScene.classList.remove('theme-matcha', 'theme-dark', 'learning-active');
 
             if (contact && contact.isLearningMode) {
                 chatScene.classList.add('learning-active'); 
-                chatScene.classList.add(currentLearningTheme || 'theme-matcha'); // 涂上护眼色
-                if (badge) badge.style.display = 'inline-flex'; // 露出帽子
+                
+                // 🌟 自动探测：判断系统现在是深色还是浅色
+                const isDark = document.documentElement.style.getPropertyValue('--bg-color') === '#000000' || window.currentTheme === 'dark';
+                if (isDark) {
+                    chatScene.classList.add('theme-dark');
+                } else {
+                    chatScene.classList.add('theme-matcha');
+                }
+                
+                if (badge) badge.style.display = 'inline-flex'; 
             } else {
-                if (badge) badge.style.display = 'none'; // 隐藏帽子
+                if (badge) badge.style.display = 'none'; 
             }
         }
         // --- 提取并清理气泡的万能公式 (自动修复括号和句号) ---
@@ -8476,33 +8492,49 @@ ${chatContent}
         // --- 同步纯函数：实时切割文本为句子数组 ---
         function splitTextIntoSentences(fullText) {
             if (!fullText) return [];
+            
+            // 🌟 终极防火墙：把隐藏数据摘出来，保护它不被碎纸机切碎！
+            let metaDataBlock = "";
+            if (fullText.includes('===METADATA===')) {
+                const parts = fullText.split('===METADATA===');
+                fullText = parts[0];
+                metaDataBlock = '\n===METADATA===\n' + parts[1];
+            }
+            
             let text = fullText.replace(/([!?！？])\1+/g, '$1');
             text = text.replace(/[\/／∕⧸⁄]/g, '');
-
+            
+            let result = [];
             if (text.includes('\\') || text.includes('（') || text.includes('(')) {
                 const sentences = parseBubbles(text);
-                if (sentences.length > 0) return sentences;
-            }
-            if (text.includes('\n')) {
+                if (sentences.length > 0) result = sentences;
+            } 
+            if (result.length === 0 && text.includes('\n')) {
                 const lines = text.split('\n').filter(line => line.trim().length > 0);
-                if (lines.length > 1) return lines;
+                if (lines.length > 1) result = lines;
             }
-            const chinesePunctuation = /[。！？；]/;
-            if (chinesePunctuation.test(text)) {
-                return splitByChinesePunctuation(text);
+            if (result.length === 0 && /[。！？；]/.test(text)) {
+                result = splitByChinesePunctuation(text);
             }
-            const englishPunctuation = /[.!?;]/;
-            if (englishPunctuation.test(text)) {
-                return splitByEnglishPunctuation(text);
+            if (result.length === 0 && /[.!?;]/.test(text)) {
+                result = splitByEnglishPunctuation(text);
             }
-            const commaSemicolon = /[,，]/;
-            if (commaSemicolon.test(text)) {
-                return splitByComma(text);
+            if (result.length === 0 && /[,，]/.test(text)) {
+                result = splitByComma(text);
             }
-            if (text.length > 30) {
-                return splitByLength(text);
+            if (result.length === 0 && text.length > 30) {
+                result = splitByLength(text);
             }
-            return [text];
+            if (result.length === 0) {
+                result = [text];
+            }
+            
+            // 🌟 神级修复：把剥离出来的翻译数据，克隆并绑定给分切出的【每一个】子气泡！
+            if (metaDataBlock) {
+                result = result.map(sentence => sentence + metaDataBlock);
+            }
+            
+            return result;
         }
 
         // --- 🌟 全局AI气泡队列系统（完美复刻微信切屏不丢进度） ---
