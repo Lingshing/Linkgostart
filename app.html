@@ -2391,34 +2391,71 @@
         .learning-active.theme-dark .show-words .clickable-word { border-bottom: 1px dashed #07C160; color: #07C160; }
         .learning-active.theme-dark .show-words .clickable-word:active { background: rgba(7, 193, 96, 0.2); }
 
-        /* 🎨 生词抽屉双色同步 & 毛玻璃质感 */
-        .bottom-sheet { backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); }
-        .bottom-sheet.theme-matcha { background: rgba(244,248,244,0.85); color: #2C3E35; }
-        .bottom-sheet.theme-matcha .sheet-handle { background: rgba(0,0,0,0.1); }
-        .bottom-sheet.theme-matcha .word-meaning { background: rgba(224,235,224,0.6); color: #2C3E35; }
+        /* 🎨 生词抽屉双色同步 & 极致毛玻璃质感 (丝滑 Transform 引擎) */
+        .bottom-sheet { position: fixed; bottom: 0; left: 0; width: 100%; border-radius: 24px 24px 0 0; padding: 24px 20px; box-shadow: 0 -10px 25px rgba(0,0,0,0.1); z-index: 5000; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1); backdrop-filter: blur(35px); -webkit-backdrop-filter: blur(35px); }
+        .bottom-sheet.show { transform: translateY(0); }
+
+        .bottom-sheet.theme-matcha { background: rgba(244,248,244,0.65); color: #2C3E35; border-top: 0.5px solid rgba(255,255,255,0.6); }
+        .bottom-sheet.theme-matcha .sheet-handle { background: rgba(0,0,0,0.15); }
+        .bottom-sheet.theme-matcha .word-meaning, .bottom-sheet.theme-matcha .word-example { background: rgba(255,255,255,0.4); color: #2C3E35; }
         .bottom-sheet.theme-matcha .btn-save { background: rgba(107,142,118,0.9); color: #FFF; }
 
-        .bottom-sheet.theme-dark { background: rgba(28,28,30,0.85); color: #E5E5EA; }
-        .bottom-sheet.theme-dark .sheet-handle { background: rgba(255,255,255,0.2); }
-        .bottom-sheet.theme-dark .word-meaning { background: rgba(44,44,46,0.6); color: #E5E5EA; }
+        .bottom-sheet.theme-dark { background: rgba(28,28,30,0.65); color: #E5E5EA; border-top: 0.5px solid rgba(255,255,255,0.15); }
+        .bottom-sheet.theme-dark .sheet-handle { background: rgba(255,255,255,0.25); }
+        .bottom-sheet.theme-dark .word-meaning, .bottom-sheet.theme-dark .word-example { background: rgba(0,0,0,0.3); color: #E5E5EA; }
         .bottom-sheet.theme-dark .btn-save { background: rgba(7,193,96,0.9); color: #FFF; }
 
         /* === 🌟 荧光笔摘录模式样式 === */
-        .hl-floating-bar { position: fixed; bottom: -100%; left: 16px; right: 16px; background: var(--card-bg); padding: 12px 20px; border-radius: 16px; box-shadow: 0 4px 30px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; transition: bottom 0.4s cubic-bezier(0.1, 0.8, 0.2, 1); z-index: 4000; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-        .hl-floating-bar.show { bottom: 85px; } /* 浮在输入框上面 */
-        .hl-save-btn { padding: 8px 16px; background: var(--accent); color: #fff; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .hl-save-btn:active { transform: scale(0.95); }
-        .hl-toggle-btn.active { color: var(--accent) !important; text-shadow: 0 0 10px rgba(0, 122, 255, 0.3); }
-        .learning-active.theme-matcha .hl-toggle-btn.active { color: #4A6B52 !important; text-shadow: 0 0 10px rgba(74, 107, 82, 0.3); }
-        .learning-active.theme-dark .hl-toggle-btn.active { color: #07C160 !important; text-shadow: 0 0 10px rgba(7, 193, 96, 0.3); }
+        /* 1. 悬浮保存胶囊 (居中防遮挡，颜色随主题变化) */
+        .hl-floating-bar { position: fixed; bottom: -100%; left: 50%; transform: translateX(-50%); padding: 10px 24px; border-radius: 30px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; transition: bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1), transform 0.2s; z-index: 4000; cursor: pointer; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .hl-floating-bar.show { bottom: 100px; }
+        .hl-save-btn { background: transparent; color: #fff; border: none; font-weight: 600; font-size: 15px; pointer-events: none; display: flex; align-items: center; gap: 8px; }
+        .learning-active.theme-matcha .hl-floating-bar { background: rgba(107,142,118,0.95); }
+        .learning-active.theme-dark .hl-floating-bar { background: rgba(7,193,96,0.95); }
+        .hl-floating-bar:active { transform: translateX(-50%) scale(0.92); }
 
-        .highlighter-mode .chat-bubble { -webkit-user-select: none; user-select: none; }
+        .highlighter-mode .chat-bubble { -webkit-user-select: none; user-select: none; touch-action: none; }
         .hl-word { transition: all 0.2s; border-radius: 4px; display: inline-block; padding: 0 1px; margin: 0 -1px; }
         .highlighter-mode .hl-word { cursor: pointer; }
         .highlighter-mode .hl-word:active { transform: scale(0.95); }
         .hl-word.hl-selected { background: rgba(10, 132, 255, 0.3) !important; color: inherit; box-shadow: 0 0 0 1px rgba(10, 132, 255, 0.5); }
         .learning-active.theme-matcha .hl-word.hl-selected { background: rgba(74, 107, 82, 0.3) !important; box-shadow: 0 0 0 1px rgba(74, 107, 82, 0.5); }
         .learning-active.theme-dark .hl-word.hl-selected { background: rgba(7, 193, 96, 0.3) !important; box-shadow: 0 0 0 1px rgba(7, 193, 96, 0.5); }
+        
+        /* 2. 学习模式 Toast (最高级的不纯色磨砂灰 + 动态模糊) */
+        .learning-toast-glass { 
+            background: rgba(150, 150, 150, 0.15) !important; 
+            backdrop-filter: blur(25px) saturate(150%); 
+            -webkit-backdrop-filter: blur(25px) saturate(150%); 
+            color: var(--text-main) !important; 
+            border: 1px solid rgba(150, 150, 150, 0.2); 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08) !important; 
+            padding: 10px 22px !important; 
+            border-radius: 30px !important; 
+            font-size: 14px !important; 
+            font-weight: 500 !important; 
+            display: flex; gap: 8px; align-items: center; justify-content: center;
+        }
+
+        /* 3. 保存生词本弹窗 Modal */
+        .vocab-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 6000; opacity: 0; pointer-events: none; transition: opacity 0.3s; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+        .vocab-modal-overlay.show { opacity: 1; pointer-events: auto; }
+        .vocab-modal { width: 85%; max-width: 320px; background: var(--card-bg); border-radius: 20px; padding: 20px; transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.1, 0.8, 0.2, 1); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
+        .vocab-modal-overlay.show .vocab-modal { transform: scale(1); }
+        .vocab-modal-title { font-size: 18px; font-weight: bold; color: var(--text-main); text-align: center; margin-bottom: 4px; }
+        .vocab-textarea { width: 100%; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-color); padding: 12px; color: var(--text-main); font-size: 15px; resize: none; outline: none; transition: border-color 0.2s; }
+        .learning-active.theme-matcha .vocab-textarea:focus { border-color: #4A6B52; }
+        .learning-active.theme-dark .vocab-textarea:focus { border-color: #07C160; }
+        .vocab-btns { display: flex; gap: 10px; margin-top: 8px; }
+        .vocab-btn { flex: 1; padding: 12px; border-radius: 12px; font-weight: 600; font-size: 15px; border: none; cursor: pointer; transition: transform 0.2s; }
+        .vocab-btn-cancel { background: var(--hover-bg); color: var(--text-main); }
+        .vocab-btn-confirm { background: var(--accent); color: #fff; }
+        /* 弹窗配色自动同步 */
+        .vocab-modal-overlay.theme-matcha .vocab-btn-confirm { background: #6B8E76; color: #FFF; }
+        .vocab-modal-overlay.theme-matcha .vocab-textarea:focus { border-color: #4A6B52; }
+        .vocab-modal-overlay.theme-dark .vocab-btn-confirm { background: #07C160; color: #FFF; }
+        .vocab-modal-overlay.theme-dark .vocab-textarea:focus { border-color: #07C160; }
+        .vocab-btn:active { transform: scale(0.94); }
 
         /* 底部抽屉遮罩与发音动画 */
         .sheet-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 4999; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
@@ -2973,16 +3010,17 @@
     <!-- 聊天窗口 -->
     <div id="scene-chat" class="sub-page-scene">
         <!-- 顶部导航栏 -->
+        <div id="learning-toast" class="learning-toast-glass" style="position: absolute; top: calc(55px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%) translateY(-15px) scale(0.9); opacity: 0; pointer-events: none; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 5000;">开启全局学习模式</div>
+
         <div class="chat-nav-header" style="position: relative;">
             <i class="fas fa-chevron-left clickable" style="font-size:20px; color:var(--icon-color); z-index: 2;" onclick="hideChatWindow()"></i>
             
             <div style="position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; z-index: 1;">
                 <span class="nav-title" id="chat-title">聊天中</span>
-                <div id="learning-mode-badge" class="learning-badge" style="display: none;"><div style="display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; background-color: var(--hover-bg); border-radius: 50%; margin-top: 1px;"><i class="fa-solid fa-graduation-cap" style="color: var(--text-main); font-size: 10px;"></i></div></div>
+                <div id="learning-mode-badge" class="learning-badge" style="display: none; cursor: pointer; transition: transform 0.2s;" onclick="toggleHighlighterMode()"><div style="display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; background-color: var(--hover-bg); border-radius: 50%; margin-top: 1px;"><i class="fa-solid fa-graduation-cap" style="color: var(--text-main); font-size: 10px;"></i></div></div>
             </div>
             
             <div style="display: flex; gap: 16px; align-items: center; z-index: 2;">
-                <i class="fa-solid fa-highlighter clickable hl-toggle-btn" style="font-size:18px; color:var(--icon-color); transition: 0.2s;" onclick="toggleHighlighterMode()" title="荧光笔模式"></i>
                 <i class="fas fa-ellipsis clickable" style="font-size:20px; color:var(--icon-color);" onclick="showOptionsWindow()"></i>
             </div>
         </div>
@@ -3326,9 +3364,20 @@
         </div>
     </div>
 
-    <div id="highlighter-bar" class="hl-floating-bar">
-        <span style="font-size: 14px; font-weight: 500;">已选 <span id="hl-count" style="font-weight: bold; font-size: 16px; margin: 0 4px;">0</span> 词</span>
-        <button class="hl-save-btn" onclick="saveHighlighterWords()"><i class="fa-solid fa-folder-plus"></i> 加生词本</button>
+    <div id="highlighter-bar" class="hl-floating-bar" onclick="openVocabModal()">
+        <div class="hl-save-btn"><i class="fa-solid fa-folder-plus"></i> 添加 <span id="hl-count">0</span> 词</div>
+    </div>
+
+    <div id="vocabModalOverlay" class="vocab-modal-overlay" onclick="closeVocabModal(event)">
+        <div class="vocab-modal" onclick="event.stopPropagation()">
+            <div class="vocab-modal-title">加入生词本</div>
+            <textarea id="vocabExtractText" class="vocab-textarea" style="height: 55px;" placeholder="摘录内容..."></textarea>
+            <textarea id="vocabNoteText" class="vocab-textarea" style="height: 80px;" placeholder="添加备注 (如：用法、释义、例句等)"></textarea>
+            <div class="vocab-btns">
+                <button class="vocab-btn vocab-btn-cancel" onclick="closeVocabModal()">取消</button>
+                <button class="vocab-btn vocab-btn-confirm" onclick="confirmSaveVocab()">保存</button>
+            </div>
+        </div>
     </div>
     <div id="scene-options" class="sub-page-scene"><div class="nav-header"><span class="nav-title">设置</span><span class="clickable" onclick="hideOptionsWindow()">完成</span></div><div id="options-content"></div></div>
 
@@ -3726,7 +3775,7 @@
         2. 必须在回复的最最最后加上分隔符 \`===METADATA===\`
         3. 分隔符后，必须且只能输出一个严格的JSON对象，格式如下：
         {
-        "translation": "你刚才那段正常回复的全文精确中文翻译",
+        "translation": "你刚才那段正常回复的全文翻译（要求：必须符合中文母语者的表达习惯，极其地道自然，信达雅，绝不能有生硬的机翻感！）",
         "correction": "如果我（用户）刚才的表达有语法或语感错误，指出并给出修改建议。如果完全没问题，请输出：✨ 表达非常地道，完美！",
         "words": [
             {
@@ -14996,8 +15045,8 @@ ${chatContent}
             const sheet = document.getElementById('wordSheet');
             const backdrop = document.getElementById('wordSheetBackdrop');
             if(sheet) {
-                sheet.style.transition = 'bottom 0.4s cubic-bezier(0.1, 0.8, 0.2, 1)';
-                sheet.style.transform = 'translateY(0)'; // 清理可能存在的拖拽位移
+                sheet.style.transition = 'transform 0.4s cubic-bezier(0.1, 0.8, 0.2, 1)';
+                sheet.style.transform = ''; // 清除拖拽残留，让 CSS 的 .show 接管
                 sheet.classList.add('show');
             }
             if(backdrop) backdrop.classList.add('show');
@@ -15008,9 +15057,10 @@ ${chatContent}
             const sheet = document.getElementById('wordSheet');
             const backdrop = document.getElementById('wordSheetBackdrop');
             if(sheet) {
-                sheet.style.transition = 'bottom 0.35s cubic-bezier(0.1, 0.8, 0.2, 1), transform 0.35s ease';
-                sheet.style.transform = 'translateY(0)'; 
-                sheet.classList.remove('show'); // CSS 将接管，丝滑降下
+                // 确保动画顺滑
+                sheet.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+                sheet.style.transform = ''; 
+                sheet.classList.remove('show'); // Transform 变回 translateY(100%)，绝对丝滑
             }
             if(backdrop) backdrop.classList.remove('show');
             window.speechSynthesis.cancel(); 
@@ -15044,12 +15094,12 @@ ${chatContent}
             if (!isDraggingSheet) return;
             isDraggingSheet = false;
             const sheet = document.getElementById('wordSheet');
-            sheet.style.transition = 'transform 0.35s cubic-bezier(0.1, 0.8, 0.2, 1), bottom 0.35s';
+            sheet.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
             let deltaY = e.changedTouches[0].clientY - sheetStartY;
             if (deltaY > 60) { // 下滑超过 60px 就认定为关闭
                 closeWord();
             } else {
-                sheet.style.transform = 'translateY(0)'; // 否则自动回弹
+                sheet.style.transform = ''; // 否则自动回弹
             }
         });
 
@@ -15060,60 +15110,144 @@ ${chatContent}
         function toggleHighlighterMode() {
             isHighlighterMode = !isHighlighterMode;
             const scene = document.getElementById('scene-chat');
-            const btn = document.querySelector('.hl-toggle-btn');
-            const bar = document.getElementById('highlighter-bar');
+            const badge = document.getElementById('learning-mode-badge');
+            const toast = document.getElementById('learning-toast');
+
+            // 🌟 注入带 Icon 和丝滑 Q 弹动画的胶囊提示
+            if(toast) {
+                toast.innerHTML = isHighlighterMode ? "<i class='fa-solid fa-pen-nib'></i> 已开启摘录" : "<i class='fa-solid fa-check'></i> 已退出摘录";
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateX(-50%) translateY(0) scale(1)';
+                setTimeout(() => { 
+                    toast.style.opacity = '0'; 
+                    toast.style.transform = 'translateX(-50%) translateY(-15px) scale(0.9)'; 
+                }, 1500);
+            }
 
             if (isHighlighterMode) {
                 scene.classList.add('highlighter-mode');
-                if(btn) btn.classList.add('active');
-                if(bar) bar.classList.add('show');
+                if(badge) badge.style.transform = 'scale(1.15)'; 
                 selectedHlWords.clear();
                 updateHlCount();
                 enableHighlighterSpans();
             } else {
                 scene.classList.remove('highlighter-mode');
-                if(btn) btn.classList.remove('active');
-                if(bar) bar.classList.remove('show');
-                // 取消所有高亮
+                if(badge) badge.style.transform = 'scale(1)';
                 document.querySelectorAll('.hl-word.hl-selected').forEach(el => el.classList.remove('hl-selected'));
+                selectedHlWords.clear();
+                updateHlCount();
             }
         }
 
+        // 🌟 自动判断是否显示悬浮胶囊
         function updateHlCount() {
             const countEl = document.getElementById('hl-count');
             if(countEl) countEl.innerText = selectedHlWords.size;
+            const bar = document.getElementById('highlighter-bar');
+            if (bar) {
+                if (isHighlighterMode && selectedHlWords.size > 0) {
+                    bar.classList.add('show');
+                } else {
+                    bar.classList.remove('show');
+                }
+            }
         }
 
-        function handleHlClick(e, span) {
+        // ================= 🌟 巅峰交互：手势路径栈回溯引擎 =================
+        let isHighlightDragging = false;
+        let highlightDragMode = true; // true 为涂亮，false 为擦除
+        let currentDragPath = [];     // 记忆手指划过的历史路径
+
+        function handleHlPointerDown(e) {
             if (!isHighlighterMode) return;
-            e.stopPropagation(); // 核心：拦截原生点击事件，彻底干掉系统级复制弹窗
+            const touch = e.touches ? e.touches[0] : e;
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
             
-            span.classList.toggle('hl-selected');
-            if (span.classList.contains('hl-selected')) {
-                selectedHlWords.add(span);
-            } else {
-                selectedHlWords.delete(span);
+            if (target && target.closest('.chat-bubble')) {
+                isHighlightDragging = true;
+                if (target.classList.contains('hl-word')) {
+                    highlightDragMode = !target.classList.contains('hl-selected');
+                    currentDragPath = [target]; // 初始化起点
+                    toggleHlWord(target, highlightDragMode);
+                } else {
+                    currentDragPath = [];
+                }
             }
-            updateHlCount();
         }
+
+        function handleHlPointerMove(e) {
+            if (!isHighlighterMode || !isHighlightDragging) return;
+            
+            // 🌟 核心：屏蔽系统默认滑动，防止屏幕跟着手跑，导致涂选卡顿！
+            if (e.cancelable) e.preventDefault(); 
+
+            const touch = e.touches ? e.touches[0] : e;
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            if (target && target.classList.contains('hl-word')) {
+                // 如果还在当前单词里摩擦，不触发任何事
+                if (currentDragPath.length > 0 && target === currentDragPath[currentDragPath.length - 1]) return;
+                
+                // 🌟 核心算法：检查新碰到的词，是不是刚才已经走过的路？
+                const existingIndex = currentDragPath.indexOf(target);
+                
+                if (existingIndex !== -1) {
+                    // 触发了反向回退滑动！自动把多走的路径“撤销掉”
+                    for (let i = currentDragPath.length - 1; i > existingIndex; i--) {
+                        const elToRevert = currentDragPath[i];
+                        toggleHlWord(elToRevert, !highlightDragMode); // 强制反转刚才的操作
+                        currentDragPath.pop(); // 把退掉的词从记忆里删掉
+                    }
+                } else {
+                    // 正常往前滑动，记录进路径，并执行操作
+                    currentDragPath.push(target);
+                    toggleHlWord(target, highlightDragMode);
+                }
+            }
+        }
+
+        function handleHlPointerUp(e) {
+            if (isHighlightDragging) {
+                isHighlightDragging = false;
+                currentDragPath = []; // 清空本次拖拽的记忆
+                updateHlCount();      // 手指抬起的一瞬间，更新底下小胶囊的状态
+            }
+        }
+
+        function toggleHlWord(span, forceState) {
+            if (forceState) {
+                if (!span.classList.contains('hl-selected')) {
+                    span.classList.add('hl-selected');
+                    selectedHlWords.add(span);
+                }
+            } else {
+                if (span.classList.contains('hl-selected')) {
+                    span.classList.remove('hl-selected');
+                    selectedHlWords.delete(span);
+                }
+            }
+        }
+
+        // 绑定全局涂选监听（支持移动端和鼠标）
+        document.addEventListener('touchstart', handleHlPointerDown, {passive: false});
+        document.addEventListener('touchmove', handleHlPointerMove, {passive: false});
+        document.addEventListener('touchend', handleHlPointerUp);
+        document.addEventListener('mousedown', handleHlPointerDown);
+        document.addEventListener('mousemove', handleHlPointerMove);
+        document.addEventListener('mouseup', handleHlPointerUp);
 
         function enableHighlighterSpans() {
             const bubbles = document.querySelectorAll('.chat-bubble');
             bubbles.forEach(bubble => {
                 if (bubble.dataset.hlWrapped) return;
-                
                 const walker = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT, null, false);
                 const textNodes = [];
                 let currentNode;
-                while (currentNode = walker.nextNode()) {
-                    textNodes.push(currentNode);
-                }
+                while (currentNode = walker.nextNode()) textNodes.push(currentNode);
                 
                 textNodes.forEach(textNode => {
                     const text = textNode.nodeValue;
                     if (text.trim() === '') return;
-                    
-                    // 核心：像手术刀一样，智能把中、日文字符逐个切开，英文单词保持整体
                     const fragments = text.split(/([a-zA-Z0-9'-]+|[\u4e00-\u9fa5\u3040-\u30ff]|\s+|[^\sa-zA-Z0-9\u4e00-\u9fa5\u3040-\u30ff'-]+)/g).filter(Boolean);
                     
                     const fragmentNode = document.createDocumentFragment();
@@ -15122,9 +15256,9 @@ ${chatContent}
                             fragmentNode.appendChild(document.createTextNode(frag));
                         } else {
                             const span = document.createElement('span');
-                            span.className = 'hl-word';
+                            span.className = 'hl-word'; 
                             span.innerText = frag;
-                            span.onclick = function(e) { handleHlClick(e, this); };
+                            // 🌟 删除了单独的点击事件，全面交由滑动引擎接管
                             fragmentNode.appendChild(span);
                         }
                     });
@@ -15134,19 +15268,81 @@ ${chatContent}
             });
         }
 
-        function saveHighlighterWords() {
-            if (selectedHlWords.size === 0) {
-                alert("请先用荧光笔涂选要摘录的内容！");
-                return;
+        // 🌟 打开高级摘录弹窗 (包含智能空格与顺序还原)
+        function openVocabModal() {
+            if (selectedHlWords.size === 0) return;
+            
+            // 核心 1：不看点击顺序，严格按照网页中原本的先后顺序提取单词！
+            const selectedSpans = document.querySelectorAll('.hl-word.hl-selected');
+            let extractedText = '';
+            
+            for (let i = 0; i < selectedSpans.length; i++) {
+                if (i > 0) {
+                    const prev = selectedSpans[i-1];
+                    const curr = selectedSpans[i];
+                    
+                    if (prev.closest('.chat-bubble') !== curr.closest('.chat-bubble')) {
+                        // 跨气泡涂选，自动加回车换行
+                        extractedText += '\n';
+                    } else {
+                        // 核心 2：探测两个词之间原本是否存在空格，有的话完美补回！
+                        let node = prev.nextSibling;
+                        let spaceFound = false;
+                        while(node && node !== curr) {
+                            if (node.nodeType === Node.TEXT_NODE && /\s/.test(node.nodeValue)) {
+                                spaceFound = true; break;
+                            }
+                            node = node.nextSibling;
+                        }
+                        if (spaceFound) extractedText += ' ';
+                    }
+                }
+                extractedText += selectedSpans[i].innerText;
             }
-            // 提取选中的文本拼成一句话
-            const words = Array.from(selectedHlWords).map(span => span.innerText);
-            const combinedText = words.join(''); 
             
-            // 这里你可以将其推送到你的"生词本 localStorage"中
-            alert(`✅ 已截取并准备添加到生词本：\n\n「${combinedText}」`);
+            document.getElementById('vocabExtractText').value = extractedText;
+            document.getElementById('vocabNoteText').value = ""; 
             
-            toggleHighlighterMode(); // 存完自动优雅收起
+            const modal = document.getElementById('vocabModalOverlay');
+            if(modal) {
+                // 核心 3：弹窗精准同步当前聊天气泡的主题色
+                const scene = document.getElementById('scene-chat');
+                modal.classList.remove('theme-matcha', 'theme-dark');
+                if (scene.classList.contains('theme-matcha')) modal.classList.add('theme-matcha');
+                if (scene.classList.contains('theme-dark')) modal.classList.add('theme-dark');
+                
+                modal.classList.add('show');
+            }
+        }
+
+        function closeVocabModal(e) {
+            if (e && e.target !== document.getElementById('vocabModalOverlay')) return;
+            const modal = document.getElementById('vocabModalOverlay');
+            if(modal) modal.classList.remove('show');
+        }
+
+        // 🌟 确认保存：不清模式，只清选区，方便继续学习
+        function confirmSaveVocab() {
+            const text = document.getElementById('vocabExtractText').value;
+            const note = document.getElementById('vocabNoteText').value;
+            if (!text.trim()) { alert("摘录内容不能为空"); return; }
+            
+            // 这里以后可以接生词本保存逻辑
+            console.log("保存生词:", { text, note });
+            
+            const toast = document.getElementById('learning-toast');
+            if(toast) {
+                toast.innerText = "✅ 已加入生词本";
+                toast.style.opacity = '1'; toast.style.transform = 'translateX(-50%) translateY(0)';
+                setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(-50%) translateY(-20px)'; }, 1500);
+            }
+
+            closeVocabModal();
+            
+            // 清理已高亮的词，但不退出模式
+            document.querySelectorAll('.hl-word.hl-selected').forEach(el => el.classList.remove('hl-selected'));
+            selectedHlWords.clear();
+            updateHlCount();
         }
         
     </script>
