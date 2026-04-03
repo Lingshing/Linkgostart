@@ -3778,7 +3778,7 @@
         2. 必须在回复的最最最后加上分隔符 \`===METADATA===\`
         3. 分隔符后，必须且只能输出一个严格的JSON对象，格式如下：
         {
-        "translations": ["气泡1的翻译", "气泡2的翻译"], // 必须是地道的中文表达。必须将中文翻译拆分成数组，每一项必须与你用 \\ 切断的短小气泡严格、一一对应！
+        "translation": "你刚才那段正常回复的全文翻译（要求：必须符合中文母语者的表达习惯，极其地道自然，信达雅，绝不能有生硬的机翻感！）",
         "correction": "如果我（用户）刚才的表达有语法或语感错误，指出并给出修改建议。如果完全没问题，请输出：✨ 表达非常地道，完美！",
         "words": [
             {
@@ -3853,18 +3853,14 @@
                     }
  
                     if (onComplete) onComplete(fullMessage);
-                    if (fullMessage) {
-                        distributeAndQueueBubbles(contactId, fullMessage);
-                    }
-                } else {
-                    const data = await response.json();
-                    const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
-                    
-                    if (onComplete) onComplete(aiReply);
-                    if (aiReply) {
-                        distributeAndQueueBubbles(contactId, aiReply);
-                    }
-                }
+                        if (fullMessage) distributeAndQueueBubbles(contactId, fullMessage);
+                        } else {
+                            const data = await response.json();
+                            const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
+                            
+                            if (onComplete) onComplete(aiReply);
+                            if (aiReply) distributeAndQueueBubbles(contactId, aiReply);
+                        }
             } catch (error) {
                 if (onError) onError(error);
             }
@@ -3920,7 +3916,7 @@
         2. 必须在回复的最最最后加上分隔符 \`===METADATA===\`
         3. 分隔符后，必须且只能输出一个严格的JSON对象，格式如下：
         {
-        "translations": ["气泡1的翻译", "气泡2的翻译"],
+        "translation": "你刚才那段正常回复的全文精确中文翻译",
         "correction": "如果我（用户）刚才的表达有语法或语感错误，指出并给出修改建议。如果没问题，请输出：✨ 表达非常地道，完美！",
         "words": [
             {
@@ -4004,17 +4000,13 @@
                     }
                     
                     if (onComplete) onComplete(fullMessage);
-                    if (fullMessage) {
-                        distributeAndQueueBubbles(currentChatContactId, fullMessage);
-                    }
+                    if (fullMessage) distributeAndQueueBubbles(currentChatContactId, fullMessage);
                 } else {
                     const data = await response.json();
                     const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
                     
                     if (onComplete) onComplete(aiReply);
-                    if (aiReply) {
-                        distributeAndQueueBubbles(currentChatContactId, aiReply);
-                    }
+                    if (aiReply) distributeAndQueueBubbles(currentChatContactId, aiReply);
                 }
             } catch (error) {
                 if (error.name === 'AbortError') return;
@@ -8395,7 +8387,7 @@ ${chatContent}
             }
         }
 
-        // 🌟 终极完美版：气泡智能分发中枢
+        // 🌟 升级版：气泡智能分发中枢
         function distributeAndQueueBubbles(contactId, fullMessage) {
             if (!fullMessage) return;
 
@@ -8413,21 +8405,16 @@ ${chatContent}
                 }
             }
 
-            // 💡 魔法 1：实时无感更新批改！直接找到用户的批改框，把批改内容塞进去，彻底告别刷新闪烁！
-            if (metaObj && metaObj.correction) {
-                const userFeedbackBoxes = document.querySelectorAll('.chat-message.user .feedback-content');
-                if (userFeedbackBoxes.length > 0) {
-                    const lastUserFeedback = userFeedbackBoxes[userFeedbackBoxes.length - 1];
-                    if(lastUserFeedback.innerHTML.includes('正在等待AI批改')) {
-                        lastUserFeedback.innerHTML = metaObj.correction;
-                    }
-                }
-            }
-
             // 2. 调用气泡分隔函数
             const sentences = typeof splitTextIntoSentences === 'function' ? splitTextIntoSentences(displayMsg) : [displayMsg];
 
-            // 3. 循环每个气泡，精确投递专属数据
+            // 3. 尝试把一整段翻译也切分成多句，以便对应每个气泡
+            let translations = [];
+            if (metaObj && metaObj.translation) {
+                translations = metaObj.translation.split(/(?<=[。！？！?])/).map(s => s.trim()).filter(s => s);
+            }
+
+            // 4. 循环每个气泡，精确投递专属数据
             sentences.forEach((sentence, index) => {
                 let textToSave = sentence.trim();
                 if (!textToSave) return;
@@ -8435,19 +8422,23 @@ ${chatContent}
                 if (metaObj) {
                     let singleMeta = {};
                     
-                    // 💡 魔法 2：【完美分配翻译】直接读取 AI 传回的翻译数组，实现气泡与翻译的 100% 一一对应！
-                    if (metaObj.translations && Array.isArray(metaObj.translations)) {
-                        if (index < metaObj.translations.length) {
-                            singleMeta.translation = metaObj.translations[index];
-                        } else {
-                            singleMeta.translation = metaObj.translations[metaObj.translations.length - 1];
+                    // 【分配翻译】：尽量一一对应，剩下的全给最后一个气泡
+                    if (translations.length > 0) {
+                        if (index < sentences.length - 1 && index < translations.length) {
+                            singleMeta.translation = translations[index];
+                        } else if (index === sentences.length - 1) {
+                            singleMeta.translation = translations.slice(index).join(' ');
+                        } else if (index >= translations.length) {
+                            singleMeta.translation = "🌐 (接上文)";
                         }
-                    } else if (metaObj.translation) {
-                        // 兼容老版本的一长段翻译
-                        singleMeta.translation = index === 0 ? metaObj.translation : "🌐 (接上文)";
+                    }
+                    
+                    // 【分配批改】：只给第一个气泡（因为它负责向回寻找用户上一句话）
+                    if (index === 0 && metaObj.correction) {
+                        singleMeta.correction = metaObj.correction;
                     }
 
-                    // 【精确分配生词】
+                    // 【分配生词】：只有实实在在出现在这个气泡里的生词，才放进去！
                     if (metaObj.words && metaObj.words.length > 0) {
                         let sentenceWords = metaObj.words.filter(w => {
                             return sentence.toLowerCase().includes(w.w.toLowerCase());
@@ -8457,6 +8448,7 @@ ${chatContent}
                         }
                     }
 
+                    // 封装好数据
                     if (Object.keys(singleMeta).length > 0) {
                         textToSave += '\n\n===METADATA===\n' + JSON.stringify(singleMeta);
                     }
@@ -8520,7 +8512,15 @@ ${chatContent}
             
             window.AI_BUBBLE_QUEUE[contactId].isProcessing = false;
 
-    
+            // 🌟 核心修复：气泡全部吐完后，立刻刷新一次当前聊天界面，让用户的批改结果和AI的点读按钮实时显现！
+            setTimeout(() => {
+                if (document.getElementById('scene-chat').classList.contains('show')) {
+                    renderChatMessages(contactId);
+                    scrollToBottom();
+                }
+            }, 100);
+
+            // 队列彻底结束，触发记忆总结
             const contactObj = mockContacts.find(c => c.id === contactId);
             if (contactObj) simulateMemorySummary(contactObj).catch(e => console.error(e));
         }
