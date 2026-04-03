@@ -16,11 +16,13 @@ jobs:
       with:
         node-version: '20'
 
-    - name: 安装 Capacitor 环境、键盘插件并创建占位目录
+    - name: 安装依赖与 Python 图像库
       run: |
         npm init -y
-        # ✨ 终极修复：安装专门针对外卖抢单、跑步记录的真·后台保活强力社区定位插件！
+        # ✨ 安装所需插件
         npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 @capacitor/app@6 @capawesome/capacitor-background-task@6 @capacitor/local-notifications@6 @capacitor-community/background-geolocation @capacitor/splash-screen@6        
+        # ✨ 必须安装这个库！这是切圆角的终极武器
+        pip install Pillow
         mkdir -p www
         echo "Linkgo" > www/index.html
 
@@ -47,12 +49,8 @@ jobs:
               "launchAutoHide": true,
               "backgroundColor": "#FFFFFF",
               "showSpinner": false,
-              "androidScaleType": "CENTER_CROP",
-              "iosSpinnerStyle": "small",
               "splashFullScreen": true,
               "splashImmersive": true,
-              "layoutName": "launch_screen",
-              "useDialog": false,
               "iosSplashCornerRadius": 13,
               "iosSplashImageContentMode": "center" 
             }
@@ -60,31 +58,43 @@ jobs:
         }
         EOF
 
-    - name: 生成 iOS 工程与自动切图标 (含无感定位保活修复)
+    - name: 生成 iOS 工程与【物理切出完美圆角】
       run: |
         npx cap add ios
-        
-        # ✨ 图标修复魔法：自动把你的 linkgo-icon.jpg 裁切成苹果需要的几十个尺寸！
         npm install @capacitor/assets --save-dev
         mkdir -p assets
+        
+        # 1. 转成 png
         sips -s format png linkgo-icon.jpg --out assets/icon.png
+        
+        # 2. ✨ 黑科技：让 Python 在服务器上硬生生把四个角锯掉！
+        python3 - <<EOF
+        from PIL import Image, ImageDraw
+        img = Image.open('assets/icon.png').convert("RGBA")
+        size = img.size
+        mask = Image.new('L', size, 0)
+        draw = ImageDraw.Draw(mask)
+        # iOS 完美圆角比例 22.5%
+        r = int(size[0] * 0.225)
+        draw.rounded_rectangle((0, 0, size[0], size[1]), radius=r, fill=255)
+        img.putalpha(mask)
+        img.save('assets/icon.png')
+        EOF
+        
+        # 3. 基于已经切好圆角的图片，生成所有启动图
         npx @capacitor/assets generate --ios
         
         npx cap sync ios
         
-        # ✨ 注册 linkgo:// 专属唤醒协议
+        # ✨ 权限注入
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string linkgo" ios/App/App/Info.plist || true
-        
-        # ✨ 核心魔法：注入后台定位权限 (真正抗击杀的保活必需品，取代没用的音频保活)
         /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string location" ios/App/App/Info.plist || true
-        
-        # ✨ 注入苹果强制要求的定位提示语（必须加，否则一申请权限就闪退）
-        /usr/libexec/PlistBuddy -c "Add :NSLocationAlwaysAndWhenInUseUsageDescription string '需要使用定位服务以保持后台连接，确保您能随时接收最新消息'" ios/App/App/Info.plist || true
-        /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string '需要使用定位服务以保持后台连接，确保您能随时接收最新消息'" ios/App/App/Info.plist || true
+        /usr/libexec/PlistBuddy -c "Add :NSLocationAlwaysAndWhenInUseUsageDescription string '需要使用定位服务以保持后台连接'" ios/App/App/Info.plist || true
+        /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string '需要使用定位服务以保持后台连接'" ios/App/App/Info.plist || true
 
     - name: 编译无签名 iOS App
       run: |
