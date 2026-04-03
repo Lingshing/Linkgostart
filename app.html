@@ -2392,7 +2392,7 @@
         .learning-active.theme-dark .show-words .clickable-word:active { background: rgba(7, 193, 96, 0.2); }
 
         /* 🎨 生词抽屉双色同步 & 极致毛玻璃质感 (丝滑 Transform 引擎) */
-        .bottom-sheet { position: fixed; bottom: 0; left: 0; width: 100%; border-radius: 24px 24px 0 0; padding: 24px 20px; box-shadow: 0 -10px 25px rgba(0,0,0,0.1); z-index: 5000; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1); backdrop-filter: blur(35px); -webkit-backdrop-filter: blur(35px); }
+        .bottom-sheet { position: fixed; bottom: 0; left: 0; width: 100%; border-radius: 24px 24px 0 0; padding: 24px 20px; box-shadow: 0 -10px 25px rgba(0,0,0,0.1); z-index: 5000; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1); backdrop-filter: blur(35px); -webkit-backdrop-filter: blur(35px); }
         .bottom-sheet.show { transform: translateY(0); }
 
         .bottom-sheet.theme-matcha { background: rgba(244,248,244,0.65); color: #2C3E35; border-top: 0.5px solid rgba(255,255,255,0.6); }
@@ -2415,6 +2415,8 @@
         .hl-floating-bar:active { transform: translateX(-50%) scale(0.92); }
 
         .highlighter-mode .chat-bubble { -webkit-user-select: none; user-select: none; touch-action: none; }
+        /* 🌟 摘录模式下自动隐身所有小工具和重新生成按钮，彻底防止误触 */
+        .highlighter-mode .regenerate-btn, .highlighter-mode .tools { pointer-events: none !important; opacity: 0 !important; transform: scale(0.8); transition: all 0.3s cubic-bezier(0.32, 0.72, 0, 1); }
         .hl-word { transition: all 0.2s; border-radius: 4px; display: inline-block; padding: 0 1px; margin: 0 -1px; }
         .highlighter-mode .hl-word { cursor: pointer; }
         .highlighter-mode .hl-word:active { transform: scale(0.95); }
@@ -15057,10 +15059,10 @@ ${chatContent}
             const sheet = document.getElementById('wordSheet');
             const backdrop = document.getElementById('wordSheetBackdrop');
             if(sheet) {
-                // 确保动画顺滑
-                sheet.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+                // 🌟 使用更柔和的阻尼动画曲线
+                sheet.style.transition = 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)';
                 sheet.style.transform = ''; 
-                sheet.classList.remove('show'); // Transform 变回 translateY(100%)，绝对丝滑
+                sheet.classList.remove('show'); 
             }
             if(backdrop) backdrop.classList.remove('show');
             window.speechSynthesis.cancel(); 
@@ -15094,7 +15096,7 @@ ${chatContent}
             if (!isDraggingSheet) return;
             isDraggingSheet = false;
             const sheet = document.getElementById('wordSheet');
-            sheet.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+            sheet.style.transition = 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)';
             let deltaY = e.changedTouches[0].clientY - sheetStartY;
             if (deltaY > 60) { // 下滑超过 60px 就认定为关闭
                 closeWord();
@@ -15160,8 +15162,9 @@ ${chatContent}
 
         function handleHlPointerDown(e) {
             if (!isHighlighterMode) return;
-            const touch = e.touches ? e.touches[0] : e;
-            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (e.pointerType === 'mouse' && e.button !== 0) return; // 忽略鼠标右键
+            
+            const target = document.elementFromPoint(e.clientX, e.clientY);
             
             if (target && target.closest('.chat-bubble')) {
                 isHighlightDragging = true;
@@ -15177,29 +15180,22 @@ ${chatContent}
 
         function handleHlPointerMove(e) {
             if (!isHighlighterMode || !isHighlightDragging) return;
-            
-            // 🌟 核心：屏蔽系统默认滑动，防止屏幕跟着手跑，导致涂选卡顿！
             if (e.cancelable) e.preventDefault(); 
 
-            const touch = e.touches ? e.touches[0] : e;
-            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            const target = document.elementFromPoint(e.clientX, e.clientY);
             
             if (target && target.classList.contains('hl-word')) {
-                // 如果还在当前单词里摩擦，不触发任何事
                 if (currentDragPath.length > 0 && target === currentDragPath[currentDragPath.length - 1]) return;
                 
-                // 🌟 核心算法：检查新碰到的词，是不是刚才已经走过的路？
                 const existingIndex = currentDragPath.indexOf(target);
                 
                 if (existingIndex !== -1) {
-                    // 触发了反向回退滑动！自动把多走的路径“撤销掉”
                     for (let i = currentDragPath.length - 1; i > existingIndex; i--) {
                         const elToRevert = currentDragPath[i];
-                        toggleHlWord(elToRevert, !highlightDragMode); // 强制反转刚才的操作
-                        currentDragPath.pop(); // 把退掉的词从记忆里删掉
+                        toggleHlWord(elToRevert, !highlightDragMode); 
+                        currentDragPath.pop(); 
                     }
                 } else {
-                    // 正常往前滑动，记录进路径，并执行操作
                     currentDragPath.push(target);
                     toggleHlWord(target, highlightDragMode);
                 }
@@ -15209,32 +15205,16 @@ ${chatContent}
         function handleHlPointerUp(e) {
             if (isHighlightDragging) {
                 isHighlightDragging = false;
-                currentDragPath = []; // 清空本次拖拽的记忆
-                updateHlCount();      // 手指抬起的一瞬间，更新底下小胶囊的状态
+                currentDragPath = []; 
+                updateHlCount();      
             }
         }
 
-        function toggleHlWord(span, forceState) {
-            if (forceState) {
-                if (!span.classList.contains('hl-selected')) {
-                    span.classList.add('hl-selected');
-                    selectedHlWords.add(span);
-                }
-            } else {
-                if (span.classList.contains('hl-selected')) {
-                    span.classList.remove('hl-selected');
-                    selectedHlWords.delete(span);
-                }
-            }
-        }
-
-        // 绑定全局涂选监听（支持移动端和鼠标）
-        document.addEventListener('touchstart', handleHlPointerDown, {passive: false});
-        document.addEventListener('touchmove', handleHlPointerMove, {passive: false});
-        document.addEventListener('touchend', handleHlPointerUp);
-        document.addEventListener('mousedown', handleHlPointerDown);
-        document.addEventListener('mousemove', handleHlPointerMove);
-        document.addEventListener('mouseup', handleHlPointerUp);
+        // 🌟 统一使用现代的 Pointer API，彻底解决移动端"点击双重触发"的幽灵 Bug
+        document.addEventListener('pointerdown', handleHlPointerDown, {passive: false});
+        document.addEventListener('pointermove', handleHlPointerMove, {passive: false});
+        document.addEventListener('pointerup', handleHlPointerUp);
+        document.addEventListener('pointercancel', handleHlPointerUp);
 
         function enableHighlighterSpans() {
             const bubbles = document.querySelectorAll('.chat-bubble');
