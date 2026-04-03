@@ -2415,16 +2415,7 @@
         .theme-option.active .color-circle { box-shadow: 0 0 0 2px var(--card-bg), 0 0 0 4px #0A84FF, inset 0 0 0 1px rgba(0,0,0,0.05); }
         .theme-label { font-size: 12px; color: var(--text-sub); transition: 0.2s; }
 
-        /* === 终极修复：彻底粉碎 Safari/Flexbox 的单字符挤压换行 Bug === */
-        .chat-message .chat-bubble,
-        div.chat-bubble {
-            word-wrap: break-word !important;
-            word-break: normal !important;      /* 严禁随地乱断字，必须保持单词完整 */
-            overflow-wrap: anywhere !important; /* 只有遇到超长链接才会强行打断 */
-            white-space: pre-wrap !important;   /* 保持正常的换行和空格 */
-            width: max-content !important;      /* 强行按照文字实际所需的宽度撑开！ */
-            max-width: 100% !important;         /* 最大不超过气泡外壳，超出才正常换行 */
-        }
+        
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
@@ -6226,6 +6217,7 @@ ${chatContent}
                 contact.isLearningMode = !contact.isLearningMode;
                 saveToLocal();
                 updateChatModeUI(); 
+                renderChatList(); // 🌟 核心：立刻刷新外部列表，瞬间显示/隐藏小帽子
             }
         }
 
@@ -7612,8 +7604,11 @@ ${chatContent}
                     </div>
                     
                     <div class="chat-item-content">
-                        <div class="chat-item-name">${contact.name}</div>
-                        <div class="chat-item-preview">${contact.lastMsg}</div>
+                        <div class="chat-item-name" style="display: flex; align-items: center; gap: 4px;">
+                            ${contact.name}
+                            ${contact.isLearningMode ? '<div style="display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; background-color: var(--hover-bg); border-radius: 50%; margin-top: 1px;"><i class="fa-solid fa-graduation-cap" style="color: var(--text-main); font-size: 10px;"></i></div>' : ''}
+                        </div>
+                        <div class="chat-item-preview">${contact.lastMsg || '暂无消息'}</div>
                     </div>
                     
                     <div class="chat-item-meta">
@@ -8023,7 +8018,7 @@ ${chatContent}
 
                         messageDiv.innerHTML = `
                             ${avatarHtml}
-                            <div style="display: flex; flex-direction: column; max-width: 85%; align-items: flex-end;">
+                            <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-end;">
                                 <div class="chat-bubble" style="text-align: left;">${escapeHtml(msg.content)}</div>
                                 <div class="tools">
                                     <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="批改"><i class="fa-solid fa-pen-nib"></i></div>
@@ -8091,7 +8086,7 @@ ${chatContent}
 
                         messageDiv.innerHTML = `
                             ${avatarHtml}
-                            <div style="display: flex; flex-direction: column; max-width: 85%; align-items: flex-start; position: relative;">
+                            <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-start; position: relative;">
                                 <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
                                 <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
                                 <div class="tools">
@@ -8628,7 +8623,7 @@ ${chatContent}
             if (!isUser) {
                 messageDiv.innerHTML = `
                     ${avatarHtml}
-                    <div style="display: flex; flex-direction: column; max-width: 85%; position: relative;">
+                    <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-start; position: relative;">
                         <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${escapeHtml(content)}</div>
                         <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
                         <div class="tools">
@@ -8643,7 +8638,7 @@ ${chatContent}
             } else {
                 messageDiv.innerHTML = `
                     ${avatarHtml}
-                    <div style="display: flex; flex-direction: column; max-width: 85%;">
+                    <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-end;">
                         <div class="chat-bubble">${escapeHtml(content)}</div>
                         <div class="tools">
                             <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="批改"><i class="fa-solid fa-pen-nib"></i></div>
@@ -15121,6 +15116,14 @@ ${chatContent}
         function toggleFeedback(msgId, btnElement) {
             const msgEl = document.getElementById(msgId + '-container');
             if(msgEl) {
+                // 🌟 互斥逻辑：如果点读模式正开着，先强行关掉它
+                if (msgEl.classList.contains('show-words')) {
+                    msgEl.classList.remove('show-words');
+                    const wordsIcon = msgEl.querySelector('.fa-book-open');
+                    if (wordsIcon && wordsIcon.parentElement) wordsIcon.parentElement.classList.remove('active');
+                    closeWord(); // 关掉底部的单词抽屉
+                }
+                
                 msgEl.classList.toggle('show-feedback');
                 btnElement.classList.toggle('active');
             }
@@ -15130,6 +15133,13 @@ ${chatContent}
         function toggleWordsMode(msgId, btnElement) {
             const msgEl = document.getElementById(msgId + '-container');
             if(msgEl) {
+                // 🌟 互斥逻辑：如果翻译/批改模式正开着，先强行关掉它
+                if (msgEl.classList.contains('show-feedback')) {
+                    msgEl.classList.remove('show-feedback');
+                    const fbIcon = msgEl.querySelector('.fa-language') || msgEl.querySelector('.fa-pen-nib');
+                    if (fbIcon && fbIcon.parentElement) fbIcon.parentElement.classList.remove('active');
+                }
+
                 msgEl.classList.toggle('show-words'); 
                 btnElement.classList.toggle('active'); 
                 if (!msgEl.classList.contains('show-words')) {
