@@ -8368,9 +8368,26 @@ ${chatContent}
         window.AI_BUBBLE_QUEUE = window.AI_BUBBLE_QUEUE || {};
 
         function startGlobalBubbleQueue(contactId, fullText) {
-            let sentences = splitTextIntoSentences(fullText);
+            let displayMsg = fullText;
+            let metaData = '';
+            
+            // 🌟 核心升级：先把隐藏的生词本和翻译数据剥离出来保护好
+            if (fullText.includes('===METADATA===')) {
+                const parts = fullText.split('===METADATA===');
+                displayMsg = parts[0].trim();
+                metaData = '\n\n===METADATA===' + parts[1];
+            }
+
+            // 此时再安全地切分纯文字
+            let sentences = splitTextIntoSentences(displayMsg);
             sentences = sentences.map(s => s.replace(/\\/g, '').trim()).filter(s => s.length > 0);
-            if (sentences.length === 0) sentences = [fullText];
+            
+            if (sentences.length === 0) sentences = [displayMsg];
+            
+            // 把保护好的生词本数据原封不动地挂在最后一个气泡上
+            if (metaData && sentences.length > 0) {
+                sentences[sentences.length - 1] += metaData;
+            }
             
             if (!window.AI_BUBBLE_QUEUE[contactId]) {
                 window.AI_BUBBLE_QUEUE[contactId] = { sentences: [], isProcessing: false };
@@ -8866,32 +8883,8 @@ ${chatContent}
                     backgroundAIReply.contactId = null;
                     
                     if (finalFullMessage) {
-                    let displayMsg = finalFullMessage;
-                    let metaData = '';
-                    
-                    // 1. 剥离生词本的抽屉数据
-                    if (finalFullMessage.includes('===METADATA===')) {
-                        const parts = finalFullMessage.split('===METADATA===');
-                        displayMsg = parts[0].trim();
-                        metaData = '\n\n===METADATA===' + parts[1];
-                    }
-                    
-                    // 2. 调用你代码里写好的气泡分隔引擎！
-                    const sentences = typeof splitTextIntoSentences === 'function' ? splitTextIntoSentences(displayMsg) : [displayMsg];
-                    
-                    if (sentences.length > 0) {
-                        sentences.forEach((sentence, index) => {
-                            let textToSave = sentence.trim();
-                            // 把隐藏的生词数据挂在最后一个气泡上
-                            if (index === sentences.length - 1 && metaData) textToSave += metaData;
-                            // 3. 将每个切分好的气泡作为独立对话保存！
-                            if (textToSave) addMessage(currentChatContactId, 'assistant', textToSave);
-                        });
-                        updateChatListLastMessage(currentChatContactId, sentences[sentences.length - 1]);
-                    } else {
-                        addMessage(currentChatContactId, 'assistant', finalFullMessage);
-                    }
-                    handleFinalAIResponse(currentChatContactId, finalFullMessage);
+                    // 彻底激活你的全局呼吸气泡排队引擎！
+                    startGlobalBubbleQueue(currentChatContactId, finalFullMessage);
                 }
                     
                 } else {
@@ -9993,6 +9986,18 @@ ${chatContent}
                 (fullMessage) => {
                     backgroundAIReply.fullMessage = fullMessage; 
                     backgroundAIReply.inProgress = false;
+                    const targetId = backgroundAIReply.contactId || currentChatContactId;
+                    backgroundAIReply.contactId = null;
+
+                    // 🌟 关键：这里不再手动 addMessage，而是交给你的排队系统一个个弹出来
+                    if (fullMessage) {
+                        startGlobalBubbleQueue(targetId, fullMessage);
+                    }
+                    
+                    if (typeof handleFinalAIResponse === 'function') {
+                        handleFinalAIResponse(targetId, fullMessage);
+                    }
+                },
                     const targetId = backgroundAIReply.contactId || currentChatContactId;
                     backgroundAIReply.contactId = null;
 
