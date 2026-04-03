@@ -3853,14 +3853,18 @@
                     }
  
                     if (onComplete) onComplete(fullMessage);
-                        if (fullMessage) distributeAndQueueBubbles(contactId, fullMessage);
-                        } else {
-                            const data = await response.json();
-                            const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
-                            
-                            if (onComplete) onComplete(aiReply);
-                            if (aiReply) distributeAndQueueBubbles(contactId, aiReply);
-                        }
+                    if (fullMessage) {
+                        distributeAndQueueBubbles(contactId, fullMessage);
+                    }
+                } else {
+                    const data = await response.json();
+                    const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
+                    
+                    if (onComplete) onComplete(aiReply);
+                    if (aiReply) {
+                        distributeAndQueueBubbles(contactId, aiReply);
+                    }
+                }
             } catch (error) {
                 if (onError) onError(error);
             }
@@ -4000,13 +4004,17 @@
                     }
                     
                     if (onComplete) onComplete(fullMessage);
-                    if (fullMessage) distributeAndQueueBubbles(currentChatContactId, fullMessage);
+                    if (fullMessage) {
+                        distributeAndQueueBubbles(currentChatContactId, fullMessage);
+                    }
                 } else {
                     const data = await response.json();
                     const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
                     
                     if (onComplete) onComplete(aiReply);
-                    if (aiReply) distributeAndQueueBubbles(currentChatContactId, aiReply);
+                    if (aiReply) {
+                        distributeAndQueueBubbles(currentChatContactId, aiReply);
+                    }
                 }
             } catch (error) {
                 if (error.name === 'AbortError') return;
@@ -8410,7 +8418,9 @@ ${chatContent}
                 const userFeedbackBoxes = document.querySelectorAll('.chat-message.user .feedback-content');
                 if (userFeedbackBoxes.length > 0) {
                     const lastUserFeedback = userFeedbackBoxes[userFeedbackBoxes.length - 1];
-                    lastUserFeedback.innerHTML = metaObj.correction;
+                    if(lastUserFeedback.innerHTML.includes('正在等待AI批改')) {
+                        lastUserFeedback.innerHTML = metaObj.correction;
+                    }
                 }
             }
 
