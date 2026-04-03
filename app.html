@@ -8006,14 +8006,19 @@ ${chatContent}
                         let uniqueMsgId = 'msg-' + Math.random().toString(36).substr(2, 9);
                         messageDiv.id = uniqueMsgId + '-container';
                         
-                        // 偷看下一条 AI 消息，提取它顺便带来的批改结果
-                        let correctionText = "💡 (正在思考或无批改...)";
+                        let correctionText = "💡 (暂无批改结果)";
                         const nextMsg = conversation[i + 1];
                         if (nextMsg && (nextMsg.role === 'assistant' || nextMsg.role === 'ai') && nextMsg.content.includes('===METADATA===')) {
                             try {
-                                const metaJson = JSON.parse(nextMsg.content.split('===METADATA===')[1].trim());
+                                let jsonStr = nextMsg.content.split('===METADATA===')[1].trim();
+                                // 🌟 强力清洗：剥除 AI 自作聪明加上的 ```json 和 ``` 标记
+                                jsonStr = jsonStr.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+                                
+                                const metaJson = JSON.parse(jsonStr);
                                 if (metaJson.correction) correctionText = "💡 " + metaJson.correction;
-                            } catch(e) {}
+                            } catch(e) {
+                                console.error("批改数据解析失败:", e);
+                            }
                         }
 
                         messageDiv.innerHTML = `
@@ -8061,7 +8066,11 @@ ${chatContent}
                             const parts = aiMsg.content.split('===METADATA===');
                             displayMsg = parts[0].trim();
                             try {
-                                const meta = JSON.parse(parts[1].trim());
+                                let jsonStr = parts[1].trim();
+                                // 🌟 强力清洗：剥除 AI 自作聪明加上的 ```json 和 ``` 标记
+                                jsonStr = jsonStr.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+                                
+                                const meta = JSON.parse(jsonStr);
                                 if (meta.translation) translationText = "🌐 " + meta.translation;
                                 
                                 // 智能划词：把原文中 AI 教的生词替换为带点击事件的标签
@@ -15112,18 +15121,10 @@ ${chatContent}
             }
         }
 
-        // --- 切换翻译/批改框 ---
+       // --- 切换翻译/批改框 ---
         function toggleFeedback(msgId, btnElement) {
             const msgEl = document.getElementById(msgId + '-container');
             if(msgEl) {
-                // 🌟 互斥逻辑：如果点读模式正开着，先强行关掉它
-                if (msgEl.classList.contains('show-words')) {
-                    msgEl.classList.remove('show-words');
-                    const wordsIcon = msgEl.querySelector('.fa-book-open');
-                    if (wordsIcon && wordsIcon.parentElement) wordsIcon.parentElement.classList.remove('active');
-                    closeWord(); // 关掉底部的单词抽屉
-                }
-                
                 msgEl.classList.toggle('show-feedback');
                 btnElement.classList.toggle('active');
             }
@@ -15133,13 +15134,6 @@ ${chatContent}
         function toggleWordsMode(msgId, btnElement) {
             const msgEl = document.getElementById(msgId + '-container');
             if(msgEl) {
-                // 🌟 互斥逻辑：如果翻译/批改模式正开着，先强行关掉它
-                if (msgEl.classList.contains('show-feedback')) {
-                    msgEl.classList.remove('show-feedback');
-                    const fbIcon = msgEl.querySelector('.fa-language') || msgEl.querySelector('.fa-pen-nib');
-                    if (fbIcon && fbIcon.parentElement) fbIcon.parentElement.classList.remove('active');
-                }
-
                 msgEl.classList.toggle('show-words'); 
                 btnElement.classList.toggle('active'); 
                 if (!msgEl.classList.contains('show-words')) {
