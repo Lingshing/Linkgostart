@@ -3928,7 +3928,28 @@
                 window.currentChatController = new AbortController();
 
                 const messages = [];
-                if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+                
+                let finalSystemPrompt = systemPrompt || "";
+                // 🎓 学习模式特权：向 AI 注入强制返回翻译/批改/生词词典的 JSON 格式
+                if (contact && contact.isLearningMode) {
+                    const learningPrompt = `
+                \n【语言学习模式指令】
+                1. 正常回复：请保持真实、地道的外语年轻人聊天口吻。如果我（用户）的话里混杂了中文，请自然地在回复的开头用括号教我怎么说。
+                2. 必须在回复的最最最后加上分隔符 \`===METADATA===\`
+                3. 分隔符后，必须且只能输出一个严格的JSON对象，格式如下：
+                {
+                "translation": "你刚才那段正常回复的全文精确中文翻译",
+                "correction": "如果我（用户）刚才的表达有语法或语感错误，指出并给出修改建议。如果没问题，请输出：✨ 表达非常地道，完美！",
+                "words": [
+                    {"w": "原文外语生词", "r": "音标或假名", "m": "中文释义"}
+                ]
+                }`;
+                    finalSystemPrompt += learningPrompt;
+                }
+
+                if (finalSystemPrompt) {
+                    messages.push({ role: 'system', content: finalSystemPrompt });
+                }
 
                 const roundLimit = GENERAL_CONFIG.memory.contextLimit || 10;
                 let startIndex = 0;
@@ -8545,11 +8566,32 @@ ${chatContent}
             if (contactObj) simulateMemorySummary(contactObj).catch(e => console.error(e));
         }
 
-        // 统一接口：替代旧的臃肿调用
+       // 统一接口：替代旧的臃肿调用
         function handleFinalAIResponse(contactId, finalFullMessage) {
             if (typeof applyRegexRules === 'function') {
                 finalFullMessage = applyRegexRules(finalFullMessage);
             }
+            
+            // 🌟 实时更新上一条用户消息的批改结果
+            if (finalFullMessage.includes('===METADATA===')) {
+                try {
+                    const jsonMatch = finalFullMessage.split('===METADATA===')[1].match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        const meta = JSON.parse(jsonMatch[0]);
+                        if (meta.correction) {
+                            const container = document.getElementById('chat-messages-container');
+                            if (container) {
+                                const userBubbles = container.querySelectorAll('.chat-message.user .feedback-box');
+                                if (userBubbles.length > 0) {
+                                    const lastUserFeedbackBox = userBubbles[userBubbles.length - 1];
+                                    lastUserFeedbackBox.innerHTML = "💡 " + meta.correction;
+                                }
+                            }
+                        }
+                    }
+                } catch(e) {}
+            }
+
             // 清理界面的呼吸气泡
             const streamCont = document.getElementById('active-stream-container');
             if (streamCont) streamCont.remove();
@@ -8588,21 +8630,68 @@ ${chatContent}
             messageDiv.id = uniqueMsgId + '-container';
             
             if (!isUser) {
+                let displayMsg = content;
+                let translationText = "(暂无翻译)";
+                
+                if (content.includes('===METADATA===')) {
+                    const parts = content.split('===METADATA===');
+                    displayMsg = parts[0].trim();
+                    try {
+                        const jsonMatch = parts[1].match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            const meta = JSON.parse(jsonMatch[0]);
+                            if (meta.translation) translationText = "🌐 " + meta.translation;
+                            
+                            let safeMsg = escapeHtml(displayMsg);
+                            if (meta.words && meta.words.length > 0) {
+                                meta.words.forEach(w => {
+                                    const safeW = escapeHtml(w.w);
+                                    const safeR = escapeHtml(w.r || '');
+                                    const safeM = escapeHtml(w.m || '');
+                                    safeMsg = safeMsg.split(safeW).join(`<span class="clickable-word" onclick="handleWordClick(event, '${safeW}', '${safeR}', '${safeM}')">${safeW}</span>`);
+                                });
+                            }
+                            displayMsg = safeMsg; 
+                        } else {
+                            displayMsg = escapeHtml(displayMsg);
+                        }
+                    } catch(e) {
+                        displayMsg = escapeHtml(displayMsg);
+                    }
+                } else {
+                    displayMsg = escapeHtml(displayMsg);
+                }
+
                 messageDiv.innerHTML = `
                     ${avatarHtml}
                     <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-start; position: relative;">
-                        <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${escapeHtml(content)}</div>
+                        <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
                         <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
                         <div class="tools">
                             <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="翻译全文"><i class="fa-solid fa-language"></i></div>
                             <div class="tool-btn" onclick="toggleWordsMode('${uniqueMsgId}', this)" title="点读模式"><i class="fa-solid fa-book-open"></i></div>
                         </div>
                         <div class="feedback-box" id="${uniqueMsgId}">
-                             (系统占位符，等待 AI 返回翻译结果...)
+                            ${translationText}
                         </div>
                     </div>
                 `;
             } else {
+                messageDiv.innerHTML = `
+                    ${avatarHtml}
+                    <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-end;">
+                        <div class="chat-bubble">${escapeHtml(content)}</div>
+                        <div class="tools">
+                            <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="批改"><i class="fa-solid fa-pen-nib"></i></div>
+                        </div>
+                        <div class="feedback-box" id="${uniqueMsgId}">
+                            💡 (正在等待AI批改...)
+                        </div>
+                    </div>
+                `;
+            }
+            return messageDiv;
+        }
                 messageDiv.innerHTML = `
                     ${avatarHtml}
                     <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-end;">
@@ -8742,10 +8831,28 @@ ${chatContent}
                 }
             }
 
-            if (systemPrompt) {
-                messages.push({ role: 'system', content: systemPrompt + injectedMemoryText });
-            } else if (injectedMemoryText) {
-                messages.push({ role: 'system', content: injectedMemoryText });
+            let finalSystemPrompt = systemPrompt || "";
+            if (injectedMemoryText) finalSystemPrompt += injectedMemoryText;
+            
+            // 🎓 学习模式特权：向 AI 注入强制返回翻译/批改/生词词典的 JSON 格式
+            if (contact.isLearningMode) {
+                const learningPrompt = `
+            \n【语言学习模式指令】
+            1. 正常回复：请保持真实、地道的外语年轻人聊天口吻，可包含适当的颜文字或流行缩写。
+            2. 必须在回复的最最最后加上分隔符 \`===METADATA===\`
+            3. 分隔符后，必须且只能输出一个严格的JSON对象，格式如下：
+            {
+            "translation": "你刚才那段正常回复的全文精确中文翻译",
+            "correction": "如果我（用户）刚才的表达有语法或语感错误，指出并给出修改建议。如果没问题，请输出：✨ 表达非常地道，完美！",
+            "words": [
+                {"w": "原文外语生词", "r": "音标或假名", "m": "中文释义"}
+            ]
+            }`;
+                finalSystemPrompt += learningPrompt;
+            }
+
+            if (finalSystemPrompt) {
+                messages.push({ role: 'system', content: finalSystemPrompt });
             }
 
             // --- 修复3：限制历史记录轮数，彻底解决响应慢和 Token 超限 429 问题 ---
