@@ -847,12 +847,11 @@
             display: inline-block;
             cursor: text;
 
-            /* 🎯 完美解决中英混排提前换行问题 */
+            /* --- 修复：强制换行，防止报错撑爆屏幕 --- */
             word-wrap: break-word;
-            overflow-wrap: break-word;
-            word-break: normal;
-            white-space: pre-wrap;
-            max-width: 100%;
+            word-break: break-all;  /* 这一句最关键 */
+            white-space: pre-wrap;  /* 保留换行格式 */
+            max-width: 100%;        /* 限制最大宽度 */
         }
         
         
@@ -2327,7 +2326,7 @@
         /* 拿在手上的标签变成深色胶囊并放大，极其有质感 */
         .todo-tag-chosen { transform: scale(1.05); background-color: var(--text-main) !important; color: var(--card-bg) !important; border-radius: 100px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: none !important; }
     
-        /* ================= 学习模式：双色自适应主题 ================= */
+        /* ================= 学习模式：4 款护眼主题 ================= */
         /* 顶部 Badge & 生词卡样式 */
         .learning-badge { font-size: 11px; padding: 4px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px; font-weight: 500; margin-left: 8px; vertical-align: middle; }
         .bottom-sheet { position: fixed; bottom: -100%; left: 0; width: 100%; background: var(--bg-color); border-radius: 24px 24px 0 0; padding: 24px 20px; box-shadow: 0 -10px 25px rgba(0,0,0,0.1); transition: bottom 0.35s ease-out; z-index: 5000; display: flex; flex-direction: column; }
@@ -2344,22 +2343,18 @@
         /* --- 小工具栏和交互样式 (平时隐藏，学习模式显示) --- */
         .tools { display: none; gap: 8px; margin-top: 6px; padding-left: 4px; }
         .learning-active .tools { display: flex; }
-        .tool-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; cursor: pointer; border-radius: 50%; transition: all 0.2s; font-size: 14px; opacity: 0.5; -webkit-tap-highlight-color: transparent; }
-        @media (hover: hover) { .tool-btn:hover { background: rgba(128,128,128,0.2); opacity: 1; } }
+        .tool-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; cursor: pointer; border-radius: 50%; transition: all 0.2s; font-size: 14px; opacity: 0.5; }
+        .tool-btn:hover { background: rgba(128,128,128,0.2); opacity: 1; }
         .tool-btn.active { opacity: 1; }
-        /* 🌟 极致丝滑的反馈框伸缩动画 (CSS Grid Hack) */
-        .feedback-box { display: grid; grid-template-rows: 0fr; margin-top: 0; opacity: 0; pointer-events: none; transition: grid-template-rows 0.35s cubic-bezier(0.25, 1, 0.5, 1), margin-top 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.35s ease; border-radius: 8px; }
-        .show-feedback .feedback-box { grid-template-rows: 1fr; margin-top: 6px; opacity: 0.9; pointer-events: auto; }
-        .feedback-content { overflow: hidden; font-size: 14px; line-height: 1.5; padding: 0 10px; }
-        .show-feedback .feedback-content { padding: 6px 10px; transition: padding 0.35s ease; }
-        
-        /* 点读单词样式 (基础过渡) */
-        .clickable-word { transition: background-color 0.2s; padding-bottom: 1px; border-bottom: 1px dashed transparent; font-weight: 500; }
+        .feedback-box { margin-top: 6px; font-size: 14px; display: none; animation: fadeIn 0.3s ease; line-height: 1.5; padding: 6px 10px; border-radius: 8px; opacity: 0.9; }
+        .show-feedback .feedback-box { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        /* 点读单词样式 */
+        .clickable-word { transition: border-color 0.3s, background-color 0.2s; padding-bottom: 1px; border-bottom: 1px dashed transparent; font-weight: 500; }
         .show-words .clickable-word { cursor: pointer; border-bottom: 1px dashed var(--text-sub); }
+        .show-words .clickable-word:active { background: var(--hover-bg); border-radius: 4px; }
 
-        /* 🌙 智能学习模式双色主题 (自动跟随深浅模式) */
-        
-        /* 1. 浅色模式：薄荷抹茶 (Matcha) */
+        /* 1. 薄荷抹茶 (Matcha) */
         .learning-active.theme-matcha, .learning-active.theme-matcha #chat-messages-container, .learning-active.theme-matcha #chat-extensions-panel { background-color: #F4F8F4 !important; }
         .learning-active.theme-matcha .chat-nav-header { background-color: rgba(244,248,244,0.9) !important; border-bottom: 1px solid #E0EBE0 !important; }
         .learning-active.theme-matcha #chat-input-bar { background-color: #F4F8F4 !important; border-top: 1px solid #E0EBE0 !important; }
@@ -2371,101 +2366,53 @@
         .learning-active.theme-matcha .chat-message.user .chat-bubble { background-color: #6B8E76 !important; color: #FFF !important; }
         .learning-active.theme-matcha .chat-message.ai .chat-bubble { background-color: #FFF !important; border: 1px solid #E0EBE0 !important; color: #2C3E35 !important; }
         .learning-active.theme-matcha .feedback-box { background: rgba(107,142,118,0.1); color: #2C3E35; }
-        .learning-active.theme-matcha .tool-btn.active { background: rgba(107,142,118,0.2); color: #4A6B52 !important; }
-        /* 🎨 抹茶点读配色 (去除了 active 时的位移) */
-        .learning-active.theme-matcha .show-words .clickable-word { border-bottom: 1px dashed #4A6B52; color: #2C3E35; }
-        .learning-active.theme-matcha .show-words .clickable-word:active { background: rgba(107,142,118,0.2); }
 
-        /* 2. 深色模式：原味深色 (Dark) */
-        .learning-active.theme-dark, .learning-active.theme-dark #chat-messages-container, .learning-active.theme-dark #chat-extensions-panel { background-color: #000000 !important; }
-        .learning-active.theme-dark .chat-nav-header { background-color: rgba(28,28,30,0.85) !important; border-bottom: 1px solid rgba(255,255,255,0.15) !important; backdrop-filter: blur(20px); }
-        .learning-active.theme-dark #chat-input-bar { background-color: #000000 !important; border-top: 1px solid rgba(255,255,255,0.15) !important; }
-        .learning-active.theme-dark .chat-nav-header *, .learning-active.theme-dark .tools { color: #FFFFFF !important; }
-        .learning-active.theme-dark .chat-input-field { background-color: #1c1c1e !important; color: #FFFFFF !important; }
-        .learning-active.theme-dark .chat-plus-btn svg { fill: #FFFFFF !important; }
-        .learning-active.theme-dark .chat-send-btn { background: #07C160 !important; color: #FFF !important; }
-        .learning-active.theme-dark .learning-badge { background: #3A3A3C; color: #07C160; }
-        .learning-active.theme-dark .chat-message.user .chat-bubble { background-color: #05A050 !important; color: #000000 !important; font-weight: 500; }
-        .learning-active.theme-dark .chat-message.ai .chat-bubble { background-color: #1c1c1e !important; border: 1px solid rgba(255,255,255,0.05) !important; color: #E5E5EA !important; }
-        .learning-active.theme-dark .feedback-box { background: rgba(255, 255, 255, 0.1); color: #E5E5EA; }
-        .learning-active.theme-dark .tool-btn.active { background: rgba(255, 255, 255, 0.2); color: #07C160 !important; }
-        /* 🎨 深色点读配色 (去除了 active 时的位移) */
-        .learning-active.theme-dark .show-words .clickable-word { border-bottom: 1px dashed #07C160; color: #07C160; }
-        .learning-active.theme-dark .show-words .clickable-word:active { background: rgba(7, 193, 96, 0.2); }
+        /* 2. 羊皮纸 (Parchment) */
+        .learning-active.theme-parchment, .learning-active.theme-parchment #chat-messages-container, .learning-active.theme-parchment #chat-extensions-panel { background-color: #FDF6E3 !important; }
+        .learning-active.theme-parchment .chat-nav-header { background-color: rgba(253,246,227,0.9) !important; border-bottom: 1px solid #EFE0C2 !important; }
+        .learning-active.theme-parchment #chat-input-bar { background-color: #FDF6E3 !important; border-top: 1px solid #EFE0C2 !important; }
+        .learning-active.theme-parchment .chat-nav-header *, .learning-active.theme-parchment .tools { color: #4A4036 !important; }
+        .learning-active.theme-parchment .chat-input-field { background-color: #FFFDF8 !important; color: #4A4036 !important; }
+        .learning-active.theme-parchment .chat-plus-btn svg { fill: #4A4036 !important; }
+        .learning-active.theme-parchment .chat-send-btn { background: #D4A373 !important; color: #FFF !important; }
+        .learning-active.theme-parchment .learning-badge { background: #F2E4C9; color: #8A7056; }
+        .learning-active.theme-parchment .chat-message.user .chat-bubble { background-color: #D4A373 !important; color: #FFF !important; }
+        .learning-active.theme-parchment .chat-message.ai .chat-bubble { background-color: #FAEDCD !important; border: 1px solid #EFE0C2 !important; color: #4A4036 !important; }
+        .learning-active.theme-parchment .feedback-box { background: rgba(212,163,115,0.15); color: #4A4036; }
 
-        /* 🎨 生词抽屉双色同步 & 极致毛玻璃质感 (丝滑 Transform 引擎) */
-        .bottom-sheet { position: fixed; bottom: 0; left: 0; width: 100%; border-radius: 24px 24px 0 0; padding: 24px 20px; box-shadow: 0 -10px 25px rgba(0,0,0,0.1); z-index: 5000; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1); backdrop-filter: blur(35px); -webkit-backdrop-filter: blur(35px); }
-        .bottom-sheet.show { transform: translateY(0); }
+        /* 3. 北欧夜航 (Nordic Night) */
+        .learning-active.theme-nordic, .learning-active.theme-nordic #chat-messages-container, .learning-active.theme-nordic #chat-extensions-panel { background-color: #2E3440 !important; }
+        .learning-active.theme-nordic .chat-nav-header { background-color: rgba(46,52,64,0.9) !important; border-bottom: 1px solid #434C5E !important; }
+        .learning-active.theme-nordic #chat-input-bar { background-color: #2E3440 !important; border-top: 1px solid #434C5E !important; }
+        .learning-active.theme-nordic .chat-nav-header *, .learning-active.theme-nordic .tools { color: #ECEFF4 !important; }
+        .learning-active.theme-nordic .chat-input-field { background-color: #3B4252 !important; color: #ECEFF4 !important; }
+        .learning-active.theme-nordic .chat-plus-btn svg { fill: #ECEFF4 !important; }
+        .learning-active.theme-nordic .chat-send-btn { background: #5E81AC !important; color: #ECEFF4 !important; }
+        .learning-active.theme-nordic .learning-badge { background: #3B4252; color: #8FBCBB; }
+        .learning-active.theme-nordic .chat-message.user .chat-bubble { background-color: #5E81AC !important; color: #ECEFF4 !important; }
+        .learning-active.theme-nordic .chat-message.ai .chat-bubble { background-color: #3B4252 !important; border: 1px solid #434C5E !important; color: #D8DEE9 !important; }
+        .learning-active.theme-nordic .feedback-box { background: rgba(136,192,208,0.1); color: #ECEFF4; }
 
-        .bottom-sheet.theme-matcha { background: rgba(244,248,244,0.65); color: #2C3E35; border-top: 0.5px solid rgba(255,255,255,0.6); }
-        .bottom-sheet.theme-matcha .sheet-handle { background: rgba(0,0,0,0.15); }
-        .bottom-sheet.theme-matcha .word-meaning, .bottom-sheet.theme-matcha .word-example { background: rgba(255,255,255,0.4); color: #2C3E35; }
-        .bottom-sheet.theme-matcha .btn-save { background: rgba(107,142,118,0.9); color: #FFF; }
+        /* 4. 暖拿铁 (Latte) */
+        .learning-active.theme-latte, .learning-active.theme-latte #chat-messages-container, .learning-active.theme-latte #chat-extensions-panel { background-color: #F5EBE0 !important; }
+        .learning-active.theme-latte .chat-nav-header { background-color: rgba(245,235,224,0.9) !important; border-bottom: 1px solid #E8DDD3 !important; }
+        .learning-active.theme-latte #chat-input-bar { background-color: #F5EBE0 !important; border-top: 1px solid #E8DDD3 !important; }
+        .learning-active.theme-latte .chat-nav-header *, .learning-active.theme-latte .tools { color: #403632 !important; }
+        .learning-active.theme-latte .chat-input-field { background-color: #FFF !important; color: #403632 !important; }
+        .learning-active.theme-latte .chat-plus-btn svg { fill: #403632 !important; }
+        .learning-active.theme-latte .chat-send-btn { background: #B59F91 !important; color: #FFF !important; }
+        .learning-active.theme-latte .learning-badge { background: #E3D5CA; color: #7B6255; }
+        .learning-active.theme-latte .chat-message.user .chat-bubble { background-color: #B59F91 !important; color: #FFF !important; }
+        .learning-active.theme-latte .chat-message.ai .chat-bubble { background-color: #FFF !important; border: 1px solid #E8DDD3 !important; color: #403632 !important; }
+        .learning-active.theme-latte .feedback-box { background: rgba(181,159,145,0.15); color: #403632; }
 
-        .bottom-sheet.theme-dark { background: rgba(28,28,30,0.65); color: #E5E5EA; border-top: 0.5px solid rgba(255,255,255,0.15); }
-        .bottom-sheet.theme-dark .sheet-handle { background: rgba(255,255,255,0.25); }
-        .bottom-sheet.theme-dark .word-meaning, .bottom-sheet.theme-dark .word-example { background: rgba(0,0,0,0.3); color: #E5E5EA; }
-        .bottom-sheet.theme-dark .btn-save { background: rgba(7,193,96,0.9); color: #FFF; }
-
-        /* === 🌟 荧光笔摘录模式样式 === */
-        /* 1. 悬浮保存胶囊 (居中防遮挡，颜色随主题变化) */
-        .hl-floating-bar { position: fixed; bottom: -100%; left: 50%; transform: translateX(-50%); padding: 10px 24px; border-radius: 30px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; transition: bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1), transform 0.2s; z-index: 4000; cursor: pointer; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-        .hl-floating-bar.show { bottom: 100px; }
-        .hl-save-btn { background: transparent; color: #fff; border: none; font-weight: 600; font-size: 15px; pointer-events: none; display: flex; align-items: center; gap: 8px; }
-        .learning-active.theme-matcha .hl-floating-bar { background: rgba(107,142,118,0.95); }
-        .learning-active.theme-dark .hl-floating-bar { background: rgba(7,193,96,0.95); }
-        .hl-floating-bar:active { transform: translateX(-50%) scale(0.92); }
-
-        .highlighter-mode .chat-bubble { -webkit-user-select: none; user-select: none; touch-action: none; }
-        /* 🌟 加上 relative 和 z-index，保证文字绝对处于最上层，绝不被遮挡 */
-        .hl-word { transition: all 0.2s; border-radius: 4px; display: inline-block; padding: 0 1px; margin: 0 -1px; position: relative; z-index: 2; }
-        .highlighter-mode .hl-word { cursor: pointer; }
-        .highlighter-mode .hl-word:active { transform: scale(0.95); }
-        .hl-word.hl-selected { background: rgba(10, 132, 255, 0.3) !important; color: inherit; box-shadow: 0 0 0 1px rgba(10, 132, 255, 0.5); }
-        .learning-active.theme-matcha .hl-word.hl-selected { background: rgba(74, 107, 82, 0.3) !important; box-shadow: 0 0 0 1px rgba(74, 107, 82, 0.5); }
-        .learning-active.theme-dark .hl-word.hl-selected { background: rgba(7, 193, 96, 0.3) !important; box-shadow: 0 0 0 1px rgba(7, 193, 96, 0.5); }
-        
-        /* 2. 学习模式 Toast (最高级的不纯色磨砂灰 + 动态模糊) */
-        .learning-toast-glass { 
-            background: rgba(150, 150, 150, 0.15) !important; 
-            backdrop-filter: blur(25px) saturate(150%); 
-            -webkit-backdrop-filter: blur(25px) saturate(150%); 
-            color: var(--text-main) !important; 
-            border: 1px solid rgba(150, 150, 150, 0.2); 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08) !important; 
-            padding: 10px 22px !important; 
-            border-radius: 30px !important; 
-            font-size: 14px !important; 
-            font-weight: 500 !important; 
-            display: flex; gap: 8px; align-items: center; justify-content: center;
-        }
-
-        /* 3. 保存生词本弹窗 Modal */
-        .vocab-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 6000; opacity: 0; pointer-events: none; transition: opacity 0.3s; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
-        .vocab-modal-overlay.show { opacity: 1; pointer-events: auto; }
-        .vocab-modal { width: 85%; max-width: 320px; background: var(--card-bg); border-radius: 20px; padding: 20px; transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.1, 0.8, 0.2, 1); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
-        .vocab-modal-overlay.show .vocab-modal { transform: scale(1); }
-        .vocab-modal-title { font-size: 18px; font-weight: bold; color: var(--text-main); text-align: center; margin-bottom: 4px; }
-        .vocab-textarea { width: 100%; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-color); padding: 12px; color: var(--text-main); font-size: 15px; resize: none; outline: none; transition: border-color 0.2s; }
-        .learning-active.theme-matcha .vocab-textarea:focus { border-color: #4A6B52; }
-        .learning-active.theme-dark .vocab-textarea:focus { border-color: #07C160; }
-        .vocab-btns { display: flex; gap: 10px; margin-top: 8px; }
-        .vocab-btn { flex: 1; padding: 12px; border-radius: 12px; font-weight: 600; font-size: 15px; border: none; cursor: pointer; transition: transform 0.2s; }
-        .vocab-btn-cancel { background: var(--hover-bg); color: var(--text-main); }
-        .vocab-btn-confirm { background: var(--accent); color: #fff; }
-        /* 弹窗配色自动同步 */
-        .vocab-modal-overlay.theme-matcha .vocab-btn-confirm { background: #6B8E76; color: #FFF; }
-        .vocab-modal-overlay.theme-matcha .vocab-textarea:focus { border-color: #4A6B52; }
-        .vocab-modal-overlay.theme-dark .vocab-btn-confirm { background: #07C160; color: #FFF; }
-        .vocab-modal-overlay.theme-dark .vocab-textarea:focus { border-color: #07C160; }
-        .vocab-btn:active { transform: scale(0.94); }
-
-        /* 底部抽屉遮罩与发音动画 */
-        .sheet-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 4999; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-        .sheet-backdrop.show { opacity: 1; pointer-events: auto; }
-        .pronounce-btn { cursor:pointer; display:inline-flex; align-items:center; gap:6px; padding: 4px 8px; margin-left: -8px; border-radius: 6px; transition: all 0.3s cubic-bezier(0.1, 0.8, 0.2, 1); }
-        /* 🌟 发音高亮：深色模式/浅色模式下都会发光变亮，轻微放大 */
-        .pronounce-btn.playing { opacity: 1 !important; color: var(--text-main) !important; text-shadow: 0 0 15px currentColor; transform: scale(1.05); }
+        /* 外观设置里的圆形选色器样式 */
+        .theme-option { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: 0.2s; opacity: 0.4; }
+        .theme-option.active { opacity: 1; }
+        .theme-option.active .theme-label { font-weight: bold; color: var(--text-main); }
+        .color-circle { width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(0,0,0,0.05); transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1); transform: translateZ(0); overflow: hidden; }
+        .theme-option.active .color-circle { box-shadow: 0 0 0 2px var(--card-bg), 0 0 0 4px #0A84FF, inset 0 0 0 1px rgba(0,0,0,0.05); }
+        .theme-label { font-size: 12px; color: var(--text-sub); transition: 0.2s; }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
@@ -2892,7 +2839,35 @@
                 </div>
             </div>
             
-            
+            <div class="api-section-title">学习模式外观</div>
+            <div class="api-input-group" style="margin: 0 20px;">
+                <div class="api-input-item" style="border-bottom: none; padding: 20px 0; justify-content: center;">
+                    <div class="theme-selector" id="learningThemeSelector" style="display: flex; gap: 24px; justify-content: center; width: 100%;">
+                        
+                        <div class="theme-option active" id="btn-theme-matcha" onclick="setLearningTheme('theme-matcha')">
+                            <div class="color-circle" style="background: linear-gradient(135deg, #F4F8F4 50%, #6B8E76 50%);"></div>
+                            <span class="theme-label">薄荷抹茶</span>
+                        </div>
+                        
+                        <div class="theme-option" id="btn-theme-parchment" onclick="setLearningTheme('theme-parchment')">
+                            <div class="color-circle" style="background: linear-gradient(135deg, #FDF6E3 50%, #D4A373 50%);"></div>
+                            <span class="theme-label">羊皮纸</span>
+                        </div>
+                        
+                        <div class="theme-option" id="btn-theme-nordic" onclick="setLearningTheme('theme-nordic')">
+                            <div class="color-circle" style="background: linear-gradient(135deg, #2E3440 50%, #5E81AC 50%);"></div>
+                            <span class="theme-label">北欧夜航</span>
+                        </div>
+                        
+                        <div class="theme-option" id="btn-theme-latte" onclick="setLearningTheme('theme-latte')">
+                            <div class="color-circle" style="background: linear-gradient(135deg, #F5EBE0 50%, #B59F91 50%);"></div>
+                            <span class="theme-label">暖拿铁</span>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
             <!-- 头像管理 -->
             <div class="api-section-title" style="margin-top: 32px;">头像管理</div>
             
@@ -3013,19 +2988,11 @@
     <!-- 聊天窗口 -->
     <div id="scene-chat" class="sub-page-scene">
         <!-- 顶部导航栏 -->
-        <div id="learning-toast" class="learning-toast-glass" style="position: absolute; top: calc(55px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%) translateY(-15px) scale(0.9); opacity: 0; pointer-events: none; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 5000;">开启全局学习模式</div>
-
-        <div class="chat-nav-header" style="position: relative;">
-            <i class="fas fa-chevron-left clickable" style="font-size:20px; color:var(--icon-color); z-index: 2;" onclick="hideChatWindow()"></i>
-            
-            <div style="position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; z-index: 1;">
-                <span class="nav-title" id="chat-title">聊天中</span>
-                <div id="learning-mode-badge" class="learning-badge" style="display: none; cursor: pointer; transition: transform 0.2s;" onclick="toggleHighlighterMode()"><div style="display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; background-color: var(--hover-bg); border-radius: 50%; margin-top: 1px;"><i class="fa-solid fa-graduation-cap" style="color: var(--text-main); font-size: 10px;"></i></div></div>
-            </div>
-            
-            <div style="display: flex; gap: 16px; align-items: center; z-index: 2;">
-                <i class="fas fa-ellipsis clickable" style="font-size:20px; color:var(--icon-color);" onclick="showOptionsWindow()"></i>
-            </div>
+        <div class="chat-nav-header">
+            <i class="fas fa-chevron-left clickable" style="font-size:20px; color:var(--icon-color);" onclick="hideChatWindow()"></i>
+            <span class="nav-title" id="chat-title">聊天中</span>
+            <div id="learning-mode-badge" class="learning-badge" style="display: none;"><i class="fa-solid fa-graduation-cap"></i> 学习模式</div>
+            <i class="fas fa-ellipsis clickable" style="font-size:20px; color:var(--icon-color);" onclick="showOptionsWindow()"></i>
         </div>
         
         <!-- 聊天消息区域 -->
@@ -3352,36 +3319,17 @@
         </div>
     </div>
     
-    <div id="wordSheetBackdrop" class="sheet-backdrop" onclick="closeWord()"></div>
-    <div id="wordSheet" class="bottom-sheet" ontouchstart="startDragSheet(event)">
-        <div class="sheet-handle" id="wordSheetHandle"></div>
+    <div id="wordSheet" class="bottom-sheet">
+        <div class="sheet-handle"></div>
         <div class="word-title" id="sheetTitle">Word</div>
-        <div class="word-pronounce" id="sheetPronounce"></div>
+        <div class="word-pronounce" id="sheetPronounce"><i class="fa-solid fa-volume-high"></i> /wɜːrd/</div>
         <div class="word-meaning" id="sheetMeaning">n. 单词，字</div>
-        
-        <div class="word-context" id="sheetContext" style="margin-top: 12px; font-size: 14px; opacity: 0.85; line-height: 1.5; display: none;"></div>
-        <div class="word-example" id="sheetExample" style="margin-top: 12px; font-size: 14px; padding: 12px; border-radius: 8px; background: var(--hover-bg); margin-bottom: 20px; line-height: 1.5; display: none;"></div>
-        
         <div class="sheet-btn-group">
-            <button class="btn-save" onclick="saveWord()" style="width: 100%;"><i class="fa-regular fa-star"></i> 加入生词本</button>
+            <button class="btn-close" onclick="closeWord()">关闭</button>
+            <button class="btn-save" onclick="saveWord()"><i class="fa-regular fa-star"></i> 收藏</button>
         </div>
     </div>
 
-    <div id="highlighter-bar" class="hl-floating-bar" onclick="openVocabModal()">
-        <div class="hl-save-btn"><i class="fa-solid fa-folder-plus"></i> 添加 <span id="hl-count">0</span> 词</div>
-    </div>
-
-    <div id="vocabModalOverlay" class="vocab-modal-overlay" onclick="closeVocabModal(event)">
-        <div class="vocab-modal" onclick="event.stopPropagation()">
-            <div class="vocab-modal-title">加入生词本</div>
-            <textarea id="vocabExtractText" class="vocab-textarea" style="height: 55px;" placeholder="摘录内容..."></textarea>
-            <textarea id="vocabNoteText" class="vocab-textarea" style="height: 80px;" placeholder="添加备注 (如：用法、释义、例句等)"></textarea>
-            <div class="vocab-btns">
-                <button class="vocab-btn vocab-btn-cancel" onclick="closeVocabModal()">取消</button>
-                <button class="vocab-btn vocab-btn-confirm" onclick="confirmSaveVocab()">保存</button>
-            </div>
-        </div>
-    </div>
     <div id="scene-options" class="sub-page-scene"><div class="nav-header"><span class="nav-title">设置</span><span class="clickable" onclick="hideOptionsWindow()">完成</span></div><div id="options-content"></div></div>
 
     
@@ -3730,77 +3678,85 @@
             saveToLocal();
         }
         
-        // --- 发送消息到API ---
+        // --- 发送消息到API (代码.html版本) ---
         async function sendMessageToAPI(contactId, userMessage, onChunk, onComplete, onError) {
+            // 验证API配置
             if (!CHAT_API_CONFIGS.currentId) {
                 if (onError) onError(new Error('请先在"我"→"API配置"中选择一个配置'));
                 return;
             }
             
             const config = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
+            // --- 修复：强制读取界面上选择的模型 ---
             const currentUiModel = document.getElementById('chat-current-model').value;
             if (currentUiModel) config.model = currentUiModel;
-            if (!config || !config.url || !config.key) {
+            if (!config) {
+                if (onError) onError(new Error('当前配置不存在，请重新选择'));
+                return;
+            }
+            
+            if (!config.url || !config.key) {
                 if (onError) onError(new Error('当前配置不完整，请检查API URL和API Key'));
                 return;
             }
             
+            // 获取当前联系人信息
             const contact = mockContacts.find(c => c.id === contactId);
             const systemPrompt = getSystemPromptWithMode(contact);
+            
+            // 构建消息数组
             const conversation = getConversation(contactId);
             const messages = [];
             
             // --- 🧠 核心RAG魔法：记忆检索引擎 ---
             let injectedMemoryText = "";
             if (contact.longMemories && contact.longMemories.length > 0) {
+                // 1. 提取当前用户消息的关键词
                 const queryKeywords = extractKeywords(userMessage);
+                
+                // 2. 提取"核心记忆" (5分及以上，比如终极设定，永远携带)
                 const coreMemories = contact.longMemories.filter(m => (m.score || 0) >= 5);
+                
+                // 3. 提取"相关记忆" (3-4分，事件和偏好，关键词模糊匹配)
                 const contextualMemories = contact.longMemories.filter(m => {
-                    if ((m.score || 0) >= 5) return false;
+                    if ((m.score || 0) >= 5) return false; // 排除已包含的核心记忆
                     if (!m.keywords) return false;
+                    
                     const keywords = Array.isArray(m.keywords) ? m.keywords : [m.keywords];
                     return keywords.some(kw => userMessage.includes(kw)) || m.content.includes(userMessage);
                 });
+                
+                // 4. 合并并格式化 (最多取5条相关，防止模型上下文过长导致幻觉)
                 const relevantMemories = [...coreMemories, ...contextualMemories.slice(0, 5)];
+                
                 if (relevantMemories.length > 0) {
                     injectedMemoryText = "\n\n【系统提示：与当前对话相关的历史档案】\n" + relevantMemories.map(m => `[${m.category || '记录'}] ${m.content}`).join('\n');
+                    console.log("🧠 [RAG引擎] 触发记忆检索，向系统提示词注入了", relevantMemories.length, "条记忆档案");
                 }
             }
 
-            let finalSystemPrompt = systemPrompt || "";
-            if (injectedMemoryText) finalSystemPrompt += injectedMemoryText;
-            
-            // 🎓 学习模式特权：向 AI 注入强制返回翻译/批改/生词词典的 JSON 格式
-            if (contact.isLearningMode) {
-                const learningPrompt = `
-        \n【语言学习模式指令】
-        1. 正常回复：请保持真实、地道的外语（如英语、日语）年轻人聊天口吻。
-        2. 必须在回复的最最最后加上分隔符 \`===METADATA===\`
-        3. 分隔符后，必须且只能输出一个严格的JSON对象，格式如下：
-        {
-        "translation": "你刚才那段正常回复的全文翻译（要求：必须符合中文母语者的表达习惯，极其地道自然，信达雅，绝不能有生硬的机翻感！）",
-        "correction": "如果我（用户）刚才的表达有语法或语感错误，指出并给出修改建议。如果完全没问题，请输出：✨ 表达非常地道，完美！",
-        "words": [
-            {
-            "w": "原文外语生词", 
-            "r": "音标或假名", 
-            "m": "核心基础释义", 
-            "c": "该词在当前语境下的精确用法/情感色彩", 
-            "e": "附带一段简短地道的使用例句（包含中文翻译）"
-            }
-        ]
-        }`;
-                finalSystemPrompt += learningPrompt;
-            }
-
-            if (finalSystemPrompt) {
-                messages.push({ role: 'system', content: finalSystemPrompt });
+            if (systemPrompt) {
+                messages.push({ role: 'system', content: systemPrompt + injectedMemoryText });
+            } else if (injectedMemoryText) {
+                messages.push({ role: 'system', content: injectedMemoryText });
             }
             
+            // 添加历史对话
             messages.push(...conversation);
             
             try {
+                console.log('=== 发送API请求 ===');
+                console.log('URL:', config.url);
+                console.log('Model:', config.model);
+                console.log('Messages:', messages.length, '条');
+                
                 let apiUrl = getStandardApiUrl(config.url, '/chat/completions');
+                
+                console.log('=== API URL处理 ===');
+                console.log('原始URL:', config.url);
+                console.log('最终API URL:', apiUrl);
+                
+                // 使用Cloudflare Worker代理
                 const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
                     method: 'POST',
                     headers: {
@@ -3808,6 +3764,7 @@
                         'Authorization': 'Bearer ' + config.key,
                         'X-Target-API': apiUrl
                     },
+
                     body: JSON.stringify({
                         model: config.model || 'gpt-3.5-turbo',
                         messages: messages,
@@ -3817,12 +3774,23 @@
                     })
                 });
                 
+                console.log('API响应状态:', response.status);
+                
                 if (!response.ok) {
-                    let errorText = await response.text().catch(e => '无法读取错误信息');
+                    let errorText = '';
+                    try {
+                        errorText = await response.text();
+                    } catch(e) {
+                        errorText = '无法读取错误信息';
+                    }
+                    console.error('=== API错误详情 ===');
+                    console.error('状态码:', response.status);
+                    console.error('错误内容:', errorText);
                     throw new Error(`API请求失败 (${response.status}): ${errorText}`);
                 }
                 
                 if (PARAM_CONFIG.stream) {
+                    // 流式响应处理
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
                     let fullMessage = '';
@@ -3830,38 +3798,73 @@
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
+                        
                         const chunk = decoder.decode(value);
                         const lines = chunk.split('\n').filter(line => line.trim());
+                        
                         for (const line of lines) {
                             if (line.startsWith('data: ')) {
                                 const data = line.slice(6);
                                 if (data === '[DONE]') continue;
+                                
                                 try {
                                     const json = JSON.parse(data);
                                     const content = json.choices[0]?.delta?.content;
+                                    
                                     if (content) {
                                         fullMessage += content;
-                                        let displayMsg = fullMessage;
-                                        if (fullMessage.includes('===METADATA===')) {
-                                            displayMsg = fullMessage.split('===METADATA===')[0].trim();
-                                        }
-                                        if (onChunk) onChunk(content, displayMsg);
+                                        if (onChunk) onChunk(content, fullMessage);
                                     }
-                                } catch (e) {}
+                                } catch (e) {
+                                    console.error('解析流数据失败:', e);
+                                }
                             }
                         }
                     }
- 
+                    
+                    // 保存完整的助手消息
+                    if (fullMessage) {
+                        addMessage(contactId, 'assistant', fullMessage);
+                    }
+                    
                     if (onComplete) onComplete(fullMessage);
-                        if (fullMessage) distributeAndQueueBubbles(contactId, fullMessage);
+                    
+                    } else {
+                        // 🎯 非流式响应处理
+                        const data = await response.json();
+                        const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
+                        
+                        // 获取消息容器
+                        const container = document.getElementById('chat-messages-container');
+                        
+                        // 🔥 创建并显示临时占位气泡
+                        const avatarHtml = generateAvatarHtml(false, contactId);
+                        
+                        
+                        // 🎯 使用分隔气泡功能显示完整消息
+                        const result = await typeMessageInMultipleBubbles(aiReply, container);
+                        
+                        // 保存消息到历史
+                        if (result.sentences && result.sentences.length > 0) {
+                            result.sentences.forEach(sentence => {
+                                addMessage(currentChatContactId, 'assistant', sentence);
+                            });
+                            const lastSentence = result.sentences[result.sentences.length - 1];
+                            updateChatListLastMessage(currentChatContactId, lastSentence);
                         } else {
-                            const data = await response.json();
-                            const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
-                            
-                            if (onComplete) onComplete(aiReply);
-                            if (aiReply) distributeAndQueueBubbles(contactId, aiReply);
+                            addMessage(currentChatContactId, 'assistant', aiReply);
+                            updateChatListLastMessage(currentChatContactId, aiReply);
                         }
+                        
+                        if (onComplete) onComplete(aiReply);
+                    }
+
+                
             } catch (error) {
+                console.error('=== 发送消息失败 ===');
+                console.error('错误类型:', error.name);
+                console.error('错误消息:', error.message);
+                
                 if (onError) onError(error);
             }
         }
@@ -3869,11 +3872,11 @@
         // --- 重新生成回复 (底层统一引擎版) ---
         let isTyping = false;
         
-        // --- 重新生成回复 ---
         async function regenerateResponse(contactId, onChunk, onComplete, onError) {
             if (!currentChatContactId) return;
             
             const conversation = getConversation(currentChatContactId);
+            
             let lastUserIndex = -1;
             for (let i = conversation.length - 1; i >= 0; i--) {
                 if (conversation[i].role === 'user') {
@@ -3898,119 +3901,260 @@
             if (isTyping) return;
             isTyping = true;
             
-            const contact = mockContacts.find(c => c.id === currentChatContactId);
-            const systemPrompt = getSystemPromptWithMode(contact);
-
-            if (window.currentChatController) {
-                window.currentChatController.abort();
-            }
-            window.currentChatController = new AbortController();
-
-            const messages = [];
-            let finalSystemPrompt = systemPrompt || "";
+            const container = document.getElementById('chat-messages-container');
             
-            if (contact && contact.isLearningMode) {
-                const learningPrompt = `
-        \n【语言学习模式指令】
-        1. 正常回复：请保持真实、地道的外语年轻人聊天口吻。如果我（用户）的话里混杂了中文，请自然地在回复的开头用括号教怎么说。
-        2. 必须在回复的最最最后加上分隔符 \`===METADATA===\`
-        3. 分隔符后，必须且只能输出一个严格的JSON对象，格式如下：
-        {
-        "translation": "你刚才那段正常回复的全文精确中文翻译",
-        "correction": "如果我（用户）刚才的表达有语法或语感错误，指出并给出修改建议。如果没问题，请输出：✨ 表达非常地道，完美！",
-        "words": [
-            {
-            "w": "原文外语生词", 
-            "r": "音标或假名", 
-            "m": "核心基础释义", 
-            "c": "该词在当前语境下的精确用法/情感色彩", 
-            "e": "附带一段简短地道的使用例句（包含中文翻译）"
-            }
-        ]
-        }`;
-                finalSystemPrompt += learningPrompt;
-            }
-
-            if (finalSystemPrompt) {
-                messages.push({ role: 'system', content: finalSystemPrompt });
-            }
+            // 🎯 使用与发消息完全相同的统一列阵容器
+            const streamContainer = document.createElement('div');
+            streamContainer.id = 'active-stream-container';
+            streamContainer.style.display = 'flex';
+            streamContainer.style.flexDirection = 'column';
+            streamContainer.style.gap = '16px';
+            streamContainer.style.width = '100%';
             
-            messages.push(...conversation);
+            const aiMessageDiv = document.createElement('div');
+            aiMessageDiv.className = 'chat-message ai';
+            const avatarHtml = generateAvatarHtml(false, currentChatContactId);
+            aiMessageDiv.innerHTML = `${avatarHtml}<div class="chat-bubble breathing-mode" id="active-typing-bubble" onclick="abortCurrentAiReply()" title="点击中止生成"></div>`;
+            streamContainer.appendChild(aiMessageDiv);
             
-            const config = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
-            const currentUiModel = document.getElementById('chat-current-model').value;
-            if (currentUiModel) config.model = currentUiModel;
-            if (!config || !config.url || !config.key) {
-                if (onError) onError(new Error('当前配置不完整'));
-                return;
-            }
-
+            backgroundAIReply.inProgress = true;
+            backgroundAIReply.contactId = currentChatContactId;
+            backgroundAIReply.fullMessage = '';
+            window.userScrolledUp = false; 
+            
+            streamContainer.style.opacity = '0';
+            streamContainer.style.transform = 'translateY(20px)';
+            container.appendChild(streamContainer);
+            
+            requestAnimationFrame(() => {
+                streamContainer.style.transition = 'opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1), transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+                streamContainer.style.opacity = '1';
+                streamContainer.style.transform = 'translateY(0)';
+            });
+            
+            scrollToBottom();
+            
             try {
-                let apiUrl = getStandardApiUrl(config.url, '/chat/completions');
-                const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + config.key,
-                        'X-Target-API': apiUrl
-                    },
-                    signal: window.currentChatController.signal,
-                    body: JSON.stringify({
-                        model: config.model || 'gpt-3.5-turbo',
-                        messages: messages,
-                        stream: PARAM_CONFIG.stream,
-                        temperature: PARAM_CONFIG.temperature,
-                        max_tokens: PARAM_CONFIG.maxTokens
-                    })
-                });
+                const config = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
+                const currentUiModel = document.getElementById('chat-current-model').value;
+                if (currentUiModel) config.model = currentUiModel;
+                if (!config) throw new Error('配置不存在');
                 
-                if (!response.ok) {
-                    let errorText = await response.text().catch(e => '无法读取错误信息');
-                    throw new Error(`API请求失败 (${response.status}): ${errorText}`);
+                const contact = mockContacts.find(c => c.id === currentChatContactId);
+                const systemPrompt = getSystemPromptWithMode(contact);
+
+                // --- 修复：截断重新生成的历史记录与添加并发控制 ---
+                if (window.currentChatController) {
+                    window.currentChatController.abort();
                 }
+                window.currentChatController = new AbortController();
+
+                const messages = [];
+                if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+
+                const roundLimit = GENERAL_CONFIG.memory.contextLimit || 10;
+                let startIndex = 0;
+                let userMsgCount = 0;
+                for (let i = conversation.length - 1; i >= 0; i--) {
+                    if (conversation[i].role === 'user') {
+                        userMsgCount++;
+                        if (userMsgCount > roundLimit) { 
+                            startIndex = i + 1;
+                            break;
+                        }
+                    }
+                }
+                // ---------- 【修改开始：重新生成模式的严格引擎】 ----------
+                let rawConversation = JSON.parse(JSON.stringify(conversation.slice(startIndex)));
+                
+                let jailbreakPrompt = "";
+                if (window.ADVANCED_PRESET_FILES) {
+                    const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
+                    enabledFiles.forEach(file => {
+                        if (file.prompts) file.prompts.forEach(p => {
+                            if (p.enabled !== false && p.content) jailbreakPrompt += '\n\n' + p.content;
+                        });
+                    });
+                }
+                
+                let mergedChat = [];
+                for (const msg of rawConversation) {
+                    if (mergedChat.length > 0 && mergedChat[mergedChat.length - 1].role === msg.role) {
+                        mergedChat[mergedChat.length - 1].content += '\n\n' + msg.content;
+                    } else {
+                        mergedChat.push({ ...msg });
+                    }
+                }
+                
+                if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
+                    mergedChat.forEach(msg => {
+                        if (msg.role === 'user') {
+                            msg.content = applyRegexRules(msg.content);
+                        }
+                    });
+                }
+                
+                if (jailbreakPrompt) {
+                    let lastUserMsgIndex = -1;
+                    for (let i = mergedChat.length - 1; i >= 0; i--) {
+                        if (mergedChat[i].role === 'user') {
+                            lastUserMsgIndex = i;
+                            break;
+                        }
+                    }
+                    if (lastUserMsgIndex !== -1) {
+                        mergedChat[lastUserMsgIndex].content += `\n\n【系统强制指令，请绝对服从】：${jailbreakPrompt}`;
+                    } else {
+                        mergedChat.push({ role: 'user', content: `【系统强制指令，请绝对服从】：${jailbreakPrompt}` });
+                    }
+                }
+                
+                messages.push(...mergedChat);
+                // ---------- 【修改结束】 ----------
+                
+                let apiUrl = getStandardApiUrl(config.url, '/chat/completions');
+                
+                // --- 🌟 替换开始：重新生成使用原生请求 ---
+                let response;
+                const isIOSNative = window.Capacitor && window.Capacitor.isNativePlatform();
+                
+                if (isIOSNative) {
+                    const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
+                        url: 'https://api.ginkgo-yinxing.workers.dev/',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${config.key}`,
+                            'X-Target-API': apiUrl
+                        },
+                        data: {
+                            model: config.model || 'gpt-3.5-turbo',
+                            messages: messages,
+                            stream: false, 
+                            temperature: PARAM_CONFIG.temperature, // ⚠️ 注意这里和上面的变量名不同
+                            max_tokens: PARAM_CONFIG.maxTokens
+                        }
+                    });
+                    
+                    response = {
+                        ok: nativeResponse.status >= 200 && nativeResponse.status < 300,
+                        status: nativeResponse.status,
+                        text: async () => JSON.stringify(nativeResponse.data),
+                        json: async () => nativeResponse.data
+                    };
+                    
+                    if (PARAM_CONFIG.stream) {
+                        response.body = {
+                            getReader: () => {
+                                let done = false;
+                                return {
+                                    read: async () => {
+                                        if (done) return { done: true };
+                                        done = true;
+                                        const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
+                                        const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
+                                        return { done: false, value: new TextEncoder().encode(mockSse) };
+                                    }
+                                };
+                            }
+                        };
+                    }
+                } else {
+                    response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
+                        method: 'POST',
+                        signal: window.currentChatController.signal,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${config.key}`,
+                            'X-Target-API': apiUrl
+                        },
+                        body: JSON.stringify({
+                            model: config.model || 'gpt-3.5-turbo',
+                            messages: messages,
+                            stream: PARAM_CONFIG.stream,
+                            temperature: PARAM_CONFIG.temperature,
+                            max_tokens: PARAM_CONFIG.maxTokens
+                        })
+                    });
+                }
+                // --- 🌟 替换结束 ---
+                
+                if (!response.ok) throw new Error(`API请求失败: ${response.status}`);
                 
                 if (PARAM_CONFIG.stream) {
                     const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
-                    let fullMessage = '';
+                    const decoder = new TextDecoder("utf-8");
+                    let buffer = ""; // 🌟 新增：数据缓冲区
                     
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
-                        const chunk = decoder.decode(value);
-                        const lines = chunk.split('\n').filter(line => line.trim());
+                        
+                        buffer += decoder.decode(value, {stream: true});
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop(); // 🌟 保留最后一行防止截断
+                        
                         for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                const data = line.slice(6);
+                            const trimmedLine = line.trim();
+                            if (trimmedLine.startsWith('data: ')) {
+                                const data = trimmedLine.slice(6);
                                 if (data === '[DONE]') continue;
                                 try {
                                     const json = JSON.parse(data);
                                     const content = json.choices[0]?.delta?.content;
                                     if (content) {
-                                        fullMessage += content;
-                                        let displayMsg = fullMessage;
-                                        if (fullMessage.includes('===METADATA===')) {
-                                            displayMsg = fullMessage.split('===METADATA===')[0].trim();
-                                        }
-                                        if (onChunk) onChunk(content, displayMsg);
+                                        backgroundAIReply.fullMessage += content;
+                                        backgroundAIReply.lastUpdate = Date.now();
+                                        // 🌟 修复：禁止流式接收时疯狂重绘列表界面，防止主线程卡死
+                                        // updateChatListLastMessage(backgroundAIReply.contactId, backgroundAIReply.fullMessage);
                                     }
-                                } catch (e) {}
+                                } catch (e) {
+                                    // 遇到无法解析的数据块静默跳过
+                                }
                             }
                         }
                     }
                     
-                    if (onComplete) onComplete(fullMessage);
-                    if (fullMessage) distributeAndQueueBubbles(currentChatContactId, fullMessage);
+                    const finalFullMessage = backgroundAIReply.fullMessage;
+                    backgroundAIReply.inProgress = false;
+                    backgroundAIReply.contactId = null;
+                    if (finalFullMessage) {
+                        handleFinalAIResponse(currentChatContactId, finalFullMessage);
+                    }
+                    if (onComplete) onComplete(finalFullMessage);
+                    
                 } else {
                     const data = await response.json();
                     const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
-                    
+                    backgroundAIReply.inProgress = false;
+                    backgroundAIReply.contactId = null;
+                    handleFinalAIResponse(currentChatContactId, aiReply);
                     if (onComplete) onComplete(aiReply);
-                    if (aiReply) distributeAndQueueBubbles(currentChatContactId, aiReply);
                 }
-            } catch (error) {
-                if (error.name === 'AbortError') return;
+                
+           } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('请求被智能取消以防止429报错 (正常)');
+                    return;
+                }
+                console.error('=== 重新生成失败 ===', error);
+                
+                // 🛠️ 修复：重置打字状态，防止出现双呼吸光晕及后续请求堆积
+                backgroundAIReply.inProgress = false;
+                backgroundAIReply.contactId = null;
+                isTyping = false; // 强制重置打字锁
+                
+                const rawErrorMsg = '❌ 重新生成失败：' + error.message; 
+                const streamCont = document.getElementById('active-stream-container');
+                if (streamCont) streamCont.remove();
+                
+                const errorMsgDiv = createChatBubble('ai', rawErrorMsg, false);
+                container.appendChild(errorMsgDiv);
+                addMessage(currentChatContactId, 'assistant', rawErrorMsg);
+                updateChatListLastMessage(currentChatContactId, rawErrorMsg);
+                scrollToBottom();
                 if (onError) onError(error);
+            } finally {
+                isTyping = false;
             }
         }
 
@@ -6018,10 +6162,8 @@ ${chatContent}
                 learningIndicator.classList.toggle('active', isLearning);
             }
 
-            // 🎨 核心修复：点击开关时立刻调用智能换色系统！
-            if (typeof applyLearningThemeToChat === 'function') {
-                applyLearningThemeToChat();
-            }
+            // 🎨 核心：每次刷新状态时，顺便涂抹聊天页面的颜色
+            applyLearningThemeToChat();
         }
 
         // --- 触发：切换学习模式 (独立开关) ---
@@ -6032,43 +6174,29 @@ ${chatContent}
                 contact.isLearningMode = !contact.isLearningMode;
                 saveToLocal();
                 updateChatModeUI(); 
-                renderChatList(); // 🌟 核心：立刻刷新外部列表，瞬间显示/隐藏小帽子
             }
         }
 
-       // --- 核心粉刷匠：将主题应用到聊天界面 (自动跟随深浅模式) ---
+        // --- 核心粉刷匠：将主题应用到聊天界面 ---
         function applyLearningThemeToChat() {
             if (!currentChatContactId) return;
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             
             const chatScene = document.getElementById('scene-chat'); 
             const badge = document.getElementById('learning-mode-badge');
-            const wordSheet = document.getElementById('wordSheet'); // 🌟 拿到生词抽屉
             if (!chatScene) return;
 
-            chatScene.classList.remove('theme-matcha', 'theme-dark', 'learning-active');
-            if(wordSheet) wordSheet.classList.remove('theme-matcha', 'theme-dark');
+            // 先擦干净之前的所有颜色
+            chatScene.classList.remove('theme-matcha', 'theme-parchment', 'theme-nordic', 'theme-latte', 'learning-active');
 
             if (contact && contact.isLearningMode) {
                 chatScene.classList.add('learning-active'); 
-                
-                // 🌟 自动探测：判断系统现在是深色还是浅色
-                const isDark = document.documentElement.style.getPropertyValue('--bg-color') === '#000000' || window.currentTheme === 'dark';
-                if (isDark) {
-                    chatScene.classList.add('theme-dark');
-                    if(wordSheet) wordSheet.classList.add('theme-dark'); // 抽屉同步深色
-                } else {
-                    chatScene.classList.add('theme-matcha');
-                    if(wordSheet) wordSheet.classList.add('theme-matcha'); // 抽屉同步浅色
-                }
-                
-                if (badge) badge.style.display = 'inline-flex'; // 显示顶部小帽子
+                chatScene.classList.add(currentLearningTheme || 'theme-matcha'); // 涂上护眼色
+                if (badge) badge.style.display = 'inline-flex'; // 露出帽子
             } else {
-                if (badge) badge.style.display = 'none'; // 隐藏顶部小帽子
+                if (badge) badge.style.display = 'none'; // 隐藏帽子
             }
         }
-                
-                
         // --- 提取并清理气泡的万能公式 (自动修复括号和句号) ---
         function parseBubbles(text) {
             if (!text) return [];
@@ -7432,11 +7560,8 @@ ${chatContent}
                     </div>
                     
                     <div class="chat-item-content">
-                        <div class="chat-item-name" style="display: flex; align-items: center; gap: 4px;">
-                            ${contact.name}
-                            ${contact.isLearningMode ? '<div style="display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; background-color: var(--hover-bg); border-radius: 50%; margin-top: 1px;"><i class="fa-solid fa-graduation-cap" style="color: var(--text-main); font-size: 10px;"></i></div>' : ''}
-                        </div>
-                        <div class="chat-item-preview">${contact.lastMsg || '暂无消息'}</div>
+                        <div class="chat-item-name">${contact.name}</div>
+                        <div class="chat-item-preview">${contact.lastMsg}</div>
                     </div>
                     
                     <div class="chat-item-meta">
@@ -7833,32 +7958,15 @@ ${chatContent}
                     } else {
                         let uniqueMsgId = 'msg-' + Math.random().toString(36).substr(2, 9);
                         messageDiv.id = uniqueMsgId + '-container';
-                        
-                        let correctionText = "暂无批改结果";
-                        const nextMsg = conversation[i + 1];
-                        if (nextMsg && (nextMsg.role === 'assistant' || nextMsg.role === 'ai') && nextMsg.content.includes('===METADATA===')) {
-                            try {
-                                let jsonStr = nextMsg.content.split('===METADATA===')[1];
-                                // 🔥 终极正则：无视任何前缀后缀废话，精准挖出 {...} 里的 JSON 数据！
-                                const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-                                if (jsonMatch) {
-                                    const metaJson = JSON.parse(jsonMatch[0]);
-                                    if (metaJson.correction) correctionText = metaJson.correction;
-                                }
-                            } catch(e) {
-                                console.error("批改数据提取失败:", e);
-                            }
-                        }
-
                         messageDiv.innerHTML = `
                             ${avatarHtml}
-                            <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-end;">
-                                <div class="chat-bubble" style="text-align: left;">${escapeHtml(msg.content)}</div>
+                            <div style="display: flex; flex-direction: column; max-width: 85%;">
+                                <div class="chat-bubble">${escapeHtml(msg.content)}</div>
                                 <div class="tools">
                                     <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="批改"><i class="fa-solid fa-pen-nib"></i></div>
                                 </div>
                                 <div class="feedback-box" id="${uniqueMsgId}">
-                                    <div class="feedback-content">${correctionText}</div>
+                                    💡 (系统占位符，等待 AI 返回批改结果...)
                                 </div>
                             </div>
                         `;
@@ -7886,60 +7994,21 @@ ${chatContent}
                         
                         
                         let uniqueMsgId = 'msg-' + Math.random().toString(36).substr(2, 9);
-                        messageDiv.id = uniqueMsgId + '-container';
-                        
-                        let displayMsg = aiMsg.content;
-                        let translationText = "暂无翻译";
-                        let toolsHTML = `<div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="翻译全文"><i class="fa-solid fa-language"></i></div>`;
-                        
-                        if (aiMsg.content.includes('===METADATA===')) {
-                            const parts = aiMsg.content.split('===METADATA===');
-                            displayMsg = parts[0].trim();
-                            try {
-                                let jsonStr = parts[1];
-                                const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-                                if (jsonMatch) {
-                                    const meta = JSON.parse(jsonMatch[0]);
-                                    if (meta.translation) translationText = "🌐 " + meta.translation;
-                                    
-                                    let safeMsg = escapeHtml(displayMsg);
-                                    if (meta.words && meta.words.length > 0) {
-                                        // 🌟 只有存在生词时，才加上点读图标！
-                                        toolsHTML += `<div class="tool-btn" onclick="toggleWordsMode('${uniqueMsgId}', this)" title="点读模式"><i class="fa-solid fa-book-open"></i></div>`;
-                                        
-                                        meta.words.forEach(w => {
-                                            const safeW = escapeHtml(w.w).replace(/'/g, "\\'");
-                                            const safeR = escapeHtml(w.r || '').replace(/'/g, "\\'");
-                                            const safeM = escapeHtml(w.m || '').replace(/'/g, "\\'");
-                                            const safeC = escapeHtml(w.c || '').replace(/'/g, "\\'");
-                                            const safeE = escapeHtml(w.e || '').replace(/'/g, "\\'");
-                                            safeMsg = safeMsg.split(safeW).join(`<span class="clickable-word" onclick="handleWordClick(event, '${safeW}', '${safeR}', '${safeM}', '${safeC}', '${safeE}')">${safeW}</span>`);
-                                                });
-                                    }
-                                    displayMsg = safeMsg; 
-                                } else {
-                                    displayMsg = escapeHtml(displayMsg);
-                                }
-                            } catch(e) {
-                                displayMsg = escapeHtml(displayMsg);
-                            }
-                        } else {
-                            displayMsg = escapeHtml(displayMsg);
-                        }
-
-                        messageDiv.innerHTML = `
-                            ${avatarHtml}
-                            <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-start; position: relative;">
-                                <div class="chat-bubble" onclick="if(typeof isHighlighterMode !== 'undefined' && isHighlighterMode) return; if(!this.closest('.chat-message').classList.contains('show-words')) toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
-<div class="regenerate-btn" onclick="if(typeof isHighlighterMode !== 'undefined' && isHighlighterMode) { event.stopPropagation(); return; } regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
-                                <div class="tools">
-                                    ${toolsHTML}
+                            messageDiv.id = uniqueMsgId + '-container';
+                            messageDiv.innerHTML = `
+                                ${avatarHtml}
+                                <div style="display: flex; flex-direction: column; max-width: 85%; position: relative;">
+                                    <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${escapeHtml(aiMsg.content)}</div>
+                                    <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
+                                    <div class="tools">
+                                        <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="翻译全文"><i class="fa-solid fa-language"></i></div>
+                                        <div class="tool-btn" onclick="toggleWordsMode('${uniqueMsgId}', this)" title="点读模式"><i class="fa-solid fa-book-open"></i></div>
+                                    </div>
+                                    <div class="feedback-box" id="${uniqueMsgId}">
+                                        (系统占位符，等待 AI 返回翻译结果...)
+                                    </div>
                                 </div>
-                                <div class="feedback-box" id="${uniqueMsgId}">
-                                    <div class="feedback-content">${translationText}</div>
-                                </div>
-                            </div>
-                        `;
+                            `;
                         
                         container.appendChild(messageDiv);
                     });
@@ -8314,67 +8383,42 @@ ${chatContent}
         // --- 同步纯函数：实时切割文本为句子数组 ---
         function splitTextIntoSentences(fullText) {
             if (!fullText) return [];
-            
-            // 🌟 核心修复：如果包含学习模式的 JSON 数据，【绝对不切碎】气泡！
-            // 这保证了 AI 的一段回复就是一个完整的气泡，点翻译时完美对应！
-            if (fullText.includes('===METADATA===')) {
-                return [fullText];
-            }
-            
             let text = fullText.replace(/([!?！？])\1+/g, '$1');
             text = text.replace(/[\/／∕⧸⁄]/g, '');
-            
-            let result = [];
+
             if (text.includes('\\') || text.includes('（') || text.includes('(')) {
                 const sentences = parseBubbles(text);
-                if (sentences.length > 0) result = sentences;
-            } 
-            if (result.length === 0 && text.includes('\n')) {
+                if (sentences.length > 0) return sentences;
+            }
+            if (text.includes('\n')) {
                 const lines = text.split('\n').filter(line => line.trim().length > 0);
-                if (lines.length > 1) result = lines;
+                if (lines.length > 1) return lines;
             }
-            if (result.length === 0 && /[。！？；]/.test(text)) {
-                result = splitByChinesePunctuation(text);
+            const chinesePunctuation = /[。！？；]/;
+            if (chinesePunctuation.test(text)) {
+                return splitByChinesePunctuation(text);
             }
-            if (result.length === 0 && /[.!?;]/.test(text)) {
-                result = splitByEnglishPunctuation(text);
+            const englishPunctuation = /[.!?;]/;
+            if (englishPunctuation.test(text)) {
+                return splitByEnglishPunctuation(text);
             }
-            if (result.length === 0 && /[,，]/.test(text)) {
-                result = splitByComma(text);
+            const commaSemicolon = /[,，]/;
+            if (commaSemicolon.test(text)) {
+                return splitByComma(text);
             }
-            if (result.length === 0 && text.length > 30) {
-                result = splitByLength(text);
+            if (text.length > 30) {
+                return splitByLength(text);
             }
-            if (result.length === 0) {
-                result = [text];
-            }
-            return result;
+            return [text];
         }
 
         // --- 🌟 全局AI气泡队列系统（完美复刻微信切屏不丢进度） ---
         window.AI_BUBBLE_QUEUE = window.AI_BUBBLE_QUEUE || {};
 
         function startGlobalBubbleQueue(contactId, fullText) {
-            let displayMsg = fullText;
-            let metaData = '';
-            
-            // 🌟 核心升级：先把隐藏的生词本和翻译数据剥离出来保护好
-            if (fullText.includes('===METADATA===')) {
-                const parts = fullText.split('===METADATA===');
-                displayMsg = parts[0].trim();
-                metaData = '\n\n===METADATA===' + parts[1];
-            }
-
-            // 此时再安全地切分纯文字
-            let sentences = splitTextIntoSentences(displayMsg);
+            let sentences = splitTextIntoSentences(fullText);
             sentences = sentences.map(s => s.replace(/\\/g, '').trim()).filter(s => s.length > 0);
-            
-            if (sentences.length === 0) sentences = [displayMsg];
-            
-            // 把保护好的生词本数据原封不动地挂在最后一个气泡上
-            if (metaData && sentences.length > 0) {
-                sentences[sentences.length - 1] += metaData;
-            }
+            if (sentences.length === 0) sentences = [fullText];
             
             if (!window.AI_BUBBLE_QUEUE[contactId]) {
                 window.AI_BUBBLE_QUEUE[contactId] = { sentences: [], isProcessing: false };
@@ -8387,78 +8431,6 @@ ${chatContent}
             }
         }
 
-        // 🌟 升级版：气泡智能分发中枢
-        function distributeAndQueueBubbles(contactId, fullMessage) {
-            if (!fullMessage) return;
-
-            let displayMsg = fullMessage;
-            let metaObj = null;
-
-            // 1. 拆分提取底部的 METADATA
-            if (fullMessage.includes('===METADATA===')) {
-                const parts = fullMessage.split('===METADATA===');
-                displayMsg = parts[0].trim();
-                try {
-                    metaObj = JSON.parse(parts[1].trim());
-                } catch (e) {
-                    console.error("解析METADATA失败:", e);
-                }
-            }
-
-            // 2. 调用气泡分隔函数
-            const sentences = typeof splitTextIntoSentences === 'function' ? splitTextIntoSentences(displayMsg) : [displayMsg];
-
-            // 3. 尝试把一整段翻译也切分成多句，以便对应每个气泡
-            let translations = [];
-            if (metaObj && metaObj.translation) {
-                translations = metaObj.translation.split(/(?<=[。！？！?])/).map(s => s.trim()).filter(s => s);
-            }
-
-            // 4. 循环每个气泡，精确投递专属数据
-            sentences.forEach((sentence, index) => {
-                let textToSave = sentence.trim();
-                if (!textToSave) return;
-
-                if (metaObj) {
-                    let singleMeta = {};
-                    
-                    // 【分配翻译】：尽量一一对应，剩下的全给最后一个气泡
-                    if (translations.length > 0) {
-                        if (index < sentences.length - 1 && index < translations.length) {
-                            singleMeta.translation = translations[index];
-                        } else if (index === sentences.length - 1) {
-                            singleMeta.translation = translations.slice(index).join(' ');
-                        } else if (index >= translations.length) {
-                            singleMeta.translation = "🌐 (接上文)";
-                        }
-                    }
-                    
-                    // 【分配批改】：只给第一个气泡（因为它负责向回寻找用户上一句话）
-                    if (index === 0 && metaObj.correction) {
-                        singleMeta.correction = metaObj.correction;
-                    }
-
-                    // 【分配生词】：只有实实在在出现在这个气泡里的生词，才放进去！
-                    if (metaObj.words && metaObj.words.length > 0) {
-                        let sentenceWords = metaObj.words.filter(w => {
-                            return sentence.toLowerCase().includes(w.w.toLowerCase());
-                        });
-                        if (sentenceWords.length > 0) {
-                            singleMeta.words = sentenceWords;
-                        }
-                    }
-
-                    // 封装好数据
-                    if (Object.keys(singleMeta).length > 0) {
-                        textToSave += '\n\n===METADATA===\n' + JSON.stringify(singleMeta);
-                    }
-                }
-
-                if (typeof startGlobalBubbleQueue === 'function') {
-                    startGlobalBubbleQueue(contactId, textToSave);
-                }
-            });
-        }
         async function processGlobalBubbleQueue(contactId) {
             window.AI_BUBBLE_QUEUE[contactId].isProcessing = true;
             
@@ -8511,33 +8483,41 @@ ${chatContent}
             }
             
             window.AI_BUBBLE_QUEUE[contactId].isProcessing = false;
-
-            // 🌟 核心修复：气泡全部吐完后，立刻刷新一次当前聊天界面，让用户的批改结果和AI的点读按钮实时显现！
-            setTimeout(() => {
-                if (document.getElementById('scene-chat').classList.contains('show')) {
-                    renderChatMessages(contactId);
-                    scrollToBottom();
-                }
-            }, 100);
-
+            
             // 队列彻底结束，触发记忆总结
             const contactObj = mockContacts.find(c => c.id === contactId);
             if (contactObj) simulateMemorySummary(contactObj).catch(e => console.error(e));
         }
 
-       // 统一接口：替代旧的臃肿调用
+        // 统一接口：替代旧的臃肿调用
         function handleFinalAIResponse(contactId, finalFullMessage) {
             if (typeof applyRegexRules === 'function') {
                 finalFullMessage = applyRegexRules(finalFullMessage);
             }
-
             // 清理界面的呼吸气泡
             const streamCont = document.getElementById('active-stream-container');
             if (streamCont) streamCont.remove();
 
-            setTimeout(() => {
-                renderChatMessages(contactId);
-            }, 50);
+            // 丢给后台队列排队（无论用户在哪，都会默默执行）
+            startGlobalBubbleQueue(contactId, finalFullMessage);
+            
+            // 如果用户在当前页面，立刻显示一个呼吸占位符
+            const isCurrentPage = document.getElementById('scene-chat') && document.getElementById('scene-chat').classList.contains('show') && currentChatContactId === contactId;
+            if (isCurrentPage) {
+                const container = document.getElementById('chat-messages-container');
+                const streamContainer = document.createElement('div');
+                streamContainer.id = 'active-stream-container';
+                streamContainer.style.display = 'flex';
+                streamContainer.style.flexDirection = 'column';
+                streamContainer.style.gap = '16px';
+                streamContainer.style.width = '100%';
+                const aiMessageDiv = document.createElement('div');
+                aiMessageDiv.className = 'chat-message ai';
+                aiMessageDiv.innerHTML = `${generateAvatarHtml(false, contactId)}<div class="chat-bubble breathing-mode" id="active-typing-bubble" onclick="abortCurrentAiReply()" title="点击中止生成"></div>`;
+                streamContainer.appendChild(aiMessageDiv);
+                container.appendChild(streamContainer);
+                scrollToBottom();
+            }
         }
         
         // --- 创建聊天气泡 (修改为无内联动画版) ---
@@ -8552,68 +8532,36 @@ ${chatContent}
             messageDiv.id = uniqueMsgId + '-container';
             
             if (!isUser) {
-                let displayMsg = content;
-                let translationText = "🌐 (暂无翻译)";
-                
-                if (content.includes('===METADATA===')) {
-                    const parts = content.split('===METADATA===');
-                    displayMsg = parts[0].trim();
-                    try {
-                        let jsonStr = parts[1];
-                        const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-                        if (jsonMatch) {
-                            const meta = JSON.parse(jsonMatch[0]);
-                            if (meta.translation) translationText = "🌐 " + meta.translation;
-                            
-                            let safeMsg = escapeHtml(displayMsg);
-                            if (meta.words && meta.words.length > 0) {
-                                meta.words.forEach(w => {
-                                    const safeW = escapeHtml(w.w);
-                                    const safeR = escapeHtml(w.r || '');
-                                    const safeM = escapeHtml(w.m || '');
-                                    const safeC = escapeHtml(w.c || '');
-                                    const safeE = escapeHtml(w.e || '');
-                                    safeMsg = safeMsg.split(safeW).join(`<span class="clickable-word" onclick="handleWordClick(event, '${safeW}', '${safeR}', '${safeM}', '${safeC}', '${safeE}')">${safeW}</span>`);
-                                });
-                            }
-                            displayMsg = safeMsg; 
-                        } else {
-                            displayMsg = escapeHtml(displayMsg);
-                        }
-                    } catch(e) {
-                        displayMsg = escapeHtml(displayMsg);
-                    }
-                } else {
-                    displayMsg = escapeHtml(displayMsg);
-                }
-
                 messageDiv.innerHTML = `
                     ${avatarHtml}
-                    <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-start; position: relative;">
-                        <div class="chat-bubble" onclick="if(typeof isHighlighterMode !== 'undefined' && isHighlighterMode) return; if(!this.closest('.chat-message').classList.contains('show-words')) toggleRegenerate(this.closest('.chat-message'))">${displayMsg}</div>
-<div class="regenerate-btn" onclick="if(typeof isHighlighterMode !== 'undefined' && isHighlighterMode) { event.stopPropagation(); return; } regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
+                    <div style="display: flex; flex-direction: column; max-width: 85%; position: relative;">
+                        <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${escapeHtml(content)}</div>
+                        <div class="regenerate-btn" onclick="regenerateMessage(event, this)"><i class="fas fa-rotate-right"></i></div>
                         <div class="tools">
-                            ${toolsHTML}
+                            <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="翻译全文"><i class="fa-solid fa-language"></i></div>
+                            <div class="tool-btn" onclick="toggleWordsMode('${uniqueMsgId}', this)" title="点读模式"><i class="fa-solid fa-book-open"></i></div>
                         </div>
                         <div class="feedback-box" id="${uniqueMsgId}">
-                            <div class="feedback-content">${translationText}</div>
+                            🌐 (系统占位符，等待 AI 返回翻译结果...)
                         </div>
                     </div>
                 `;
             } else {
                 messageDiv.innerHTML = `
                     ${avatarHtml}
-                    <div style="display: flex; flex-direction: column; min-width: 0; align-items: flex-end;">
+                    <div style="display: flex; flex-direction: column; max-width: 85%;">
                         <div class="chat-bubble">${escapeHtml(content)}</div>
                         <div class="tools">
                             <div class="tool-btn" onclick="toggleFeedback('${uniqueMsgId}', this)" title="批改"><i class="fa-solid fa-pen-nib"></i></div>
                         </div>
                         <div class="feedback-box" id="${uniqueMsgId}">
-                            <div class="feedback-content">💡 (正在等待AI批改...)</div>
+                            💡 (系统占位符，等待 AI 返回批改结果...)
                         </div>
                     </div>
                 `;
             }
+            
+            /* 核心修改：移除所有的内联 opacity 和 transform 动画，保持纯净 */
             return messageDiv;
         }
         
@@ -8738,28 +8686,10 @@ ${chatContent}
                 }
             }
 
-            let finalSystemPrompt = systemPrompt || "";
-            if (injectedMemoryText) finalSystemPrompt += injectedMemoryText;
-            
-            // 🎓 学习模式特权：向 AI 注入强制返回翻译/批改/生词词典的 JSON 格式
-            if (contact.isLearningMode) {
-                const learningPrompt = `
-            \n【语言学习模式指令】
-            1. 正常回复：请保持真实、地道的外语年轻人聊天口吻，可包含适当的颜文字或流行缩写。
-            2. 必须在回复的最最最后加上分隔符 \`===METADATA===\`
-            3. 分隔符后，必须且只能输出一个严格的JSON对象，格式如下：
-            {
-            "translation": "你刚才那段正常回复的全文精确中文翻译",
-            "correction": "如果我（用户）刚才的表达有语法或语感错误，指出并给出修改建议。如果没问题，请输出：✨ 表达非常地道，完美！",
-            "words": [
-                {"w": "原文外语生词", "r": "音标或假名", "m": "中文释义"}
-            ]
-            }`;
-                finalSystemPrompt += learningPrompt;
-            }
-
-            if (finalSystemPrompt) {
-                messages.push({ role: 'system', content: finalSystemPrompt });
+            if (systemPrompt) {
+                messages.push({ role: 'system', content: systemPrompt + injectedMemoryText });
+            } else if (injectedMemoryText) {
+                messages.push({ role: 'system', content: injectedMemoryText });
             }
 
             // --- 修复3：限制历史记录轮数，彻底解决响应慢和 Token 超限 429 问题 ---
@@ -8936,6 +8866,8 @@ ${chatContent}
                                     if (content) {
                                         backgroundAIReply.fullMessage += content;
                                         backgroundAIReply.lastUpdate = Date.now();
+                                        // 🌟 修复：禁止流式接收时疯狂重绘列表界面，防止主线程卡死
+                                        // updateChatListLastMessage(backgroundAIReply.contactId, backgroundAIReply.fullMessage);
                                     }
                                 } catch (e) {
                                     // 解析失败不报错，因为极小概率还会有残缺的 JSON 块
@@ -8947,11 +8879,9 @@ ${chatContent}
                     const finalFullMessage = backgroundAIReply.fullMessage;
                     backgroundAIReply.inProgress = false;
                     backgroundAIReply.contactId = null;
-                    
                     if (finalFullMessage) {
-                    // 彻底激活你的全局呼吸气泡排队引擎！
-                    startGlobalBubbleQueue(currentChatContactId, finalFullMessage);
-                }
+                        handleFinalAIResponse(currentChatContactId, finalFullMessage);
+                    }
                     
                 } else {
                     const data = await response.json();
@@ -10033,33 +9963,19 @@ ${chatContent}
             }
         }
         
+        // --- 重新生成响应 ---
         function regenerateMessage(event, btn) {
             event.stopPropagation();
+            
             if (!currentChatContactId) return;
-
+            
+            // 隐藏按钮
             btn.classList.remove('show');
             currentRegenerateBtn = null;
-
-            // 强行接管文字流
-            backgroundAIReply.inProgress = true;
-            backgroundAIReply.contactId = currentChatContactId;
-            backgroundAIReply.fullMessage = '';
-
-            regenerateResponse(currentChatContactId, (chunk, displayMsg) => {
-                backgroundAIReply.fullMessage = displayMsg;
-            }, (fullMessage) => {
-                backgroundAIReply.fullMessage = fullMessage;
-                backgroundAIReply.inProgress = false;
-                backgroundAIReply.contactId = null;
-                // 这里的排队和保存逻辑，已经全部统一收口到底层引擎处理了！
-            }, (error) => {
+            
+            // 调用重新生成函数
+            regenerateResponse(currentChatContactId, null, null, (error) => {
                 console.error('重新生成失败:', error);
-                backgroundAIReply.inProgress = false;
-                const bubble = document.getElementById('active-typing-bubble');
-                if (bubble) {
-                    bubble.classList.remove('breathing-mode');
-                    bubble.innerHTML = `<span style="color: #ff3b30; font-size: 0.9em;">[网络或请求错误：${error.message}]</span>`;
-                }
             });
         }
         
@@ -15060,15 +14976,59 @@ ${chatContent}
             }
         });
 
-       // --- 切换翻译/批改框 ---
+        // 默认主题是抹茶
+        let currentLearningTheme = localStorage.getItem('linkgo_learning_theme') || 'theme-matcha';
+
+        // 1. 点击切换外观主题
+        function setLearningTheme(themeName) {
+            currentLearningTheme = themeName;
+            localStorage.setItem('linkgo_learning_theme', themeName);
+            updateThemeSelectorUI();
+            applyLearningThemeToChat(); // 实时预览
+        }
+
+        // 2. 更新外观面板上的圆圈高亮状态
+        function updateThemeSelectorUI() {
+            // 移除所有 active
+            ['theme-matcha', 'theme-parchment', 'theme-nordic', 'theme-latte'].forEach(theme => {
+                const btn = document.getElementById(`btn-${theme}`);
+                if (btn) btn.classList.remove('active');
+            });
+            // 高亮当前选中的
+            const activeBtn = document.getElementById(`btn-${currentLearningTheme}`);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+       // 3. 将主题应用到聊天界面
+        function applyLearningThemeToChat() {
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            if (!contact) return;
+
+            // 获取聊天场景容器
+            const chatScene = document.getElementById('scene-chat'); 
+            const badge = document.getElementById('learning-mode-badge');
+
+            if (!chatScene) return;
+
+            // 先清除所有主题
+            chatScene.classList.remove('theme-matcha', 'theme-parchment', 'theme-nordic', 'theme-latte', 'learning-active');
+
+            // 如果开启了学习模式
+            if (contact.isLearningMode) {
+                chatScene.classList.add('learning-active'); // 激活标志
+                chatScene.classList.add(currentLearningTheme); // 涂上颜色
+                if (badge) badge.style.display = 'flex'; // 显示顶部徽章
+            } else {
+                if (badge) badge.style.display = 'none'; // 隐藏徽章
+            }
+        }
+
+        // --- 切换翻译/批改框 ---
         function toggleFeedback(msgId, btnElement) {
             const msgEl = document.getElementById(msgId + '-container');
             if(msgEl) {
                 msgEl.classList.toggle('show-feedback');
                 btnElement.classList.toggle('active');
-                if (msgEl.classList.contains('show-feedback')) {
-                    adjustScrollForExpansion(msgEl);
-                }
             }
         }
 
@@ -15080,439 +15040,53 @@ ${chatContent}
                 btnElement.classList.toggle('active'); 
                 if (!msgEl.classList.contains('show-words')) {
                     closeWord();
-                } else {
-                    adjustScrollForExpansion(msgEl);
                 }
-            }
-        }
-
-        // --- 🌟 核心辅助：气泡展开时丝滑滚动防遮挡 ---
-        function adjustScrollForExpansion(msgEl) {
-            const container = document.getElementById('chat-messages-container');
-            if (!container) return;
-            
-            // 判断：如果是最后一条消息，或者是距离底部很近的消息
-            const isLastMessage = !msgEl.nextElementSibling || msgEl.nextElementSibling.id === 'active-stream-container';
-            const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
-            
-            if (isNearBottom || isLastMessage) {
-                // 魔法：在 CSS 展开动画的 350ms 内，每一帧都把滚动条往下压
-                // 这样就能完美实现“气泡往下长，屏幕同时往上抬”的丝滑视觉！
-                const start = performance.now();
-                function step() {
-                    container.scrollTop = container.scrollHeight;
-                    if (performance.now() - start < 350) {
-                        requestAnimationFrame(step);
-                    }
-                }
-                requestAnimationFrame(step);
-            } else {
-                // 如果是翻看上面的历史记录，检测展开后是否会超出屏幕下边缘被截断
-                setTimeout(() => {
-                    const rect = msgEl.getBoundingClientRect();
-                    const containerRect = container.getBoundingClientRect();
-                    // 如果气泡底部掉出了可见区域，就使用系统级平滑滚动往上推一点点
-                    if (rect.bottom > containerRect.bottom - 10) {
-                        container.scrollBy({ top: rect.bottom - containerRect.bottom + 20, behavior: 'smooth' });
-                    }
-                }, 50); 
             }
         }
 
         // --- 处理单词点击 ---
         function handleWordClick(event, word, pronounce, meaning) {
-            event.stopPropagation(); // 🌟 拦截穿透：阻止点击事件漏到下方的气泡导致跳出“重新生成”！
+            // 找到包含这个词的外层气泡容器
             const msgRow = event.target.closest('.chat-message');
             if (msgRow && msgRow.classList.contains('show-words')) {
                 showWord(word, pronounce, meaning);
             }
         }
 
-       // --- 核心：原生发音功能 (TTS) ---
-        function playPronunciation(word) {
-            window.speechSynthesis.cancel(); 
-            const utterance = new SpeechSynthesisUtterance(word);
-            
-            if (/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(word)) {
-                utterance.lang = 'ja-JP';
-            } else {
-                utterance.lang = 'en-US';
-            }
-
-            // 🌟 监听发音状态，动态控制渐变样式
-            const btn = document.getElementById('pronounce-btn');
-            utterance.onstart = () => { if(btn) btn.classList.add('playing'); };
-            utterance.onend = () => { if(btn) btn.classList.remove('playing'); };
-            utterance.onerror = () => { if(btn) btn.classList.remove('playing'); };
-
-            window.speechSynthesis.speak(utterance);
-        }
-
-        // --- 修复点击透传及摘录模式拦截 ---
-        function handleWordClick(event, word, pronounce, meaning, context, example) {
-            event.stopPropagation();
-            
-            // 🌟 如果是在摘录模式下点击，拦截点读功能，优先选中单词，并弹出专属提示！
-            if (typeof isHighlighterMode !== 'undefined' && isHighlighterMode) {
-                const toast = document.getElementById('learning-toast');
-                if(toast) {
-                    toast.innerHTML = "<i class='fa-solid fa-circle-exclamation'></i> 如需查看释义</br>请退出摘录模式";
-                    toast.style.opacity = '1';
-                    toast.style.transform = 'translateX(-50%) translateY(0) scale(1)';
-                    setTimeout(() => { 
-                        toast.style.opacity = '0'; 
-                        toast.style.transform = 'translateX(-50%) translateY(-15px) scale(0.9)'; 
-                    }, 2000);
-                }
-                return; // 终止执行，绝不弹抽屉！
-            }
-            
-            const msgRow = event.target.closest('.chat-message');
-            if (msgRow && msgRow.classList.contains('show-words')) {
-                showWord(word, pronounce, meaning, context, example);
-            }
-        }
-
-        // --- 显示高级单词底部卡片 ---
-        function showWord(word, pronounce, meaning, contextInfo, exampleInfo) {
+        // --- 显示单词底部卡片 ---
+        function showWord(word, pronounce, meaning) {
             document.getElementById('sheetTitle').innerText = word;
-            document.getElementById('sheetPronounce').innerHTML = `<span id="pronounce-btn" class="pronounce-btn" onclick="playPronunciation('${word.replace(/'/g, "\\'")}')"><i class="fa-solid fa-volume-high"></i> ${pronounce}</span>`;
+            document.getElementById('sheetPronounce').innerHTML = `<i class="fa-solid fa-volume-high"></i> ${pronounce}`;
             document.getElementById('sheetMeaning').innerText = meaning;
             
-            const ctxEl = document.getElementById('sheetContext');
-            const exEl = document.getElementById('sheetExample');
-            
-            if(contextInfo) { ctxEl.style.display = 'block'; ctxEl.innerHTML = `💡 <b>语境用法：</b>${contextInfo}`; } else { ctxEl.style.display = 'none'; }
-            if(exampleInfo) { exEl.style.display = 'block'; exEl.innerHTML = `📝 <b>例句：</b>${exampleInfo}`; } else { exEl.style.display = 'none'; }
-            
             const sheet = document.getElementById('wordSheet');
-            const backdrop = document.getElementById('wordSheetBackdrop');
-            if(sheet) {
-                sheet.style.transition = 'transform 0.4s cubic-bezier(0.1, 0.8, 0.2, 1)';
-                sheet.style.transform = ''; // 清除拖拽残留，让 CSS 的 .show 接管
-                sheet.classList.add('show');
+            if(sheet) sheet.classList.add('show');
+            
+            // 重置收藏按钮状态
+            const saveBtn = document.querySelector('.btn-save');
+            if(saveBtn) {
+                saveBtn.innerHTML = '<i class="fa-regular fa-star"></i> 收藏';
+                saveBtn.style.opacity = "1";
             }
-            if(backdrop) backdrop.classList.add('show');
         }
 
-        // --- 丝滑关闭单词底部卡片 ---
+        // --- 关闭单词底部卡片 ---
         function closeWord() {
             const sheet = document.getElementById('wordSheet');
-            const backdrop = document.getElementById('wordSheetBackdrop');
-            if(sheet) {
-                // 🌟 使用更柔和的阻尼动画曲线
-                sheet.style.transition = 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)';
-                sheet.style.transform = ''; 
-                sheet.classList.remove('show'); 
-            }
-            if(backdrop) backdrop.classList.remove('show');
-            window.speechSynthesis.cancel(); 
+            if(sheet) sheet.classList.remove('show');
         }
 
+        // --- 收藏单词 ---
         function saveWord() {
             const btn = document.querySelector('.btn-save');
-            if(btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> 已收藏'; btn.style.opacity = "0.8"; }
-            setTimeout(() => { closeWord(); }, 600);
-        }
-
-        // --- 🌟 优化：触摸全抽屉下滑退出 ---
-        let sheetStartY = 0;
-        let isDraggingSheet = false;
-        
-        function startDragSheet(e) {
-            sheetStartY = e.touches[0].clientY;
-            isDraggingSheet = true;
-            const sheet = document.getElementById('wordSheet');
-            sheet.style.transition = 'none'; // 取消动画，让抽屉死死跟住手指
-        }
-        
-        document.addEventListener('touchmove', (e) => {
-            if (!isDraggingSheet) return;
-            const sheet = document.getElementById('wordSheet');
-            let deltaY = e.touches[0].clientY - sheetStartY;
-            if (deltaY > 0) sheet.style.transform = `translateY(${deltaY}px)`; // 用 transform 实现 120Hz 丝滑拖拽
-        });
-        
-        document.addEventListener('touchend', (e) => {
-            if (!isDraggingSheet) return;
-            isDraggingSheet = false;
-            const sheet = document.getElementById('wordSheet');
-            sheet.style.transition = 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)';
-            let deltaY = e.changedTouches[0].clientY - sheetStartY;
-            if (deltaY > 60) { // 下滑超过 60px 就认定为关闭
+            if(btn) {
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> 已收藏';
+                btn.style.opacity = "0.8"; 
+            }
+            setTimeout(() => {
                 closeWord();
-            } else {
-                sheet.style.transform = ''; // 否则自动回弹
-            }
-        });
-
-        // ================= 🌟 荧光笔摘录模式系统 =================
-        let isHighlighterMode = false;
-        let selectedHlWords = new Set();
-
-        function toggleHighlighterMode() {
-            isHighlighterMode = !isHighlighterMode;
-            const scene = document.getElementById('scene-chat');
-            const badge = document.getElementById('learning-mode-badge');
-            const toast = document.getElementById('learning-toast');
-
-            // 🌟 注入带 Icon 和丝滑 Q 弹动画的胶囊提示
-            if(toast) {
-                toast.innerHTML = isHighlighterMode ? "<i class='fa-solid fa-pen-nib'></i> 已开启摘录" : "<i class='fa-solid fa-check'></i> 已退出摘录";
-                toast.style.opacity = '1';
-                toast.style.transform = 'translateX(-50%) translateY(0) scale(1)';
-                setTimeout(() => { 
-                    toast.style.opacity = '0'; 
-                    toast.style.transform = 'translateX(-50%) translateY(-15px) scale(0.9)'; 
-                }, 1500);
-            }
-
-            if (isHighlighterMode) {
-                scene.classList.add('highlighter-mode');
-                if(badge) badge.style.transform = 'scale(1.15)'; 
-                selectedHlWords.clear();
-                updateHlCount();
-                enableHighlighterSpans();
-            } else {
-                scene.classList.remove('highlighter-mode');
-                if(badge) badge.style.transform = 'scale(1)';
-                document.querySelectorAll('.hl-word.hl-selected').forEach(el => el.classList.remove('hl-selected'));
-                selectedHlWords.clear();
-                updateHlCount();
-            }
+            }, 600);
         }
-
-        // 🌟 自动判断是否显示悬浮胶囊
-        function updateHlCount() {
-            const countEl = document.getElementById('hl-count');
-            if(countEl) countEl.innerText = selectedHlWords.size;
-            const bar = document.getElementById('highlighter-bar');
-            if (bar) {
-                if (isHighlighterMode && selectedHlWords.size > 0) {
-                    bar.classList.add('show');
-                } else {
-                    bar.classList.remove('show');
-                }
-            }
-        }
-
-        // ================= 🌟 巅峰交互：终极手势路径回溯引擎 =================
-        function toggleHlWord(element, forceSelect) {
-            if (forceSelect) {
-                element.classList.add('hl-selected'); // 加上蓝色高亮背景
-                selectedHlWords.add(element);         // 加入待保存集合
-            } else {
-                element.classList.remove('hl-selected');
-                selectedHlWords.delete(element);
-            }
-        }
-
-        let isHighlightDragging = false;
-        let highlightDragMode = true; 
-        let currentDragPath = [];     
-        let lastHlTouchTime = 0; 
-
-        // 🌟 护盾升级：每次触摸（包括按下、移动、抬起）都瞬间刷新无敌时间！绝不过期！
-        function updateTouchTime(e) {
-            if (e.type.startsWith('touch')) lastHlTouchTime = Date.now();
-        }
-
-        // 🌟 护盾判定：时间延长到 1000ms，彻底绞杀任何幽灵点击
-        function isGhostMouse(e) {
-            return e.type.startsWith('mouse') && (Date.now() - lastHlTouchTime < 1000); 
-        }
-
-        function getEventPoint(e) {
-            if (e.touches && e.touches.length > 0) return e.touches[0];
-            if (e.changedTouches && e.changedTouches.length > 0) return e.changedTouches[0];
-            return e;
-        }
-
-        function handleHlDown(e) {
-            if (!isHighlighterMode) return;
-            updateTouchTime(e);
-            if (isGhostMouse(e) || (e.type.startsWith('mouse') && e.button !== 0)) return;
-            
-            // 🌟 核心修复：直接使用浏览器底层的 e.target，百发百中，无视任何坐标漂移！
-            const target = e.target;
-            
-            if (target && target.closest('.chat-bubble')) {
-                isHighlightDragging = true;
-                if (target.classList.contains('hl-word')) {
-                    highlightDragMode = !target.classList.contains('hl-selected');
-                    currentDragPath = [target]; 
-                    toggleHlWord(target, highlightDragMode);
-                } else {
-                    currentDragPath = [];
-                }
-            }
-        }
-
-        function handleHlMove(e) {
-            if (!isHighlighterMode || !isHighlightDragging) return;
-            updateTouchTime(e);
-            if (isGhostMouse(e)) return;
-            
-            if (e.cancelable) e.preventDefault(); 
-
-            // 移动时必须用坐标探测
-            const pt = getEventPoint(e);
-            const target = document.elementFromPoint(pt.clientX, pt.clientY);
-            
-            if (target && target.classList.contains('hl-word')) {
-                if (currentDragPath.length > 0 && target === currentDragPath[currentDragPath.length - 1]) return;
-                
-                const existingIndex = currentDragPath.indexOf(target);
-                if (existingIndex !== -1) {
-                    for (let i = currentDragPath.length - 1; i > existingIndex; i--) {
-                        toggleHlWord(currentDragPath[i], !highlightDragMode); 
-                        currentDragPath.pop(); 
-                    }
-                } else {
-                    currentDragPath.push(target);
-                    toggleHlWord(target, highlightDragMode);
-                }
-            }
-        }
-
-        function handleHlUp(e) {
-            if (!isHighlighterMode) return;
-            updateTouchTime(e);
-            if (isGhostMouse(e)) return;
-
-            if (isHighlightDragging) {
-                isHighlightDragging = false;
-                currentDragPath = []; 
-                updateHlCount();      
-            }
-        }
-
-        // 🌟 先清理可能重复绑定的旧监听器，防止代码叠加错乱
-        document.removeEventListener('touchstart', handleHlDown);
-        document.removeEventListener('touchmove', handleHlMove);
-        document.removeEventListener('touchend', handleHlUp);
-        document.removeEventListener('mousedown', handleHlDown);
-        document.removeEventListener('mousemove', handleHlMove);
-        document.removeEventListener('mouseup', handleHlUp);
-
-        // 🌟 重新绑定终极防弹版监听器
-        document.addEventListener('touchstart', handleHlDown, {passive: false});
-        document.addEventListener('touchmove', handleHlMove, {passive: false});
-        document.addEventListener('touchend', handleHlUp);
-        document.addEventListener('mousedown', handleHlDown);
-        document.addEventListener('mousemove', handleHlMove);
-        document.addEventListener('mouseup', handleHlUp);
-        // =====================================================================
-
-        function enableHighlighterSpans() {
-            const bubbles = document.querySelectorAll('.chat-bubble');
-            bubbles.forEach(bubble => {
-                if (bubble.dataset.hlWrapped) return;
-                const walker = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT, null, false);
-                const textNodes = [];
-                let currentNode;
-                while (currentNode = walker.nextNode()) textNodes.push(currentNode);
-                
-                textNodes.forEach(textNode => {
-                    const text = textNode.nodeValue;
-                    if (text.trim() === '') return;
-                    const fragments = text.split(/([a-zA-Z0-9'-]+|[\u4e00-\u9fa5\u3040-\u30ff]|\s+|[^\sa-zA-Z0-9\u4e00-\u9fa5\u3040-\u30ff'-]+)/g).filter(Boolean);
-                    
-                    const fragmentNode = document.createDocumentFragment();
-                    fragments.forEach(frag => {
-                        if (/^\s+$/.test(frag)) {
-                            fragmentNode.appendChild(document.createTextNode(frag));
-                        } else {
-                            const span = document.createElement('span');
-                            span.className = 'hl-word'; 
-                            span.innerText = frag;
-                            // 🌟 删除了单独的点击事件，全面交由滑动引擎接管
-                            fragmentNode.appendChild(span);
-                        }
-                    });
-                    textNode.parentNode.replaceChild(fragmentNode, textNode);
-                });
-                bubble.dataset.hlWrapped = "true";
-            });
-        }
-
-        // 🌟 打开高级摘录弹窗 (包含智能空格与顺序还原)
-        function openVocabModal() {
-            if (selectedHlWords.size === 0) return;
-            
-            // 核心 1：不看点击顺序，严格按照网页中原本的先后顺序提取单词！
-            const selectedSpans = document.querySelectorAll('.hl-word.hl-selected');
-            let extractedText = '';
-            
-            for (let i = 0; i < selectedSpans.length; i++) {
-                if (i > 0) {
-                    const prev = selectedSpans[i-1];
-                    const curr = selectedSpans[i];
-                    
-                    if (prev.closest('.chat-bubble') !== curr.closest('.chat-bubble')) {
-                        // 跨气泡涂选，自动加回车换行
-                        extractedText += '\n';
-                    } else {
-                        // 核心 2：探测两个词之间原本是否存在空格，有的话完美补回！
-                        let node = prev.nextSibling;
-                        let spaceFound = false;
-                        while(node && node !== curr) {
-                            if (node.nodeType === Node.TEXT_NODE && /\s/.test(node.nodeValue)) {
-                                spaceFound = true; break;
-                            }
-                            node = node.nextSibling;
-                        }
-                        if (spaceFound) extractedText += ' ';
-                    }
-                }
-                extractedText += selectedSpans[i].innerText;
-            }
-            
-            document.getElementById('vocabExtractText').value = extractedText;
-            document.getElementById('vocabNoteText').value = ""; 
-            
-            const modal = document.getElementById('vocabModalOverlay');
-            if(modal) {
-                // 核心 3：弹窗精准同步当前聊天气泡的主题色
-                const scene = document.getElementById('scene-chat');
-                modal.classList.remove('theme-matcha', 'theme-dark');
-                if (scene.classList.contains('theme-matcha')) modal.classList.add('theme-matcha');
-                if (scene.classList.contains('theme-dark')) modal.classList.add('theme-dark');
-                
-                modal.classList.add('show');
-            }
-        }
-
-        function closeVocabModal(e) {
-            if (e && e.target !== document.getElementById('vocabModalOverlay')) return;
-            const modal = document.getElementById('vocabModalOverlay');
-            if(modal) modal.classList.remove('show');
-        }
-
-        // 🌟 确认保存：不清模式，只清选区，方便继续学习
-        function confirmSaveVocab() {
-            const text = document.getElementById('vocabExtractText').value;
-            const note = document.getElementById('vocabNoteText').value;
-            if (!text.trim()) { alert("摘录内容不能为空"); return; }
-            
-            // 这里以后可以接生词本保存逻辑
-            console.log("保存生词:", { text, note });
-            
-            const toast = document.getElementById('learning-toast');
-            if(toast) {
-                toast.innerText = "✅ 已加入生词本";
-                toast.style.opacity = '1'; toast.style.transform = 'translateX(-50%) translateY(0)';
-                setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(-50%) translateY(-20px)'; }, 1500);
-            }
-
-            closeVocabModal();
-            
-            // 清理已高亮的词，但不退出模式
-            document.querySelectorAll('.hl-word.hl-selected').forEach(el => el.classList.remove('hl-selected'));
-            selectedHlWords.clear();
-            updateHlCount();
-        }
-        
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
