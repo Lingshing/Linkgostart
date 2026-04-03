@@ -14979,6 +14979,9 @@ ${chatContent}
             if(msgEl) {
                 msgEl.classList.toggle('show-feedback');
                 btnElement.classList.toggle('active');
+                if (msgEl.classList.contains('show-feedback')) {
+                    adjustScrollForExpansion(msgEl);
+                }
             }
         }
 
@@ -14990,7 +14993,42 @@ ${chatContent}
                 btnElement.classList.toggle('active'); 
                 if (!msgEl.classList.contains('show-words')) {
                     closeWord();
+                } else {
+                    adjustScrollForExpansion(msgEl);
                 }
+            }
+        }
+
+        // --- 🌟 核心辅助：气泡展开时丝滑滚动防遮挡 ---
+        function adjustScrollForExpansion(msgEl) {
+            const container = document.getElementById('chat-messages-container');
+            if (!container) return;
+            
+            // 判断：如果是最后一条消息，或者是距离底部很近的消息
+            const isLastMessage = !msgEl.nextElementSibling || msgEl.nextElementSibling.id === 'active-stream-container';
+            const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+            
+            if (isNearBottom || isLastMessage) {
+                // 魔法：在 CSS 展开动画的 350ms 内，每一帧都把滚动条往下压
+                // 这样就能完美实现“气泡往下长，屏幕同时往上抬”的丝滑视觉！
+                const start = performance.now();
+                function step() {
+                    container.scrollTop = container.scrollHeight;
+                    if (performance.now() - start < 350) {
+                        requestAnimationFrame(step);
+                    }
+                }
+                requestAnimationFrame(step);
+            } else {
+                // 如果是翻看上面的历史记录，检测展开后是否会超出屏幕下边缘被截断
+                setTimeout(() => {
+                    const rect = msgEl.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    // 如果气泡底部掉出了可见区域，就使用系统级平滑滚动往上推一点点
+                    if (rect.bottom > containerRect.bottom - 10) {
+                        container.scrollBy({ top: rect.bottom - containerRect.bottom + 20, behavior: 'smooth' });
+                    }
+                }, 50); 
             }
         }
 
