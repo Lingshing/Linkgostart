@@ -3853,21 +3853,14 @@
                     }
  
                     if (onComplete) onComplete(fullMessage);
-                    if (typeof handleFinalAIResponse === 'function') handleFinalAIResponse(contactId, fullMessage);
-                } else {
-                    const data = await response.json();
-                    const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
-                    const container = document.getElementById('chat-messages-container');
-                    const result = await typeMessageInMultipleBubbles(aiReply, container);
-                    if (result.sentences && result.sentences.length > 0) {
-                        result.sentences.forEach(sentence => addMessage(currentChatContactId, 'assistant', sentence));
-                        updateChatListLastMessage(currentChatContactId, result.sentences[result.sentences.length - 1]);
-                    } else {
-                        addMessage(currentChatContactId, 'assistant', aiReply);
-                        updateChatListLastMessage(currentChatContactId, aiReply);
-                    }
-                    if (onComplete) onComplete(aiReply);
-                }
+                            if (fullMessage) startGlobalBubbleQueue(contactId, fullMessage);
+                        } else {
+                            const data = await response.json();
+                            const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
+                            
+                            if (onComplete) onComplete(aiReply);
+                            if (aiReply) startGlobalBubbleQueue(contactId, aiReply);
+                        }
             } catch (error) {
                 if (onError) onError(error);
             }
@@ -4007,19 +4000,13 @@
                     }
                     
                     if (onComplete) onComplete(fullMessage);
+                    if (fullMessage) startGlobalBubbleQueue(currentChatContactId, fullMessage);
                 } else {
                     const data = await response.json();
                     const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
-                    const container = document.getElementById('chat-messages-container');
-                    const result = await typeMessageInMultipleBubbles(aiReply, container);
-                    if (result.sentences && result.sentences.length > 0) {
-                        result.sentences.forEach(sentence => addMessage(currentChatContactId, 'assistant', sentence));
-                        updateChatListLastMessage(currentChatContactId, result.sentences[result.sentences.length - 1]);
-                    } else {
-                        addMessage(currentChatContactId, 'assistant', aiReply);
-                        updateChatListLastMessage(currentChatContactId, aiReply);
-                    }
+                    
                     if (onComplete) onComplete(aiReply);
+                    if (aiReply) startGlobalBubbleQueue(currentChatContactId, aiReply);
                 }
             } catch (error) {
                 if (error.name === 'AbortError') return;
@@ -9970,74 +9957,31 @@ ${chatContent}
         function regenerateMessage(event, btn) {
             event.stopPropagation();
             if (!currentChatContactId) return;
-            
+
             btn.classList.remove('show');
             currentRegenerateBtn = null;
-            
+
             // 强行接管文字流
             backgroundAIReply.inProgress = true;
             backgroundAIReply.contactId = currentChatContactId;
             backgroundAIReply.fullMessage = '';
 
-            regenerateResponse(currentChatContactId, 
-                (chunk, displayMsg) => {
-                    backgroundAIReply.fullMessage = displayMsg; 
-                },
-                (fullMessage) => {
-                    backgroundAIReply.fullMessage = fullMessage; 
-                    backgroundAIReply.inProgress = false;
-                    const targetId = backgroundAIReply.contactId || currentChatContactId;
-                    backgroundAIReply.contactId = null;
-
-                    // 🌟 关键：这里不再手动 addMessage，而是交给你的排队系统一个个弹出来
-                    if (fullMessage) {
-                        startGlobalBubbleQueue(targetId, fullMessage);
-                    }
-                    
-                    if (typeof handleFinalAIResponse === 'function') {
-                        handleFinalAIResponse(targetId, fullMessage);
-                    }
-                },
-                    const targetId = backgroundAIReply.contactId || currentChatContactId;
-                    backgroundAIReply.contactId = null;
-
-                    // 🌟 核心补齐：重新生成的消息也必须拆分并保存！
-                    if (fullMessage) {
-                        let displayMsg = fullMessage;
-                        let metaData = '';
-                        if (fullMessage.includes('===METADATA===')) {
-                            const parts = fullMessage.split('===METADATA===');
-                            displayMsg = parts[0].trim();
-                            metaData = '\n\n===METADATA===' + parts[1];
-                        }
-
-                        const sentences = typeof splitTextIntoSentences === 'function' ? splitTextIntoSentences(displayMsg) : [displayMsg];
-                        
-                        if (sentences.length > 0) {
-                            sentences.forEach((sentence, index) => {
-                                let textToSave = sentence.trim();
-                                if (index === sentences.length - 1 && metaData) textToSave += metaData;
-                                if (textToSave) addMessage(targetId, 'assistant', textToSave);
-                            });
-                            updateChatListLastMessage(targetId, sentences[sentences.length - 1]);
-                        } else {
-                            addMessage(targetId, 'assistant', fullMessage);
-                            updateChatListLastMessage(targetId, fullMessage);
-                        }
-                    }
-                    
-                    if (typeof handleFinalAIResponse === 'function') handleFinalAIResponse(targetId, fullMessage);
-                },
-                (error) => {
-                    console.error('重新生成失败:', error);
-                    backgroundAIReply.inProgress = false;
-                    const bubble = document.getElementById('active-typing-bubble');
-                    if (bubble) {
-                        bubble.classList.remove('breathing-mode');
-                        bubble.innerHTML = `<span style="color: #ff3b30; font-size: 0.9em;">[网络或请求错误：${error.message}]</span>`;
-                    }
+            regenerateResponse(currentChatContactId, (chunk, displayMsg) => {
+                backgroundAIReply.fullMessage = displayMsg;
+            }, (fullMessage) => {
+                backgroundAIReply.fullMessage = fullMessage;
+                backgroundAIReply.inProgress = false;
+                backgroundAIReply.contactId = null;
+                // 这里的排队和保存逻辑，已经全部统一收口到底层引擎处理了！
+            }, (error) => {
+                console.error('重新生成失败:', error);
+                backgroundAIReply.inProgress = false;
+                const bubble = document.getElementById('active-typing-bubble');
+                if (bubble) {
+                    bubble.classList.remove('breathing-mode');
+                    bubble.innerHTML = `<span style="color: #ff3b30; font-size: 0.9em;">[网络或请求错误：${error.message}]</span>`;
                 }
-            );
+            });
         }
         
         // --- 点击其他地方隐藏按钮 ---
