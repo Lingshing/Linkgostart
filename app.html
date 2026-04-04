@@ -909,7 +909,6 @@
             fill: var(--text-main);
         }
         
-        /* 输入框 */
         .chat-input-field {
             flex: 1;
             border: none;
@@ -919,7 +918,13 @@
             border-radius: 8px;
             font-size: 17px;
             color: var(--text-main);
-            caret-color: #07C160;
+            caret-color: #07C160;  /* 保留绿色光标 */
+            
+            /* 增加下面这三行：开启独立3D图层，防止光标在滑动中假死！ */
+            position: relative;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            
             resize: none;
             max-height: 100px;
             min-height: 40px;
