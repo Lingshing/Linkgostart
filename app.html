@@ -847,9 +847,9 @@
             display: inline-block;
             cursor: text;
 
-            /* --- 修复：强制换行，防止报错撑爆屏幕 --- */
-            word-wrap: break-word;
-            word-break: break-all;  /* 这一句最关键 */
+            /* --- 修复：全局完美换行，解决中英混排与符号被乱切 --- */
+            word-break: normal;
+            overflow-wrap: anywhere;
             white-space: pre-wrap;  /* 保留换行格式 */
             max-width: 100%;        /* 限制最大宽度 */
         }
@@ -1650,9 +1650,9 @@
             line-height: 1.4;
             display: inline-block;
             max-width: 85%;
-            word-wrap: break-word;
+            word-break: normal;
+            overflow-wrap: anywhere;
             white-space: pre-wrap; /* 保留换行符 */
-            overflow-wrap: break-word; /* 强制换行 */
         }
         
         .short-memory-message.user {
@@ -1681,6 +1681,9 @@
             border: 1px solid rgba(0,0,0,0.08) !important;
             transition: all 0.2s ease !important;
             outline: none !important;
+            word-break: normal !important;
+            overflow-wrap: anywhere !important;
+            white-space: pre-wrap !important;
         }
         
         .short-memory-message textarea:focus {
