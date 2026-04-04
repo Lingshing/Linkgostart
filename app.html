@@ -2337,19 +2337,25 @@
         /* 拿在手上的标签变成深色胶囊并放大，极其有质感 */
         .todo-tag-chosen { transform: scale(1.05); background-color: var(--text-main) !important; color: var(--card-bg) !important; border-radius: 100px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: none !important; }
     
-        /* --- 修复 iOS 全局输入框光标假死问题 --- */
+        /* --- 终极修复 iOS 全局输入框光标假死问题 --- */
+        /* 核心魔法：当全屏页或弹窗滑入完成后，彻底销毁其身上的 transform 3D 属性 */
+        /* 取消图层隔离，让苹果系统能正确把控键盘升起时光标的物理坐标！ */
+        .sub-page-scene.show,
+        .modal-overlay.show .modal-content,
+        .config-modal-overlay.show .config-modal-content,
+        .prompt-modal-overlay.show .prompt-modal,
+        .todo-bottom-sheet.active,
+        .bottom-sheet-overlay.show .bottom-sheet-content {
+            transform: none;
+        }
+
         input, textarea, [contenteditable="true"] {
-            /* 强制剥离出独立的3D渲染层 */
-            -webkit-transform: translateZ(0) !important;
-            transform: translateZ(0) !important;
+            transform: none !important;
+            -webkit-transform: none !important;
             
-            /* 关键：干掉输入框身上所有的过渡动画！防止和键盘升起动画打架 */
+            /* 干掉输入框自身可能引发冲突的过渡动画 */
             transition: none !important; 
             animation: none !important;
-            
-            /* 恢复系统的原生外观和光标行为 */
-            -webkit-appearance: none !important;
-            caret-color: auto !important; 
         }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
