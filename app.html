@@ -14754,6 +14754,45 @@ ${chatContent}
                 }, 2000); 
             }
         });
+        (function() {
+            // 唤醒光标的核心函数
+            function wakeUpCursor(inputElement) {
+                try {
+                    // 只有当元素仍然处于激活状态时才处理
+                    if (document.activeElement === inputElement) {
+                        const start = inputElement.selectionStart;
+                        const end = inputElement.selectionEnd;
+                        // 重新把光标设置在原来的位置（这不会改变视觉位置，但会强制浏览器重启光标动画）
+                        if (start !== undefined && start !== null) {
+                            inputElement.setSelectionRange(start, end);
+                        }
+                    }
+                } catch (err) {
+                    // 忽略某些特殊 type 的输入框（比如 type="date" 不支持 selection）
+                }
+            }
+
+            // 1. 监听全局的焦点获取事件 (focusin 支持事件冒泡)
+            document.addEventListener('focusin', function(e) {
+                const el = e.target;
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    // 延迟 300 毫秒（等待移动端键盘弹起动画结束）后再唤醒光标
+                    setTimeout(() => wakeUpCursor(el), 300);
+                }
+            });
+
+            // 2. 监听视口尺寸变化（键盘弹起会触发 visualViewport 的 resize）
+            // 这是针对某些滚动导致假死的最强双重保险
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', function() {
+                    const el = document.activeElement;
+                    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+                        // 视口改变后，立刻稍微延迟并唤醒
+                        setTimeout(() => wakeUpCursor(el), 50);
+                    }
+                });
+            }
+        })();
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
