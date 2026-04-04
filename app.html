@@ -14754,45 +14754,7 @@ ${chatContent}
                 }, 2000); 
             }
         });
-        (function() {
-            // 唤醒光标的核心函数
-            function wakeUpCursor(inputElement) {
-                try {
-                    // 只有当元素仍然处于激活状态时才处理
-                    if (document.activeElement === inputElement) {
-                        const start = inputElement.selectionStart;
-                        const end = inputElement.selectionEnd;
-                        // 重新把光标设置在原来的位置（这不会改变视觉位置，但会强制浏览器重启光标动画）
-                        if (start !== undefined && start !== null) {
-                            inputElement.setSelectionRange(start, end);
-                        }
-                    }
-                } catch (err) {
-                    // 忽略某些特殊 type 的输入框（比如 type="date" 不支持 selection）
-                }
-            }
-
-            // 1. 监听全局的焦点获取事件 (focusin 支持事件冒泡)
-            document.addEventListener('focusin', function(e) {
-                const el = e.target;
-                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                    // 延迟 300 毫秒（等待移动端键盘弹起动画结束）后再唤醒光标
-                    setTimeout(() => wakeUpCursor(el), 300);
-                }
-            });
-
-            // 2. 监听视口尺寸变化（键盘弹起会触发 visualViewport 的 resize）
-            // 这是针对某些滚动导致假死的最强双重保险
-            if (window.visualViewport) {
-                window.visualViewport.addEventListener('resize', function() {
-                    const el = document.activeElement;
-                    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-                        // 视口改变后，立刻稍微延迟并唤醒
-                        setTimeout(() => wakeUpCursor(el), 50);
-                    }
-                });
-            }
-        })();
+       
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
@@ -14927,6 +14889,71 @@ ${chatContent}
             </div>
         </div>
     </div>
+    <script>
+        (function() {
+            let wakeUpInterval = null;
+
+            // 核心唤醒魔法
+            function forceRepaintCursor(el) {
+                if (document.activeElement !== el) return;
+                
+                try {
+                    // 1. 强制重绘光标颜色（专门对付苹果和部分安卓的底层渲染 Bug）
+                    const originalColor = el.style.caretColor;
+                    el.style.caretColor = 'transparent'; // 瞬间让光标透明
+                    
+                    // 利用浏览器的下一帧渲染，把颜色换回来，强制浏览器重启光标闪烁引擎
+                    requestAnimationFrame(() => {
+                        el.style.caretColor = originalColor || 'auto';
+                        
+                        // 2. 原地重置光标位置
+                        const start = el.selectionStart;
+                        const end = el.selectionEnd;
+                        if (start !== undefined && start !== null) {
+                            el.setSelectionRange(start, end);
+                        }
+                    });
+                } catch (e) {
+                    // 忽略不支持 selection 的特殊输入框
+                }
+            }
+
+            // 启动连环唤醒程序
+            function startWakeUpSequence(el) {
+                // 如果之前有定时器，先清理掉
+                if (wakeUpInterval) clearInterval(wakeUpInterval);
+                
+                let count = 0;
+                // 关键点：每隔 200 毫秒唤醒一次，连续唤醒 6 次（持续 1.2 秒）
+                // 这样无论键盘弹得有多慢，或者有怎样的缓冲动画，都能确保在它停下的那一刻击中它！
+                wakeUpInterval = setInterval(() => {
+                    forceRepaintCursor(el);
+                    count++;
+                    if (count >= 6) {
+                        clearInterval(wakeUpInterval); // 1.2秒后键盘肯定稳定了，停止唤醒
+                    }
+                }, 200);
+            }
+
+            // 监听所有的点击输入行为
+            document.addEventListener('focusin', function(e) {
+                const el = e.target;
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    startWakeUpSequence(el);
+                }
+            });
+
+            // 监听键盘弹起导致的视口变化
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', function() {
+                    const el = document.activeElement;
+                    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+                        startWakeUpSequence(el);
+                    }
+                });
+            }
+        })();
+    </script>
 </body>
 </html>
 
