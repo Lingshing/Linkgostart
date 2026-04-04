@@ -2337,40 +2337,6 @@
         /* 拿在手上的标签变成深色胶囊并放大，极其有质感 */
         .todo-tag-chosen { transform: scale(1.05); background-color: var(--text-main) !important; color: var(--card-bg) !important; border-radius: 100px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: none !important; }
     
-        /* --- 终极修复 iOS 全局输入框光标假死问题 (V3 动态剥离层版) --- */
-        /* 1. 当页面或弹窗显示时，释放硬件加速缓存层 */
-        .sub-page-scene.show,
-        .modal-overlay.show .modal-content,
-        .config-modal-overlay.show .config-modal-content,
-        .prompt-modal-overlay.show .prompt-modal,
-        .todo-bottom-sheet.active,
-        .bottom-sheet-overlay.show .bottom-sheet-content {
-            transform: none !important;
-            will-change: auto !important; /* 关键：彻底销毁 GPU 硬件加速缓存层！ */
-        }
-
-        /* 2. 核心魔法：只要容器内的任何输入框被点击(focus)，立刻冻结该容器所有的动画与过渡！
-           绝对防止键盘抬升时，触发底层 3D 动画导致光标坐标脱节 */
-        .sub-page-scene:focus-within,
-        .modal-overlay:focus-within .modal-content,
-        .config-modal-overlay:focus-within .config-modal-content,
-        .prompt-modal-overlay:focus-within .prompt-modal,
-        .todo-bottom-sheet:focus-within,
-        .bottom-sheet-overlay:focus-within .bottom-sheet-content {
-            transform: none !important;
-            will-change: auto !important;
-            transition: none !important;
-            animation: none !important;
-        }
-
-        /* 3. 剥离输入框自身的全部动画干扰 */
-        input, textarea, [contenteditable="true"] {
-            transform: none !important;
-            -webkit-transform: none !important;
-            will-change: auto !important;
-            transition: none !important; 
-            animation: none !important;
-        }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
