@@ -14892,23 +14892,33 @@ ${chatContent}
     <script>
         (function() {
             function forceEngineRedraw(el) {
-                if (document.activeElement !== el) return;
-                
                 try {
-                    // 1. 强制页面重排：让整个页面神不知鬼不觉地向下滚动 1 像素，再立刻滚回来
-                    // 这招能 100% 逼迫苹果/安卓底层重绘当前视口内的所有元素
+                    // 1. 原本的滚动唤醒代码 (保留)
                     const currentY = window.scrollY;
                     window.scrollTo(window.scrollX, currentY + 1);
                     window.scrollTo(window.scrollX, currentY);
 
-                    // 2. 强制元素重绘：给输入框的底部增加 1 像素的幽灵边距
+                    // 2. 强制元素重绘：给输入框的底部增加 1 像素的幽灵边距 (保留)
                     const originalMargin = el.style.marginBottom;
                     el.style.marginBottom = '1px';
-                    
-                    // 利用浏览器的下一帧（大概16毫秒后），把边距立刻恢复原样
-                    // 人眼绝对看不见这个形变，但对于浏览器引擎来说，它必须重新计算光标的位置
+
+                    // 3. 【新增秘籍：重新定位光标法】
+                    // 强制浏览器在当前位置重新绘制一次光标，打破“假死”状态
+                    if (typeof el.selectionStart === 'number') {
+                        const currentPos = el.selectionStart;
+                        el.setSelectionRange(currentPos, currentPos);
+                    }
+
+                    // 4. 利用浏览器的下一帧恢复原样，并加上【透明度微调法】作为双保险
                     requestAnimationFrame(() => {
                         el.style.marginBottom = originalMargin || '0px';
+                        
+                        // 微微改变一下透明度（肉眼看不出），能强行逼迫苹果浏览器再次渲染光标
+                        const originalOpacity = el.style.opacity;
+                        el.style.opacity = '0.99';
+                        setTimeout(() => {
+                            el.style.opacity = originalOpacity || '1';
+                        }, 20);
                     });
                 } catch (e) {
                     // 忽略报错
