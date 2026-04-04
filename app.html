@@ -1684,6 +1684,14 @@
             word-break: normal !important;
             overflow-wrap: anywhere !important;
             white-space: pre-wrap !important;
+            padding: 9px 11px !important;
+            scrollbar-width: none !important; /* 隐藏 Firefox 的滚动条 */
+        }
+        
+        /* --- 新增关键修复：彻底隐藏右侧滚动条，把被偷走的宽度还给文字 --- */
+        .short-memory-message textarea::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
         }
         
         .short-memory-message textarea:focus {
@@ -6559,46 +6567,34 @@ ${chatContent}
                     // 保存原始内容
                     const originalContent = message.content;
                     
-                    // 🎯 关键修复：保存原气泡的宽度
-                    const originalWidth = msgDiv.offsetWidth;
-                    
+                    // 【终极修复1：精确测量】获取真实宽高，以及原始的气泡底部间距
+                    const exactWidth = msgDiv.getBoundingClientRect().width;
+                    const exactHeight = msgDiv.getBoundingClientRect().height;
+                    const exactMarginBottom = window.getComputedStyle(msgDiv).marginBottom;
+
                     // 将气泡替换为可编辑的textarea
-                    const isUser = message.role === 'user';
                     const textarea = document.createElement('textarea');
                     textarea.value = originalContent;
                     textarea.className = msgDiv.className;
-                    
-                    // 🎯 核心修复：精确计算内容高度
-                    // 1. 创建临时textarea来测量准确高度
-                    const tempTextarea = document.createElement('textarea');
-                    tempTextarea.value = originalContent;
-                    tempTextarea.style.cssText = `
-                        position: absolute;
-                        visibility: hidden;
-                        width: ${originalWidth}px;
-                        font-family: inherit;
-                        font-size: 15px;
-                        line-height: 1.4;
-                        padding: 10px 12px;
-                        border: 2px solid transparent;
-                        box-sizing: border-box;
-                        overflow: hidden;
+
+                    // 【终极修复2：像素级复刻】完全复制原气泡属性，完美继承原有间距
+                    textarea.style.cssText = msgDiv.style.cssText + `; 
+                        width: ${exactWidth}px !important; 
+                        height: ${exactHeight}px !important; 
+                        resize: vertical; 
+                        font-family: inherit; 
+                        font-size: 15px; 
+                        line-height: 1.4; 
+                        padding: 10px 12px !important; 
+                        box-sizing: border-box; 
+                        display: block; 
+                        overflow-y: auto !important; 
+                        scrollbar-width: none !important; 
+                        border: none !important; 
+                        box-shadow: 0 0 0 1px rgba(0,0,0,0.08) !important; 
+                        outline: none !important;
+                        margin-bottom: ${exactMarginBottom} !important;
                     `;
-                    document.body.appendChild(tempTextarea);
-                    
-                    // 让textarea自动调整到内容高度
-                    tempTextarea.style.height = 'auto';
-                    tempTextarea.style.height = tempTextarea.scrollHeight + 'px';
-                    const contentHeight = tempTextarea.scrollHeight;
-                    
-                    document.body.removeChild(tempTextarea);
-                    
-                    // 2. 使用精确计算的高度（至少60px，最多500px）
-                    const minHeight = Math.max(60, Math.min(500, contentHeight));
-                    
-                    // 🎯 关键修复：直接设置所有样式（包括聚焦效果）
-                    textarea.style.cssText = msgDiv.style.cssText + `; width: ${originalWidth}px !important; resize: vertical; font-family: inherit; font-size: 15px; line-height: 1.4; padding: 10px 12px; box-sizing: border-box; height: ${minHeight}px; display: block; overflow-y: auto; border: 1px solid rgba(0,0,0,0.08) !important; transition: all 0.2s ease !important; outline: none !important;`;
-                    textarea.dataset.roundIndex = roundIndex;
                     textarea.dataset.msgIndex = msgIndex;
                     
                     // 替换元素
