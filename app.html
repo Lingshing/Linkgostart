@@ -909,6 +909,7 @@
             fill: var(--text-main);
         }
         
+        /* 输入框 */
         .chat-input-field {
             flex: 1;
             border: none;
@@ -918,13 +919,7 @@
             border-radius: 8px;
             font-size: 17px;
             color: var(--text-main);
-            caret-color: #07C160;  /* 保留绿色光标 */
-            
-            /* 增加下面这三行：开启独立3D图层，防止光标在滑动中假死！ */
-            position: relative;
-            -webkit-transform: translateZ(0);
-            transform: translateZ(0);
-            
+            caret-color: #07C160;
             resize: none;
             max-height: 100px;
             min-height: 40px;
@@ -2342,6 +2337,20 @@
         /* 拿在手上的标签变成深色胶囊并放大，极其有质感 */
         .todo-tag-chosen { transform: scale(1.05); background-color: var(--text-main) !important; color: var(--card-bg) !important; border-radius: 100px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: none !important; }
     
+        /* --- 修复 iOS 全局输入框光标假死问题 --- */
+        input, textarea, [contenteditable="true"] {
+            /* 强制剥离出独立的3D渲染层 */
+            -webkit-transform: translateZ(0) !important;
+            transform: translateZ(0) !important;
+            
+            /* 关键：干掉输入框身上所有的过渡动画！防止和键盘升起动画打架 */
+            transition: none !important; 
+            animation: none !important;
+            
+            /* 恢复系统的原生外观和光标行为 */
+            -webkit-appearance: none !important;
+            caret-color: auto !important; 
+        }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
@@ -14894,56 +14903,6 @@ ${chatContent}
             </div>
         </div>
     </div>
-    <script>
-        (function() {
-            function forceEngineRedraw(el) {
-                try {
-                    // 1. 原本的滚动唤醒代码 (保留)
-                    const currentY = window.scrollY;
-                    window.scrollTo(window.scrollX, currentY + 1);
-                    window.scrollTo(window.scrollX, currentY);
-
-                    // 2. 强制元素重绘：给输入框的底部增加 1 像素的幽灵边距 (保留)
-                    const originalMargin = el.style.marginBottom;
-                    el.style.marginBottom = '1px';
-
-                    // 3. 【新增秘籍：重新定位光标法】
-                    // 强制浏览器在当前位置重新绘制一次光标，打破“假死”状态
-                    if (typeof el.selectionStart === 'number') {
-                        const currentPos = el.selectionStart;
-                        el.setSelectionRange(currentPos, currentPos);
-                    }
-
-                    // 4. 利用浏览器的下一帧恢复原样，并加上【透明度微调法】作为双保险
-                    requestAnimationFrame(() => {
-                        el.style.marginBottom = originalMargin || '0px';
-                        
-                        // 微微改变一下透明度（肉眼看不出），能强行逼迫苹果浏览器再次渲染光标
-                        const originalOpacity = el.style.opacity;
-                        el.style.opacity = '0.99';
-                        setTimeout(() => {
-                            el.style.opacity = originalOpacity || '1';
-                        }, 20);
-                    });
-                } catch (e) {
-                    // 忽略报错
-                }
-            }
-
-            if (window.visualViewport) {
-                window.visualViewport.addEventListener('resize', function() {
-                    const el = document.activeElement;
-                    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-                        // 在键盘弹起动画的早期、中期、末期，分别给浏览器引擎“三连击”
-                        // 确保无论键盘弹起速度有多慢，都能在停下的那一瞬间把它敲醒！
-                        setTimeout(() => forceEngineRedraw(el), 150);
-                        setTimeout(() => forceEngineRedraw(el), 350);
-                        setTimeout(() => forceEngineRedraw(el), 600);
-                    }
-                });
-            }
-        })();
-    </script>
 </body>
 </html>
 
