@@ -14788,17 +14788,17 @@ ${chatContent}
         // ==========================================
         // 1. 半透明胶囊通知功能（已升级高级毛玻璃 + 深浅色自动适配 + 1秒展示）
         // ==========================================
-        function showCapsuleNotification(message) {
+       function showCapsuleNotification(message) {
             let capsule = document.createElement('div');
             capsule.innerText = message;
             
-            // 【新增】自动检测系统/浏览器当前是否是深色模式
             const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
             
-            // 胶囊的基础定位
             capsule.style.position = 'fixed';
-            capsule.style.top = '10px'; // 初始位置不要太高
-            capsule.style.opacity = '0'; // 初始完全透明
+            
+            // 【核心适配1】初始位置：自动获取系统安全距离（灵动岛高度），避开遮挡。如果没有灵动岛默认预留20px
+            capsule.style.top = 'calc(env(safe-area-inset-top, 20px) + 0px)'; 
+            capsule.style.opacity = '0'; 
             capsule.style.left = '50%';
             capsule.style.transform = 'translateX(-50%)';
             
@@ -14822,22 +14822,23 @@ ${chatContent}
             capsule.style.fontSize = '14px';
             capsule.style.fontWeight = 'bold';
             
-            // 【核心修改】去掉了弹跳动画，改为丝滑的淡入、平滑移动
             capsule.style.transition = 'top 0.3s ease-out, opacity 0.3s ease-out'; 
 
             document.body.appendChild(capsule);
 
-            // 动画第一阶段：平滑向下移动一点点并显现
+            // 动画第一阶段：平滑向下移动，最终停在灵动岛下方 15px 的舒适位置
             setTimeout(() => { 
-                capsule.style.top = '30px'; 
+                // 【核心适配2】最终停留位置
+                capsule.style.top = 'calc(env(safe-area-inset-top, 20px) + 15px)'; 
                 capsule.style.opacity = '1';
             }, 10);
 
             // 动画第二阶段：1秒后平滑收回并变透明
             setTimeout(() => {
-                capsule.style.top = '10px';
+                // 【核心适配3】收回的位置
+                capsule.style.top = 'calc(env(safe-area-inset-top, 20px) + 0px)';
                 capsule.style.opacity = '0';
-                setTimeout(() => { capsule.remove(); }, 300); // 等待淡出动画播完再彻底销毁
+                setTimeout(() => { capsule.remove(); }, 300);
             }, 1500); 
         } 
         // ==========================================
