@@ -2605,11 +2605,10 @@
             <!-- 参数配置 -->
             <div class="api-section-title" style="margin-top: 32px;">参数</div>
             <div class="api-input-group" style="margin: 0 20px;">
-                <!-- 流式输出开关 -->
-                <div class="api-input-item" style="padding: 16px;">
+                <div class="api-input-item" style="padding: 16px; cursor: pointer;" onclick="toggleStreamOutput()">
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                         <div class="api-input-label" style="width: auto; margin: 0;">流式输出</div>
-                        <div class="api-param-indicator" id="stream-switch" onclick="toggleStreamOutput()"></div>
+                        <div class="api-param-indicator" id="stream-switch" style="pointer-events: none;"></div>
                     </div>
                 </div>
                 
@@ -2681,22 +2680,22 @@
             <!-- 通知服务 -->
             <div class="api-section-title" style="margin-top: 32px;">通知服务</div>
             <div class="api-input-group" style="margin: 0 20px;">
-                <div class="api-input-item" style="padding: 16px;">
+                <div class="api-input-item" style="padding: 16px; cursor: pointer;" onclick="toggleGeneralPush()">
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                         <div class="api-input-label" style="width: auto; margin: 0; font-size: 15px;">推送通知</div>
-                        <div class="api-param-indicator" id="general-push-switch" onclick="toggleGeneralPush()"></div>
+                        <div class="api-param-indicator" id="general-push-switch" style="pointer-events: none;"></div>
                     </div>
                 </div>
-                <div class="api-input-item" style="padding: 16px;">
+                <div class="api-input-item" style="padding: 16px; cursor: pointer;" onclick="toggleGeneralContent()">
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                         <div class="api-input-label" style="width: auto; margin: 0; font-size: 15px;">显示内容</div>
-                        <div class="api-param-indicator" id="general-content-switch" onclick="toggleGeneralContent()"></div>
+                        <div class="api-param-indicator" id="general-content-switch" style="pointer-events: none;"></div>
                     </div>
                 </div>
-                <div class="api-input-item" style="padding: 16px; border-bottom: 0.5px solid var(--border);">
+                <div class="api-input-item" style="padding: 16px; border-bottom: 0.5px solid var(--border); cursor: pointer;" onclick="toggleGeneralKeepAlive()">
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                         <div class="api-input-label" style="width: auto; margin: 0; font-size: 15px;">保持唤醒</div>
-                        <div class="api-param-indicator" id="general-keepalive-switch" onclick="toggleGeneralKeepAlive()"></div>
+                        <div class="api-param-indicator" id="general-keepalive-switch" style="pointer-events: none;"></div>
                     </div>
                 </div>
             </div>
@@ -2847,9 +2846,24 @@
                     </div>
                 </div>
             </div>
+
+             <div class="api-section-title">文风定制</div>
+            <div class="api-input-group" style="margin: 0 20px 32px 20px;">
+                <div class="api-input-item" style="padding: 16px; border-bottom: none;" onclick="toggleClaudeMimic()">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <div>
+                            <div class="api-input-label" style="width: auto; margin: 0; font-size: 15px;">
+                                Claude 文风模仿
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-sub); margin-top: 4px;">开启后追加细腻慢热的RP沉浸文风</div>
+                        </div>
+                        <div class="api-param-indicator" id="claude-mimic-switch" style="--accent: #007aff;"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    
+
     <!-- 预设详情页（二级页面） -->
     <div id="sub-preset-detail" class="sub-page-scene">
         <div class="nav-header clean-nav">
@@ -6103,7 +6117,11 @@ ${chatContent}
 - ✅ 示例回应：\`(慵懒地半躺在软榻上，背后垫了五六个厚实的软枕，整个人像是一颗被蜜水浸透的白玉)唔…\\(那张脸庞在阳光下白皙得泛着光，唇色红润)哈啊…没力气了…\``;
 }
 
-                            return finalPrompt;
+    // --- 注入 Claude 文风补丁 ---
+    if (typeof isClaudeMimicEnabled !== 'undefined' && isClaudeMimicEnabled) {
+        finalPrompt += "\n\n" + CLAUDE_MIMIC_PATCH;
+    }
+    return finalPrompt;
         }
 
         function toggleChatMode(clickedMode) {
@@ -14755,6 +14773,36 @@ ${chatContent}
             }
         });
        
+        // --- Claude 文风模仿核心逻辑 ---
+        let isClaudeMimicEnabled = false;
+
+        const CLAUDE_MIMIC_PATCH = `
+        【Claude级深度沉浸补丁：极致拉扯与微动作法则】
+        从现在起，你必须进入最顶级的实体出版小说文风，严格遵循以下描写法则：
+        1. 生理本能先行：面对任何互动，绝对不准立刻顺从或推进！优先描写失控的生理本能（如：身体猛地软了一截、呼吸乱了一拍、指节发白、耳根彻底红透、肚子圆鼓鼓的下坠感）。
+        2. 标志性“气声自语”：高频使用 (自言自语，声音细软/带着点鼻音/几乎听不见) 结构。表现出内心的傲娇、羞涩、心虚或不服气，台词前必须加省略号……。
+        3. 眼神与局部细节法则：视线绝不直视，多写“飞快地瞥了一眼又低下去”、“视线飘散”、“盯着脚尖”。动作聚焦微小细节（如：被亲到时僵住、把脸埋进颈侧）。
+        4. 上帝视角侧面烘托：若指令包含“描写...”，请立刻化身导演，运用 (员工甲/路人乙) 的侧面视角进行八卦和窃窃私语，间接烘托主角的状态。
+        5. 节奏延迟：将情绪的起伏、强装镇定到最终破功的拉扯感，分解到你的每一个行为语言块中，营造出文火慢炖的顶级性张力。`;
+
+        function toggleClaudeMimic() {
+            let currentModel = APP_DATA.apiModel || "";
+            let switchEl = document.getElementById('claude-mimic-switch');
+            
+            if (!isClaudeMimicEnabled && currentModel.toLowerCase().includes('claude')) {
+                if(typeof showToast === 'function') showToast("当前已使用 Claude 模型，无需开启模仿");
+                return; 
+            }
+            
+            isClaudeMimicEnabled = !isClaudeMimicEnabled;
+            if (isClaudeMimicEnabled) {
+                switchEl.classList.add('active');
+                if(typeof showToast === 'function') showToast("Claude 文风模仿已开启");
+            } else {
+                switchEl.classList.remove('active');
+                if(typeof showToast === 'function') showToast("Claude 文风模仿已关闭");
+            }
+        }
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
