@@ -14786,21 +14786,21 @@ ${chatContent}
         5. 节奏延迟：将情绪的起伏、强装镇定到最终破功的拉扯感，分解到你的每一个行为语言块中，营造出文火慢炖的顶级性张力。`;
 
         function toggleClaudeMimic() {
-            let currentModel = APP_DATA.apiModel || "";
+            // 【修复点1】从正确的地方获取当前选中的模型名字
+            let currentModel = CHAT_API_CONFIGS.currentModel || document.getElementById('chat-current-model').value || "";
             let switchEl = document.getElementById('claude-mimic-switch');
-            
+
             if (!isClaudeMimicEnabled && currentModel.toLowerCase().includes('claude')) {
-                if(typeof showToast === 'function') showToast("当前已使用 Claude 模型，无需开启模仿");
-                return; 
+                // 【修复点2】把原来的 showToast 换成了浏览器自带的 alert 弹窗，确保你能看到提醒
+                alert("当前已使用 Claude 模型，无需开启文风模仿");
+                return;
             }
-            
+
             isClaudeMimicEnabled = !isClaudeMimicEnabled;
             if (isClaudeMimicEnabled) {
                 switchEl.classList.add('active');
-                if(typeof showToast === 'function') showToast("Claude 文风模仿已开启");
             } else {
                 switchEl.classList.remove('active');
-                if(typeof showToast === 'function') showToast("Claude 文风模仿已关闭");
             }
         }
     </script>
