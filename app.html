@@ -2337,6 +2337,41 @@
         /* 拿在手上的标签变成深色胶囊并放大，极其有质感 */
         .todo-tag-chosen { transform: scale(1.05); background-color: var(--text-main) !important; color: var(--card-bg) !important; border-radius: 100px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: none !important; }
     
+    /* --- 统一的高级半透明胶囊通知 --- */
+        .ginkgo-toast {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 24px;
+            border-radius: 30px;
+            z-index: 9999999;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.05);
+            /* 毛玻璃效果 */
+            backdrop-filter: blur(15px) saturate(150%);
+            -webkit-backdrop-filter: blur(15px) saturate(150%);
+            /* 动画过渡 */
+            transition: top 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
+            opacity: 0;
+            /* 默认浅色 */
+            background-color: rgba(255, 255, 255, 0.65);
+            color: #333333;
+            /* 初始藏在屏幕最上方 */
+            top: -50px;
+        }
+
+        /* 自动适配深色模式 */
+        @media (prefers-color-scheme: dark) {
+            .ginkgo-toast {
+                background-color: rgba(30, 30, 30, 0.65);
+                color: #eeeeee;
+                border: 1px solid rgba(255,255,255,0.08);
+                box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            }
+        }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
@@ -3353,6 +3388,38 @@
     </div>
 
     <script>
+        // ==========================================
+        // 🌟 全局统一：高级胶囊通知引擎
+        // ==========================================
+        function showToast(message) {
+            // 防止多个通知重叠，先移除之前的
+            let oldToast = document.getElementById('ginkgo-global-toast');
+            if (oldToast) oldToast.remove();
+
+            let toast = document.createElement('div');
+            toast.id = 'ginkgo-global-toast';
+            toast.className = 'ginkgo-toast';
+            toast.innerText = message;
+            document.body.appendChild(toast);
+
+            // 🌟 灵动岛终极解决方案：使用 max 函数，保底至少往下移 55px！绝对不会再被挡住！
+            setTimeout(() => {
+                toast.style.top = 'calc(max(env(safe-area-inset-top, 0px), 55px) + 15px)'; 
+                toast.style.opacity = '1';
+            }, 10);
+
+            // 1.5秒后自动收回并销毁
+            setTimeout(() => {
+                toast.style.top = '-50px';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 400);
+            }, 1500);
+        }
+
+        // 🔥 魔法接管：把你代码里所有的原生 alert 弹窗全部强制升级为半透明胶囊！
+        window.alert = function(msg) {
+            showToast(msg);
+        };
         // ==========================================
         // 第1批移植：核心数据结构 + 分词器 + 长期记忆
         // ==========================================
@@ -14842,20 +14909,18 @@ ${chatContent}
             }, 1500); 
         } 
         // ==========================================
-        // 2. 你的开关点击逻辑（已改成用胶囊通知）
+        // Claude 文风开关逻辑 (极简版)
         // ==========================================
         function toggleClaudeMimic() {
             let modelInput = document.getElementById('chat-current-model');
             let currentModel = modelInput ? modelInput.value.toLowerCase() : "";
             let switchEl = document.getElementById('claude-mimic-switch');
 
-            // 如果当前已经是 claude，再去点开关，就拦截并用胶囊提示
             if (!isClaudeMimicEnabled && currentModel.includes('claude')) {
-                showCapsuleNotification("当前已使用 Claude 模型，无需开启");
+                showToast("当前已使用 Claude 模型，无需开启"); // 直接调用统一函数！
                 return; 
             }
 
-            // 正常的开关切换逻辑
             isClaudeMimicEnabled = !isClaudeMimicEnabled;
             if (isClaudeMimicEnabled) {
                 switchEl.classList.add('active');
@@ -14864,36 +14929,25 @@ ${chatContent}
             }
         }
 
-        // ==========================================
-        // 3. 全自动监控员（解决切换模型不关闭的问题）
-        // ==========================================
-        let lastModelValueForMimic = ""; // 记住上一次的模型名字
-
-        setInterval(() => {
+        // 自动关闭监控员
+        function initModelChangeListener() {
             let modelInput = document.getElementById('chat-current-model');
             if (!modelInput) return;
 
-            let currentModelValue = modelInput.value.toLowerCase();
-            let switchEl = document.getElementById('claude-mimic-switch');
+            function handleModelChange() {
+                let currentModelValue = modelInput.value.toLowerCase();
+                let switchEl = document.getElementById('claude-mimic-switch');
 
-            // 如果发现模型名字变了！
-            if (currentModelValue !== lastModelValueForMimic) {
-                lastModelValueForMimic = currentModelValue; // 更新记录
-
-                // 如果新切换的模型是 claude，而且这个时候开关是打开的
                 if (currentModelValue.includes('claude') && typeof isClaudeMimicEnabled !== 'undefined' && isClaudeMimicEnabled === true) {
-                    
-                    // 强制关闭它！
                     isClaudeMimicEnabled = false;
-                    if(switchEl) {
-                        switchEl.classList.remove('active');
-                    }
-                    
-                    // 弹出你想要的胶囊通知！
-                    showCapsuleNotification("Claude文风模仿已自动关闭");
+                    if(switchEl) switchEl.classList.remove('active');
+                    showToast("Claude文风模仿已自动关闭");
                 }
             }
-        }, 500); // 这个监控员每 0.5 秒钟就会偷偷检查一次模型输入框
+            modelInput.addEventListener('change', handleModelChange);
+            modelInput.addEventListener('input', handleModelChange);
+        }
+        setTimeout(initModelChangeListener, 1000);
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
