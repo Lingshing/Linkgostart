@@ -2337,14 +2337,12 @@
         /* 拿在手上的标签变成深色胶囊并放大，极其有质感 */
         .todo-tag-chosen { transform: scale(1.05); background-color: var(--text-main) !important; color: var(--card-bg) !important; border-radius: 100px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: none !important; }
     
-    /* --- 统一的高级半透明胶囊通知 (粒子渐变版) --- */
+    /* --- 统一的高级半透明胶囊通知 (粒子渐变版 - 修复消失生硬) --- */
         .ginkgo-toast {
             position: fixed;
-            /* 永远固定在一个安全高度，不再上下滑动，完美避开灵动岛 */
-            top: calc(max(env(safe-area-inset-top, 0px), 30px) + 20px);
+            top: calc(env(safe-area-inset-top, 15px) + 5px);
             left: 50%;
             
-            /* 【粒子感核心】初始状态：完全透明、略微缩小、并且带有强烈的模糊感 */
             opacity: 0;
             transform: translateX(-50%) scale(0.85);
             filter: blur(12px);
@@ -2361,8 +2359,27 @@
             -webkit-backdrop-filter: blur(15px) saturate(150%);
             background-color: rgba(255, 255, 255, 0.65);
             color: #333333;
-            /* 极度丝滑的过渡动画时间：0.5秒 */
-            transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+            
+            /* 【核心修改1：消失时的动画】用平滑的 ease-in-out 让它像云雾一样慢慢散开，时间延长到 0.6秒 */
+            transition: opacity 0.6s ease-in-out, transform 0.6s ease-in-out, filter 0.6s ease-in-out;
+        }
+
+        .ginkgo-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+            filter: blur(0px);
+            /* 【核心修改2：出现时的动画】单独保留原来的轻快聚合感，时间 0.4秒 */
+            transition: opacity 0.4s cubic-bezier(0.19, 1, 0.22, 1), transform 0.4s cubic-bezier(0.19, 1, 0.22, 1), filter 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        /* 深色模式自动适配保持不变 */
+        @media (prefers-color-scheme: dark) {
+            .ginkgo-toast {
+                background-color: rgba(30, 30, 30, 0.65);
+                color: #eeeeee;
+                border: 1px solid rgba(255,255,255,0.08);
+                box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            }
         }
 
         /* 激活状态：当它出现时，变清晰、变成正常大小、完全不透明 */
@@ -3398,7 +3415,7 @@
 
     <script>
         // ==========================================
-        // 🌟 全局统一：高级胶囊通知引擎 (粒子渐变版)
+        // 🌟 全局统一：高级胶囊通知引擎 (粒子渐变版 - 修复消失生硬)
         // ==========================================
         function showToast(message) {
             let oldToast = document.getElementById('ginkgo-global-toast');
@@ -3410,18 +3427,17 @@
             toast.innerText = message;
             document.body.appendChild(toast);
 
-            // 强制浏览器刷新一次，非常关键的一句代码，只有这样才能触发 CSS 的过渡动画！
             void toast.offsetWidth; 
 
-            // 加上 show 类名，触发“粒子聚合”特效（从模糊透明 -> 清晰实体）
             toast.classList.add('show');
 
             // 1.5秒后开始“粒子消散”特效
             setTimeout(() => {
-                toast.classList.remove('show'); // 移除类名，它会自动慢慢变模糊并透明
+                toast.classList.remove('show'); 
                 
-                // 等待 0.5 秒（也就是等动画彻底播完）再从网页中把这个元素删掉
-                setTimeout(() => toast.remove(), 500);
+                // 【核心修改3】把等待销毁的时间从 500 改成 700 毫秒！
+                // 因为我们在 CSS 里把消失动画变成了 0.6秒，如果 500 毫秒就把元素删了，动画还没播完就会卡断
+                setTimeout(() => toast.remove(), 700);
             }, 1500);
         }
 
