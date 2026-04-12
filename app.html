@@ -23,7 +23,7 @@
             --text-sub: #8e8e93;
             --accent: #5C92D1; /* 换成了更柔和的灰蓝色，不刺眼 */
             --accent-light: rgba(92, 146, 209, 0.12);
-            --danger: #FF3B30; /* 统一的红色变量 */
+            --danger: #E64A4A; /* 换成更柔和的柔雾红，绝不刺眼 */
             --border: rgba(0,0,0,0.08);
             --nav-bg: rgba(255,255,255,0.85);
             --nav-blur-bg: rgba(255,255,255,0.92);
@@ -108,9 +108,8 @@
         .large-title { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; color: var(--text-main); margin: 0; line-height: 1; }
 
         .status-badge-hero { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 20px; background: var(--accent-light); border-radius: 100px; color: var(--accent); font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
-        .status-dot-hero { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; margin-right: 10px; box-shadow: 0 0 0 rgba(10, 132, 255, 0.4); animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(10, 132, 255, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(10, 132, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(10, 132, 255, 0); } }
-
+        .status-dot-hero { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; margin-right: 10px; box-shadow: 0 0 0 rgba(92, 146, 209, 0.4); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(92, 146, 209, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(92, 146, 209, 0); } 100% { box-shadow: 0 0 0 0 rgba(92, 146, 209, 0); } }
         /* 🎯 修复 1：改为全局绝对顶层定位，随着下拉从屏幕外侧滑入 */
         .pull-refresh-indicator {
             position: fixed; 
@@ -1764,7 +1763,7 @@
             transform-origin: left;
             transition: transform 1.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
             z-index: 10002;
-            box-shadow: 0 1px 4px rgba(10, 132, 255, 0.5);
+            box-shadow: 0 1px 4px rgba(92, 146, 209, 0.5);
             opacity: 0;
             pointer-events: none;
         }
@@ -2315,10 +2314,10 @@
         .todo-input-large::placeholder { color: var(--text-sub); }
         .todo-tools-row { display: flex; gap: 12px; align-items: center; }
         .todo-tool-btn { background: var(--bg-color); border: none; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 6px; cursor: pointer; }
-        .todo-tool-btn.highlight { color: var(--accent); background: rgba(10, 132, 255, 0.1); }
+        .todo-tool-btn.highlight { color: var(--accent); background: var(--accent-light); }
         .todo-dynamic-tags { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .todo-tag-pill { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; background: var(--bg-color); color: var(--text-sub); padding: 6px 12px; border-radius: 100px; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: background-color 0.2s, color 0.2s, border-color 0.2s, opacity 0.2s; border: 1px solid transparent; }
-        .todo-tag-pill.selected { background: rgba(10, 132, 255, 0.1); color: var(--accent); border-color: rgba(10, 132, 255, 0.3); }
+        .todo-tag-pill.selected { background: var(--accent-light); color: var(--accent); border-color: rgba(92, 146, 209, 0.3); }
         .todo-tag-delete { opacity: 0.4; font-size: 12px; padding: 2px; transition: opacity 0.2s; }
         .todo-tag-delete:active { opacity: 1; color: var(--text-sub); }
         .todo-tag-input-wrapper { display: flex; align-items: center; background: var(--bg-color); border-radius: 100px; padding: 4px 12px; gap: 6px; }
@@ -2445,7 +2444,7 @@
             </div>
             
             <div class="clickable" data-id="app-todo" onclick="openSubPage('scene-todo')">
-                <div class="app-icon-box" style="background: var(--accent); box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);">
+                <div class="app-icon-box" style="background: var(--accent); box-shadow: 0 4px 12px rgba(92, 146, 209, 0.3);">
                     <i class="fa-solid fa-list-check"></i>
                 </div>
                 <div class="app-label">任务站</div>
@@ -4281,7 +4280,7 @@
                 '--text-sub': '#8e8e93',
                 '--accent': '#5C92D1',
                 '--accent-light': 'rgba(92, 146, 209, 0.12)',
-                '--danger': '#FF3B30',
+                '--danger': '#E64A4A',
                 '--border': 'rgba(0,0,0,0.08)',
                 '--nav-bg': 'rgba(255,255,255,0.85)',
                 '--nav-blur-bg': 'rgba(255,255,255,0.92)',
@@ -4301,7 +4300,7 @@
                 '--text-sub': '#98989d',
                 '--accent': '#5C92D1', 
                 '--accent-light': 'rgba(92, 146, 209, 0.2)',
-                '--danger': '#FF453A', /* 适配深色模式的红 */
+                '--danger': '#E85A5A', /* 暗色模式下的珊瑚红，温润清晰 */
                 '--border': 'rgba(255,255,255,0.15)',
                 '--nav-bg': 'rgba(28,28,30,0.85)',
                 '--nav-blur-bg': 'rgba(28,28,30,0.95)',
@@ -9120,7 +9119,7 @@ ${chatContent}
                     const isActive = config.id === activeId;
                     const itemHtml = `<div class="config-list-item config-list-item-swipeable">
                         <div class="config-item-info">
-                            <div class="config-item-name" style="color: ${isActive ? '#0A84FF' : 'var(--text-main)'}; font-weight: ${isActive ? '600' : '500'};">${config.name}</div>
+                            <div class="config-item-name" style="color: ${isActive ? 'var(--accent)' : 'var(--text-main)'}; font-weight: ${isActive ? '600' : '500'};">${config.name}</div>
                             <div class="config-item-model">${config.model || '未选择模型'}</div>
                         </div>
                         ${isActive ? '<div class="config-item-check"><i class="fas fa-check"></i></div>' : ''}
