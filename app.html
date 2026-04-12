@@ -2768,11 +2768,19 @@
             <!-- 缓存使用信息条 -->
             <div style="margin: 0 20px 16px 20px; background: var(--hover-bg); border-radius: 10px; padding: 12px 16px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 13px; color: var(--text-sub);">缓存使用</span>
+                    <span style="font-size: 13px; color: var(--text-sub);">基础缓存 (localStorage)</span>
                     <span style="font-size: 14px; font-weight: 600; color: var(--text-main);" id="general-cache-size">0 KB</span>
                 </div>
-                <div style="height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;">
+                <div style="height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 12px;">
                     <div id="general-cache-bar" style="height: 100%; background: var(--accent); width: 0%; transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);"></div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 13px; color: var(--text-sub);">大仓库容量 (IndexedDB)</span>
+                    <span style="font-size: 14px; font-weight: 600; color: var(--accent);" id="forage-cache-size">0.00 MB</span>
+                </div>
+                <div style="height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;">
+                    <div id="forage-cache-bar" style="height: 100%; background: var(--text-main); width: 0%; transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);"></div>
                 </div>
             </div>
             
@@ -10465,9 +10473,9 @@ ${chatContent}
         }
         
         // --- 计算并更新缓存大小 ---
-        function updateGeneralCacheSize() {
+        async function updateGeneralCacheSize() {
             try {
-                // 计算localStorage总大小
+                // 1. 计算localStorage总大小
                 let totalSize = 0;
                 for (let key in localStorage) {
                     if (localStorage.hasOwnProperty(key)) {
@@ -10475,7 +10483,6 @@ ${chatContent}
                     }
                 }
                 
-                // 转换单位
                 let displaySize, unit;
                 if (totalSize < 1024) {
                     displaySize = totalSize;
@@ -10488,16 +10495,29 @@ ${chatContent}
                     unit = 'MB';
                 }
                 
-                // 更新显示
                 const sizeEl = document.getElementById('general-cache-size');
                 const barEl = document.getElementById('general-cache-bar');
-                
                 if (sizeEl) sizeEl.textContent = displaySize + ' ' + unit;
-                
-                // 计算进度（假设最大5MB）
-                const maxSize = 5 * 1024 * 1024;
+                const maxSize = 5 * 1024 * 1024; // localStorage 最大5MB
                 const percent = Math.min(100, (totalSize / maxSize) * 100);
                 if (barEl) barEl.style.width = percent + '%';
+
+                // 2. 计算大仓库 (localforage) 的大小
+                let forageTotal = 0;
+                await localforage.iterate((value, key) => {
+                    const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
+                    forageTotal += (valueStr.length + key.length) * 2; // JS中字符串一字符约占2字节
+                });
+                
+                const forageSizeMB = (forageTotal / (1024 * 1024)).toFixed(2);
+                const forageSizeEl = document.getElementById('forage-cache-size');
+                const forageBarEl = document.getElementById('forage-cache-bar');
+                
+                if (forageSizeEl) forageSizeEl.textContent = forageSizeMB + ' MB';
+                // 大仓库以 500MB 作为视觉上限计算进度条
+                const maxForageSize = 500 * 1024 * 1024;
+                const foragePercent = Math.min(100, (forageTotal / maxForageSize) * 100);
+                if (forageBarEl) forageBarEl.style.width = foragePercent + '%';
                 
             } catch(e) {
                 console.error('计算缓存大小失败:', e);
