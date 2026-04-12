@@ -21,8 +21,9 @@
             --card-bg: #ffffff;
             --text-main: #000000;
             --text-sub: #8e8e93;
-            --accent: #0A84FF;
-            --accent-light: rgba(10, 132, 255, 0.12);
+            --accent: #5C92D1; /* 换成了更柔和的灰蓝色，不刺眼 */
+            --accent-light: rgba(92, 146, 209, 0.12);
+            --danger: #FF3B30; /* 统一的红色变量 */
             --border: rgba(0,0,0,0.08);
             --nav-bg: rgba(255,255,255,0.85);
             --nav-blur-bg: rgba(255,255,255,0.92);
@@ -32,6 +33,9 @@
             --icon-color: #000000;
             --divider: rgba(0,0,0,0.1);
             --safe-bottom: env(safe-area-inset-bottom);
+            /* 聊天专用变量 */
+            --user-bubble-bg: #95ec69;
+            --user-bubble-text: #000000;
         }
 
         body {
@@ -223,7 +227,7 @@
         }
         .chat-action-btn:active { opacity: 0.7; }
         .chat-action-edit { background: #5E6367; }
-        .chat-action-delete { background: #E85D4A; }
+        .chat-action-delete { background: var(--danger); }
 
         /* 聊天项卡片（可滑动层） */
         .chat-item {
@@ -673,7 +677,7 @@
         }
         .config-action-btn:active { opacity: 0.7; }
         .config-action-edit { background: #5E6367; }
-        .config-action-delete { background: #E85D4A; }
+        .config-action-delete { background: var(--danger); }
         
         /* 配置项内容层(前景层，可滑动) */
         .config-list-item-swipeable {
@@ -856,9 +860,8 @@
         
         
         .chat-message.user .chat-bubble {
-            /* 使用变量，如果变量未定义则默认显示浅色微信绿 */
-            background: var(--user-bubble-bg, #95ec69); 
-            color: #000000;
+            background: var(--user-bubble-bg);
+            color: var(--user-bubble-text);
         }
         
         .chat-message.ai .chat-bubble {
@@ -1551,7 +1554,7 @@
         }
         
         .memory-delete-btn {
-            color: #FF3B30;
+            color: var(--danger);
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
@@ -1628,7 +1631,7 @@
             width: 24px;
             height: 24px;
             border-radius: 50%;
-            background: #FF3B30;
+            background: var(--danger);
             color: white;
             display: flex;
             align-items: center;
@@ -2072,7 +2075,7 @@
         }
         .forum-action-btn:active { opacity: 0.7; }
         .forum-action-delete { 
-            background: #FF3B30; 
+            background: var(--danger); 
             /* 删去之前的 box-shadow 魔法，它正是引发红色拖影的罪魁祸首 */
         }
 
@@ -2473,7 +2476,7 @@
             
             <div id="exp-sec-1" class="explore-section" style="justify-content: flex-start; padding-top: 5px; padding-bottom: 0;">
                 <div class="forum-hot-search" style="margin-top: -25px;">
-                    <div class="hot-title"><i class="fas fa-fire" style="color: #FF3B30;"></i> 实时热搜</div>
+                    <div class="hot-title"><i class="fas fa-fire" style="color: var(--danger);"></i> 实时热搜</div>
                     <div class="hot-list" id="forum-hot-list">
                         </div>
                 </div>
@@ -2803,9 +2806,9 @@
                 </div>
                 
                 <!-- 清空 -->
-                <div onclick="clearAllGeneralData()" style="background: var(--card-bg); border-radius: 12px; padding: 20px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06); transition: all 0.2s; border: 1px solid rgba(255, 59, 48, 0.15);" ontouchstart="this.style.transform='scale(0.95)'" ontouchend="this.style.transform=''">
-                    <i class="fas fa-trash-alt" style="font-size: 24px; color: #FF3B30;"></i>
-                    <span style="font-size: 12px; color: #FF3B30; font-weight: 500;">清空</span>
+                <div onclick="clearAllGeneralData()" style="background: var(--card-bg); border-radius: 12px; padding: 20px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06); transition: all 0.2s; border: 1px solid var(--danger);" ontouchstart="this.style.transform='scale(0.95)'" ontouchend="this.style.transform=''">
+                    <i class="fas fa-trash-alt" style="font-size: 24px; color: var(--danger);"></i>
+                    <span style="font-size: 12px; color: var(--danger); font-weight: 500;">清空</span>
                 </div>
             </div>
             
@@ -4276,8 +4279,9 @@
                 '--card-bg': '#ffffff',
                 '--text-main': '#000000',
                 '--text-sub': '#8e8e93',
-                '--accent': '#0A84FF',
-                '--accent-light': 'rgba(10, 132, 255, 0.12)',
+                '--accent': '#5C92D1',
+                '--accent-light': 'rgba(92, 146, 209, 0.12)',
+                '--danger': '#FF3B30',
                 '--border': 'rgba(0,0,0,0.08)',
                 '--nav-bg': 'rgba(255,255,255,0.85)',
                 '--nav-blur-bg': 'rgba(255,255,255,0.92)',
@@ -4286,16 +4290,18 @@
                 '--hover-bg': '#f2f2f7',
                 '--icon-color': '#000000',
                 '--divider': 'rgba(0,0,0,0.1)',
-                '--user-bubble-bg': '#95ec69' /* 🟢 新增：浅色模式微信绿 */
+                '--user-bubble-bg': '#95ec69',
+                '--user-bubble-text': '#000000'
             },
             dark: {
                 name: '深色',
                 '--bg-color': '#000000',
                 '--card-bg': '#1c1c1e',
-                '--text-main': '#ffffff',
+                '--text-main': '#D0D0D0', /* 柔和浅灰，不刺眼 */
                 '--text-sub': '#98989d',
-                '--accent': '#409EFF',
-                '--accent-light': 'rgba(64, 158, 255, 0.2)',
+                '--accent': '#5C92D1', 
+                '--accent-light': 'rgba(92, 146, 209, 0.2)',
+                '--danger': '#FF453A', /* 适配深色模式的红 */
                 '--border': 'rgba(255,255,255,0.15)',
                 '--nav-bg': 'rgba(28,28,30,0.85)',
                 '--nav-blur-bg': 'rgba(28,28,30,0.95)',
@@ -4304,7 +4310,8 @@
                 '--hover-bg': '#2c2c2e',
                 '--icon-color': '#ffffff',
                 '--divider': 'rgba(255,255,255,0.1)',
-                '--user-bubble-bg': '#07C160' /* 🟢 新增：深色模式深绿 */
+                '--user-bubble-bg': '#17A963', /* 你选的深绿色 */
+                '--user-bubble-text': '#000000' /* 解决深色模式气泡文字看不清的问题 */
             }
         };
         
@@ -10961,7 +10968,7 @@ ${chatContent}
                         <div style="font-size: 16px; font-weight: 600; color: var(--text-main);">${preset.name}</div>
                         <div style="display: flex; gap: 12px; align-items: center;">
                             ${isActive ? '<span style="font-size: 12px; color: var(--accent); background: var(--accent-light); padding: 4px 10px; border-radius: 8px; font-weight: 600;">使用中</span>' : ''}
-                            <i class="fas fa-trash-alt" style="color: #FF3B30; font-size: 14px; padding: 8px;" onclick="event.stopPropagation(); deleteAdvancedPreset(${preset.id})"></i>
+                            <i class="fas fa-trash-alt" style="color: var(--danger); font-size: 14px; padding: 8px;" onclick="event.stopPropagation(); deleteAdvancedPreset(${preset.id})"></i>
                         </div>
                     </div>
                     <div style="font-size: 13px; color: var(--text-sub); margin-bottom: 8px;">
@@ -11005,7 +11012,7 @@ ${chatContent}
                         <div style="font-size: 16px; font-weight: 600; color: var(--text-main);">${rule.name}</div>
                         <div style="display: flex; gap: 12px; align-items: center;">
                             <div class="api-param-indicator ${rule.enabled ? 'active' : ''}" onclick="toggleAdvancedRegexRule(${rule.id})" style="margin: 0;"></div>
-                            <i class="fas fa-trash-alt" style="color: #FF3B30; font-size: 14px; padding: 8px; cursor: pointer;" onclick="deleteAdvancedRegex(${rule.id})"></i>
+                            <i class="fas fa-trash-alt" style="color: var(--danger); font-size: 14px; padding: 8px; cursor: pointer;" onclick="deleteAdvancedRegex(${rule.id})"></i>
                         </div>
                     </div>
                     <div style="font-size: 12px; color: var(--text-sub); background: #f5f5f7; padding: 8px; border-radius: 6px; font-family: monospace; white-space: nowrap; overflow-x: auto;">${rule.pattern}</div>
@@ -11322,7 +11329,7 @@ ${chatContent}
                         <div style="font-size: 15px; font-weight: 600; color: ${nameColor}; margin-bottom: 4px;">${file.name}</div>
                         <div style="font-size: 12px; color: var(--text-sub);">${file.prompts ? file.prompts.length : 0} 条内容</div>
                     </div>
-                    <i class="fas fa-trash-alt" style="color: #FF3B30; font-size: 14px; padding: 8px; cursor: pointer;" onclick="deleteAdvancedPresetFile(${file.id})"></i>
+                    <i class="fas fa-trash-alt" style="color: var(--danger); font-size: 14px; padding: 8px; cursor: pointer;" onclick="deleteAdvancedPresetFile(${file.id})"></i>
                 `;
                 
                 container.appendChild(item);
@@ -11503,7 +11510,7 @@ ${chatContent}
                         <div style="font-size: 15px; font-weight: 600; color: ${nameColor}; margin-bottom: 4px;">${file.name}</div>
                         <div style="font-size: 12px; color: var(--text-sub);">${file.scripts ? file.scripts.length : 0} 条脚本</div>
                     </div>
-                    <i class="fas fa-trash-alt" style="color: #FF3B30; font-size: 14px; padding: 8px; cursor: pointer;" onclick="deleteAdvancedRegexFile(${file.id})"></i>
+                    <i class="fas fa-trash-alt" style="color: var(--danger); font-size: 14px; padding: 8px; cursor: pointer;" onclick="deleteAdvancedRegexFile(${file.id})"></i>
                 `;
                 
                 container.appendChild(item);
@@ -12247,7 +12254,7 @@ ${chatContent}
                         </div>
                         <i class="fas fa-edit clickable" style="color: var(--accent); font-size: 16px; padding: 8px;" onclick="openPresetDetail(${file.id})"></i>
                     </div>
-                    <i class="fas fa-trash-alt" style="color: #FF3B30; font-size: 14px; padding: 8px; cursor: pointer;" onclick="deleteAdvancedPresetFile(${file.id})"></i>
+                    <i class="fas fa-trash-alt" style="color: var(--danger); font-size: 14px; padding: 8px; cursor: pointer;" onclick="deleteAdvancedPresetFile(${file.id})"></i>
                 `;
                 
                 container.appendChild(item);
@@ -12377,7 +12384,7 @@ ${chatContent}
                         </div>
                         <i class="fas fa-edit clickable" style="color: var(--accent); font-size: 16px; padding: 8px;" onclick="openRegexDetail(${file.id})"></i>
                     </div>
-                    <i class="fas fa-trash-alt" style="color: #FF3B30; font-size: 14px; padding: 8px; cursor: pointer;" onclick="deleteAdvancedRegexFile(${file.id})"></i>
+                    <i class="fas fa-trash-alt" style="color: var(--danger); font-size: 14px; padding: 8px; cursor: pointer;" onclick="deleteAdvancedRegexFile(${file.id})"></i>
                 `;
                 
                 container.appendChild(item);
@@ -13592,7 +13599,7 @@ ${chatContent}
                             <div class="post-header">
                                 <div class="post-avatar" style="background: var(--hover-bg);"><img src="https://api.dicebear.com/7.x/bottts/svg?seed=${post.id}" style="width:100%; height:100%; border-radius:50%;"></div>
                                 <div class="post-author">
-                                    <div class="post-name">${post.author} ${index === 0 ? '<span style="font-size: 10px; background: #FF3B30; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">新</span>' : ''}</div>
+                                    <div class="post-name">${post.author} ${index === 0 ? '<span style="font-size: 10px; background: var(--danger); color: white; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">新</span>' : ''}</div>
                                     <div class="post-time">${post.time}</div>
                                 </div>
                             </div>
@@ -13606,7 +13613,7 @@ ${chatContent}
                             </div>
                             <div class="post-action-btn" onclick="event.stopPropagation();"><i class="far fa-comment"></i> ${post.commentCount}</div>
                             <div class="post-action-btn" onclick="event.stopPropagation(); toggleLikePost(${post.id}, this)">
-                                <i class="${post.isLiked ? 'fas' : 'far'} fa-heart" style="color: ${post.isLiked ? '#FF3B30' : 'inherit'}; transition: transform 0.2s cubic-bezier(0.17, 0.67, 0.83, 0.67);"></i> 
+                                <i class="${post.isLiked ? 'fas' : 'far'} fa-heart" style="color: ${post.isLiked ? 'var(--danger)' : 'inherit'}; transition: transform 0.2s cubic-bezier(0.17, 0.67, 0.83, 0.67);"></i> 
                                 <span>${post.likes}</span>
                             </div>
                         </div>
@@ -13637,7 +13644,7 @@ ${chatContent}
                 post.isLiked = true;
                 post.likes = parseInt(post.likes) + 1;
                 icon.className = 'fas fa-heart';
-                icon.style.color = '#FF3B30'; // 苹果红
+                icon.style.color = 'var(--danger)'; // 苹果红
                 
                 // 触发心跳缩放动画
                 icon.style.transform = 'scale(1.4)';
@@ -15085,7 +15092,7 @@ ${chatContent}
                 </div>
 
                 <div style="padding: 10px 20px 34px;">
-                    <button onclick="executeCategorizedImport()" style="width: 100%; padding: 14px; background: #FF3B30; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer;">确认覆盖并重启</button>
+                    <button onclick="executeCategorizedImport()" style="width: 100%; padding: 14px; background: var(--danger); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer;">确认覆盖并重启</button>
                 </div>
             </div>
         </div>
