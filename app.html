@@ -2400,6 +2400,7 @@
         }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
 </head>
 <body>
     <div id="backfill-progress-bar"></div>
@@ -3534,36 +3535,48 @@
             return total + 2; // 对话的固定开销
         }
 
-        // --- 本地存储管理 ---
-        function saveToLocal() {
+        async function saveToLocal() {
             try {
-                // 保存聊天角色到localStorage
-                localStorage.setItem('CHAT_CONTACTS', JSON.stringify(mockContacts));
-                // 保存对话历史
-                localStorage.setItem('APP_DATA', JSON.stringify(APP_DATA));
+                await localforage.setItem('CHAT_CONTACTS', JSON.stringify(mockContacts));
+                await localforage.setItem('APP_DATA', JSON.stringify(APP_DATA));
             } catch(e) {
                 console.error('保存数据失败:', e);
             }
         }
         
-        function loadFromLocal() {
+        async function loadFromLocal() {
             try {
-                // 加载聊天角色
-                const contacts = localStorage.getItem('CHAT_CONTACTS');
+                // 1. 自动搬家逻辑：把旧数据转移到大仓库
+                const oldContacts = localStorage.getItem('CHAT_CONTACTS');
+                if (oldContacts) {
+                    await localforage.setItem('CHAT_CONTACTS', oldContacts);
+                    localStorage.removeItem('CHAT_CONTACTS');
+                }
+                const oldData = localStorage.getItem('APP_DATA');
+                if (oldData) {
+                    await localforage.setItem('APP_DATA', oldData);
+                    localStorage.removeItem('APP_DATA');
+                    // 👇 加上这一行弹窗代码
+                    alert("🎉 太棒了！您的聊天记录已成功搬家到大仓库，彻底突破 5MB 限制！");
+                }
+
+                // 2. 从大仓库读取数据
+                const contacts = await localforage.getItem('CHAT_CONTACTS');
                 if (contacts) {
                     const parsed = JSON.parse(contacts);
                     mockContacts.length = 0;
                     mockContacts.push(...parsed);
-                    
-                    // 🎯 加载后自动按时间排序
                     sortChatListByTime();
                 }
                 
-                // 加载对话历史
-                const data = localStorage.getItem('APP_DATA');
+                const data = await localforage.getItem('APP_DATA');
                 if (data) {
                     const parsed = JSON.parse(data);
                     Object.assign(APP_DATA, parsed);
+                }
+                
+                if (typeof renderChatList === 'function') {
+                    renderChatList();
                 }
             } catch(e) {
                 console.error('加载数据失败:', e);
@@ -3586,10 +3599,9 @@
         // 第2批移植：API配置系统
         // ==========================================
         
-        // --- API配置初始化和同步 ---
-        function initApiConfig() {
+        async function initApiConfig() {
             // 从本地存储加载API配置
-            loadFromLocal();
+            await loadFromLocal();
             
             // 同步到输入框
             const apiKeyInput = document.getElementById('api-key-input');
@@ -13500,9 +13512,16 @@ ${chatContent}
         // ==========================================
         let forumPostsData = [];
 
-        // 1. 加载或初始化帖子数据
-        function loadForumPosts() {
-            const saved = localStorage.getItem('FORUM_POSTS');
+        async function loadForumPosts() {
+            let saved = localStorage.getItem('FORUM_POSTS');
+            if (saved) {
+                // 论坛数据搬家
+                await localforage.setItem('FORUM_POSTS', saved);
+                localStorage.removeItem('FORUM_POSTS');
+            } else {
+                saved = await localforage.getItem('FORUM_POSTS');
+            }
+            
             if (saved) {
                 forumPostsData = JSON.parse(saved);
             } else {
@@ -13522,8 +13541,8 @@ ${chatContent}
             updateHotSearch(); // 每次加载时刷新一波热搜
         }
 
-        function saveForumPosts() {
-            localStorage.setItem('FORUM_POSTS', JSON.stringify(forumPostsData));
+        async function saveForumPosts() {
+            await localforage.setItem('FORUM_POSTS', JSON.stringify(forumPostsData));
         }
 
         // 2. 渲染帖子列表与防遮挡绑定
