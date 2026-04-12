@@ -2766,21 +2766,24 @@
             <div class="api-section-title" style="margin-top: 32px;">数据管理</div>
             
             <!-- 缓存使用信息条 -->
-            <div style="margin: 0 20px 16px 20px; background: var(--hover-bg); border-radius: 10px; padding: 12px 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 13px; color: var(--text-sub);">基础缓存 (localStorage)</span>
-                    <span style="font-size: 14px; font-weight: 600; color: var(--text-main);" id="general-cache-size">0 KB</span>
-                </div>
-                <div style="height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 12px;">
-                    <div id="general-cache-bar" style="height: 100%; background: var(--accent); width: 0%; transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);"></div>
+            <div style="margin: 0 20px 20px 20px; background: var(--accent); border-radius: 14px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                <div style="margin-bottom: 20px;"> <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 13px; color: rgba(255,255,255,0.8);">基础缓存 (localStorage)</span>
+                        <span style="font-size: 14px; font-weight: 600; color: #ffffff;" id="general-cache-size">0 KB</span>
+                    </div>
+                    <div style="height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden;">
+                        <div id="general-cache-bar" style="height: 100%; background: #ffffff; width: 0%; transition: width 0.5s ease;"></div>
+                    </div>
                 </div>
                 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 13px; color: var(--text-sub);">大仓库容量 (IndexedDB)</span>
-                    <span style="font-size: 14px; font-weight: 600; color: var(--accent);" id="forage-cache-size">0.00 MB</span>
-                </div>
-                <div style="height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;">
-                    <div id="forage-cache-bar" style="height: 100%; background: var(--text-main); width: 0%; transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);"></div>
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 13px; color: rgba(255,255,255,0.8);">大仓库容量 (IndexedDB)</span>
+                        <span style="font-size: 14px; font-weight: 600; color: #ffffff;" id="forage-cache-size">0.00 MB</span>
+                    </div>
+                    <div style="height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden;">
+                        <div id="forage-cache-bar" style="height: 100%; background: #ffffff; width: 0%; transition: width 0.5s ease;"></div>
+                    </div>
                 </div>
             </div>
             
