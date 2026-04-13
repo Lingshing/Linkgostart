@@ -387,23 +387,6 @@
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-bottom: 0.5px solid var(--border);
-            
-            /* 🌟 核心修复：增加一个 1px 的向下扩散阴影。
-               它颜色和 Header 完全一样，相当于向下延伸了 1px 的“裙边”，
-               不管系统怎么计算偏移，这 1px 都会死死盖住下方漏出来的彩线。 */
-            box-shadow: 0 1px 0 var(--nav-bg);
-        }
-
-        /* 增加一个极其细微的伪元素，像胶带一样封死交界处 */
-        .modal-header::after {
-            content: "";
-            position: absolute;
-            bottom: -1px; /* 向下多延伸 1px */
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: var(--card-bg); /* 颜色与卡片背景一致 */
-            z-index: -1;
         }
 
         .modal-form-group {
@@ -670,9 +653,13 @@
         .config-item-wrapper {
             position: relative;
             overflow: hidden;
-            background: transparent;
+            background: var(--card-bg); /* 🌟 铺满实心背景，强制系统擦除一切残影 */
+            border-bottom: 0.5px solid var(--border); /* 🌟 边框固定在不动的底层，绝不透色 */
             margin-bottom: 0;
-            /* 🌟 删除了导致Bug的包裹壳3D加速 */
+        }
+        
+        .config-item-wrapper:last-child {
+            border-bottom: none; /* 最后一行不需要边框 */
         }
         
         /* 操作按钮层(背景层) */
@@ -702,18 +689,15 @@
         .config-action-edit { background: #5E6367; }
         .config-action-delete { background: var(--danger); }
         
+        /* 配置项内容层(前景层，可滑动) */
         .config-list-item-swipeable {
             position: relative;
             z-index: 1; 
             background: var(--card-bg);
             transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
             touch-action: pan-y;
-            
-            /* 🌟 核心修复 1：将 will-change 删掉（因为它有时会强行开启不必要的渲染层导致残影） */
-            
-            /* 🌟 核心修复 2：给每个卡片也增加 1px 的上下阴影补丁，
-               确保卡片与卡片之间、卡片与 Header 之间是绝对“严丝合缝”的。 */
-            box-shadow: 0 1px 0 var(--card-bg), 0 -1px 0 var(--card-bg);
+            border-bottom: none !important; /* 🌟 剥夺移动卡片的半透明边框，彻底消灭透色源头 */
+            box-shadow: none !important; /* 🌟 删掉之前错误的阴影补丁 */
         }
         
         .config-list-item-swipeable.swiping {
