@@ -378,12 +378,29 @@
 
         .modal-header {
             position: relative;
-            z-index: 10; /* 🌟 保证标题栏永远在最顶层，无情碾压一切滑上来的细线 */
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text-main);
-            margin-bottom: 20px;
-            text-align: center;
+            z-index: 100; /* 绝对的顶层 */
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: var(--nav-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 0.5px solid var(--border);
+            
+            /* 🌟 核心修复：增加一个向下延伸的物理屏蔽层 */
+        }
+
+        /* 增加一个极其细微的伪元素，像胶带一样封死交界处 */
+        .modal-header::after {
+            content: "";
+            position: absolute;
+            bottom: -1px; /* 向下多延伸 1px */
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--card-bg); /* 颜色与卡片背景一致 */
+            z-index: -1;
         }
 
         .modal-form-group {
@@ -2403,13 +2420,10 @@
             }
         }
 
-        /* 🌟 轻量级修复细线 Bug（释放 GPU，恢复秒开速度） */
         .config-list-item-swipeable {
             position: relative;
-            z-index: 2;
-            background-color: var(--card-bg); /* 确保背景实心 */
-            /* 用阴影把上下缝隙糊死，纯靠颜色覆盖，不触发性能消耗 */
-            box-shadow: 0 1px 0 var(--card-bg), 0 -1px 0 var(--card-bg);
+            z-index: 1; /* 降低层级，让它老老实实待在 Header 下面 */
+            background-color: var(--card-bg);
         }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
