@@ -667,8 +667,12 @@
         .config-item-wrapper {
             position: relative;
             overflow: hidden;
-            background: var(--hover-bg);
+            background: transparent;
             margin-bottom: 0;
+            /* 🌟 核心修复：把 3D 硬件加速“图层隔离”加在不动的包裹壳上 */
+            /* 这样既不影响整体性能，又能让系统老老实实擦除滑动留下的残影 */
+            -webkit-transform: translate3d(0, 0, 0);
+            transform: translate3d(0, 0, 0);
         }
         
         /* 操作按钮层(背景层) */
@@ -679,6 +683,7 @@
             height: 100%;
             display: flex;
             align-items: center;
+            z-index: -1; /* 🌟 强制将颜色按钮压在最底层，绝不允许它在拖动时“溢出” */
         }
         
         .config-action-btn {
