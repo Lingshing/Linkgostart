@@ -1830,7 +1830,7 @@
             position: relative;
             max-width: 240px;
             margin: 0 auto 24px auto;
-            border: 0.5px solid var(--border);
+            border: 0.5px solid rgba(0,0,0,0.03); /* ✨ 强制固定极淡的透明度，去除廉价感 */
         }
         
         .segment-btn {
@@ -2004,9 +2004,9 @@
         }
         .month-day-cell::before { content: ''; position: absolute; inset: 0; background: var(--hover-bg); z-index: -1; }
         .month-day-cell[data-level="1"]::before { background: var(--accent); opacity: 0.15; }
-        .month-day-cell[data-level="2"]::before { background: var(--accent); opacity: 0.35; }
-        .month-day-cell[data-level="3"]::before { background: var(--accent); opacity: 0.65; }
-        .month-day-cell[data-level="4"]::before { background: var(--accent); opacity: 0.85; }
+        .month-day-cell[data-level="2"]::before { background: var(--accent); opacity: 0.45; } /* ✨ 提高辨识度 */
+        .month-day-cell[data-level="3"]::before { background: var(--accent); opacity: 0.75; } /* ✨ 提高辨识度 */
+        .month-day-cell[data-level="4"]::before { background: var(--accent); opacity: 1; }    /* ✨ 直接拉满到纯色 */
         .month-day-cell[data-level="5"]::before { background: var(--accent); opacity: 1; box-shadow: 0 0 6px var(--accent-light); }
         .month-day-cell[data-level="1"], .month-day-cell[data-level="2"] { color: var(--accent); }
         .month-day-cell[data-level="3"], .month-day-cell[data-level="4"], .month-day-cell[data-level="5"] { color: var(--card-bg); }
@@ -2038,9 +2038,9 @@
         /* 颜色分阶：纯粹黑白灰体系，利用透明度自动适配深色模式 */
         .hm-level, .hm-cell { background: var(--hover-bg); opacity: 1; } /* 0级 */
         .hm-cell[data-level="1"], .hm-level.lvl1 { background: var(--accent); opacity: 0.15; } /* 1级 */
-        .hm-cell[data-level="2"], .hm-level.lvl2 { background: var(--accent); opacity: 0.35; } /* 2级 */
-        .hm-cell[data-level="3"], .hm-level.lvl3 { background: var(--accent); opacity: 0.65; } /* 3级 */
-        .hm-cell[data-level="4"], .hm-level.lvl4 { background: var(--accent); opacity: 0.85; }    /* 4级 */
+        .hm-cell[data-level="2"], .hm-level.lvl2 { background: var(--accent); opacity: 0.45; } /* 2级 */
+        .hm-cell[data-level="3"], .hm-level.lvl3 { background: var(--accent); opacity: 0.75; } /* 3级 */
+        .hm-cell[data-level="4"], .hm-level.lvl4 { background: var(--accent); opacity: 1; }    /* 4级 */
         
         /* 5级：最高级别，极其克制的一点蓝色微光点缀 */
         .hm-cell[data-level="5"], .hm-level.lvl5 { 
