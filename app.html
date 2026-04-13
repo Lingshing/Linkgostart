@@ -7916,14 +7916,10 @@ ${chatContent}
                     const timeDiv = document.createElement('div');
                     timeDiv.className = 'chat-timestamp';
                     timeDiv.innerText = shortTime;
-                    // 🎯 修复3：加入透明度过渡，完美解决文字重叠和突兀感
-                    timeDiv.style.transition = 'opacity 0.2s ease';
+                    // 🌟 瞬间切换版：去除所有异步延迟和透明度过渡，点击立刻变字
                     timeDiv.onclick = function() {
-                        this.style.opacity = '0'; // 先淡出
-                        setTimeout(() => {
-                            this.innerText = this.innerText === shortTime ? fullTime : shortTime;
-                            this.style.opacity = '1'; // 换完字再淡入
-                        }, 200);
+                        // 物理级零延迟，直接在当前帧替换文字内容
+                        this.innerText = this.innerText === shortTime ? fullTime : shortTime;
                     };
                     container.appendChild(timeDiv);
                     lastMsgTime = msgTime;
