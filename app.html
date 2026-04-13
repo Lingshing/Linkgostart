@@ -378,7 +378,7 @@
 
         .modal-header {
             position: relative;
-            z-index: 100; /* 绝对的顶层 */
+            z-index: 100;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -388,7 +388,10 @@
             -webkit-backdrop-filter: blur(20px);
             border-bottom: 0.5px solid var(--border);
             
-            /* 🌟 核心修复：增加一个向下延伸的物理屏蔽层 */
+            /* 🌟 核心修复：增加一个 1px 的向下扩散阴影。
+               它颜色和 Header 完全一样，相当于向下延伸了 1px 的“裙边”，
+               不管系统怎么计算偏移，这 1px 都会死死盖住下方漏出来的彩线。 */
+            box-shadow: 0 1px 0 var(--nav-bg);
         }
 
         /* 增加一个极其细微的伪元素，像胶带一样封死交界处 */
@@ -699,14 +702,18 @@
         .config-action-edit { background: #5E6367; }
         .config-action-delete { background: var(--danger); }
         
-        /* 配置项内容层(前景层，可滑动) */
         .config-list-item-swipeable {
             position: relative;
-            z-index: 1; /* 🌟 前景设为1，安全地盖住后面的按钮 */
+            z-index: 1; 
             background: var(--card-bg);
             transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
             touch-action: pan-y;
-            will-change: transform; /* 🌟 终极护盾：提前告知iOS动画引擎，强制擦除残影 */
+            
+            /* 🌟 核心修复 1：将 will-change 删掉（因为它有时会强行开启不必要的渲染层导致残影） */
+            
+            /* 🌟 核心修复 2：给每个卡片也增加 1px 的上下阴影补丁，
+               确保卡片与卡片之间、卡片与 Header 之间是绝对“严丝合缝”的。 */
+            box-shadow: 0 1px 0 var(--card-bg), 0 -1px 0 var(--card-bg);
         }
         
         .config-list-item-swipeable.swiping {
