@@ -377,6 +377,8 @@
         }
 
         .modal-header {
+            position: relative;
+            z-index: 10; /* 🌟 保证标题栏永远在最顶层，无情碾压一切滑上来的细线 */
             font-size: 20px;
             font-weight: 700;
             color: var(--text-main);
@@ -2401,20 +2403,13 @@
             }
         }
 
-        /* 🌟 修复 iOS 列表上下滑动时边缘漏出底层按钮细线的 Bug */
+        /* 🌟 轻量级修复细线 Bug（释放 GPU，恢复秒开速度） */
         .config-list-item-swipeable {
-            /* 强制开启 GPU 硬件加速图层，切断像素粘连 */
-            -webkit-transform: translate3d(0, 0, 0);
-            transform: translate3d(0, 0, 0);
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
-            
-            /* 提升渲染层级，确保上层严丝合缝地压住下层 */
             position: relative;
             z-index: 2;
-            
-            /* 可选：用极其微小的阴影向下延伸 0.5px，强行填补那丝由于计算误差产生的缝隙 */
-            box-shadow: 0 0.5px 0 var(--card-bg);
+            background-color: var(--card-bg); /* 确保背景实心 */
+            /* 用阴影把上下缝隙糊死，纯靠颜色覆盖，不触发性能消耗 */
+            box-shadow: 0 1px 0 var(--card-bg), 0 -1px 0 var(--card-bg);
         }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
