@@ -2400,6 +2400,22 @@
                 box-shadow: 0 4px 15px rgba(0,0,0,0.4);
             }
         }
+
+        /* 🌟 修复 iOS 列表上下滑动时边缘漏出底层按钮细线的 Bug */
+        .config-list-item-swipeable {
+            /* 强制开启 GPU 硬件加速图层，切断像素粘连 */
+            -webkit-transform: translate3d(0, 0, 0);
+            transform: translate3d(0, 0, 0);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            
+            /* 提升渲染层级，确保上层严丝合缝地压住下层 */
+            position: relative;
+            z-index: 2;
+            
+            /* 可选：用极其微小的阴影向下延伸 0.5px，强行填补那丝由于计算误差产生的缝隙 */
+            box-shadow: 0 0.5px 0 var(--card-bg);
+        }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
