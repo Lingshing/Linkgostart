@@ -1942,40 +1942,59 @@
             padding-bottom: 10px;
         }
 
-        /* --- 今日：24小时动态柱状图 (对数平滑版) --- */
+        /* --- 今日：24小时动态柱状图 (对数平滑 & 严格对齐版) --- */
+        .hourly-chart-container {
+            width: 100%;
+            padding-top: 10px;
+        }
         .hourly-chart {
-            display: flex; align-items: flex-end; justify-content: space-between;
-            height: 120px; padding-top: 20px; width: 100%;
-            border-bottom: 0.5px solid var(--border);
-            padding-bottom: 4px;
+            display: flex; 
+            align-items: flex-end; /* 🌟 确保所有柱子底部在同一水平线 */
+            justify-content: space-between;
+            height: 100px; /* 固定高度 */
+            width: 100%;
+            border-bottom: 0.5px solid var(--border); /* 🌟 这条线就是基准线 */
+            padding-bottom: 0;
         }
         .hour-bar-wrapper {
-            flex: 1; display: flex; flex-direction: column;
-            align-items: center; justify-content: flex-end; height: 100%;
-            margin: 0 1px; cursor: pointer;
+            flex: 1; 
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: flex-end; 
+            height: 100%;
+            margin: 0 1px; 
+            cursor: pointer;
         }
         .hour-bar {
-            width: 8px; /* 固定一点宽度，避免太粗显得笨重 */
+            width: 8px; 
             border-radius: 4px 4px 0 0; 
             min-height: 4px; 
             background-color: var(--accent-light);
-            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            position: relative;
-            z-index: 1;
+            transition: all 0.2s ease; /* 缩短时间，避免叠影 */
         }
         
-        /* 选中时的优雅交互 */
-        .hourly-chart.has-active .hour-bar {
-            opacity: 0.3;
-        }
+        .hourly-chart.has-active .hour-bar { opacity: 0.3; }
         .hourly-chart.has-active .hour-bar-wrapper.active .hour-bar {
             background-color: var(--accent);
             opacity: 1;
-            transform: scaleY(1.1); /* 选中时稍微高一点点 */
-            transform-origin: bottom;
         }
 
-        .hour-label { font-size: 10px; color: var(--text-sub); margin-top: 8px; font-family: sans-serif; }
+        /* 🌟 关键：数字标签单独一行，绝对不影响柱子高度 */
+        .hourly-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 8px;
+        }
+        .hour-label-placeholder {
+            flex: 1;
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-sub);
+            font-family: sans-serif;
+            min-height: 12px;
+        }
 
         /* --- 本月：日历网格 --- */
         .monthly-grid {
@@ -12851,17 +12870,22 @@ ${chatContent}
 
         if (range === 'day') {
             titleEl.textContent = "今日活跃时段";
-            
-            // 借用角落的年份标签，变成互动提示文字
             currentYearEl.textContent = "点击图表查看时段";
             currentYearEl.style.color = "var(--accent)"; 
-            currentYearEl.style.transition = "opacity 0.2s ease";
-
+            
             legendEl.style.display = 'none';
             wrapperEl.style.display = 'block';
 
+            // 1. 创建图表容器
+            const container = document.createElement('div');
+            container.className = 'hourly-chart-container';
+
             const chart = document.createElement('div');
             chart.className = 'hourly-chart';
+            
+            // 2. 创建专门的标签行
+            const labelsRow = document.createElement('div');
+            labelsRow.className = 'hourly-labels';
             
             let maxCount = 0;
             for (let i = 0; i < 24; i++) {
@@ -12869,16 +12893,14 @@ ${chatContent}
                 if (c > maxCount) maxCount = c;
             }
 
-            // 🎯 核心逻辑 1：遍历真实的历史聊天记录，提取今天每一个小时的“精确起止分钟”
+            // 提取数据逻辑保持不变
             const todayStartMs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-            const todayEndMs = todayStartMs + 86400000; // 加一天的时间
-            let hourDetails = {}; // 存储每小时的具体使用时间
-            
+            const todayEndMs = todayStartMs + 86400000;
+            let hourDetails = {}; 
             if (APP_DATA.conversations) {
                 Object.values(APP_DATA.conversations).forEach(conv => {
                     if (Array.isArray(conv)) {
                         conv.forEach(msg => {
-                            // 只要是今天用户发出的消息，就提取时间戳
                             if (msg.role === 'user' && msg.timestamp >= todayStartMs && msg.timestamp < todayEndMs) {
                                 const d = new Date(msg.timestamp);
                                 const h = d.getHours();
@@ -12896,77 +12918,55 @@ ${chatContent}
                 const count = stats[`${todayStr}_${i}`] || 0;
                 const barWrap = document.createElement('div');
                 barWrap.className = 'hour-bar-wrapper';
-                
                 const bar = document.createElement('div');
                 bar.className = 'hour-bar';
                 
-                // 🎯 核心逻辑 2：对数平滑算法，彻底解决“一上一下”的突兀视觉
-                let hPct = 4; // 没互动时保底 4%
+                let hPct = 4;
                 if (count > 0 && maxCount > 0) {
-                    // 基础给予 15% 的高度，剩余 85% 通过对数曲线分配
-                    // 这样即使只有 1 条消息，也不会看起来完全贴地
                     hPct = 15 + (Math.log(count + 1) / Math.log(maxCount + 1)) * 85;
                 }
                 bar.style.height = hPct + '%';
-                
                 barWrap.appendChild(bar);
-                
-                // 点击时的交互反馈
+
+                // 🌟 修复叠影 & 简化格式
                 barWrap.onclick = (e) => {
                     e.stopPropagation();
-                    
                     chart.querySelectorAll('.hour-bar-wrapper').forEach(w => w.classList.remove('active'));
                     chart.classList.add('has-active');
                     barWrap.classList.add('active');
                     
-                    currentYearEl.style.opacity = '0';
-                    setTimeout(() => {
-                        if (count > 0 && hourDetails[i]) {
-                            // 🎯 将提取出的真实分钟补齐两位数 (如 9 变成 09)
-                            const sm = hourDetails[i].start.toString().padStart(2, '0');
-                            const em = hourDetails[i].end.toString().padStart(2, '0');
-                            
-                            // 如果只聊了一句话（起止是同一分钟）
-                            if (sm === em) {
-                                currentYearEl.textContent = `${i}:${sm} 活跃`;
-                            } else {
-                                // 完美输出你想要的 "12:11 - 12:32" 格式
-                                currentYearEl.textContent = `${i}:${sm} - ${i}:${em}`;
-                            }
-                        } else {
-                            currentYearEl.textContent = `${i}:00 - ${i}:59 (暂无互动)`;
-                        }
-                        currentYearEl.style.opacity = '1';
-                    }, 200);
+                    // 🌟 瞬间切换，不使用 setTimeout，解决叠影问题
+                    if (count > 0 && hourDetails[i]) {
+                        const sm = hourDetails[i].start.toString().padStart(2, '0');
+                        const em = hourDetails[i].end.toString().padStart(2, '0');
+                        currentYearEl.textContent = `${i}:${sm}-${i}:${em}`; // 🌟 精简格式
+                    } else {
+                        currentYearEl.textContent = "暂无互动"; // 🌟 精简格式
+                    }
                 };
-
-                // X轴刻度
-                if (i % 6 === 0) {
-                    const lbl = document.createElement('div');
-                    lbl.className = 'hour-label';
-                    lbl.textContent = i;
-                    barWrap.appendChild(lbl);
-                } else if (i === 23) {
-                    const lbl = document.createElement('div');
-                    lbl.className = 'hour-label';
-                    lbl.textContent = '24';
-                    barWrap.appendChild(lbl);
-                }
                 chart.appendChild(barWrap);
+
+                // 🌟 处理标签行：只在 0, 6, 12, 18, 24 显示
+                const labelItem = document.createElement('div');
+                labelItem.className = 'hour-label-placeholder';
+                if (i % 6 === 0) {
+                    labelItem.textContent = i;
+                } else if (i === 23) {
+                    labelItem.textContent = '24';
+                }
+                labelsRow.appendChild(labelItem);
             }
             
-            // 点击空白处复原
             chart.onclick = () => {
                 chart.classList.remove('has-active');
                 chart.querySelectorAll('.hour-bar-wrapper').forEach(w => w.classList.remove('active'));
-                currentYearEl.style.opacity = '0';
-                setTimeout(() => {
-                    currentYearEl.textContent = "点击图表查看时段";
-                    currentYearEl.style.opacity = '1';
-                }, 200);
+                currentYearEl.textContent = "点击图表查看时段";
             };
 
-            wrapperEl.appendChild(chart);
+            container.appendChild(chart);
+            container.appendChild(labelsRow); // 🌟 将标签行接在图表下面
+            wrapperEl.appendChild(container);
+        
         
         
 
