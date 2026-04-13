@@ -812,12 +812,12 @@
         
         /* 1. 聊天界面顶部 */
         .chat-nav-header {
-            /* 保留原来的 sticky、z-index、background 等属性 */
             position: sticky; top: 0; z-index: 50; background: var(--bg-color); display: flex; align-items: center; justify-content: space-between;
-            /* ✨ 新增安全区高度和内边距 */
             height: calc(50px + env(safe-area-inset-top));
             padding: env(safe-area-inset-top) 16px 0 16px;
         }
+        /* 🌟 新增：让返回按钮和功能按钮永远在最顶层，不被任何状态栏遮挡 */
+        .chat-nav-header .clickable { position: relative; z-index: 1100; }
         
         /* 聊天消息容器 */
         #chat-messages-container {
@@ -1106,15 +1106,18 @@
             top: 0;
             left: 0;
             right: 0;
-            background: white;
-            color: #8e8e93;
-            padding: 12px 20px;
-            text-align: center;
-            font-size: 13px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transform: translateY(-100%);
-            transition: transform 0.3s ease;
+            height: 50px;
+            background: var(--bg-color);
+            display: none; /* 默认隐藏 */
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: var(--text-main);
+            font-weight: 500;
             z-index: 1000;
+            border-bottom: 0.5px solid var(--border);
+            animation: breathing 2s infinite;
+            pointer-events: none; /* 🌟 核心：允许点击“穿透”这一层，点到下面的按钮 */
         }
 
         .typing-status.show {
