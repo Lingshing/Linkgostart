@@ -1821,15 +1821,15 @@
 
         /* --- 互动视图 (Heatmap) 专属样式 --- */
 
-        /* 胶囊切换器 */
+        /* 胶囊切换器 - 升级为大圆角胶囊 */
         .segmented-control {
             display: flex;
             background: var(--hover-bg);
-            border-radius: 10px;
+            border-radius: 100px; /* 🌟 核心修改：从 10px 增大到 100px，两端变成完美的半圆 */
             padding: 3px;
             position: relative;
-            max-width: 240px;  /* 新增：限制最大宽度，让它更精致 */
-            margin: 0 auto 24px auto; /* 新增：居中对齐 */
+            max-width: 240px;
+            margin: 0 auto 24px auto;
             border: 0.5px solid var(--border);
         }
         
@@ -1853,7 +1853,8 @@
             top: 3px; bottom: 3px;
             width: calc(33.33% - 2px);
             background: var(--card-bg);
-            border-radius: 7px;
+            /* 🌟 核心嵌套原则：外层是100px，内层也用100px，视觉上才会内外平行不穿模 */
+            border-radius: 100px; 
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             border: 0.5px solid var(--border);
             transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
