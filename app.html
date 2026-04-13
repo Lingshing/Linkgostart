@@ -7752,18 +7752,23 @@ ${chatContent}
         });
         
         // 监听聊天场景的显示状态
+        let wasChatSceneShown = false; // 🌟 新增：记住上一次的状态
         const chatSceneObserver = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
                     const target = mutation.target;
-                    if (target.id === 'scene-chat' && target.classList.contains('show')) {
-                        // 聊天场景显示时，检查后台回复
-                        if (backgroundAIReply.inProgress && 
-                            currentChatContactId === backgroundAIReply.contactId) {
+                    const isShown = target.classList.contains('show');
+                    
+                    // 🌟 核心修复：只有从“隐藏”真正变成“显示”时才刷新！
+                    // 彻底切断触摸屏幕边缘（添加/移除 swiping 类）引发的疯狂重绘死循环！
+                    if (isShown && !wasChatSceneShown) {
+                        if (backgroundAIReply.inProgress && currentChatContactId === backgroundAIReply.contactId) {
                             console.log('🔄 返回聊天页面，刷新消息');
                             renderChatMessages(currentChatContactId);
                         }
                     }
+                    // 更新记录的状态
+                    wasChatSceneShown = isShown; 
                 }
             });
         });
