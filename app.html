@@ -3571,6 +3571,9 @@
             return score;
         }
         
+        // 🌟 全局草稿箱声明（解决页面崩溃的救命代码！）
+        var chatDrafts = JSON.parse(localStorage.getItem('CHAT_DRAFTS')) || {};
+
         // --- 核心数据存储结构 ---
         const APP_DATA = {
             contacts: [], // 联系人列表（原代码中的角色列表）
@@ -7827,12 +7830,10 @@ ${chatContent}
         };
 
         // --- 核心流式DOM同步器：替代不稳定的打字机，确保切屏进度100%一致 ---
-        function syncActiveStreamToDOM() {
+       function syncActiveStreamToDOM() {
             const activeStreamContainer = document.getElementById('active-stream-container');
-            // 🌟 严格限制：只有当后台正在回复的联系人，等于当前正打开的联系人时，才允许把文字画到屏幕上！
-            if (!activeStreamContainer || !backgroundAIReply.inProgress || backgroundAIReply.contactId !== currentChatContactId) {
-                return;
-            }
+            if (!activeStreamContainer || !backgroundAIReply.inProgress) return;
+            
             
             const sentences = splitTextIntoSentences(backgroundAIReply.fullMessage);
             if (sentences.length === 0) return;
