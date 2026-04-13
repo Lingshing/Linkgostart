@@ -1942,28 +1942,25 @@
             padding-bottom: 10px;
         }
 
-        /* --- 今日：24小时动态柱状图 (对数平滑 & 严格对齐版) --- */
+        /* --- 今日：24小时动态柱状图 (物理剥离对齐版) --- */
         .hourly-chart-container {
             width: 100%;
             padding-top: 10px;
         }
         .hourly-chart {
             display: flex; 
-            align-items: flex-end; /* 🌟 确保所有柱子底部在同一水平线 */
+            align-items: flex-end; /* 🌟 核心：确保所有柱子底部严格对齐 */
             justify-content: space-between;
-            height: 100px; /* 固定高度 */
+            height: 100px; 
             width: 100%;
-            border-bottom: 0.5px solid var(--border); /* 🌟 这条线就是基准线 */
-            padding-bottom: 0;
+            border-bottom: 0.5px solid var(--border); /* 🌟 这就是基准线 */
         }
         .hour-bar-wrapper {
             flex: 1; 
             display: flex; 
-            flex-direction: column;
-            align-items: center; 
-            justify-content: flex-end; 
+            align-items: flex-end; /* 内部也底部对齐 */
+            justify-content: center; 
             height: 100%;
-            margin: 0 1px; 
             cursor: pointer;
         }
         .hour-bar {
@@ -1971,7 +1968,7 @@
             border-radius: 4px 4px 0 0; 
             min-height: 4px; 
             background-color: var(--accent-light);
-            transition: all 0.2s ease; /* 缩短时间，避免叠影 */
+            transition: opacity 0.2s, background-color 0.2s; /* 🌟 去掉 transform 动画，减少视觉负担 */
         }
         
         .hourly-chart.has-active .hour-bar { opacity: 0.3; }
@@ -1980,19 +1977,19 @@
             opacity: 1;
         }
 
-        /* 🌟 关键：数字标签单独一行，绝对不影响柱子高度 */
+        /* 🌟 物理剥离：文字层完全独立，绝不挤占柱子空间 */
         .hourly-labels {
             display: flex;
             justify-content: space-between;
             width: 100%;
-            margin-top: 8px;
+            padding-top: 8px;
         }
-        .hour-label-placeholder {
+        .hour-label-item {
             flex: 1;
             text-align: center;
             font-size: 10px;
             color: var(--text-sub);
-            font-family: sans-serif;
+            font-family: -apple-system, sans-serif;
             min-height: 12px;
         }
 
@@ -12872,18 +12869,19 @@ ${chatContent}
             titleEl.textContent = "今日活跃时段";
             currentYearEl.textContent = "点击图表查看时段";
             currentYearEl.style.color = "var(--accent)"; 
-            
+
             legendEl.style.display = 'none';
             wrapperEl.style.display = 'block';
 
-            // 1. 创建图表容器
+            // 1. 创建总容器
             const container = document.createElement('div');
             container.className = 'hourly-chart-container';
 
+            // 2. 创建柱子区
             const chart = document.createElement('div');
             chart.className = 'hourly-chart';
             
-            // 2. 创建专门的标签行
+            // 3. 创建独立的标签行
             const labelsRow = document.createElement('div');
             labelsRow.className = 'hourly-labels';
             
@@ -12893,7 +12891,7 @@ ${chatContent}
                 if (c > maxCount) maxCount = c;
             }
 
-            // 提取数据逻辑保持不变
+            // 数据提取逻辑 (保持你原有的逻辑，但去除冗余输出)
             const todayStartMs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
             const todayEndMs = todayStartMs + 86400000;
             let hourDetails = {}; 
@@ -12916,6 +12914,8 @@ ${chatContent}
 
             for (let i = 0; i < 24; i++) {
                 const count = stats[`${todayStr}_${i}`] || 0;
+                
+                // --- 渲染柱子 ---
                 const barWrap = document.createElement('div');
                 barWrap.className = 'hour-bar-wrapper';
                 const bar = document.createElement('div');
@@ -12928,33 +12928,34 @@ ${chatContent}
                 bar.style.height = hPct + '%';
                 barWrap.appendChild(bar);
 
-                // 🌟 修复叠影 & 简化格式
+                // 🌟 瞬间切换逻辑：去掉所有 setTimeout，解决文字叠影
                 barWrap.onclick = (e) => {
                     e.stopPropagation();
                     chart.querySelectorAll('.hour-bar-wrapper').forEach(w => w.classList.remove('active'));
                     chart.classList.add('has-active');
                     barWrap.classList.add('active');
                     
-                    // 🌟 瞬间切换，不使用 setTimeout，解决叠影问题
                     if (count > 0 && hourDetails[i]) {
                         const sm = hourDetails[i].start.toString().padStart(2, '0');
                         const em = hourDetails[i].end.toString().padStart(2, '0');
-                        currentYearEl.textContent = `${i}:${sm}-${i}:${em}`; // 🌟 精简格式
+                        // 🌟 纯净格式输出：如 "12:12-12:32"
+                        currentYearEl.textContent = `${i}:${sm}-${i}:${em}`;
                     } else {
-                        currentYearEl.textContent = "暂无互动"; // 🌟 精简格式
+                        currentYearEl.textContent = "暂无互动";
                     }
                 };
                 chart.appendChild(barWrap);
 
-                // 🌟 处理标签行：只在 0, 6, 12, 18, 24 显示
-                const labelItem = document.createElement('div');
-                labelItem.className = 'hour-label-placeholder';
+                // --- 渲染标签 (独立行) ---
+                const lbl = document.createElement('div');
+                lbl.className = 'hour-label-item';
+                // 只在 0, 6, 12, 18, 24 显示文字
                 if (i % 6 === 0) {
-                    labelItem.textContent = i;
+                    lbl.textContent = i;
                 } else if (i === 23) {
-                    labelItem.textContent = '24';
+                    lbl.textContent = '24';
                 }
-                labelsRow.appendChild(labelItem);
+                labelsRow.appendChild(lbl);
             }
             
             chart.onclick = () => {
@@ -12964,8 +12965,9 @@ ${chatContent}
             };
 
             container.appendChild(chart);
-            container.appendChild(labelsRow); // 🌟 将标签行接在图表下面
+            container.appendChild(labelsRow);
             wrapperEl.appendChild(container);
+        
         
         
         
