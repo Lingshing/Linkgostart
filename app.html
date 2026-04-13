@@ -812,12 +812,16 @@
         
         /* 1. 聊天界面顶部 */
         .chat-nav-header {
-            position: sticky; top: 0; z-index: 50; background: var(--bg-color); display: flex; align-items: center; justify-content: space-between;
+            position: sticky; 
+            top: 0; 
+            z-index: 9999; /* 🌟 核心修改：从 50 直接拉满到 9999！让整个导航栏永远凌驾于所有特效之上 */
+            background: var(--bg-color); 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between;
             height: calc(50px + env(safe-area-inset-top));
             padding: env(safe-area-inset-top) 16px 0 16px;
         }
-        /* 🌟 新增：让返回按钮和功能按钮永远在最顶层，不被任何状态栏遮挡 */
-        .chat-nav-header .clickable { position: relative; z-index: 1100; }
         
         /* 聊天消息容器 */
         #chat-messages-container {
