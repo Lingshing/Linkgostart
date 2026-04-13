@@ -1971,7 +1971,7 @@
             transition: opacity 0.2s, background-color 0.2s; /* 🌟 去掉 transform 动画，减少视觉负担 */
         }
         
-        .hourly-chart.has-active .hour-bar { opacity: 0.3; }
+        .hourly-chart.has-active .hour-bar { opacity: 0.6; }
         .hourly-chart.has-active .hour-bar-wrapper.active .hour-bar {
             background-color: var(--accent);
             opacity: 1;
@@ -2003,12 +2003,12 @@
             z-index: 1; border: 0.5px solid var(--border);
         }
         .month-day-cell::before { content: ''; position: absolute; inset: 0; background: var(--hover-bg); z-index: -1; }
-        .month-day-cell[data-level="1"]::before { background: var(--text-main); opacity: 0.15; }
-        .month-day-cell[data-level="2"]::before { background: var(--text-main); opacity: 0.35; }
-        .month-day-cell[data-level="3"]::before { background: var(--text-main); opacity: 0.65; }
-        .month-day-cell[data-level="4"]::before { background: var(--text-main); opacity: 1; }
+        .month-day-cell[data-level="1"]::before { background: var(--accent); opacity: 0.15; }
+        .month-day-cell[data-level="2"]::before { background: var(--accent); opacity: 0.35; }
+        .month-day-cell[data-level="3"]::before { background: var(--accent); opacity: 0.65; }
+        .month-day-cell[data-level="4"]::before { background: var(--accent); opacity: 0.85; }
         .month-day-cell[data-level="5"]::before { background: var(--accent); opacity: 1; box-shadow: 0 0 6px var(--accent-light); }
-        .month-day-cell[data-level="1"], .month-day-cell[data-level="2"] { color: var(--text-main); }
+        .month-day-cell[data-level="1"], .month-day-cell[data-level="2"] { color: var(--accent); }
         .month-day-cell[data-level="3"], .month-day-cell[data-level="4"], .month-day-cell[data-level="5"] { color: var(--card-bg); }
         .month-day-cell.future { border: 1px dashed var(--border); opacity: 0.4; }
         .month-day-cell.future::before { background: transparent; }
@@ -2037,10 +2037,10 @@
         
         /* 颜色分阶：纯粹黑白灰体系，利用透明度自动适配深色模式 */
         .hm-level, .hm-cell { background: var(--hover-bg); opacity: 1; } /* 0级 */
-        .hm-cell[data-level="1"], .hm-level.lvl1 { background: var(--text-main); opacity: 0.15; } /* 1级 */
-        .hm-cell[data-level="2"], .hm-level.lvl2 { background: var(--text-main); opacity: 0.35; } /* 2级 */
-        .hm-cell[data-level="3"], .hm-level.lvl3 { background: var(--text-main); opacity: 0.65; } /* 3级 */
-        .hm-cell[data-level="4"], .hm-level.lvl4 { background: var(--text-main); opacity: 1; }    /* 4级 (纯黑/纯白) */
+        .hm-cell[data-level="1"], .hm-level.lvl1 { background: var(--accent); opacity: 0.15; } /* 1级 */
+        .hm-cell[data-level="2"], .hm-level.lvl2 { background: var(--accent); opacity: 0.35; } /* 2级 */
+        .hm-cell[data-level="3"], .hm-level.lvl3 { background: var(--accent); opacity: 0.65; } /* 3级 */
+        .hm-cell[data-level="4"], .hm-level.lvl4 { background: var(--accent); opacity: 0.85; }    /* 4级 */
         
         /* 5级：最高级别，极其克制的一点蓝色微光点缀 */
         .hm-cell[data-level="5"], .hm-level.lvl5 { 
@@ -4372,7 +4372,7 @@
                 '--accent': '#5C92D1', 
                 '--accent-light': 'rgba(92, 146, 209, 0.2)',
                 '--danger': '#E85A5A', /* 暗色模式下的珊瑚红，温润清晰 */
-                '--border': 'rgba(255,255,255,0.15)',
+                '--border': 'rgba(255,255,255,0.03)',
                 '--nav-bg': 'rgba(28,28,30,0.85)',
                 '--nav-blur-bg': 'rgba(28,28,30,0.95)',
                 '--tab-bar-bg': 'rgba(28,28,30,0.95)',
@@ -12929,11 +12929,20 @@ ${chatContent}
                 barWrap.appendChild(bar);
 
                 // 🌟 瞬间切换逻辑：去掉所有 setTimeout，解决文字叠影
-                barWrap.onclick = (e) => {
-                    e.stopPropagation();
-                    chart.querySelectorAll('.hour-bar-wrapper').forEach(w => w.classList.remove('active'));
-                    chart.classList.add('has-active');
-                    barWrap.classList.add('active');
+                    barWrap.onclick = (e) => {
+                        e.stopPropagation();
+                        
+                        // 【新增：如果当前柱子已经是选中状态，则取消选中】
+                        if (barWrap.classList.contains('active')) {
+                            barWrap.classList.remove('active');
+                            chart.classList.remove('has-active'); // 移除整体的半透明状态
+                            currentYearEl.textContent = "点击图表查看时段"; // 恢复标题默认文字
+                            return; // 提前退出，不执行下面的高亮代码
+                        }
+
+                        chart.querySelectorAll('.hour-bar-wrapper').forEach(w => w.classList.remove('active'));
+                        chart.classList.add('has-active');
+                        barWrap.classList.add('active');
                     
                     if (count > 0 && hourDetails[i]) {
                         const sm = hourDetails[i].start.toString().padStart(2, '0');
