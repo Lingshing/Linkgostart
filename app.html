@@ -666,9 +666,19 @@
             height: 100%;
             display: flex;
             align-items: center;
-            padding-right: 12px; /* 🌟 离右边留点距离，更精致 */
-            gap: 10px;           /* 🌟 两个圆圈之间的间距 */
+            padding-right: 12px; 
+            gap: 10px;           
             z-index: 0;
+            /* 🌟 核心：平时完全透明，变成空气，绝不可能漏色 */
+            opacity: 0; 
+            pointer-events: none; /* 防止误触 */
+            transition: opacity 0.2s ease-in-out;
+        }
+
+        /* 🌟 当外壳被加上 is-active 类时，才显现实体 */
+        .config-item-wrapper.is-active .config-item-actions {
+            opacity: 1;
+            pointer-events: auto;
         }
         
         /* 2. 核心：变身圆形悬浮按钮 */
@@ -12336,10 +12346,11 @@ ${chatContent}
                     return;
                 }
 
-                // ✨ 防误触核心 2：必须明确向左/右滑动超过 10px 才算真正的“左滑操作”
                 if (Math.abs(deltaX) > 10 && !isScrolling) {
                     isDragging = true;
                     element.classList.add('swiping');
+                    // 🌟 只要手指一动，立刻让底下的圆球显形！
+                    element.closest('.config-item-wrapper').classList.add('is-active'); 
                 }
 
                 // 只有被判定为“正在左滑拖拽”时，才接管并阻止系统原本的滚动
@@ -12388,7 +12399,13 @@ ${chatContent}
         
         // --- 重置配置项滑动状态 ---
         function resetConfigSwipe(element) {
-            element.style.transform = 'translateX(0)';
+            element.style.transform = 'translateX(0)'; // 让卡片滑回去
+            
+            // 🌟 核心：同时立刻剥夺圆球的实体，让它在滑回去的过程中变回空气
+            const wrapper = element.closest('.config-item-wrapper');
+            if (wrapper) {
+                wrapper.classList.remove('is-active');
+            }
         }
         
         // --- 重新渲染正则文件列表（带编辑按钮） ---
