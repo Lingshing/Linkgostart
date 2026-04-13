@@ -658,30 +658,41 @@
             border-bottom: none !important; /* 🌟 彻底干掉任何底线 */
         }
         
-        /* 2. 按钮：上下悬浮隔离法，物理斩断漏色 */
+        /* 1. 操作按钮的外壳：居中且增加右间距 */
         .config-item-actions {
             position: absolute;
             right: 0;
-            top: 2px;    /* 🌟 距离顶部 2px，绝不碰壁 */
-            bottom: 2px; /* 🌟 距离底部 2px，绝不碰壁 */
-            height: auto;
+            top: 0;
+            height: 100%;
             display: flex;
             align-items: center;
+            padding-right: 12px; /* 🌟 离右边留点距离，更精致 */
+            gap: 10px;           /* 🌟 两个圆圈之间的间距 */
             z-index: 0;
         }
         
+        /* 2. 核心：变身圆形悬浮按钮 */
         .config-action-btn {
-            width: 70px;
-            height: 100%;
+            width: 38px;  /* 🌟 固定宽高，形成正圆 */
+            height: 38px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #fff;
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 16px;     /* 图标大小 */
             cursor: pointer;
-            border-radius: 6px; /* 🌟 稍微加点圆角，变身高级悬浮按钮 */
+            border-radius: 50%;  /* 🌟 强制变圆 */
+            transition: transform 0.2s, opacity 0.2s;
+            /* 增加一个非常淡的阴影，让它像漂浮在白色的卡片上 */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
+
+        .config-action-btn:active {
+            transform: scale(0.9); /* 点击时缩小的Q弹手感 */
+            opacity: 0.8;
+        }
+
+        /* 颜色保持你要求的柔雾红和灰色 */
         .config-action-edit { background: #5E6367; }
         .config-action-delete { background: var(--danger); }
         
@@ -9136,7 +9147,7 @@ ${chatContent}
                     const wrapper = document.createElement('div');
                     wrapper.className = 'config-item-wrapper';
                     
-                    const actions = `<div class="config-item-actions"><div class="config-action-btn config-action-edit" onclick="event.stopPropagation(); editChatConfig(${config.id});">编辑</div><div class="config-action-btn config-action-delete" onclick="event.stopPropagation(); deleteChatConfig(${config.id});">删除</div></div>`;
+                    const actions = `<div class="config-item-actions"><div class="config-action-btn config-action-edit" onclick="event.stopPropagation(); editChatConfig(${config.id});"><i class="fa-solid fa-pen-to-square"></i></div><div class="config-action-btn config-action-delete" onclick="event.stopPropagation(); deleteChatConfig(${config.id});"><i class="fa-solid fa-trash-can"></i></div></div>`;
                     
                     const isActive = config.id === activeId;
                     const itemHtml = `<div class="config-list-item config-list-item-swipeable">
@@ -9151,7 +9162,7 @@ ${chatContent}
                     const itemNode = wrapper.querySelector('.config-list-item-swipeable');
                     
                     itemNode.onclick = (e) => {
-                        if (itemNode.style.transform === 'translateX(-140px)') {
+                        if (itemNode.style.transform === 'translateX(-110px)') {
                             resetConfigSwipe(itemNode); e.stopPropagation();
                         } else {
                             selectUnifiedConfig(config.id);
@@ -10105,9 +10116,9 @@ ${chatContent}
                     const actions = document.createElement('div');
                     actions.className = 'config-item-actions';
                     actions.innerHTML = `
-                        <div class="config-action-btn config-action-edit" onclick="event.stopPropagation(); editChatConfig(${config.id});">编辑</div>
-                        <div class="config-action-btn config-action-delete" onclick="event.stopPropagation(); deleteChatConfig(${config.id});">删除</div>
-                    `;
+                    <div class="config-action-btn config-action-edit" onclick="event.stopPropagation(); editChatConfig(${config.id});"><i class="fa-solid fa-pen-to-square"></i></div>
+                    <div class="config-action-btn config-action-delete" onclick="event.stopPropagation(); deleteChatConfig(${config.id});"><i class="fa-solid fa-trash-can"></i></div>
+                `;
                     
                     // 创建配置项内容层（前景，可滑动）
                     const item = document.createElement('div');
@@ -10125,7 +10136,7 @@ ${chatContent}
                     
                     item.onclick = (e) => {
                         // 如果已滑开，点击收回（不关闭弹窗）
-                        if (item.style.transform === 'translateX(-140px)') {
+                        if (item.style.transform === 'translateX(-110px)') {
                             resetConfigSwipe(item);
                             e.stopPropagation();
                         } else {
@@ -12336,7 +12347,7 @@ ${chatContent}
                     e.preventDefault(); 
                     // 只允许向左滑动
                     if (deltaX > 0) deltaX = 0;
-                    currentX = Math.max(deltaX, -140); // 限制最大滑动距离为140px
+                    currentX = Math.max(deltaX, -110); // 限制最大滑动距离为110px
                     element.style.transform = `translateX(${currentX}px)`;
                 }
             }, { passive: false }); // 需要阻止默认行为，这里设为 false
@@ -12352,7 +12363,7 @@ ${chatContent}
 
                 // 如果滑动距离超过70px或速度足够快，则展开操作按钮
                 if (Math.abs(currentX) > 70 || velocity > 0.3) {
-                    element.style.transform = 'translateX(-140px)';
+                    element.style.transform = 'translateX(-110px)';
                 } else {
                     resetConfigSwipe(element);
                 }
