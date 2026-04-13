@@ -649,28 +649,23 @@
             border-top: 0.5px solid var(--border);
         }
         
-        /* 配置项滑动容器 */
+        /* 1. 底壳：设为纯白色，确保没有任何边框 */
         .config-item-wrapper {
             position: relative;
             overflow: hidden;
-            background: var(--card-bg); /* 🌟 铺满实心背景，强制系统擦除一切残影 */
-            border-bottom: 0.5px solid var(--border); /* 🌟 边框固定在不动的底层，绝不透色 */
+            background: var(--card-bg);
             margin-bottom: 0;
         }
         
-        .config-item-wrapper:last-child {
-            border-bottom: none; /* 最后一行不需要边框 */
-        }
-        
-        /* 操作按钮层(背景层) */
+        /* 2. 按钮：稍微缩短一点高度，避免碰到卡片的边缘 */
         .config-item-actions {
             position: absolute;
             right: 0;
             top: 0;
-            height: 100%;
+            height: calc(100% - 1px); /* 🌟 留出 1px 缝隙，绝不和边框打架 */
             display: flex;
             align-items: center;
-            z-index: 0; /* 🌟 关键修复：绝不能用负数层级，改为0，彻底解决iOS拖影 */
+            z-index: 0;
         }
         
         .config-action-btn {
@@ -683,21 +678,30 @@
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: opacity 0.2s;
         }
-        .config-action-btn:active { opacity: 0.7; }
         .config-action-edit { background: #5E6367; }
         .config-action-delete { background: var(--danger); }
         
-        /* 配置项内容层(前景层，可滑动) */
+        /* 3. 前景卡片：把边框粘在这里！ */
         .config-list-item-swipeable {
             position: relative;
             z-index: 1; 
             background: var(--card-bg);
             transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
             touch-action: pan-y;
-            border-bottom: none !important; /* 🌟 剥夺移动卡片的半透明边框，彻底消灭透色源头 */
-            box-shadow: none !important; /* 🌟 删掉之前错误的阴影补丁 */
+            /* 🌟 核心：线在这里！它会跟着卡片一起滑走，底层就干净了 */
+            border-bottom: 0.5px solid var(--border);
+            /* 解决残影的终极秘籍：告诉 Safari 别偷懒，实时重绘 */
+            will-change: transform;
+        }
+
+        /* 4. 解决 Header 遮挡：提升 Header 层级 */
+        .modal-header {
+            position: relative;
+            z-index: 10 !important;
+            background: var(--nav-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
         }
         
         .config-list-item-swipeable.swiping {
