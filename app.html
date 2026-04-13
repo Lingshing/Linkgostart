@@ -669,10 +669,7 @@
             overflow: hidden;
             background: transparent;
             margin-bottom: 0;
-            /* 🌟 核心修复：把 3D 硬件加速“图层隔离”加在不动的包裹壳上 */
-            /* 这样既不影响整体性能，又能让系统老老实实擦除滑动留下的残影 */
-            -webkit-transform: translate3d(0, 0, 0);
-            transform: translate3d(0, 0, 0);
+            /* 🌟 删除了导致Bug的包裹壳3D加速 */
         }
         
         /* 操作按钮层(背景层) */
@@ -683,7 +680,7 @@
             height: 100%;
             display: flex;
             align-items: center;
-            z-index: -1; /* 🌟 强制将颜色按钮压在最底层，绝不允许它在拖动时“溢出” */
+            z-index: 0; /* 🌟 关键修复：绝不能用负数层级，改为0，彻底解决iOS拖影 */
         }
         
         .config-action-btn {
@@ -705,9 +702,11 @@
         /* 配置项内容层(前景层，可滑动) */
         .config-list-item-swipeable {
             position: relative;
+            z-index: 1; /* 🌟 前景设为1，安全地盖住后面的按钮 */
             background: var(--card-bg);
             transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
             touch-action: pan-y;
+            will-change: transform; /* 🌟 终极护盾：提前告知iOS动画引擎，强制擦除残影 */
         }
         
         .config-list-item-swipeable.swiping {
@@ -2425,11 +2424,6 @@
             }
         }
 
-        .config-list-item-swipeable {
-            position: relative;
-            z-index: 1; /* 降低层级，让它老老实实待在 Header 下面 */
-            background-color: var(--card-bg);
-        }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
