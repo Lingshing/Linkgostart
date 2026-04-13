@@ -649,20 +649,22 @@
             border-top: 0.5px solid var(--border);
         }
         
-        /* 1. 底壳：设为纯白色，确保没有任何边框 */
+        /* 1. 底壳：无界极简风，绝不加任何边框 */
         .config-item-wrapper {
             position: relative;
             overflow: hidden;
             background: var(--card-bg);
             margin-bottom: 0;
+            border-bottom: none !important; /* 🌟 彻底干掉任何底线 */
         }
         
-        /* 2. 按钮：稍微缩短一点高度，避免碰到卡片的边缘 */
+        /* 2. 按钮：上下悬浮隔离法，物理斩断漏色 */
         .config-item-actions {
             position: absolute;
             right: 0;
-            top: 0;
-            height: calc(100% - 1px); /* 🌟 留出 1px 缝隙，绝不和边框打架 */
+            top: 2px;    /* 🌟 距离顶部 2px，绝不碰壁 */
+            bottom: 2px; /* 🌟 距离底部 2px，绝不碰壁 */
+            height: auto;
             display: flex;
             align-items: center;
             z-index: 0;
@@ -678,20 +680,20 @@
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
+            border-radius: 6px; /* 🌟 稍微加点圆角，变身高级悬浮按钮 */
         }
         .config-action-edit { background: #5E6367; }
         .config-action-delete { background: var(--danger); }
         
-        /* 3. 前景卡片：把边框粘在这里！ */
+        /* 3. 前景卡片：强行抹除所有自带分割线 */
         .config-list-item-swipeable {
             position: relative;
             z-index: 1; 
             background: var(--card-bg);
             transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
             touch-action: pan-y;
-            /* 🌟 核心：线在这里！它会跟着卡片一起滑走，底层就干净了 */
-            border-bottom: 0.5px solid var(--border);
-            /* 解决残影的终极秘籍：告诉 Safari 别偷懒，实时重绘 */
+            border-bottom: none !important; /* 🌟 杀掉自带的灰色细线 */
+            box-shadow: none !important;
             will-change: transform;
         }
 
@@ -702,6 +704,7 @@
             background: var(--nav-bg);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
+            border-bottom: 0.5px solid var(--border); /* Header自己的底线保留 */
         }
         
         .config-list-item-swipeable.swiping {
