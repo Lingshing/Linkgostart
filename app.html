@@ -6138,26 +6138,9 @@ ${chatContent}
         }
         
         function showChatWindow() { document.getElementById('scene-chat').classList.add('show'); }
-        function hideChatWindow() {
-            // 🌟 【草稿箱核心功能】：退出时保存草稿
-            if (currentChatContactId) {
-                const inputEl = document.getElementById('chat-message-input');
-                const content = inputEl.value;
-                if (content && content.trim() !== '') {
-                    chatDrafts[currentChatContactId] = content; // 有字就存草稿
-                } else {
-                    delete chatDrafts[currentChatContactId]; // 没字就删草稿
-                }
-                localStorage.setItem('CHAT_DRAFTS', JSON.stringify(chatDrafts)); // 存到本地缓存
-            }
-            
-            // 🌟 退出时，立刻刷新一次外面的聊天列表，这样就能立刻看到红色的 [草稿]
-            if (typeof renderChatList === 'function') {
-                renderChatList();
-            }
-
-            // 缩回聊天窗口的动画
+        function hideChatWindow() { 
             const el = document.getElementById('scene-chat');
+            // 🌟 点击返回按钮同样需要强迫重绘
             void el.offsetWidth;
             el.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
             el.style.transform = 'translateX(100%)';
@@ -6166,8 +6149,6 @@ ${chatContent}
                 el.style.transform = '';
                 el.classList.remove('show');
             }, 350);
-            
-            currentChatContactId = null;
         }
 
         function showOptionsWindow() { 
@@ -7534,57 +7515,85 @@ ${chatContent}
             }
         ];
 
+        // --- 渲染聊天列表函数 ---
         function renderChatList() {
-            const listEl = document.getElementById('chat-list');
-            if (!listEl) return;
-            listEl.innerHTML = '';
+            const container = document.getElementById('chat-list-container');
+            if (!container) return;
+            
+            container.innerHTML = ''; // 清空现有内容
 
-            mockContacts.forEach(contact => {
+            // 如果没有数据
+            if (mockContacts.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding-top:100px; color:#ccc;">
+                        <i class="fa-regular fa-comments" style="font-size:48px; margin-bottom:10px;"></i>
+                        <p style="font-size:14px;">暂无消息</p>
+                    </div>`;
+                return;
+            }
+
+            // 遍历渲染
+            mockContacts.forEach((contact, index) => {
+                // 创建滑动容器
+                const wrapper = document.createElement('div');
+                wrapper.className = 'chat-item-wrapper';
+                
+                // 创建操作按钮层（背景）
+                const actions = document.createElement('div');
+                actions.className = 'chat-item-actions';
+                actions.innerHTML = `
+                    <div class="chat-action-btn chat-action-edit" onclick="event.stopPropagation(); editChatRole(${index});">编辑</div>
+                    <div class="chat-action-btn chat-action-delete" onclick="event.stopPropagation(); deleteChatRole(${index});">删除</div>
+                `;
+                
+                // 创建聊天项内容层（前景，可滑动）
                 const item = document.createElement('div');
                 item.className = 'chat-item';
-                // 解决滑动复位的逻辑
-                item.addEventListener('touchstart', () => resetChatSwipe(item));
                 
-                const mainWrap = document.createElement('div');
-                mainWrap.className = 'chat-item-main';
-                mainWrap.onclick = () => openChatWindow(contact.id);
+                // 点击进入聊天
+                item.onclick = (e) => {
+                    // 🎯 修复 Bug：如果刚刚的操作是为了收回卡片，底层会打上拦截标记，这里直接跳过
+                    if (item.dataset.ignoreClick === 'true') {
+                        item.dataset.ignoreClick = 'false';
+                        e.stopPropagation();
+                        return;
+                    }
+                    
+                    console.log('打开聊天:', contact.name);
+                    openChatWindow(contact.id);
+                };
 
+                // 头像逻辑：如果有图片显示图片，没图片显示首字背景
                 let avatarHtml = '';
-                if (contact.avatar && contact.avatar.startsWith('http')) {
-                    avatarHtml = `<img src="${contact.avatar}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                if (contact.avatar) {
+                    avatarHtml = `<img src="${contact.avatar}">`;
                 } else {
                     const firstChar = contact.name.charAt(0);
-                    const bg = contact.color || '#ccc';
-                    avatarHtml = `<div style="background:${bg}; width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#fff; border-radius:50%;">${firstChar}</div>`;
-                }
-                
-                // 🌟 【草稿箱核心功能】：判断这人有没有草稿，有就显示红色的[草稿]
-                let showText = contact.lastMsg || '暂无消息';
-                if (chatDrafts[contact.id]) {
-                    // 用红色加粗显示草稿两个字
-                    showText = `<span style="color: #ff3b30; font-weight: 500;">[草稿]</span> ${chatDrafts[contact.id]}`;
+                    const bg = contact.color || '#ccc'; 
+                    avatarHtml = `<div style="background:${bg}; width:100%; height:100%; display:flex; align-items:center; justify-content:center;">${firstChar}</div>`;
                 }
 
-                mainWrap.innerHTML = `
-                    <div class="chat-item-avatar">${avatarHtml}</div>
+                item.innerHTML = `
+                    <div class="chat-item-avatar">
+                        ${avatarHtml}
+                    </div>
+                    
                     <div class="chat-item-content">
                         <div class="chat-item-name">${contact.name}</div>
-                        <div class="chat-item-preview">${showText}</div>
+                        <div class="chat-item-preview">${contact.lastMsg}</div>
                     </div>
+                    
                     <div class="chat-item-meta">
-                        <div class="chat-item-time">${formatMessageTime(contact.time || Date.now())}</div>
+                        <div class="chat-item-time">${formatMessageTime(contact.time)}</div>
                     </div>
                 `;
 
-                // 侧滑删除按钮
-                const actionBtn = document.createElement('div');
-                actionBtn.className = 'chat-action-btn';
-                actionBtn.textContent = '删除';
-                actionBtn.onclick = (e) => { e.stopPropagation(); alert('点击了删除'); };
-
-                item.appendChild(mainWrap);
-                item.appendChild(actionBtn);
-                listEl.appendChild(item);
+                // 添加滑动事件
+                addChatSwipeHandler(item);
+                
+                wrapper.appendChild(actions);
+                wrapper.appendChild(item);
+                container.appendChild(wrapper);
             });
         }
         
@@ -7791,8 +7800,6 @@ ${chatContent}
         // ==========================================
         
         let currentChatContactId = null;
-        // 🌟 我们的草稿箱：用来存储未发送的消息
-        let chatDrafts = JSON.parse(localStorage.getItem('CHAT_DRAFTS')) || {};
         let chatExtensionsPanelOpen = false;
         
         // 🎯 后台AI回复状态跟踪
@@ -7837,35 +7844,27 @@ ${chatContent}
             }
         }
         
+        // --- 打开聊天窗口 ---
         function openChatWindow(contactId) {
-            currentChatContactId = contactId;
             const contact = mockContacts.find(c => c.id === contactId);
             if (!contact) return;
-
+            
+            currentChatContactId = contactId;
+            window.chatMessageLoadCount = 50; // 每次进入聊天重置为50条
+            
+            // 更新标题
             document.getElementById('chat-title').textContent = contact.name;
             
-            // 🌟 【草稿箱核心功能】：进入聊天时读取草稿
-            const inputEl = document.getElementById('chat-message-input');
-            if (chatDrafts[contactId]) {
-                inputEl.value = chatDrafts[contactId]; // 有草稿就填进去
-            } else {
-                inputEl.value = ''; // 没草稿就清空
-            }
-            // 自动调整输入框高度
-            setTimeout(() => {
-                inputEl.style.height = '40px'; 
-                if (inputEl.value) inputEl.style.height = Math.min(inputEl.scrollHeight, 100) + 'px';
-            }, 10);
-
-            chatExtensionsPanelOpen = false;
-            
-            // 重新渲染聊天记录
+            // 渲染聊天消息
             renderChatMessages(contactId);
-
-            // 弹出聊天窗口的动画
-            const chatScene = document.getElementById('scene-chat');
-            chatScene.classList.add('show');
-            void chatScene.offsetWidth; 
+            
+            // 显示聊天窗口
+            showChatWindow();
+            
+            // 重置输入框和扩展面板
+            document.getElementById('chat-message-input').value = '';
+            chatExtensionsPanelOpen = false;
+            document.getElementById('chat-extensions-panel').classList.remove('show');
         }
         
         // --- 渲染聊天消息 ---
