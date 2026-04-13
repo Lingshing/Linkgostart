@@ -6138,7 +6138,19 @@ ${chatContent}
         }
         
         function showChatWindow() { document.getElementById('scene-chat').classList.add('show'); }
-        function hideChatWindow() { 
+        function hideChatWindow() {
+            // 🌟 核心：退出前，把输入框的文字存入草稿箱
+            if (currentChatContactId) {
+                const inputEl = document.getElementById('chat-message-input');
+                const content = inputEl.value;
+                if (content.trim()) {
+                    chatDrafts[currentChatContactId] = content;
+                } else {
+                    delete chatDrafts[currentChatContactId];
+                }
+                localStorage.setItem('CHAT_DRAFTS', JSON.stringify(chatDrafts));
+            }
+
             const el = document.getElementById('scene-chat');
             // 🌟 点击返回按钮同样需要强迫重绘
             void el.offsetWidth;
@@ -7568,25 +7580,28 @@ ${chatContent}
                 if (contact.avatar) {
                     avatarHtml = `<img src="${contact.avatar}">`;
                 } else {
-                    const firstChar = contact.name.charAt(0);
-                    const bg = contact.color || '#ccc'; 
-                    avatarHtml = `<div style="background:${bg}; width:100%; height:100%; display:flex; align-items:center; justify-content:center;">${firstChar}</div>`;
-                }
+                const firstChar = contact.name.charAt(0);
+                const bg = contact.color || '#ccc';
+                avatarHtml = `<div style="background:${bg}; width:100%; height:100%; display:flex; align-items:center; justify-content:center;">${firstChar}</div>`;
+            }
+            
+            // 🌟 核心：判断有没有草稿，如果有，优先显示草稿并标红
+            let previewText = contact.lastMsg;
+            if (chatDrafts[contact.id]) {
+                previewText = `<span style="color: var(--danger); font-weight: 500;">[草稿]</span> ${chatDrafts[contact.id]}`;
+            }
 
-                item.innerHTML = `
-                    <div class="chat-item-avatar">
-                        ${avatarHtml}
-                    </div>
-                    
-                    <div class="chat-item-content">
-                        <div class="chat-item-name">${contact.name}</div>
-                        <div class="chat-item-preview">${contact.lastMsg}</div>
-                    </div>
-                    
-                    <div class="chat-item-meta">
-                        <div class="chat-item-time">${formatMessageTime(contact.time)}</div>
-                    </div>
-                `;
+            item.innerHTML = `
+                <div class="chat-item-avatar">
+                    ${avatarHtml}
+                </div>
+                <div class="chat-item-content">
+                    <div class="chat-item-name">${contact.name}</div>
+                    <div class="chat-item-preview">${previewText}</div> </div>
+                <div class="chat-item-meta">
+                    <div class="chat-item-time">${formatMessageTime(contact.time)}</div>
+                </div>
+            `;
 
                 // 添加滑动事件
                 addChatSwipeHandler(item);
@@ -7801,6 +7816,7 @@ ${chatContent}
         
         let currentChatContactId = null;
         let chatExtensionsPanelOpen = false;
+        let chatDrafts = JSON.parse(localStorage.getItem('CHAT_DRAFTS')) || {}; // 🌟 新增：全局草稿箱
         
         // 🎯 后台AI回复状态跟踪
         let backgroundAIReply = {
@@ -7813,7 +7829,10 @@ ${chatContent}
         // --- 核心流式DOM同步器：替代不稳定的打字机，确保切屏进度100%一致 ---
         function syncActiveStreamToDOM() {
             const activeStreamContainer = document.getElementById('active-stream-container');
-            if (!activeStreamContainer || !backgroundAIReply.inProgress) return;
+            // 🌟 严格限制：只有当后台正在回复的联系人，等于当前正打开的联系人时，才允许把文字画到屏幕上！
+            if (!activeStreamContainer || !backgroundAIReply.inProgress || backgroundAIReply.contactId !== currentChatContactId) {
+                return;
+            }
             
             const sentences = splitTextIntoSentences(backgroundAIReply.fullMessage);
             if (sentences.length === 0) return;
@@ -7862,7 +7881,15 @@ ${chatContent}
             showChatWindow();
             
             // 重置输入框和扩展面板
-            document.getElementById('chat-message-input').value = '';
+            const inputEl = document.getElementById('chat-message-input');
+            inputEl.value = chatDrafts[contactId] || ''; // 🌟 核心：如果有草稿就显示，没有就为空
+            
+            // 自动调整输入框高度
+            setTimeout(() => {
+                inputEl.style.height = '40px'; 
+                if (inputEl.value) inputEl.style.height = Math.min(inputEl.scrollHeight, 100) + 'px';
+            }, 10);
+            
             chatExtensionsPanelOpen = false;
             document.getElementById('chat-extensions-panel').classList.remove('show');
         }
@@ -8585,8 +8612,14 @@ ${chatContent}
 
        // --- 发送聊天消息（真正的数据驱动流式版） ---
         async function sendChatMessage() {
+            // 🌟 核心修复：如果AI正在后台给别人回消息，禁止你在当前窗口发消息，彻底杜绝串台！
+            if (backgroundAIReply.inProgress && backgroundAIReply.contactId !== currentChatContactId) {
+                alert("AI 正在回复其他联系人，请稍后再发");
+                return;
+            }
+
             // ✨ 在发送消息的第一时间，检查并追加时间戳
-            checkAndAppendRealtimeTimestamp();
+            if (typeof checkAndAppendRealtimeTimestamp === 'function') checkAndAppendRealtimeTimestamp(); 
             const input = document.getElementById('chat-message-input');
             if (!input) return;
             
@@ -8605,7 +8638,11 @@ ${chatContent}
             }
             
             input.value = '';
-            input.style.height = '40px'; 
+            input.style.height = '40px';
+            
+            // 🌟 消息发出去了，删除草稿
+            delete chatDrafts[currentChatContactId];
+            localStorage.setItem('CHAT_DRAFTS', JSON.stringify(chatDrafts)); 
             if (chatExtensionsPanelOpen) toggleChatExtensions();
             
             addChatMessageToUI('user', message);
