@@ -12263,48 +12263,68 @@ ${chatContent}
         // ==========================================
         // 配置项滑动删除和编辑功能
         // ==========================================
-        
+
         // --- 添加配置项滑动事件处理 ---
         function addConfigSwipeHandler(element) {
             let startX = 0;
+            let startY = 0; // 🌟 核心：记录起始Y轴坐标
             let currentX = 0;
             let isDragging = false;
+            let isScrolling = false; // 🌟 核心：判断是否正在上下滚动
             let startTime = 0;
 
             element.addEventListener('touchstart', (e) => {
                 startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
                 currentX = 0;
-                isDragging = true;
+                isDragging = false; // 默认不处于拖拽状态
+                isScrolling = false; // 默认不处于滚动状态
                 startTime = Date.now();
-                element.classList.add('swiping');
-                
+
                 // 重置其他所有滑动项
                 document.querySelectorAll('.config-list-item-swipeable').forEach(item => {
-                    if (item !== element && item.style.transform) {
+                    if (item !== element && item.style.transform && item.style.transform !== 'translateX(0px)') {
                         resetConfigSwipe(item);
                     }
                 });
-            });
+            }, { passive: true }); // passive: true 保证初始触摸不卡顿
 
             element.addEventListener('touchmove', (e) => {
-                if (!isDragging) return;
+                if (isScrolling) return; // 如果已经被判定为上下滚动，直接无视一切左右滑动
                 
                 const touchX = e.touches[0].clientX;
-                const diffX = touchX - startX;
+                const touchY = e.touches[0].clientY;
+                let deltaX = touchX - startX;
+                let deltaY = Math.abs(touchY - startY);
                 
-                // 只允许向左滑动
-                if (diffX < 0) {
-                    currentX = Math.max(diffX, -140); // 限制最大滑动距离为140px（两个按钮的宽度）
-                    element.style.transform = `translateX(${currentX}px)`;
-                    e.preventDefault(); // 阻止页面滚动
+                // ✨ 防误触核心 1：如果上下的移动幅度大于左右，说明用户想往下/上滚动列表
+                if (deltaY > Math.abs(deltaX) && !element.classList.contains('swiping')) {
+                    isScrolling = true;
+                    return;
                 }
-            });
+
+                // ✨ 防误触核心 2：必须明确向左/右滑动超过 10px 才算真正的“左滑操作”
+                if (Math.abs(deltaX) > 10 && !isScrolling) {
+                    isDragging = true;
+                    element.classList.add('swiping');
+                }
+
+                // 只有被判定为“正在左滑拖拽”时，才接管并阻止系统原本的滚动
+                if (element.classList.contains('swiping')) {
+                    e.preventDefault(); 
+                    // 只允许向左滑动
+                    if (deltaX > 0) deltaX = 0;
+                    currentX = Math.max(deltaX, -140); // 限制最大滑动距离为140px
+                    element.style.transform = `translateX(${currentX}px)`;
+                }
+            }, { passive: false }); // 需要阻止默认行为，这里设为 false
 
             element.addEventListener('touchend', (e) => {
-                if (!isDragging) return;
-                isDragging = false;
+                if (!element.classList.contains('swiping')) return; // 如果根本没触发左滑，直接放行
+                
                 element.classList.remove('swiping');
-
+                isDragging = false;
+                
                 const duration = Date.now() - startTime;
                 const velocity = Math.abs(currentX) / duration;
 
