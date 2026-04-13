@@ -2249,7 +2249,7 @@
         .comment-name { font-size: 14px; font-weight: 600; color: var(--text-sub); margin-bottom: 6px; }
         .comment-text { font-size: 15px; color: var(--text-main); line-height: 1.5; }
         
-        /* --- 聊天界面时间戳 --- */
+        /* --- 聊天界面时间戳 (零延迟瞬发版) --- */
         .chat-timestamp {
             text-align: center;
             font-size: 12px;
@@ -2257,10 +2257,12 @@
             margin: 16px 0 10px 0;
             cursor: pointer;
             user-select: none;
-            transition: opacity 0.2s ease;
+            /* 🌟 核心修复 1：删掉 transition，让按压反馈变成 0 毫秒的瞬间响应 */
+            /* 🌟 核心修复 2：加入 manipulation，告诉 iOS 绝对不许在此元素上等待 300 毫秒！ */
+            touch-action: manipulation; 
         }
         .chat-timestamp:active {
-            opacity: 0.6;
+            opacity: 0.5; /* 按下瞬间立刻变暗，松手瞬间立刻恢复，绝对干脆 */
         }
 
         /* --- 现实感知开关 UI (黑白灰适配深浅模式) --- */
@@ -7916,10 +7918,9 @@ ${chatContent}
                     const timeDiv = document.createElement('div');
                     timeDiv.className = 'chat-timestamp';
                     timeDiv.innerText = shortTime;
-                    // 🌟 瞬间切换版：去除所有异步延迟和透明度过渡，点击立刻变字
+                    // 🌟 物理级零延迟：完全切断 CSS 重绘检测，纯内存瞬间替换
                     timeDiv.onclick = function() {
-                        // 物理级零延迟，直接在当前帧替换文字内容
-                        this.innerText = this.innerText === shortTime ? fullTime : shortTime;
+                        this.textContent = this.textContent === shortTime ? fullTime : shortTime;
                     };
                     container.appendChild(timeDiv);
                     lastMsgTime = msgTime;
