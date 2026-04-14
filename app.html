@@ -2690,56 +2690,61 @@
                 </div>
             </div>
             
-            <div class="api-section-title" style="margin-top: 32px;">Other API</div>
-            
-            <div class="api-input-group" style="margin: 0 20px;">
-                <div class="api-input-item" style="background: var(--hover-bg); border-bottom: none; padding: 10px 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--text-sub); display: flex; align-items: center; gap: 6px;">
-                        <i class="fas fa-brain" style="font-size: 14px;"></i>
-                        <span>长期记忆</span>
-                    </div>
-                </div>
-                <div class="api-input-item">
-                    <div class="api-input-label">配置名称</div>
-                    <input type="text" id="memory-config-name" class="api-input-field" style="color: var(--text-main);" readonly value="点击选择配置" onclick="openUnifiedConfigSelector('other', 'memory')" placeholder="点击选择配置">
-                </div>
-                <div class="api-input-item">
-                    <div class="api-input-label">当前模型</div>
-                    <input type="text" id="memory-current-model" class="api-input-field" style="color: var(--text-main);" readonly value="" onclick="openUnifiedModelSelector('other', 'memory')" placeholder="点击选择模型">
-                </div>
+            <div class="api-section-title" onclick="toggleOtherAPI()" style="margin-top: 32px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding-right: 20px;">
+                <span>Other API</span>
+                <i id="other-api-toggle-icon" class="fa-solid fa-chevron-right" style="transition: transform 0.3s; font-size: 14px;"></i>
             </div>
             
-            <div class="api-input-group" style="margin: 20px 20px 0 20px;">
-                <div class="api-input-item" style="background: var(--hover-bg); border-bottom: none; padding: 10px 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--text-sub); display: flex; align-items: center; gap: 6px;">
-                        <i class="fas fa-compass" style="font-size: 14px; color: var(--text-sub);"></i>
-                        <span>发现</span>
+            <div id="other-api-container" style="max-height: 0; overflow: hidden; transition: all 0.3s ease-in-out;">
+                <div class="api-input-group" style="margin: 16px 20px 0 20px;">
+                    <div class="api-input-item" style="background: var(--hover-bg); border-bottom: none; padding: 10px 16px;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-sub); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-brain" style="font-size: 14px;"></i>
+                            <span>长期记忆</span>
+                        </div>
+                    </div>
+                    <div class="api-input-item">
+                        <div class="api-input-label">配置名称</div>
+                        <input type="text" id="memory-config-name" class="api-input-field" style="color: var(--text-main);" readonly value="点击选择配置" onclick="openUnifiedConfigSelector('other', 'memory')" placeholder="点击选择配置">
+                    </div>
+                    <div class="api-input-item">
+                        <div class="api-input-label">当前模型</div>
+                        <input type="text" id="memory-current-model" class="api-input-field" style="color: var(--text-main);" readonly value="" onclick="openUnifiedModelSelector('other', 'memory')" placeholder="点击选择模型">
                     </div>
                 </div>
-                <div class="api-input-item">
-                    <div class="api-input-label">配置名称</div>
-                    <input type="text" id="discover-config-name" class="api-input-field" style="color: var(--text-main);" readonly value="点击选择配置" onclick="openUnifiedConfigSelector('other', 'discover')" placeholder="点击选择配置">
-                </div>
-                <div class="api-input-item">
-                    <div class="api-input-label">当前模型</div>
-                    <input type="text" id="discover-current-model" class="api-input-field" style="color: var(--text-main);" readonly value="" onclick="openUnifiedModelSelector('other', 'discover')" placeholder="点击选择模型">
-                </div>
-            </div>
-                        
-            <div class="api-input-group" style="margin: 20px 20px 0 20px;">
-                <div class="api-input-item" style="background: var(--hover-bg); border-bottom: none; padding: 10px 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--text-sub); display: flex; align-items: center; gap: 6px;">
-                        <i class="fas fa-microphone" style="font-size: 14px;"></i>
-                        <span>语音</span>
+                
+                <div class="api-input-group" style="margin: 20px 20px 0 20px;">
+                    <div class="api-input-item" style="background: var(--hover-bg); border-bottom: none; padding: 10px 16px;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-sub); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-compass" style="font-size: 14px; color: var(--text-sub);"></i>
+                            <span>发现</span>
+                        </div>
+                    </div>
+                    <div class="api-input-item">
+                        <div class="api-input-label">配置名称</div>
+                        <input type="text" id="discover-config-name" class="api-input-field" style="color: var(--text-main);" readonly value="点击选择配置" onclick="openUnifiedConfigSelector('other', 'discover')" placeholder="点击选择配置">
+                    </div>
+                    <div class="api-input-item">
+                        <div class="api-input-label">当前模型</div>
+                        <input type="text" id="discover-current-model" class="api-input-field" style="color: var(--text-main);" readonly value="" onclick="openUnifiedModelSelector('other', 'discover')" placeholder="点击选择模型">
                     </div>
                 </div>
-                <div class="api-input-item">
-                    <div class="api-input-label">配置名称</div>
-                    <input type="text" id="voice-config-name" class="api-input-field" style="color: var(--text-main);" readonly value="点击选择配置" onclick="openUnifiedConfigSelector('other', 'voice')" placeholder="点击选择配置">
-                </div>
-                <div class="api-input-item">
-                    <div class="api-input-label">当前模型</div>
-                    <input type="text" id="voice-current-model" class="api-input-field" style="color: var(--text-main);" readonly value="" onclick="openUnifiedModelSelector('other', 'voice')" placeholder="点击选择模型">
+                            
+                <div class="api-input-group" style="margin: 20px 20px 0 20px;">
+                    <div class="api-input-item" style="background: var(--hover-bg); border-bottom: none; padding: 10px 16px;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-sub); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-microphone" style="font-size: 14px;"></i>
+                            <span>语音</span>
+                        </div>
+                    </div>
+                    <div class="api-input-item">
+                        <div class="api-input-label">配置名称</div>
+                        <input type="text" id="voice-config-name" class="api-input-field" style="color: var(--text-main);" readonly value="点击选择配置" onclick="openUnifiedConfigSelector('other', 'voice')" placeholder="点击选择配置">
+                    </div>
+                    <div class="api-input-item">
+                        <div class="api-input-label">当前模型</div>
+                        <input type="text" id="voice-current-model" class="api-input-field" style="color: var(--text-main);" readonly value="" onclick="openUnifiedModelSelector('other', 'voice')" placeholder="点击选择模型">
+                    </div>
                 </div>
             </div>
             
@@ -10166,6 +10171,21 @@ ${chatContent}
 
         let currentOtherApiType = ''; // 当前正在配置的API类型
 
+        // --- 控制 OTHER API 的折叠与展开 ---
+        function toggleOtherAPI() {
+            const container = document.getElementById('other-api-container');
+            const icon = document.getElementById('other-api-toggle-icon');
+            
+            if (container.style.maxHeight === '0px' || container.style.maxHeight === '') {
+                // 展开：给一个足够容纳三个模块的高度
+                container.style.maxHeight = '800px'; 
+                icon.style.transform = 'rotate(90deg)';
+            } else {
+                // 收起
+                container.style.maxHeight = '0px';
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
         // --- 加载Other API配置 ---
         function loadOtherApiConfigs() {
             try {
