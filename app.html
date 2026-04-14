@@ -2782,9 +2782,40 @@
                         <span>4096</span>
                     </div>
                 </div>
+                
+                <div class="api-input-item" style="flex-direction: column; align-items: stretch; padding: 16px; border-bottom: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div class="api-input-label" style="width: auto;">频率惩罚 (抗复读)</div>
+                        <div style="font-size: 16px; font-weight: 600; color: var(--text-sub);" id="frequency-display">0.0</div>
+                    </div>
+                    <div class="api-slider-track" id="frequency-track">
+                        <div class="api-slider-thumb" id="frequency-thumb"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--text-sub);">
+                        <span>0.0</span>
+                        <span>2.0</span>
+                    </div>
+                </div>
+
+                <div class="api-input-item" style="flex-direction: column; align-items: stretch; padding: 16px; border-bottom: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div class="api-input-label" style="width: auto;">存在惩罚 (新话题)</div>
+                        <div style="font-size: 16px; font-weight: 600; color: var(--text-sub);" id="presence-display">0.0</div>
+                    </div>
+                    <div class="api-slider-track" id="presence-track">
+                        <div class="api-slider-thumb" id="presence-thumb"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--text-sub);">
+                        <span>0.0</span>
+                        <span>2.0</span>
+                    </div>
+                </div>
+
+                
             </div>
         </div>
     </div>
+
     <div id="sub-general" class="sub-page-scene">
         <div class="nav-header clean-nav">
             <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('sub-general')"></i>
@@ -3857,7 +3888,9 @@
                         messages: messages,
                         stream: PARAM_CONFIG.stream,
                         temperature: PARAM_CONFIG.temperature,
-                        max_tokens: PARAM_CONFIG.maxTokens
+                        max_tokens: PARAM_CONFIG.maxTokens,
+                        frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                        presence_penalty: PARAM_CONFIG.presencePenalty
                     })
                 });
                 
@@ -4118,7 +4151,9 @@
                             messages: messages,
                             stream: false, 
                             temperature: PARAM_CONFIG.temperature, // ⚠️ 注意这里和上面的变量名不同
-                            max_tokens: PARAM_CONFIG.maxTokens
+                            max_tokens: PARAM_CONFIG.maxTokens,
+                            frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                            presence_penalty: PARAM_CONFIG.presencePenalty
                         }
                     });
                     
@@ -4159,7 +4194,9 @@
                             messages: messages,
                             stream: PARAM_CONFIG.stream,
                             temperature: PARAM_CONFIG.temperature,
-                            max_tokens: PARAM_CONFIG.maxTokens
+                            max_tokens: PARAM_CONFIG.maxTokens,
+                            frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                            presence_penalty: PARAM_CONFIG.presencePenalty
                         })
                     });
                 }
@@ -8778,7 +8815,9 @@ ${chatContent}
                             messages: messages,
                             stream: false, // ⚠️ 核心魔法：原生请求必须关闭流式打字机，后台才能安稳接收到最后的一长串完整数据
                             temperature: adjustedTemp,
-                            max_tokens: PARAM_CONFIG.maxTokens
+                            max_tokens: PARAM_CONFIG.maxTokens,
+                            frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                            presence_penalty: PARAM_CONFIG.presencePenalty
                         }
                     });
                     
@@ -8822,7 +8861,9 @@ ${chatContent}
                             messages: messages,
                             stream: PARAM_CONFIG.stream,
                             temperature: adjustedTemp,
-                            max_tokens: PARAM_CONFIG.maxTokens
+                            max_tokens: PARAM_CONFIG.maxTokens,
+                            frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                            presence_penalty: PARAM_CONFIG.presencePenalty
                         })
                     });
                 }
@@ -9467,9 +9508,11 @@ ${chatContent}
         
         // --- 参数配置数据结构 ---
         const PARAM_CONFIG = {
-            stream: false,        // 流式输出
-            temperature: 0.7,     // 温度 (0.1 - 2.0)
-            maxTokens: 2048       // 最大长度 (256 - 4096)
+            stream: false, // 流式输出
+            temperature: 0.7, // 温度 (0.1 - 2.0)
+            maxTokens: 2048, // 最大长度 (256 - 4096)
+            frequencyPenalty: 0.0, // 频率惩罚
+            presencePenalty: 0.0 // 存在惩罚
         };
         
         // --- 加载参数配置 ---
@@ -9485,6 +9528,9 @@ ${chatContent}
                 updateStreamSwitchUI();
                 updateTemperatureUI();
                 updateMaxTokensUI();
+                updateFrequencyUI();
+                updatePresenceUI();
+
                 
             } catch(e) {
                 console.error('加载参数配置失败:', e);
@@ -9609,6 +9655,76 @@ ${chatContent}
             });
         }
         
+        // --- 更新频率惩罚显示 ---
+        function updateFrequencyUI() {
+            const display = document.getElementById('frequency-display');
+            const thumb = document.getElementById('frequency-thumb');
+            if (display) display.textContent = PARAM_CONFIG.frequencyPenalty.toFixed(1);
+            if (thumb) {
+                const percent = (PARAM_CONFIG.frequencyPenalty / 2.0) * 100;
+                thumb.style.left = percent + '%';
+            }
+        }
+
+        // --- 更新存在惩罚显示 ---
+        function updatePresenceUI() {
+            const display = document.getElementById('presence-display');
+            const thumb = document.getElementById('presence-thumb');
+            if (display) display.textContent = PARAM_CONFIG.presencePenalty.toFixed(1);
+            if (thumb) {
+                const percent = (PARAM_CONFIG.presencePenalty / 2.0) * 100;
+                thumb.style.left = percent + '%';
+            }
+        }
+
+        // --- 初始化频率惩罚滑块 ---
+        function initFrequencySlider() {
+            const track = document.getElementById('frequency-track');
+            const thumb = document.getElementById('frequency-thumb');
+            if (!track || !thumb) return;
+            let isDragging = false;
+            const updateValue = (clientX) => {
+                const rect = track.getBoundingClientRect();
+                let percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+                let value = (percent / 100) * 2.0;
+                value = Math.round(value * 10) / 10;
+                PARAM_CONFIG.frequencyPenalty = value;
+                thumb.style.left = percent + '%';
+                document.getElementById('frequency-display').textContent = value.toFixed(1);
+                saveParamConfig();
+            };
+            track.addEventListener('mousedown', (e) => { isDragging = true; updateValue(e.clientX); });
+            document.addEventListener('mousemove', (e) => { if (isDragging) updateValue(e.clientX); });
+            document.addEventListener('mouseup', () => { isDragging = false; });
+            thumb.addEventListener('touchstart', (e) => { isDragging = true; e.preventDefault(); });
+            document.addEventListener('touchmove', (e) => { if (isDragging && e.touches[0]) updateValue(e.touches[0].clientX); });
+            document.addEventListener('touchend', () => { isDragging = false; });
+        }
+
+        // --- 初始化存在惩罚滑块 ---
+        function initPresenceSlider() {
+            const track = document.getElementById('presence-track');
+            const thumb = document.getElementById('presence-thumb');
+            if (!track || !thumb) return;
+            let isDragging = false;
+            const updateValue = (clientX) => {
+                const rect = track.getBoundingClientRect();
+                let percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+                let value = (percent / 100) * 2.0;
+                value = Math.round(value * 10) / 10;
+                PARAM_CONFIG.presencePenalty = value;
+                thumb.style.left = percent + '%';
+                document.getElementById('presence-display').textContent = value.toFixed(1);
+                saveParamConfig();
+            };
+            track.addEventListener('mousedown', (e) => { isDragging = true; updateValue(e.clientX); });
+            document.addEventListener('mousemove', (e) => { if (isDragging) updateValue(e.clientX); });
+            document.addEventListener('mouseup', () => { isDragging = false; });
+            thumb.addEventListener('touchstart', (e) => { isDragging = true; e.preventDefault(); });
+            document.addEventListener('touchmove', (e) => { if (isDragging && e.touches[0]) updateValue(e.touches[0].clientX); });
+            document.addEventListener('touchend', () => { isDragging = false; });
+        }
+
         // --- 初始化Max Tokens滑块 ---
         function initMaxTokensSlider() {
             const track = document.getElementById('max-tokens-track');
@@ -9671,6 +9787,8 @@ ${chatContent}
             loadParamConfig();
             initTemperatureSlider();
             initMaxTokensSlider();
+            initFrequencySlider();
+            initPresenceSlider();
         }
         
         // 在页面加载时初始化参数配置
