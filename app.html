@@ -10830,19 +10830,19 @@ ${chatContent}
         }
 
         // 4. 执行分类导出
-        function executeCategorizedExport() {
+        async function executeCategorizedExport() { 
             try {
                 // 保存最新内存数据
-                if (typeof saveToLocal === 'function') saveToLocal();
+                if (typeof saveToLocal === 'function') await saveToLocal();
                 if (typeof saveChatApiConfigs === 'function') saveChatApiConfigs();
                 if (typeof saveOtherApiConfigs === 'function') saveOtherApiConfigs();
                 if (typeof saveGeneralConfig === 'function') saveGeneralConfig();
-                
+
                 // 获取所有被勾选的分类
                 const checkedCategories = Array.from(document.querySelectorAll('.export-item-cb'))
-                                            .filter(cb => cb.checked)
-                                            .map(cb => cb.value);
-                
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value);
+
                 if (checkedCategories.length === 0) {
                     alert('请至少选择一项要导出的数据！');
                     return;
@@ -10851,24 +10851,21 @@ ${chatContent}
                 // 整理需要导出的 Key
                 let targetKeys = [];
                 let exportOther = checkedCategories.includes('other');
-
                 checkedCategories.forEach(category => {
                     if (EXPORT_DICTIONARY[category]) {
                         targetKeys = targetKeys.concat(EXPORT_DICTIONARY[category]);
                     }
                 });
 
-                // 开始从 localStorage 提取数据
+                // 开始提取数据
                 const snapshot = {};
+                
+                // 【第一步】：从普通缓存 (localStorage) 提取配置和轻量数据
                 const allLocalKeys = Object.keys(localStorage);
-
                 allLocalKeys.forEach(key => {
-                    // 如果这个 key 在我们勾选的分类列表里
                     if (targetKeys.includes(key)) {
                         snapshot[key] = localStorage.getItem(key);
-                    } 
-                    // 兜底逻辑：如果勾选了“其他扩展数据”，且这个 key 不属于任何已知分类
-                    else if (exportOther) {
+                    } else if (exportOther) {
                         let isKnownKey = false;
                         for (let cat in EXPORT_DICTIONARY) {
                             if (EXPORT_DICTIONARY[cat].includes(key)) isKnownKey = true;
@@ -10879,47 +10876,59 @@ ${chatContent}
                     }
                 });
 
-                // 打包下载
-        const exportData = {
-            _version: '7.0',
-            _time: new Date().toISOString(),
-            data: snapshot
-        };
+                // 【第二步】：从大仓库 (IndexedDB / localforage) 提取聊天记录重度数据
+                const forageKeys = await localforage.keys();
+                for (const key of forageKeys) {
+                    if (targetKeys.includes(key)) {
+                        snapshot[key] = await localforage.getItem(key);
+                    } else if (exportOther) {
+                        let isKnownKey = false;
+                        for (let cat in EXPORT_DICTIONARY) {
+                            if (EXPORT_DICTIONARY[cat].includes(key)) isKnownKey = true;
+                        }
+                        if (!isKnownKey) {
+                            snapshot[key] = await localforage.getItem(key);
+                        }
+                    }
+                }
 
-        const dataStr = JSON.stringify(exportData, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const dateStr = new Date().toISOString().split('T')[0];
-        const fileName = `linkgo-backup-${dateStr}.json`;
-        
-        // ✨ iOS App 原生分享呼出魔法
-        const file = new File([blob], fileName, { type: 'application/json' });
-        
-        // 检测系统是否支持原生分享面板
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            navigator.share({
-                files: [file],
-            }).then(() => {
-                closeExportSheet();
-                // 分享成功后不再弹很丑的 alert，iOS 原生面板本身就是最好的反馈
-            }).catch(e => {
-                closeExportSheet(); // 用户滑动取消了分享面板
-            });
-        } else {
-            // 兜底方案 (如果你用电脑浏览器打开时生效)
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            a.style.display = 'none';
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 2000);
-            closeExportSheet();
-            alert('✅ 分类导出成功！');
-        }
+                // 打包下载
+                const exportData = {
+                    _version: '7.0',
+                    _time: new Date().toISOString(),
+                    data: snapshot
+                };
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const dateStr = new Date().toISOString().split('T')[0];
+                const fileName = `linkgo-backup-${dateStr}.json`;
+
+                // iOS App 原生分享呼出魔法
+                const file = new File([blob], fileName, { type: 'application/json' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({
+                        files: [file],
+                    }).then(() => {
+                        closeExportSheet();
+                    }).catch(e => {
+                        closeExportSheet();
+                    });
+                } else {
+                    // 兜底方案
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 2000);
+                    closeExportSheet();
+                    alert('✅ 分类导出成功！');
+                }
             } catch(e) {
                 console.error(e);
                 alert('❌ 导出失败: ' + e.message);
@@ -11035,14 +11044,14 @@ ${chatContent}
         });
 
         // 4. 执行分类覆盖
-        function executeCategorizedImport() {
+        async function executeCategorizedImport() { // 🌟 修复1：改为异步函数
             if (!pendingImportSnapshot) return;
 
             // 看看用户勾选了哪些分类
             const checkedCategories = Array.from(document.querySelectorAll('.import-item-cb'))
-                                        .filter(cb => cb.checked)
-                                        .map(cb => cb.value);
-            
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+
             if (checkedCategories.length === 0) {
                 alert('请至少选择一项要恢复的数据！');
                 return;
@@ -11052,17 +11061,16 @@ ${chatContent}
                 return;
             }
 
-            // 将勾选的分类转化为实际需要覆盖的 localStorage Key
+            // 将勾选的分类转化为实际需要覆盖的 Key
             let targetKeys = [];
             let importOther = checkedCategories.includes('other');
-
             checkedCategories.forEach(category => {
                 if (EXPORT_DICTIONARY[category]) {
                     targetKeys = targetKeys.concat(EXPORT_DICTIONARY[category]);
                 }
             });
 
-            // 终极护盾：瘫痪保存函数，防止刷新时旧数据反向覆盖（上一回合找出的暗坑）
+            // 终极护盾：瘫痪保存函数，防止刷新时旧数据反向覆盖
             window.saveToLocal = function() {};
             window.saveChatApiConfigs = function() {};
             window.saveOtherApiConfigs = function() {};
@@ -11072,13 +11080,13 @@ ${chatContent}
 
             // 遍历备份文件里的所有数据
             const backupKeys = Object.keys(pendingImportSnapshot);
-            backupKeys.forEach(key => {
+            for (const key of backupKeys) { // 🌟 修复2：使用 for...of 以支持大仓库的 await 写入
                 let shouldImport = false;
                 
                 // 如果这个 key 属于用户勾选的明确分类
                 if (targetKeys.includes(key)) {
                     shouldImport = true;
-                } 
+                }
                 // 兜底逻辑：如果用户勾选了"其他"，且这个 key 不在我们的字典里
                 else if (importOther) {
                     let isKnownKey = false;
@@ -11089,12 +11097,19 @@ ${chatContent}
                         shouldImport = true;
                     }
                 }
-
+                
                 // 只有符合条件的数据，才会被写入当前存储！
                 if (shouldImport) {
-                    localStorage.setItem(key, String(pendingImportSnapshot[key]));
+                    const valStr = String(pendingImportSnapshot[key]);
+                    
+                    // 🌟 核心修复3：重度数据必须安全回归 IndexedDB，否则将直接撑爆报错！
+                    if (key === 'APP_DATA' || key === 'CHAT_CONTACTS') {
+                        await localforage.setItem(key, valStr);
+                    } else {
+                        localStorage.setItem(key, valStr);
+                    }
                 }
-            });
+            }
 
             alert('✅ 选择的数据已成功恢复！点击确定将重新加载页面。');
             window.location.href = window.location.href.split('#')[0];
