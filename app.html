@@ -4107,7 +4107,8 @@
                 // ---------- 【修改开始：重新生成模式的严格引擎】 ----------
                 let rawConversation = JSON.parse(JSON.stringify(conversation.slice(startIndex)));
                 
-                let jailbreakPrompt = "";
+                // 提取全局预设与防复读纸条
+                let jailbreakPrompt = "【强制指令：请推动剧情发展。严格禁止使用前几轮出现过的重复动作描写、结尾感叹或雷同句式。请务必用全新的视角和词汇回复，拒绝复读！】";
                 if (window.ADVANCED_PRESET_FILES) {
                     const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
                     enabledFiles.forEach(file => {
@@ -8760,9 +8761,9 @@ ${chatContent}
 
             // ---------- 【修改开始：酒馆严格模式引擎】 ----------
             let rawConversation = JSON.parse(JSON.stringify(limitedConversation));
-            
-            // 1. 提取全局预设（Jailbreak）
-            let jailbreakPrompt = "";
+           
+            // 1. 提取全局预设（Jailbreak）与防复读纸条
+            let jailbreakPrompt = "【强制指令：请推动剧情发展。严格禁止使用前几轮出现过的重复动作描写、结尾感叹或雷同句式。请务必用全新的视角和词汇回复，拒绝复读！】";
             if (window.ADVANCED_PRESET_FILES) {
                 const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
                 enabledFiles.forEach(file => {
