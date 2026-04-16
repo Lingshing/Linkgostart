@@ -10442,11 +10442,13 @@ ${chatContent}
                 console.log('原始URL:', config.url);
                 console.log('Models URL:', modelsUrl);
                 
-                const response = await fetch(modelsUrl, {
+                // 🌟 核心修复：把请求发给安全的 Worker 桥梁
+                const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${config.key}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-Target-API': modelsUrl  // 👈 把原本的真实 HTTP 网址当成通行证塞在这里！
                     }
                 });
                 
