@@ -8028,10 +8028,19 @@ ${chatContent}
                             </div>
                         `;
                     } else {
+                        // ---------- 【修改开始：用户气泡显示端正则美化引擎】 ----------
+                        let displayUserContent = msg.content;
+                        if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
+                            displayUserContent = applyRegexRules(displayUserContent);
+                        } else {
+                            displayUserContent = escapeHtml(displayUserContent);
+                        }
+                        
                         messageDiv.innerHTML = `
                             ${avatarHtml}
-                            <div class="chat-bubble">${escapeHtml(msg.content)}</div>
+                            <div class="chat-bubble">${displayUserContent}</div>
                         `;
+                        // ---------- 【修改结束】 ----------
                     }
                     
                     container.appendChild(messageDiv);
@@ -8055,13 +8064,24 @@ ${chatContent}
                         
                         
                         
+                        // ---------- 【修改开始：AI气泡显示端正则美化引擎】 ----------
+                        let displayContent = aiMsg.content;
+                        // 如果开启了正则开关，就用正则处理文本（允许生成带颜色的HTML特效）
+                        if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
+                            displayContent = applyRegexRules(displayContent);
+                        } else {
+                            // 如果没开正则，就用原来的安全模式
+                            displayContent = escapeHtml(displayContent);
+                        }
+
                         messageDiv.innerHTML = `
                             ${avatarHtml}
-                            <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${escapeHtml(aiMsg.content)}</div>
+                            <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${displayContent}</div>
                             <div class="regenerate-btn" onclick="regenerateMessage(event, this)">
                                 <i class="fas fa-rotate-right"></i>
                             </div>
                         `;
+                        // ---------- 【修改结束】 ----------
                         
                         container.appendChild(messageDiv);
                     });
