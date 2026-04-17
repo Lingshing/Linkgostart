@@ -4173,20 +4173,39 @@
                         }
                     }
                 }
-                // ---------- 【修改开始：重新生成模式的严格引擎】 ----------
+                // ---------- 【修改开始：重新生成模式预设分发引擎】 ----------
                 let rawConversation = JSON.parse(JSON.stringify(conversation.slice(startIndex)));
                 
-                // 提取全局预设与防复读纸条
-                let jailbreakPrompt = "【强制指令：严格禁止使用前几轮出现过的重复动作描写、结尾感叹或雷同句式。请务必用全新的视角和词汇回复，拒绝复读！】";
+                let presetSystemContent = "";
+                let presetJailbreakContent = "【强制指令：严格禁止使用前几轮出现过的重复动作描写、结尾感叹或雷同句式。请务必用全新的视角和词汇回复，拒绝复读！】";
+                
                 if (window.ADVANCED_PRESET_FILES) {
                     const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
                     enabledFiles.forEach(file => {
                         if (file.prompts) file.prompts.forEach(p => {
-                            if (p.enabled !== false && p.content) jailbreakPrompt += '\n\n' + p.content;
+                            if (p.enabled !== false && p.content) {
+                                if (p.identifier === "jailbreak" || p.name === "Jailbreak" || p.name === "3.5 Main prompt suffix" || p.name === "Important explanation") {
+                                    presetJailbreakContent += '\n\n' + p.content;
+                                } else {
+                                    presetSystemContent += '\n\n' + p.content;
+                                }
+                            }
                         });
                     });
                 }
                 
+                // 组装唯一的系统提示词
+                let finalSystemString = "";
+                if (presetSystemContent) {
+                    finalSystemString += "【预设背景设定参考】\n" + presetSystemContent + "\n\n";
+                }
+                if (systemPrompt) {
+                    finalSystemString += "【！！！最高优先级：必须严格执行以下排版与输出法则！！！】\n" + systemPrompt;
+                }
+                if (finalSystemString) {
+                    messages.push({ role: 'system', content: finalSystemString });
+                }
+
                 let mergedChat = [];
                 for (const msg of rawConversation) {
                     if (mergedChat.length > 0 && mergedChat[mergedChat.length - 1].role === msg.role) {
@@ -4204,7 +4223,7 @@
                     });
                 }
                 
-                if (jailbreakPrompt) {
+                if (presetJailbreakContent) {
                     let lastUserMsgIndex = -1;
                     for (let i = mergedChat.length - 1; i >= 0; i--) {
                         if (mergedChat[i].role === 'user') {
@@ -4213,9 +4232,9 @@
                         }
                     }
                     if (lastUserMsgIndex !== -1) {
-                        mergedChat[lastUserMsgIndex].content += `\n\n【系统强制指令，请绝对服从】：${jailbreakPrompt}`;
+                        mergedChat[lastUserMsgIndex].content += `\n\n【系统强制指令，请绝对服从】：${presetJailbreakContent}`;
                     } else {
-                        mergedChat.push({ role: 'user', content: `【系统强制指令，请绝对服从】：${jailbreakPrompt}` });
+                        mergedChat.push({ role: 'user', content: `【系统强制指令，请绝对服从】：${presetJailbreakContent}` });
                     }
                 }
                 
@@ -8827,13 +8846,13 @@ ${chatContent}
                 }
             }
 
-            if (systemPrompt) {
-                messages.push({ role: 'system', content: systemPrompt + injectedMemoryText });
-            } else if (injectedMemoryText) {
-                messages.push({ role: 'system', content: injectedMemoryText });
+            // --- 🧠 注入长期记忆到排版规则中 ---
+            let finalUserPrompt = systemPrompt || "";
+            if (injectedMemoryText) {
+                finalUserPrompt += injectedMemoryText;
             }
 
-            // --- 修复3：限制历史记录轮数，彻底解决响应慢和 Token 超限 429 问题 ---
+            // --- 修复3：限制历史记录轮数 ---
             const roundLimit = GENERAL_CONFIG.memory.contextLimit || 10;
             let startIndex = 0;
             let userMsgCount = 0;
@@ -8848,42 +8867,40 @@ ${chatContent}
             }
             const limitedConversation = conversation.slice(startIndex);
 
-            // ---------- 【修改开始：酒馆精细化预设注入引擎】 ----------
+            // ---------- 【酒馆预设分发与排版保卫引擎】 ----------
             let rawConversation = JSON.parse(JSON.stringify(limitedConversation));
-            let systemPromptsArray = []; // 用来专门收集系统级的预设
-            let jailbreakPrompt = "";    // 用来专门收集需要塞在最后的强制指令
+            let presetSystemContent = "";
+            let presetJailbreakContent = "";
 
             if (window.ADVANCED_PRESET_FILES) {
                 const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
                 enabledFiles.forEach(file => {
                     if (file.prompts) file.prompts.forEach(p => {
                         if (p.enabled !== false && p.content) {
-                            // 判断：如果是 jailbreak 或者明确要求放在最后的，塞给 jailbreakPrompt
-                            if (p.identifier === "jailbreak" || p.name === "3.5 Main prompt suffix" || p.name === "Important explanation") {
-                                jailbreakPrompt += '\n\n' + p.content;
+                            if (p.identifier === "jailbreak" || p.name === "Jailbreak" || p.name === "3.5 Main prompt suffix" || p.name === "Important explanation") {
+                                presetJailbreakContent += '\n\n' + p.content;
                             } else {
-                                // 其他的全部作为系统设定，塞到最前面
-                                systemPromptsArray.push(p.content);
+                                presetSystemContent += '\n\n' + p.content;
                             }
                         }
                     });
                 });
             }
 
-            // 组装真正的酒馆系统提示词
-            if (systemPromptsArray.length > 0) {
-                const combinedSystemPrompt = systemPromptsArray.join('\n\n');
-                // 如果原本已经有 systemPrompt（比如角色设定），就把酒馆预设接在后面
-                if (systemPrompt) {
-                    messages.push({ role: 'system', content: systemPrompt + '\n\n' + combinedSystemPrompt });
-                } else {
-                    messages.push({ role: 'system', content: combinedSystemPrompt });
-                }
-            } else if (systemPrompt) {
-                messages.push({ role: 'system', content: systemPrompt });
+            // 组装唯一的系统提示词 (预设在上方，你的排版家法绝对在下方压轴)
+            let finalSystemString = "";
+            if (presetSystemContent) {
+                finalSystemString += "【预设背景设定参考】\n" + presetSystemContent + "\n\n";
+            }
+            if (finalUserPrompt) {
+                finalSystemString += "【！！！最高优先级：必须严格执行以下排版与输出法则！！！】\n" + finalUserPrompt;
+            }
+            
+            if (finalSystemString) {
+                messages.push({ role: 'system', content: finalSystemString });
             }
 
-            // 合并相同角色连续发言
+            // 合并相同角色发言 & 应用正则
             let mergedChat = [];
             for (const msg of rawConversation) {
                 if (mergedChat.length > 0 && mergedChat[mergedChat.length - 1].role === msg.role) {
@@ -8893,7 +8910,6 @@ ${chatContent}
                 }
             }
 
-            // 正则预处理用户的输入
             if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
                 mergedChat.forEach(msg => {
                     if (msg.role === 'user') {
@@ -8902,8 +8918,7 @@ ${chatContent}
                 });
             }
 
-            // 末尾注入：将防复读等强制指令绑在最后一条用户消息上
-            if (jailbreakPrompt) {
+            if (presetJailbreakContent) {
                 let lastUserMsgIndex = -1;
                 for (let i = mergedChat.length - 1; i >= 0; i--) {
                     if (mergedChat[i].role === 'user') {
@@ -8912,15 +8927,14 @@ ${chatContent}
                     }
                 }
                 if (lastUserMsgIndex !== -1) {
-                    mergedChat[lastUserMsgIndex].content += `\n\n【系统强制指令，请绝对服从】：${jailbreakPrompt}`;
+                    mergedChat[lastUserMsgIndex].content += `\n\n【系统越狱强制指令，绝对服从】：${presetJailbreakContent}`;
                 } else {
-                    mergedChat.push({ role: 'user', content: `【系统强制指令，请绝对服从】：${jailbreakPrompt}` });
+                    mergedChat.push({ role: 'user', content: `【系统越狱强制指令，绝对服从】：${presetJailbreakContent}` });
                 }
             }
 
-            // 最后推入待发送队列
             messages.push(...mergedChat);
-            // ---------- 【修改结束：酒馆精细化预设注入引擎】 ----------
+            // ---------- 【引擎结束】 ----------
       
             
             
