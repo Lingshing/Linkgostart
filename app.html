@@ -3879,7 +3879,77 @@
             }
             
             // 添加历史对话
-            messages.push(...conversation);
+            // =========================================================================
+            // ---------- 【修改开始：智能酒馆预设拆分与排版保卫引擎】 ----------
+            // 1. 准备两个篮子：一个装世界观设定，一个装防复读越狱词
+            let presetSystemContent = "";
+            let presetJailbreakContent = "";
+
+            // 2. 遍历预设文件，按 identifier 拆分
+            if (window.ADVANCED_PRESET_FILES) {
+                const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
+                enabledFiles.forEach(file => {
+                    if (file.prompts) {
+                        file.prompts.forEach(p => {
+                            if (p.enabled !== false && p.content) {
+                                // 识别越狱和后缀指令
+                                if (p.identifier === "jailbreak" || p.name === "Jailbreak" || p.name === "3.5 Main prompt suffix" || p.name === "Important explanation") {
+                                    presetJailbreakContent += '\n\n' + p.content;
+                                } else {
+                                    // 其他的作为系统背景
+                                    presetSystemContent += '\n\n' + p.content;
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+
+            // 3. 组装最终的系统提示词（强制把你的排版规则压轴）
+            let finalSystemString = "";
+            if (presetSystemContent) {
+                finalSystemString += "【预设背景设定参考】\n" + presetSystemContent + "\n\n";
+            }
+            if (systemPrompt) {
+                finalSystemString += "【！！！最高优先级：必须严格执行以下排版与输出法则！！！】\n" + systemPrompt;
+            }
+            
+            // 4. 将系统提示词推入 messages 的最前面
+            if (finalSystemString) {
+                // 如果原来已经推入过 system，先清理掉
+                const sysIndex = messages.findIndex(m => m.role === 'system');
+                if (sysIndex > -1) messages.splice(sysIndex, 1);
+                messages.unshift({ role: 'system', content: finalSystemString });
+            }
+
+            // 5. 深度拷贝历史记录并应用正则
+            let mergedChat = JSON.parse(JSON.stringify(conversation));
+            if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
+                mergedChat.forEach(msg => {
+                    if (msg.role === 'user') {
+                        msg.content = applyRegexRules(msg.content);
+                    }
+                });
+            }
+
+            // 6. 将越狱防复读指令绑在最后一条用户消息的末尾
+            if (presetJailbreakContent) {
+                let lastUserMsgIndex = -1;
+                for (let i = mergedChat.length - 1; i >= 0; i--) {
+                    if (mergedChat[i].role === 'user') {
+                        lastUserMsgIndex = i;
+                        break;
+                    }
+                }
+                if (lastUserMsgIndex !== -1) {
+                    mergedChat[lastUserMsgIndex].content += `\n\n【系统越狱强制指令，绝对服从】：${presetJailbreakContent}`;
+                }
+            }
+
+            // 7. 最后把处理好的历史记录推入消息队列
+            messages.push(...mergedChat);
+            // ---------- 【修改结束：引擎替换完毕】 ----------
+            // =========================================================================
             
             try {
                 console.log('=== 发送API请求 ===');
@@ -4107,7 +4177,7 @@
                 let rawConversation = JSON.parse(JSON.stringify(conversation.slice(startIndex)));
                 
                 // 提取全局预设与防复读纸条
-                let jailbreakPrompt = "【强制指令：请推动剧情发展。严格禁止使用前几轮出现过的重复动作描写、结尾感叹或雷同句式。请务必用全新的视角和词汇回复，拒绝复读！】";
+                let jailbreakPrompt = "【强制指令：严格禁止使用前几轮出现过的重复动作描写、结尾感叹或雷同句式。请务必用全新的视角和词汇回复，拒绝复读！】";
                 if (window.ADVANCED_PRESET_FILES) {
                     const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
                     enabledFiles.forEach(file => {
