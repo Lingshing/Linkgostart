@@ -4070,12 +4070,18 @@
 
                 
             } catch (error) {
-                console.error('=== 发送消息失败 ===');
-                console.error('错误类型:', error.name);
-                console.error('错误消息:', error.message);
-                
-                if (onError) onError(error);
+            console.error('=== 发送消息失败 ===');
+            console.error('错误类型:', error.name);
+            console.error('错误消息:', error.message);
+            
+            // ---------- 【修改开始：发消息报错后台通知】 ----------
+            if (typeof sendPushNotification === 'function') {
+                sendPushNotification(`⚠️ API 报错了：${error.message}`);
             }
+            // ---------- 【修改结束】 ----------
+            
+            if (onError) onError(error);
+        }
         }
         
         // --- 重新生成回复 (底层统一引擎版) ---
@@ -4379,6 +4385,12 @@
                 const rawErrorMsg = '❌ 重新生成失败：' + error.message; 
                 const streamCont = document.getElementById('active-stream-container');
                 if (streamCont) streamCont.remove();
+                
+                // ---------- 【新增：重新生成报错后台通知】 ----------
+                if (typeof sendPushNotification === 'function') {
+                    sendPushNotification(`⚠️ API 报错了：${error.message}`);
+                }
+                // ---------- 【新增结束】 ----------
                 
                 const errorMsgDiv = createChatBubble('ai', rawErrorMsg, false);
                 container.appendChild(errorMsgDiv);
