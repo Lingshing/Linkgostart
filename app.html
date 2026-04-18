@@ -5208,72 +5208,57 @@
             });
         }
 
-        window.expectedNextBarkTime = 0; // ✨ 弹药库：记录下一次"计划"的发射时间
+        // ==========================================
+        // 🌟 修改开始：原生通知极速队列（微信秒顶版）
+        // ==========================================
+        window.pushNotificationQueue = Promise.resolve(); 
 
-        // 实际发送通知的函数（强制排队绝不乱序版）
         async function sendPushNotification(messageText) {
             if (!GENERAL_CONFIG.notification.pushEnabled) return;
             if (document.visibilityState === 'visible' || window.appRealActive) return;
             if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') return;
 
-            // ✨ 核心魔法：利用事前预占时间戳，强制排队，绝不乱序！
-            const now = Date.now();
-            let waitTime = 0;
-            
-            if (now < window.expectedNextBarkTime) {
-                // 如果当前时间还没到下一次允许发射的时间，说明撞车了，计算需要排队等多久
-                waitTime = window.expectedNextBarkTime - now;
-                // 帮它把下一次允许发射的时间再往后推 3 秒，给后面来的气泡留位置
-                window.expectedNextBarkTime += 3000;
-            } else {
-                // 如果已经过了冷却期，无需等待，但要把下一个气泡的发射时间定在 3 秒后
-                window.expectedNextBarkTime = now + 3000;
-            }
+            window.pushNotificationQueue = window.pushNotificationQueue.then(async () => {
+                if (document.visibilityState === 'visible' || window.appRealActive) return;
 
-            // 在等待的这几秒里，每隔 100 毫秒扫描雷达
-            if (waitTime > 0) {
-                const scanTimes = Math.ceil(waitTime / 100);
-                for (let i = 0; i < scanTimes; i++) {
-                    await new Promise(r => setTimeout(r, 100));
-                    // 如果期间用户点开了 App 切回了前台，立刻销毁后面的子弹，绝不打扰！
-                    if (document.visibilityState === 'visible' || document.hasFocus() || window.appRealActive) {
-                        return; 
+                try {
+                    let finalMessage = messageText;
+                    if (!GENERAL_CONFIG.notification.showContent) {
+                        finalMessage = '收到一条新消息';
                     }
-                }
-            }
-
-            // 发射前的最后一次绝杀确认
-            if (document.visibilityState === 'visible' || window.appRealActive) return;
-
-            try {
-                let finalMessage = messageText;
-                if (!GENERAL_CONFIG.notification.showContent) {
-                    finalMessage = '收到一条新消息';
-                }
-                
-                // 🌟 核心魔法：呼叫 iOS 原生本地通知
-                if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-                    const { LocalNotifications } = window.Capacitor.Plugins;
-                    await LocalNotifications.requestPermissions();
                     
-                    await LocalNotifications.schedule({
-                        notifications: [
-                            {
-                                title: "Linkgo",
-                                body: finalMessage.substring(0, 100),
-                                // ⚠️ 修复：改用百万级随机数做 ID，彻底防止同一毫秒并发覆盖导致的丢消息！
-                                id: Math.floor(Math.random() * 1000000), 
-                                sound: null // 使用原生默认的清脆“叮”声
-                            }
-                        ]
-                    });
-                } else {
-                    console.log("网页端模拟收到通知:", finalMessage);
+                    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+                        const { LocalNotifications } = window.Capacitor.Plugins;
+                        await LocalNotifications.requestPermissions();
+                        await LocalNotifications.schedule({
+                            notifications: [
+                                {
+                                    title: "Linkgo",
+                                    body: finalMessage.substring(0, 100),
+                                    
+                                    // 🌟 核心魔法：使用固定的 ID（比如 8888）！
+                                    // 弃用随机 ID。当系统收到相同的 ID，会瞬间用新文字覆盖旧横幅，
+                                    // 无需等待 3 秒，直接产生“顶出来”的视觉效果！
+                                    id: 8888, 
+                                    
+                                    sound: null
+                                }
+                            ]
+                        });
+                    } else {
+                        console.log("网页端模拟收到通知:", finalMessage);
+                    }
+                    
+                    await new Promise(r => setTimeout(r, 150));
+                    
+                } catch (error) {
+                    console.error('原生通知推送失败:', error);
                 }
-            } catch (error) {
-                console.error('原生通知推送失败:', error);
-            }
+            });
         }
+        // ==========================================
+        // 🌟 修改结束
+        // ==========================================
         
         // --- 检查并重新激活订阅 ---
         async function checkAndReactivateSubscription() {
