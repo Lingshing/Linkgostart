@@ -15686,17 +15686,13 @@ ${chatContent}
             </div>
         </div>
     </div>
-    <!-- ================= 控制台：全能运行日志与界面监控雷达 ================= -->
+    
+<!-- ================= 控制台：全能运行日志与网络数据抓包 ================= -->
 <script>
     const devConsoleLogs = document.getElementById('dev-console-logs');
 
-    // 全局变量：用于保存最近一次的网络请求数据，以便在空回时“验尸”
-    window.__lastFetchUrl = '';
-    window.__lastFetchData = '';
-    window.__radarActive = false; // 雷达激活开关
-
     window.clearDevConsole = function() {
-        if(devConsoleLogs) devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 终极雷达已就绪，正在监听...</div>';
+        if(devConsoleLogs) devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 底层网络抓包已就绪，正在监听...</div>';
     };
 
     const errorDict = {
@@ -15708,9 +15704,9 @@ ${chatContent}
         '520': '未知网络中断。',
         '524': '请求超时。AI 思考时间过长。',
         'insufficient_quota': '中转站额度已经彻底耗尽！',
-        'model_not_found': '你填写的模型名称不正确，或者该中转站不支持此模型。',
-        'Unexpected token': '数据格式破碎。中转站没返回JSON，而是报错网页。',
-        'Failed to fetch': '网络请求彻底失败，请检查手机网络。'
+        'model_not_found': '模型名称不正确或不支持。',
+        'Unexpected token': '数据格式破碎。中转站没返回JSON。',
+        'Failed to fetch': '网络请求彻底失败。'
     };
 
     function addLogToConsole(type, title, detail) {
@@ -15725,17 +15721,13 @@ ${chatContent}
         if (type === 'error' || type === 'warn') {
             for (let key in errorDict) {
                 if (title.includes(key) || (detail && typeof detail === 'string' && detail.includes(key))) {
-                    diagnosis = `<div style="background: rgba(92, 146, 209, 0.1); color: var(--accent); padding: 8px; border-radius: 6px; margin: 6px 0;"><strong><i class="fa-solid fa-lightbulb" style="margin-right: 4px;"></i> 离线诊断：</strong>${errorDict[key]}</div>`;
+                    diagnosis = `<div style="background: rgba(92, 146, 209, 0.1); color: var(--accent); padding: 8px; border-radius: 6px; margin: 6px 0;"><strong>[诊断] </strong>${errorDict[key]}</div>`;
                     break;
                 }
             }
         }
 
-        let iconHtml = type === 'error' ? '<i class="fa-solid fa-circle-xmark" style="color: var(--danger);"></i>' 
-                     : type === 'warn' ? '<i class="fa-solid fa-triangle-exclamation" style="color: #FF9F0A;"></i>'
-                     : type === 'success' ? '<i class="fa-solid fa-circle-check" style="color: #34C759;"></i>'
-                     : '<i class="fa-solid fa-circle-info" style="color: var(--accent);"></i>';
-        
+        let typeLabel = type === 'error' ? '[错误]' : type === 'warn' ? '[警告]' : type === 'success' ? '[成功]' : '[信息]';
         let color = type === 'error' ? 'var(--danger)' : type === 'warn' ? '#FF9F0A' : type === 'success' ? '#34C759' : 'var(--text-main)';
 
         let detailStr = detail;
@@ -15751,16 +15743,15 @@ ${chatContent}
         logItem.innerHTML = `
             <div style="color: var(--text-sub); font-size: 11px; margin-bottom: 6px;">[${time}]</div>
             <div style="color: ${color}; font-weight: 600; font-size: 13px; display: flex; align-items: flex-start; gap: 6px; word-break: break-all;">
-                <div style="margin-top: 2px;">${iconHtml}</div>
-                <div>${title}</div>
+                <div>${typeLabel} ${title}</div>
             </div>
             ${diagnosis}
-            ${detailStr ? `<details style="margin-top: 8px; cursor: pointer;"><summary style="color: var(--text-sub); font-size: 12px; outline: none;">点击查看明细</summary><div style="margin-top: 8px; padding: 12px; background: var(--hover-bg); border-radius: 8px; color: var(--text-sub); white-space: pre-wrap; font-size: 11px; overflow-x: auto; border: 0.5px solid var(--border); font-family: monospace;">${detailStr}</div></details>` : ''}
+            ${detailStr ? `<details style="margin-top: 8px; cursor: pointer;"><summary style="color: var(--text-sub); font-size: 12px; outline: none;">点击查看原始底层数据</summary><div style="margin-top: 8px; padding: 12px; background: var(--hover-bg); border-radius: 8px; color: var(--text-main); white-space: pre-wrap; font-size: 11px; overflow-x: auto; border: 0.5px solid var(--border); font-family: monospace;">${detailStr}</div></details>` : ''}
         `;
         devConsoleLogs.prepend(logItem);
     }
 
-    // 1. 强力接管 Console，依然屏蔽垃圾日志
+    // 1. 接管 Console，屏蔽滴答日志
     const originalConsoleLog = console.log;
     console.log = function(...args) {
         originalConsoleLog.apply(console, args);
@@ -15768,16 +15759,21 @@ ${chatContent}
         if (msg.includes('真后台滴答') || msg.includes('app还活着')) return; 
         addLogToConsole('info', '常规日志', args.length > 1 ? args : args[0]);
     };
+    const originalConsoleWarn = console.warn;
+    console.warn = function(...args) {
+        originalConsoleWarn.apply(console, args);
+        addLogToConsole('warn', '系统警告', args.length > 1 ? args : args[0]);
+    };
+    const originalConsoleError = console.error;
     console.error = function(...args) {
-        console.warn.apply(console, args); // 保持原生输出
+        originalConsoleError.apply(console, args); 
         addLogToConsole('error', '系统报错', args.length > 1 ? args : args[0]);
     };
 
-    // 2. 深度拦截 Fetch，并保留尸体数据
+    // 2. 核心：直接拦截 API 请求，强制打印服务器返回的原始包裹
     const sysOriginalFetch = window.fetch;
     window.fetch = async function(...args) {
         const url = args[0] instanceof Request ? args[0].url : args[0];
-        window.__lastFetchUrl = url;
         addLogToConsole('info', '发起网络请求', `地址: ${url}`);
 
         try {
@@ -15785,63 +15781,53 @@ ${chatContent}
             const cloneRes = response.clone();
             
             cloneRes.text().then(text => {
-                window.__lastFetchData = text; // 把服务器返回的真实内容存起来！
-                
-                // 拆包检查：即便服务器说 200 成功，只要里面有 "error"，照样判死刑！
-                if (text && text.includes('"error"')) {
-                    addLogToConsole('error', `[严重] 伪装成成功的 API 报错 (引发空回)`, `服务器虽然返回了成功状态，但内容其实是报错！\n\n真实内容是:\n${text}`);
-                } else if (!response.ok) {
-                    addLogToConsole('error', `请求失败: HTTP ${response.status}`, `服务器返回:\n${text || '无'}`);
+                // 无论请求成功还是失败，强制拆包检查内容！
+                if (text && text.trim().startsWith('<') && !url.includes('.html')) {
+                    addLogToConsole('error', `[异常] API 强行返回了 HTML 网页 (导致气泡无法解析内容)`, `API地址: ${url}\n\n服务器虽然没有报网络错误，但返回的是一个网页！你的代码无法解析它。\n\n网页源代码:\n${text}`);
+                } else if (text && text.includes('"error"')) {
+                    addLogToConsole('error', `[异常] API 返回包内含错误信息`, `API地址: ${url}\n\n服务器返回了 error 字段，可能额度不足或模型错误:\n${text}`);
+                } else if (response.ok) {
+                    addLogToConsole('success', `网络通信成功: 收到 AI 原始数据包`, `地址: ${url}\n\n服务器传回的原始数据如下:\n${text}`);
                 } else {
-                    addLogToConsole('success', `请求成功: HTTP ${response.status}`, `正常返回数据已记录。`);
+                    addLogToConsole('error', `网络请求失败: HTTP ${response.status}`, `地址: ${url}\n\n服务器返回:\n${text || '无数据'}`);
                 }
             }).catch(() => {});
             
             return response;
         } catch (error) {
-            addLogToConsole('error', '网络请求中断 (无网络或跨域拦截)', error.toString());
+            addLogToConsole('error', '网络请求中断 (无网络或被拦截)', error.toString());
             throw error;
         }
     };
 
-    // 3. 终极大杀器：DOM 界面雷达 (专治代码吞报错)
-    const observer = new MutationObserver((mutations) => {
-        if (!window.__radarActive) return; // 防止页面刚加载时误报
-        
-        for (let mutation of mutations) {
-            let targetNode = mutation.target;
-            
-            // 过滤掉脚本和样式标签，防止代码本身触发报警
-            if (targetNode.nodeName === 'SCRIPT' || targetNode.nodeName === 'STYLE') continue;
-            if (targetNode.parentElement && (targetNode.parentElement.nodeName === 'SCRIPT' || targetNode.parentElement.nodeName === 'STYLE')) continue;
-
-            let textContent = '';
-            if (mutation.type === 'characterData') {
-                textContent = mutation.target.textContent || '';
-            } else if (mutation.type === 'childList') {
-                mutation.addedNodes.forEach(node => {
-                    if (node.nodeName !== 'SCRIPT' && node.nodeName !== 'STYLE') {
-                        textContent += node.textContent || '';
-                    }
-                });
+    // 3. 拦截 XMLHttpRequest
+    const originalXHRSend = XMLHttpRequest.prototype.send;
+    const originalXHROpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url) {
+        this._url = url;
+        return originalXHROpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function(data) {
+        this.addEventListener('load', function() {
+            if (this.responseText && this.responseText.trim().startsWith('<') && !this._url.includes('.html')) {
+                addLogToConsole('error', `[异常] XHR 请求返回了网页 (HTTP ${this.status})`, `地址: ${this._url}\n返回内容:\n${this.responseText.substring(0,500)}`);
+            } else if (this.status >= 400) {
+                addLogToConsole('error', `XHR 网络失败 (HTTP ${this.status})`, `地址: ${this._url}\n返回内容:\n${this.responseText}`);
+            } else {
+                addLogToConsole('success', `XHR 网络通信成功 (HTTP ${this.status})`, `地址: ${this._url}\n\n服务器传回的原始数据:\n${this.responseText}`);
             }
+        });
+        originalXHRSend.apply(this, arguments);
+    };
 
-            if (textContent.includes('无内容') || textContent.includes('（无内容）')) {
-                if (!window.__hasAlertedEmpty) {
-                    window.__hasAlertedEmpty = true; // 防抖，避免一秒内报几十次
-                    addLogToConsole('error', '[抓获] “无内容”空回现场！', `你的应用界面刚刚出现了“无内容”！我们立刻调取了最近一次网络请求的底层数据：\n\n最后请求地址: ${window.__lastFetchUrl}\n\n服务器给的真实数据是:\n${window.__lastFetchData || '未能获取到返回数据，可能是网络直接断了'}`);
-                    setTimeout(() => window.__hasAlertedEmpty = false, 3000);
-                }
-            }
-        }
+    // 4. 全局代码崩溃拦截
+    window.addEventListener('unhandledrejection', function(event) {
+        const errorStr = event.reason ? (event.reason.stack || event.reason.toString()) : '未知异常';
+        addLogToConsole('error', '代码运行崩溃', errorStr);
     });
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-
-    // 延迟 3 秒开启雷达，防止页面初始加载时的误报
-    setTimeout(() => {
-        window.__radarActive = true;
-    }, 3000);
-
+    window.addEventListener('error', function(event) {
+        addLogToConsole('error', '代码执行错误', event.message + '\\n位置: ' + event.filename);
+    });
 </script>
 <!-- ========================================================================= -->
     
