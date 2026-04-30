@@ -15686,17 +15686,18 @@ ${chatContent}
             </div>
         </div>
     </div>
-    <!-- ================= 控制台：全能运行日志与网络拦截引擎 ================= -->
+    <!-- ================= 控制台：全能运行日志与深度异常拦截引擎 ================= -->
 <script>
     const devConsoleLogs = document.getElementById('dev-console-logs');
 
-    // 清空面板功能
+    // 1. 清空面板功能
     window.clearDevConsole = function() {
         if(devConsoleLogs) {
-            devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 拦截器已就绪，正在监听所有运行日志...</div>';
+            devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 深度拦截器已就绪，正在监听所有运行日志...</div>';
         }
     };
 
+    // 2. 离线字典
     const errorDict = {
         '400': '参数错误。请检查高级参数是否超出了模型允许的上限。',
         '401': 'API Key 无效或中转站余额不足，请去 NewAPI 后台检查。',
@@ -15708,14 +15709,14 @@ ${chatContent}
         'Unexpected token': '数据格式破碎。气泡出现“无内容”的元凶！中转站没返回JSON，而是报错网页。',
         'JSON.parse': '数据解析失败，收到非标准回复。',
         'channel_not_found': '无可用渠道。NewAPI 后台该模型的所有可用节点都挂了。',
-        'Failed to fetch': '网络请求彻底失败，请检查手机网络或代理。'
+        'Failed to fetch': '网络请求彻底失败，请检查手机网络或代理。',
+        '无内容': '检测到气泡空回。可能是模型配置错误、节点掉线或跨域拦截。'
     };
 
-    // 全能日志写入器 
+    // 3. 全能日志写入器 
     function addLogToConsole(type, title, detail) {
         if (!devConsoleLogs) return;
         
-        // 抹掉初始化的占位文本
         if (devConsoleLogs.children.length === 1 && devConsoleLogs.innerText.includes('正在监听')) {
             devConsoleLogs.innerHTML = ''; 
         }
@@ -15723,7 +15724,7 @@ ${chatContent}
         const time = new Date().toLocaleTimeString('en-US', {hour12: false});
         
         let diagnosis = '';
-        if (type === 'error') {
+        if (type === 'error' || type === 'warn') {
             for (let key in errorDict) {
                 if (title.includes(key) || (detail && typeof detail === 'string' && detail.includes(key))) {
                     diagnosis = `<div style="background: rgba(92, 146, 209, 0.1); color: var(--accent); padding: 8px; border-radius: 6px; margin: 6px 0;"><strong><i class="fa-solid fa-lightbulb" style="margin-right: 4px;"></i> 离线诊断：</strong>${errorDict[key]}</div>`;
@@ -15759,113 +15760,11 @@ ${chatContent}
         logItem.style.paddingBottom = '16px';
         logItem.style.borderBottom = '0.5px solid var(--border)';
         
-        let displayTitle = title.replace('⬆️ ', '').replace('⬇️ ', '').replace('❌ ', '').replace('⚠️ ', '');
-
-        // 优化：去掉了多余的箭头，原生 summary 标签自带翻转箭头
         logItem.innerHTML = `
             <div style="color: var(--text-sub); font-size: 11px; margin-bottom: 6px;">[${time}]</div>
             <div style="color: ${color}; font-weight: 600; font-size: 13px; display: flex; align-items: flex-start; gap: 6px; word-break: break-all;">
                 <div style="margin-top: 2px;">${iconHtml}</div>
-                <div>${displayTitle}</div>
-            </div>
-            ${diagnosis}
-            ${detailStr ? `
-            <details style="margin-top: 8px; cursor: pointer;">
-                <summary style="color: var(--text-sub); font-size: 12px; user-select: none; outline: none;">点击查看明细/数据</summary>
-                <div style="margin-top: 8px; padding: 12px; background: var(--hover-bg); border-radius: 8px; color: var(--text-sub); white-space: pre-wrap; font-size: 11px; overflow-x: auto; border: 0.5px solid var(--border); font-family: monospace;">${detailStr}</div>
-            </details>
-            ` : ''}
-        `;
-        
-        // 优化：将 appendChild 改为 prepend，最新日志永远在最上面
-        devConsoleLogs.prepend(logItem);
-        
-        // 优化：强制滚动条回到最顶端
-        setTimeout(() => {
-            const container = devConsoleLogs.parentElement;
-            if (container) container.scrollTop = 0;
-        }, 50);
-    }
-
-    <!-- ================= 控制台：全能运行日志与网络拦截引擎 ================= -->
-<script>
-    const devConsoleLogs = document.getElementById('dev-console-logs');
-
-    // 清空面板功能
-    window.clearDevConsole = function() {
-        if(devConsoleLogs) {
-            devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 拦截器已就绪，正在监听所有运行日志...</div>';
-        }
-    };
-
-    const errorDict = {
-        '400': '参数错误。请检查高级参数是否超出了模型允许的上限。',
-        '401': 'API Key 无效或中转站余额不足，请去 NewAPI 后台检查。',
-        '403': '无权限。可能该模型节点被封禁或禁止访问。',
-        '429': '请求太频繁或余额已彻底耗尽。',
-        '502': '上游节点故障。NewAPI 连不上官方服务器了，换个模型试试。',
-        '520': '未知网络中断。中转站代理服务器掉线。',
-        '524': '请求超时。可能是回复太长，AI 处理时间超过了等待上限。',
-        'Unexpected token': '数据格式破碎。气泡出现“无内容”的元凶！中转站没返回JSON，而是报错网页。',
-        'JSON.parse': '数据解析失败，收到非标准回复。',
-        'channel_not_found': '无可用渠道。NewAPI 后台该模型的所有可用节点都挂了。',
-        'Failed to fetch': '网络请求彻底失败，请检查手机网络或代理。'
-    };
-
-    // 全能日志写入器 
-    function addLogToConsole(type, title, detail) {
-        if (!devConsoleLogs) return;
-        
-        if (devConsoleLogs.children.length === 1 && devConsoleLogs.innerText.includes('正在监听')) {
-            devConsoleLogs.innerHTML = ''; 
-        }
-
-        const time = new Date().toLocaleTimeString('en-US', {hour12: false});
-        
-        let diagnosis = '';
-        if (type === 'error') {
-            for (let key in errorDict) {
-                if (title.includes(key) || (detail && typeof detail === 'string' && detail.includes(key))) {
-                    diagnosis = `<div style="background: rgba(92, 146, 209, 0.1); color: var(--accent); padding: 8px; border-radius: 6px; margin: 6px 0;"><strong><i class="fa-solid fa-lightbulb" style="margin-right: 4px;"></i> 离线诊断：</strong>${errorDict[key]}</div>`;
-                    break;
-                }
-            }
-        }
-
-        let iconHtml = '';
-        let color = '';
-        if (type === 'error') {
-            iconHtml = '<i class="fa-solid fa-circle-xmark" style="font-size: 14px; color: var(--danger);"></i>';
-            color = 'var(--danger)';
-        } else if (type === 'warn') {
-            iconHtml = '<i class="fa-solid fa-triangle-exclamation" style="font-size: 14px; color: #FF9F0A;"></i>';
-            color = '#FF9F0A';
-        } else if (type === 'success') {
-            iconHtml = '<i class="fa-solid fa-circle-check" style="font-size: 14px; color: #34C759;"></i>';
-            color = '#34C759'; 
-        } else {
-            iconHtml = '<i class="fa-solid fa-circle-info" style="font-size: 14px; color: var(--accent);"></i>';
-            color = 'var(--text-main)';
-        }
-
-        let detailStr = detail;
-        if (typeof detail === 'object' && detail !== null) {
-            try { detailStr = JSON.stringify(detail, null, 2); } 
-            catch(e) { detailStr = String(detail); }
-        }
-
-        const logItem = document.createElement('div');
-        logItem.style.marginBottom = '16px';
-        logItem.style.paddingBottom = '16px';
-        logItem.style.borderBottom = '0.5px solid var(--border)';
-        
-        let displayTitle = title.replace('⬆️ ', '').replace('⬇️ ', '').replace('❌ ', '').replace('⚠️ ', '');
-
-        logItem.innerHTML = `
-            <div style="color: var(--text-sub); font-size: 11px; margin-bottom: 6px;">[${time}]</div>
-            <div style="color: ${color}; font-weight: 600; font-size: 13px; display: flex; align-items: flex-start; gap: 6px; word-break: break-all;">
-                <div style="margin-top: 2px;">${iconHtml}</div>
-                <div>${displayTitle}</div>
+                <div>${title}</div>
             </div>
             ${diagnosis}
             ${detailStr ? `
@@ -15884,55 +15783,75 @@ ${chatContent}
         }, 50);
     }
 
-    // ================= 拦截 0: 深度 X 光透视 (抓捕被吞掉的解析错误) =================
-    const originalJSONParse = JSON.parse;
-    JSON.parse = function(text, reviver) {
-        try {
-            return originalJSONParse(text, reviver);
-        } catch (e) {
-            // 只要解析失败，并且内容看起来像服务器乱返回的网页，立刻红灯报警！
-            if (typeof text === 'string' && text.length > 0) {
-                addLogToConsole('error', '致命：数据格式异常 (引发空回的元凶)', `前端试图解析数据时崩溃！\n\n中转站实际返回的非法内容是:\n${text.substring(0, 500)}\n\n报错原因: ${e.message}`);
-            }
-            throw e; 
-        }
-    };
-
-    // ================= 拦截 1: 接管系统 console 打印 =================
+    // 4. 拦截 console，同时坚决屏蔽垃圾日志
     const originalConsoleLog = console.log;
     const originalConsoleWarn = console.warn;
     const originalConsoleError = console.error;
 
     console.log = function(...args) {
         originalConsoleLog.apply(console, args);
-        // 大招一：坚决屏蔽这些刷屏的垃圾日志
-        if (args[0] && typeof args[0] === 'string' && (args[0].includes('真后台滴答') || args[0].includes('app还活着'))) {
-            return; // 直接丢弃，不上墙
+        const msg = args[0] ? String(args[0]) : '';
+        
+        // 绝对屏蔽滴答和存活日志，不上墙！
+        if (msg.includes('真后台滴答') || msg.includes('app还活着')) return; 
+        
+        // 发现可疑的静默空回，转为红色警报
+        if (msg.includes('（无内容）') || msg === '无内容' || (args.length > 1 && String(args[1]).includes('无内容'))) {
+             addLogToConsole('error', '触发空回陷阱', args.length > 1 ? args : args[0]);
+             return;
         }
+
         addLogToConsole('info', '常规日志', args.length > 1 ? args : args[0]);
     };
+    
     console.warn = function(...args) {
         originalConsoleWarn.apply(console, args);
         addLogToConsole('warn', '系统警告', args.length > 1 ? args : args[0]);
     };
+    
     console.error = function(...args) {
         originalConsoleError.apply(console, args);
         addLogToConsole('error', '系统报错', args.length > 1 ? args : args[0]);
     };
 
-    // ================= 拦截 2: 网络请求 (附带发送参数检查) =================
+    // 5. 超级底层拦截：截获导致空回的 response.json() 崩溃
+    const originalResJson = Response.prototype.json;
+    Response.prototype.json = function() {
+        const clone = this.clone();
+        return originalResJson.call(this).catch(err => {
+            clone.text().then(text => {
+                addLogToConsole('error', '致命：数据格式异常 (引发空回的元凶)', `前端试图将返回数据解析为 JSON 时崩溃！\n\n中转站实际返回的非法内容是:\n${text.substring(0, 500)}\n\n报错原因: ${err.message}`);
+            }).catch(e => {
+                addLogToConsole('error', '致命：数据格式异常', `解析 JSON 崩溃，且无法读取原始返回内容。报错: ${err.message}`);
+            });
+            throw err;
+        });
+    };
+
+    const originalJSONParse = JSON.parse;
+    JSON.parse = function(text, reviver) {
+        try {
+            return originalJSONParse(text, reviver);
+        } catch (e) {
+            if (typeof text === 'string' && text.length > 0 && !text.startsWith('{') && !text.startsWith('[')) {
+                addLogToConsole('error', '致命解析错误：收到非 JSON 数据', `收到非预期数据！\n\n异常原始数据:\n${text.substring(0, 500)}\n\n报错原因: ${e.message}`);
+            }
+            throw e; 
+        }
+    };
+
+    // 6. 网络请求拦截
     const sysOriginalFetch = window.fetch;
     window.fetch = async function(...args) {
         const url = args[0] instanceof Request ? args[0].url : args[0];
         const options = args[1] || {};
         
-        // 把你发给 AI 的参数也截获下来，方便你核对有没有填错
         let reqBody = options.body;
         if (typeof reqBody === 'string') {
             try { reqBody = originalJSONParse(reqBody); } catch(e) {}
         }
         
-        addLogToConsole('info', '发起网络请求', { '请求地址': url, '发送给AI的参数': reqBody || '无' });
+        addLogToConsole('info', '发起网络请求', { '请求地址': url, '发送参数': reqBody || '无' });
 
         try {
             const response = await sysOriginalFetch.apply(this, args);
@@ -15941,30 +15860,32 @@ ${chatContent}
             } else {
                 const cloneRes = response.clone();
                 cloneRes.text().then(text => {
-                    addLogToConsole('error', `请求失败: HTTP ${response.status}`, `地址: ${url}\n\n服务器返回内容:\n${text || '无'}`);
+                    addLogToConsole('error', `请求异常: HTTP ${response.status}`, `地址: ${url}\n\n服务器返回:\n${text || '无'}`);
                 }).catch(() => {
-                    addLogToConsole('error', `请求失败: HTTP ${response.status}`, `地址: ${url}\n无法读取原始数据`);
+                    addLogToConsole('error', `请求异常: HTTP ${response.status}`, `地址: ${url}\n无法读取数据`);
                 });
             }
             return response;
         } catch (error) {
             if (error.name !== 'AbortError') { 
-                addLogToConsole('error', '请求被强制中断', `地址: ${url}\n错误: ${error.toString()}`);
+                addLogToConsole('error', '请求强制中断 (网络断开)', `地址: ${url}\n错误: ${error.toString()}`);
             }
             throw error;
         }
     };
 
-    // ================= 拦截 3: 全局代码崩溃 =================
+    // 7. 全局代码崩溃拦截
     window.addEventListener('unhandledrejection', function(event) {
-        const errorStr = event.reason ? (event.reason.stack || event.reason.toString()) : '未知 Promise 异常';
-        addLogToConsole('error', '代码运行崩溃', errorStr);
+        const errorStr = event.reason ? (event.reason.stack || event.reason.toString()) : '未知异常';
+        if(errorStr.includes('JSON.parse') || errorStr.includes('Unexpected token')) return; // 防止重复报警
+        addLogToConsole('error', '代码运行异常', errorStr);
     });
     window.addEventListener('error', function(event) {
-        addLogToConsole('error', '代码运行崩溃', event.message + '\\n位置: ' + event.filename);
+        addLogToConsole('error', '代码执行错误', event.message + '\\n位置: ' + event.filename);
     });
 </script>
 <!-- ========================================================================= -->
+    
 </body>
 </html>
 
