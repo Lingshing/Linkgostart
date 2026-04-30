@@ -15711,7 +15711,7 @@ ${chatContent}
         'Failed to fetch': '网络请求彻底失败，请检查手机网络或代理。'
     };
 
-    // 全能日志写入器 (支持 error, warn, success, info)
+    // 全能日志写入器 
     function addLogToConsole(type, title, detail) {
         if (!devConsoleLogs) return;
         
@@ -15722,7 +15722,6 @@ ${chatContent}
 
         const time = new Date().toLocaleTimeString('en-US', {hour12: false});
         
-        // 匹配离线诊断 (仅针对报错)
         let diagnosis = '';
         if (type === 'error') {
             for (let key in errorDict) {
@@ -15733,7 +15732,6 @@ ${chatContent}
             }
         }
 
-        // 颜色与专业矢量图标设定 (去除了所有Emoji)
         let iconHtml = '';
         let color = '';
         if (type === 'error') {
@@ -15746,12 +15744,10 @@ ${chatContent}
             iconHtml = '<i class="fa-solid fa-circle-check" style="font-size: 14px; color: #34C759;"></i>';
             color = '#34C759'; 
         } else {
-            // 常规 info 级别
             iconHtml = '<i class="fa-solid fa-circle-info" style="font-size: 14px; color: var(--accent);"></i>';
             color = 'var(--text-main)';
         }
 
-        // 安全地将各种类型的数据转为字符串展示
         let detailStr = detail;
         if (typeof detail === 'object' && detail !== null) {
             try { detailStr = JSON.stringify(detail, null, 2); } 
@@ -15763,9 +15759,9 @@ ${chatContent}
         logItem.style.paddingBottom = '16px';
         logItem.style.borderBottom = '0.5px solid var(--border)';
         
-        // 去掉了发起请求时的向上/向下箭头，显得更干净
         let displayTitle = title.replace('⬆️ ', '').replace('⬇️ ', '').replace('❌ ', '').replace('⚠️ ', '');
 
+        // 优化：去掉了多余的箭头，原生 summary 标签自带翻转箭头
         logItem.innerHTML = `
             <div style="color: var(--text-sub); font-size: 11px; margin-bottom: 6px;">[${time}]</div>
             <div style="color: ${color}; font-weight: 600; font-size: 13px; display: flex; align-items: flex-start; gap: 6px; word-break: break-all;">
@@ -15775,18 +15771,19 @@ ${chatContent}
             ${diagnosis}
             ${detailStr ? `
             <details style="margin-top: 8px; cursor: pointer;">
-                <summary style="color: var(--text-sub); font-size: 12px; user-select: none; outline: none;"><i class="fa-solid fa-caret-right" style="margin-right: 4px;"></i>点击查看明细/数据</summary>
+                <summary style="color: var(--text-sub); font-size: 12px; user-select: none; outline: none;">点击查看明细/数据</summary>
                 <div style="margin-top: 8px; padding: 12px; background: var(--hover-bg); border-radius: 8px; color: var(--text-sub); white-space: pre-wrap; font-size: 11px; overflow-x: auto; border: 0.5px solid var(--border); font-family: monospace;">${detailStr}</div>
             </details>
             ` : ''}
         `;
         
-        devConsoleLogs.appendChild(logItem);
+        // 优化：将 appendChild 改为 prepend，最新日志永远在最上面
+        devConsoleLogs.prepend(logItem);
         
-        // 自动滚动到底部
+        // 优化：强制滚动条回到最顶端
         setTimeout(() => {
             const container = devConsoleLogs.parentElement;
-            if (container) container.scrollTop = container.scrollHeight;
+            if (container) container.scrollTop = 0;
         }, 50);
     }
 
@@ -15813,13 +15810,11 @@ ${chatContent}
     window.fetch = async function(...args) {
         const url = args[0] instanceof Request ? args[0].url : args[0];
         
-        // 发起请求时记录
         addLogToConsole('info', '发起网络请求', url);
 
         try {
             const response = await sysOriginalFetch.apply(this, args);
             if (response.ok) {
-                // 成功返回时记录
                 addLogToConsole('success', `请求成功: HTTP ${response.status}`, `请求地址: ${url}`);
             } else {
                 const cloneRes = response.clone();
@@ -15847,6 +15842,7 @@ ${chatContent}
         addLogToConsole('error', '语法/执行异常', event.message + '\\n位置: ' + event.filename);
     });
 </script>
+<!-- ========================================================================= -->
 </body>
 </html>
 
