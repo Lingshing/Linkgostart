@@ -15687,12 +15687,12 @@ ${chatContent}
         </div>
     </div>
     
-<!-- ================= 控制台：全能运行日志与网络数据抓包 ================= -->
+<!-- ================= 控制台：全网段数据抓包引擎 ================= -->
 <script>
     const devConsoleLogs = document.getElementById('dev-console-logs');
 
     window.clearDevConsole = function() {
-        if(devConsoleLogs) devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 底层网络抓包已就绪，正在监听...</div>';
+        if(devConsoleLogs) devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 底层抓包拦截器已就绪...</div>';
     };
 
     const errorDict = {
@@ -15711,7 +15711,7 @@ ${chatContent}
 
     function addLogToConsole(type, title, detail) {
         if (!devConsoleLogs) return;
-        if (devConsoleLogs.children.length === 1 && devConsoleLogs.innerText.includes('正在监听')) {
+        if (devConsoleLogs.children.length === 1 && devConsoleLogs.innerText.includes('就绪')) {
             devConsoleLogs.innerHTML = ''; 
         }
 
@@ -15721,13 +15721,18 @@ ${chatContent}
         if (type === 'error' || type === 'warn') {
             for (let key in errorDict) {
                 if (title.includes(key) || (detail && typeof detail === 'string' && detail.includes(key))) {
-                    diagnosis = `<div style="background: rgba(92, 146, 209, 0.1); color: var(--accent); padding: 8px; border-radius: 6px; margin: 6px 0;"><strong>[诊断] </strong>${errorDict[key]}</div>`;
+                    diagnosis = `<div style="background: rgba(92, 146, 209, 0.1); color: var(--accent); padding: 8px; border-radius: 6px; margin: 6px 0;"><strong><i class="fa-solid fa-lightbulb" style="margin-right: 4px;"></i> 离线诊断：</strong>${errorDict[key]}</div>`;
                     break;
                 }
             }
         }
 
-        let typeLabel = type === 'error' ? '[错误]' : type === 'warn' ? '[警告]' : type === 'success' ? '[成功]' : '[信息]';
+        // 完全恢复为你喜欢的 FontAwesome 图标，没有任何文字标签
+        let iconHtml = type === 'error' ? '<i class="fa-solid fa-circle-xmark" style="color: var(--danger);"></i>' 
+                     : type === 'warn' ? '<i class="fa-solid fa-triangle-exclamation" style="color: #FF9F0A;"></i>'
+                     : type === 'success' ? '<i class="fa-solid fa-circle-check" style="color: #34C759;"></i>'
+                     : '<i class="fa-solid fa-circle-info" style="color: var(--accent);"></i>';
+        
         let color = type === 'error' ? 'var(--danger)' : type === 'warn' ? '#FF9F0A' : type === 'success' ? '#34C759' : 'var(--text-main)';
 
         let detailStr = detail;
@@ -15743,15 +15748,16 @@ ${chatContent}
         logItem.innerHTML = `
             <div style="color: var(--text-sub); font-size: 11px; margin-bottom: 6px;">[${time}]</div>
             <div style="color: ${color}; font-weight: 600; font-size: 13px; display: flex; align-items: flex-start; gap: 6px; word-break: break-all;">
-                <div>${typeLabel} ${title}</div>
+                <div style="margin-top: 2px;">${iconHtml}</div>
+                <div>${title}</div>
             </div>
             ${diagnosis}
-            ${detailStr ? `<details style="margin-top: 8px; cursor: pointer;"><summary style="color: var(--text-sub); font-size: 12px; outline: none;">点击查看原始底层数据</summary><div style="margin-top: 8px; padding: 12px; background: var(--hover-bg); border-radius: 8px; color: var(--text-main); white-space: pre-wrap; font-size: 11px; overflow-x: auto; border: 0.5px solid var(--border); font-family: monospace;">${detailStr}</div></details>` : ''}
+            ${detailStr ? `<details style="margin-top: 8px; cursor: pointer;"><summary style="color: var(--text-sub); font-size: 12px; outline: none;">点击查看底层原始数据</summary><div style="margin-top: 8px; padding: 12px; background: var(--hover-bg); border-radius: 8px; color: var(--text-main); white-space: pre-wrap; font-size: 11px; overflow-x: auto; border: 0.5px solid var(--border); font-family: monospace;">${detailStr}</div></details>` : ''}
         `;
         devConsoleLogs.prepend(logItem);
     }
 
-    // 1. 接管 Console，屏蔽滴答日志
+    // 1. Console 拦截
     const originalConsoleLog = console.log;
     console.log = function(...args) {
         originalConsoleLog.apply(console, args);
@@ -15770,7 +15776,35 @@ ${chatContent}
         addLogToConsole('error', '系统报错', args.length > 1 ? args : args[0]);
     };
 
-    // 2. 核心：直接拦截 API 请求，强制打印服务器返回的原始包裹
+    // 2. EventSource (SSE 流式打字机请求拦截) - 填补之前的盲区！
+    if (window.EventSource) {
+        const originalEventSource = window.EventSource;
+        window.EventSource = function(...args) {
+            const url = args[0];
+            addLogToConsole('info', '发起流式网络连接 (SSE)', `地址: ${url}`);
+            const es = new originalEventSource(...args);
+            es.addEventListener('error', (e) => {
+                addLogToConsole('error', '流式连接异常中断', `地址: ${url}\n如果这是回复结束时中断，可能正常；如果立刻中断，则是节点挂了或跨域。`);
+            });
+            return es;
+        };
+    }
+
+    // 3. WebSocket 请求拦截 - 填补盲区 2
+    if (window.WebSocket) {
+        const originalWebSocket = window.WebSocket;
+        window.WebSocket = function(...args) {
+            const url = args[0];
+            addLogToConsole('info', '发起 WebSocket 连接', `地址: ${url}`);
+            const ws = new originalWebSocket(...args);
+            ws.addEventListener('error', (e) => {
+                addLogToConsole('error', 'WebSocket 报错中断', `地址: ${url}`);
+            });
+            return ws;
+        };
+    }
+
+    // 4. Fetch 请求拦截
     const sysOriginalFetch = window.fetch;
     window.fetch = async function(...args) {
         const url = args[0] instanceof Request ? args[0].url : args[0];
@@ -15781,17 +15815,18 @@ ${chatContent}
             const cloneRes = response.clone();
             
             cloneRes.text().then(text => {
-                // 无论请求成功还是失败，强制拆包检查内容！
                 if (text && text.trim().startsWith('<') && !url.includes('.html')) {
-                    addLogToConsole('error', `[异常] API 强行返回了 HTML 网页 (导致气泡无法解析内容)`, `API地址: ${url}\n\n服务器虽然没有报网络错误，但返回的是一个网页！你的代码无法解析它。\n\n网页源代码:\n${text}`);
+                    addLogToConsole('error', `API 强行返回了 HTML 网页 (导致气泡无法解析)`, `API地址: ${url}\n\n服务器虽然没有报网络错误，但返回的是一个网页！你的代码无法解析它。\n\n网页源代码:\n${text}`);
                 } else if (text && text.includes('"error"')) {
-                    addLogToConsole('error', `[异常] API 返回包内含错误信息`, `API地址: ${url}\n\n服务器返回了 error 字段，可能额度不足或模型错误:\n${text}`);
+                    addLogToConsole('error', `API 返回包内含错误信息`, `API地址: ${url}\n\n服务器返回了 error 字段，可能额度不足或模型错误:\n${text}`);
                 } else if (response.ok) {
-                    addLogToConsole('success', `网络通信成功: 收到 AI 原始数据包`, `地址: ${url}\n\n服务器传回的原始数据如下:\n${text}`);
+                    addLogToConsole('success', `网络通信成功: 收到数据包`, `地址: ${url}\n\n数据预览:\n${text.substring(0, 500)}...`);
                 } else {
                     addLogToConsole('error', `网络请求失败: HTTP ${response.status}`, `地址: ${url}\n\n服务器返回:\n${text || '无数据'}`);
                 }
-            }).catch(() => {});
+            }).catch(() => {
+                addLogToConsole('warn', '请求正在流式传输中', `地址: ${url}`);
+            });
             
             return response;
         } catch (error) {
@@ -15800,27 +15835,7 @@ ${chatContent}
         }
     };
 
-    // 3. 拦截 XMLHttpRequest
-    const originalXHRSend = XMLHttpRequest.prototype.send;
-    const originalXHROpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function(method, url) {
-        this._url = url;
-        return originalXHROpen.apply(this, arguments);
-    };
-    XMLHttpRequest.prototype.send = function(data) {
-        this.addEventListener('load', function() {
-            if (this.responseText && this.responseText.trim().startsWith('<') && !this._url.includes('.html')) {
-                addLogToConsole('error', `[异常] XHR 请求返回了网页 (HTTP ${this.status})`, `地址: ${this._url}\n返回内容:\n${this.responseText.substring(0,500)}`);
-            } else if (this.status >= 400) {
-                addLogToConsole('error', `XHR 网络失败 (HTTP ${this.status})`, `地址: ${this._url}\n返回内容:\n${this.responseText}`);
-            } else {
-                addLogToConsole('success', `XHR 网络通信成功 (HTTP ${this.status})`, `地址: ${this._url}\n\n服务器传回的原始数据:\n${this.responseText}`);
-            }
-        });
-        originalXHRSend.apply(this, arguments);
-    };
-
-    // 4. 全局代码崩溃拦截
+    // 5. 全局代码崩溃拦截
     window.addEventListener('unhandledrejection', function(event) {
         const errorStr = event.reason ? (event.reason.stack || event.reason.toString()) : '未知异常';
         addLogToConsole('error', '代码运行崩溃', errorStr);
