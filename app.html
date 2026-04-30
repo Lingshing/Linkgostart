@@ -15693,6 +15693,7 @@ ${chatContent}
     // 全局变量：用于保存最近一次的网络请求数据，以便在空回时“验尸”
     window.__lastFetchUrl = '';
     window.__lastFetchData = '';
+    window.__radarActive = false; // 雷达激活开关
 
     window.clearDevConsole = function() {
         if(devConsoleLogs) devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 终极雷达已就绪，正在监听...</div>';
@@ -15788,7 +15789,7 @@ ${chatContent}
                 
                 // 拆包检查：即便服务器说 200 成功，只要里面有 "error"，照样判死刑！
                 if (text && text.includes('"error"')) {
-                    addLogToConsole('error', `🚨 伪装成成功的 API 报错 (引发空回)`, `服务器虽然返回了成功状态，但内容其实是报错！\n\n真实内容是:\n${text}`);
+                    addLogToConsole('error', `[严重] 伪装成成功的 API 报错 (引发空回)`, `服务器虽然返回了成功状态，但内容其实是报错！\n\n真实内容是:\n${text}`);
                 } else if (!response.ok) {
                     addLogToConsole('error', `请求失败: HTTP ${response.status}`, `服务器返回:\n${text || '无'}`);
                 } else {
@@ -15804,22 +15805,42 @@ ${chatContent}
     };
 
     // 3. 终极大杀器：DOM 界面雷达 (专治代码吞报错)
-    // 它会盯着你的屏幕看，一旦屏幕上出现了“无内容”，它就会立刻拉响警报！
     const observer = new MutationObserver((mutations) => {
+        if (!window.__radarActive) return; // 防止页面刚加载时误报
+        
         for (let mutation of mutations) {
-            if (mutation.type === 'characterData' || mutation.type === 'childList') {
-                const textContent = mutation.target.textContent || mutation.target.innerText || '';
-                if (textContent.includes('无内容') || textContent.includes('（无内容）')) {
-                    if (!window.__hasAlertedEmpty) {
-                        window.__hasAlertedEmpty = true; // 防抖，避免一秒内报几十次
-                        addLogToConsole('error', '🚨 抓获“无内容”空回现场！', `你的应用界面刚刚出现了“无内容”！我们立刻调取了最近一次网络请求的底层数据：\n\n最后请求地址: ${window.__lastFetchUrl}\n\n服务器给的真实数据是:\n${window.__lastFetchData || '未能获取到返回数据，可能是网络直接断了'}`);
-                        setTimeout(() => window.__hasAlertedEmpty = false, 2000);
+            let targetNode = mutation.target;
+            
+            // 过滤掉脚本和样式标签，防止代码本身触发报警
+            if (targetNode.nodeName === 'SCRIPT' || targetNode.nodeName === 'STYLE') continue;
+            if (targetNode.parentElement && (targetNode.parentElement.nodeName === 'SCRIPT' || targetNode.parentElement.nodeName === 'STYLE')) continue;
+
+            let textContent = '';
+            if (mutation.type === 'characterData') {
+                textContent = mutation.target.textContent || '';
+            } else if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeName !== 'SCRIPT' && node.nodeName !== 'STYLE') {
+                        textContent += node.textContent || '';
                     }
+                });
+            }
+
+            if (textContent.includes('无内容') || textContent.includes('（无内容）')) {
+                if (!window.__hasAlertedEmpty) {
+                    window.__hasAlertedEmpty = true; // 防抖，避免一秒内报几十次
+                    addLogToConsole('error', '[抓获] “无内容”空回现场！', `你的应用界面刚刚出现了“无内容”！我们立刻调取了最近一次网络请求的底层数据：\n\n最后请求地址: ${window.__lastFetchUrl}\n\n服务器给的真实数据是:\n${window.__lastFetchData || '未能获取到返回数据，可能是网络直接断了'}`);
+                    setTimeout(() => window.__hasAlertedEmpty = false, 3000);
                 }
             }
         }
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+    // 延迟 3 秒开启雷达，防止页面初始加载时的误报
+    setTimeout(() => {
+        window.__radarActive = true;
+    }, 3000);
 
 </script>
 <!-- ========================================================================= -->
