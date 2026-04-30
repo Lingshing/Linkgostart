@@ -15690,30 +15690,24 @@ ${chatContent}
 <script>
     const devConsoleLogs = document.getElementById('dev-console-logs');
 
-    // 1. 清空面板功能
     window.clearDevConsole = function() {
         if(devConsoleLogs) {
-            devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 深度拦截器已就绪，正在监听所有运行日志...</div>';
+            devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 终极透视拦截器已就绪，正在监听...</div>';
         }
     };
 
-    // 2. 离线字典
     const errorDict = {
-        '400': '参数错误。请检查高级参数是否超出了模型允许的上限。',
-        '401': 'API Key 无效或中转站余额不足，请去 NewAPI 后台检查。',
-        '403': '无权限。可能该模型节点被封禁或禁止访问。',
-        '429': '请求太频繁或余额已彻底耗尽。',
-        '502': '上游节点故障。NewAPI 连不上官方服务器了，换个模型试试。',
-        '520': '未知网络中断。中转站代理服务器掉线。',
-        '524': '请求超时。可能是回复太长，AI 处理时间超过了等待上限。',
-        'Unexpected token': '数据格式破碎。气泡出现“无内容”的元凶！中转站没返回JSON，而是报错网页。',
-        'JSON.parse': '数据解析失败，收到非标准回复。',
-        'channel_not_found': '无可用渠道。NewAPI 后台该模型的所有可用节点都挂了。',
-        'Failed to fetch': '网络请求彻底失败，请检查手机网络或代理。',
-        '无内容': '检测到气泡空回。可能是模型配置错误、节点掉线或跨域拦截。'
+        '400': '参数错误。高级参数可能超出了模型上限。',
+        '401': 'API Key 无效或余额不足。',
+        '403': '无权限。节点可能被封禁。',
+        '429': '请求太频繁或余额已耗尽。',
+        '502': '上游节点故障。中转站连不上官方服务器。',
+        '520': '未知网络中断。',
+        '524': '请求超时。AI 思考时间过长。',
+        'Unexpected token': '数据格式破碎。中转站没返回JSON，而是报错网页。',
+        'Failed to fetch': '网络请求彻底失败，请检查手机网络。'
     };
 
-    // 3. 全能日志写入器 
     function addLogToConsole(type, title, detail) {
         if (!devConsoleLogs) return;
         
@@ -15776,14 +15770,9 @@ ${chatContent}
         `;
         
         devConsoleLogs.prepend(logItem);
-        
-        setTimeout(() => {
-            const container = devConsoleLogs.parentElement;
-            if (container) container.scrollTop = 0;
-        }, 50);
     }
 
-    // 4. 拦截 console，同时坚决屏蔽垃圾日志
+    // 1. 强力接管 Console，屏蔽滴答垃圾，捕捉应用层的主动报错
     const originalConsoleLog = console.log;
     const originalConsoleWarn = console.warn;
     const originalConsoleError = console.error;
@@ -15792,93 +15781,77 @@ ${chatContent}
         originalConsoleLog.apply(console, args);
         const msg = args[0] ? String(args[0]) : '';
         
-        // 绝对屏蔽滴答和存活日志，不上墙！
+        // 绝对屏蔽滴答
         if (msg.includes('真后台滴答') || msg.includes('app还活着')) return; 
         
-        // 发现可疑的静默空回，转为红色警报
-        if (msg.includes('（无内容）') || msg === '无内容' || (args.length > 1 && String(args[1]).includes('无内容'))) {
-             addLogToConsole('error', '触发空回陷阱', args.length > 1 ? args : args[0]);
+        // 如果你的应用主动打印了“无内容”，直接抓包红灯报警
+        if (msg.includes('（无内容）') || msg.includes('无内容')) {
+             addLogToConsole('error', '前端界面触发了“无内容”', args.length > 1 ? args : args[0]);
              return;
         }
 
         addLogToConsole('info', '常规日志', args.length > 1 ? args : args[0]);
     };
     
-    console.warn = function(...args) {
-        originalConsoleWarn.apply(console, args);
-        addLogToConsole('warn', '系统警告', args.length > 1 ? args : args[0]);
-    };
-    
-    console.error = function(...args) {
-        originalConsoleError.apply(console, args);
-        addLogToConsole('error', '系统报错', args.length > 1 ? args : args[0]);
-    };
+    console.warn = function(...args) { originalConsoleWarn.apply(console, args); addLogToConsole('warn', '系统警告', args.length > 1 ? args : args[0]); };
+    console.error = function(...args) { originalConsoleError.apply(console, args); addLogToConsole('error', '系统报错', args.length > 1 ? args : args[0]); };
 
-    // 5. 超级底层拦截：截获导致空回的 response.json() 崩溃
-    const originalResJson = Response.prototype.json;
-    Response.prototype.json = function() {
-        const clone = this.clone();
-        return originalResJson.call(this).catch(err => {
-            clone.text().then(text => {
-                addLogToConsole('error', '致命：数据格式异常 (引发空回的元凶)', `前端试图将返回数据解析为 JSON 时崩溃！\n\n中转站实际返回的非法内容是:\n${text.substring(0, 500)}\n\n报错原因: ${err.message}`);
-            }).catch(e => {
-                addLogToConsole('error', '致命：数据格式异常', `解析 JSON 崩溃，且无法读取原始返回内容。报错: ${err.message}`);
-            });
-            throw err;
-        });
-    };
-
-    const originalJSONParse = JSON.parse;
-    JSON.parse = function(text, reviver) {
-        try {
-            return originalJSONParse(text, reviver);
-        } catch (e) {
-            if (typeof text === 'string' && text.length > 0 && !text.startsWith('{') && !text.startsWith('[')) {
-                addLogToConsole('error', '致命解析错误：收到非 JSON 数据', `收到非预期数据！\n\n异常原始数据:\n${text.substring(0, 500)}\n\n报错原因: ${e.message}`);
-            }
-            throw e; 
-        }
-    };
-
-    // 6. 网络请求拦截
+    // 2. 拦截 Fetch，强制拆包检查内容（抓捕伪装成 200 的错误）
     const sysOriginalFetch = window.fetch;
     window.fetch = async function(...args) {
         const url = args[0] instanceof Request ? args[0].url : args[0];
-        const options = args[1] || {};
-        
-        let reqBody = options.body;
-        if (typeof reqBody === 'string') {
-            try { reqBody = originalJSONParse(reqBody); } catch(e) {}
-        }
-        
-        addLogToConsole('info', '发起网络请求', { '请求地址': url, '发送参数': reqBody || '无' });
+        addLogToConsole('info', '发起网络请求', `地址: ${url}`);
 
         try {
             const response = await sysOriginalFetch.apply(this, args);
-            if (response.ok) {
-                addLogToConsole('success', `请求成功: HTTP ${response.status}`, `请求地址: ${url}`);
-            } else {
-                const cloneRes = response.clone();
-                cloneRes.text().then(text => {
-                    addLogToConsole('error', `请求异常: HTTP ${response.status}`, `地址: ${url}\n\n服务器返回:\n${text || '无'}`);
-                }).catch(() => {
-                    addLogToConsole('error', `请求异常: HTTP ${response.status}`, `地址: ${url}\n无法读取数据`);
-                });
-            }
+            const cloneRes = response.clone(); // 复制一份包裹用来拆包
+            
+            cloneRes.text().then(text => {
+                if (response.ok) {
+                    // 重点：检查有没有伪装成成功的异常网页
+                    if (text && text.trim().startsWith('<') && !text.includes('data:') && !url.includes('.html')) {
+                        addLogToConsole('error', `⚠️ 虚假的成功: HTTP ${response.status} (引发空回)`, `API地址: ${url}\n\n服务器状态是200成功，但居然返回了报错网页，这就是引发空回的元凶！\n\n截获到的网页内容:\n${text.substring(0, 500)}`);
+                    } else if (text && text.includes('"error"')) {
+                        addLogToConsole('error', `⚠️ API 内部报错: HTTP ${response.status}`, `API地址: ${url}\n\n返回了包含 error 的数据:\n${text.substring(0, 500)}`);
+                    } else {
+                        addLogToConsole('success', `请求成功: HTTP ${response.status}`, `地址: ${url}\n返回数据预览:\n${text.substring(0, 200)}...`);
+                    }
+                } else {
+                    addLogToConsole('error', `请求失败: HTTP ${response.status}`, `地址: ${url}\n\n服务器返回:\n${text || '无'}`);
+                }
+            }).catch(() => {
+                // 如果是持久流，可能无法立即转text，属于正常情况
+            });
+            
             return response;
         } catch (error) {
-            if (error.name !== 'AbortError') { 
-                addLogToConsole('error', '请求强制中断 (网络断开)', `地址: ${url}\n错误: ${error.toString()}`);
-            }
+            if (error.name !== 'AbortError') { addLogToConsole('error', '请求强制中断', `地址: ${url}\n错误: ${error.toString()}`); }
             throw error;
         }
     };
 
-    // 7. 全局代码崩溃拦截
+    // 3. 拦截 XMLHttpRequest (防止你的应用用的不是 fetch)
+    const originalXHRSend = XMLHttpRequest.prototype.send;
+    const originalXHROpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url) {
+        this._url = url;
+        return originalXHROpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function(data) {
+        this.addEventListener('load', function() {
+            if (this.responseText && this.responseText.trim().startsWith('<') && !this._url.includes('.html')) {
+                addLogToConsole('error', `⚠️ XHR 虚假的成功 (HTTP ${this.status})`, `地址: ${this._url}\n返回了网页导致解析失败！内容: ${this.responseText.substring(0,300)}`);
+            } else if (this.status >= 400) {
+                addLogToConsole('error', `XHR 网络失败 (HTTP ${this.status})`, `地址: ${this._url}\n内容: ${this.responseText}`);
+            }
+        });
+        originalXHRSend.apply(this, arguments);
+    };
+
+    // 4. 全局代码崩溃拦截
     window.addEventListener('unhandledrejection', function(event) {
         const errorStr = event.reason ? (event.reason.stack || event.reason.toString()) : '未知异常';
-        if(errorStr.includes('JSON.parse') || errorStr.includes('Unexpected token')) return; // 防止重复报警
-        addLogToConsole('error', '代码运行异常', errorStr);
+        addLogToConsole('error', '代码运行崩溃', errorStr);
     });
     window.addEventListener('error', function(event) {
         addLogToConsole('error', '代码执行错误', event.message + '\\n位置: ' + event.filename);
