@@ -2616,6 +2616,10 @@
                 <span class="ios-label">互动视图</span>
                 <i class="fa-solid fa-chevron-right" style="color:#ccc; font-size:14px;"></i>
             </div>
+            <div class="ios-item" onclick="openSubPage('sub-console')">
+                <span class="ios-label">控制台</span>
+                <i class="fa-solid fa-chevron-right" style="color:#ccc; font-size:14px;"></i>
+            </div>
         </div>
     </div>
 
@@ -2681,9 +2685,39 @@
                 </div>
             </div>
             <div style="height: 30px;"></div>
+            
         </div>
     </div>
     
+   <!-- ================= 独立控制台子页面 UI ================= -->
+    <div id="sub-console" class="sub-page-scene">
+        <div class="nav-header clean-nav">
+            <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('sub-console')"></i>
+            <span class="nav-title">控制台</span>
+            <div style="width:20px;"></div>
+        </div>
+        
+        <div style="overflow-y: auto; height: calc(100% - 44px); padding: 20px; background-color: var(--bg-color);">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <span style="color: var(--text-sub); font-size: 13px; font-weight: 500;">系统运行日志与网络诊断</span>
+                <!-- 修改点1：纯红色的垃圾桶图标，无文字 -->
+                <button onclick="clearDevConsole()" style="background: var(--card-bg); border: 0.5px solid var(--border); color: var(--danger); font-size: 14px; cursor: pointer; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>
+
+            <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; min-height: 60vh;">
+                <!-- 日志输出区 -->
+                <div id="dev-console-logs" style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; font-size: 13px; color: var(--text-main); word-wrap: break-word; line-height: 1.5;">
+                    <div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 拦截器已就绪，正在监听异常...</div>
+                </div>
+            </div>
+            <div style="height: 30px;"></div>
+        </div>
+    </div>
+    <!-- ======================================================== -->
+
    <div id="sub-api" class="sub-page-scene">
         <div class="nav-header clean-nav">
             <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('sub-api')"></i>
@@ -15652,6 +15686,167 @@ ${chatContent}
             </div>
         </div>
     </div>
+    <!-- ================= 控制台：全能运行日志与网络拦截引擎 ================= -->
+<script>
+    const devConsoleLogs = document.getElementById('dev-console-logs');
+
+    // 清空面板功能
+    window.clearDevConsole = function() {
+        if(devConsoleLogs) {
+            devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 拦截器已就绪，正在监听所有运行日志...</div>';
+        }
+    };
+
+    const errorDict = {
+        '400': '参数错误。请检查高级参数是否超出了模型允许的上限。',
+        '401': 'API Key 无效或中转站余额不足，请去 NewAPI 后台检查。',
+        '403': '无权限。可能该模型节点被封禁或禁止访问。',
+        '429': '请求太频繁或余额已彻底耗尽。',
+        '502': '上游节点故障。NewAPI 连不上官方服务器了，换个模型试试。',
+        '520': '未知网络中断。中转站代理服务器掉线。',
+        '524': '请求超时。可能是回复太长，AI 处理时间超过了等待上限。',
+        'Unexpected token': '数据格式破碎。气泡出现“无内容”的元凶！中转站没返回JSON，而是报错网页。',
+        'JSON.parse': '数据解析失败，收到非标准回复。',
+        'channel_not_found': '无可用渠道。NewAPI 后台该模型的所有可用节点都挂了。',
+        'Failed to fetch': '网络请求彻底失败，请检查手机网络或代理。'
+    };
+
+    // 全能日志写入器 (支持 error, warn, success, info)
+    function addLogToConsole(type, title, detail) {
+        if (!devConsoleLogs) return;
+        
+        // 抹掉初始化的占位文本
+        if (devConsoleLogs.children.length === 1 && devConsoleLogs.innerText.includes('正在监听')) {
+            devConsoleLogs.innerHTML = ''; 
+        }
+
+        const time = new Date().toLocaleTimeString('en-US', {hour12: false});
+        
+        // 匹配离线诊断 (仅针对报错)
+        let diagnosis = '';
+        if (type === 'error') {
+            for (let key in errorDict) {
+                if (title.includes(key) || (detail && typeof detail === 'string' && detail.includes(key))) {
+                    diagnosis = `<div style="background: rgba(92, 146, 209, 0.1); color: var(--accent); padding: 8px; border-radius: 6px; margin: 6px 0;"><strong><i class="fa-solid fa-lightbulb" style="margin-right: 4px;"></i> 离线诊断：</strong>${errorDict[key]}</div>`;
+                    break;
+                }
+            }
+        }
+
+        // 颜色与专业矢量图标设定 (去除了所有Emoji)
+        let iconHtml = '';
+        let color = '';
+        if (type === 'error') {
+            iconHtml = '<i class="fa-solid fa-circle-xmark" style="font-size: 14px; color: var(--danger);"></i>';
+            color = 'var(--danger)';
+        } else if (type === 'warn') {
+            iconHtml = '<i class="fa-solid fa-triangle-exclamation" style="font-size: 14px; color: #FF9F0A;"></i>';
+            color = '#FF9F0A';
+        } else if (type === 'success') {
+            iconHtml = '<i class="fa-solid fa-circle-check" style="font-size: 14px; color: #34C759;"></i>';
+            color = '#34C759'; 
+        } else {
+            // 常规 info 级别
+            iconHtml = '<i class="fa-solid fa-circle-info" style="font-size: 14px; color: var(--accent);"></i>';
+            color = 'var(--text-main)';
+        }
+
+        // 安全地将各种类型的数据转为字符串展示
+        let detailStr = detail;
+        if (typeof detail === 'object' && detail !== null) {
+            try { detailStr = JSON.stringify(detail, null, 2); } 
+            catch(e) { detailStr = String(detail); }
+        }
+
+        const logItem = document.createElement('div');
+        logItem.style.marginBottom = '16px';
+        logItem.style.paddingBottom = '16px';
+        logItem.style.borderBottom = '0.5px solid var(--border)';
+        
+        // 去掉了发起请求时的向上/向下箭头，显得更干净
+        let displayTitle = title.replace('⬆️ ', '').replace('⬇️ ', '').replace('❌ ', '').replace('⚠️ ', '');
+
+        logItem.innerHTML = `
+            <div style="color: var(--text-sub); font-size: 11px; margin-bottom: 6px;">[${time}]</div>
+            <div style="color: ${color}; font-weight: 600; font-size: 13px; display: flex; align-items: flex-start; gap: 6px; word-break: break-all;">
+                <div style="margin-top: 2px;">${iconHtml}</div>
+                <div>${displayTitle}</div>
+            </div>
+            ${diagnosis}
+            ${detailStr ? `
+            <details style="margin-top: 8px; cursor: pointer;">
+                <summary style="color: var(--text-sub); font-size: 12px; user-select: none; outline: none;"><i class="fa-solid fa-caret-right" style="margin-right: 4px;"></i>点击查看明细/数据</summary>
+                <div style="margin-top: 8px; padding: 12px; background: var(--hover-bg); border-radius: 8px; color: var(--text-sub); white-space: pre-wrap; font-size: 11px; overflow-x: auto; border: 0.5px solid var(--border); font-family: monospace;">${detailStr}</div>
+            </details>
+            ` : ''}
+        `;
+        
+        devConsoleLogs.appendChild(logItem);
+        
+        // 自动滚动到底部
+        setTimeout(() => {
+            const container = devConsoleLogs.parentElement;
+            if (container) container.scrollTop = container.scrollHeight;
+        }, 50);
+    }
+
+    // ================= 拦截 1: 接管系统 console 打印 =================
+    const originalConsoleLog = console.log;
+    const originalConsoleWarn = console.warn;
+    const originalConsoleError = console.error;
+
+    console.log = function(...args) {
+        originalConsoleLog.apply(console, args);
+        addLogToConsole('info', '常规日志 (Log)', args.length > 1 ? args : args[0]);
+    };
+    console.warn = function(...args) {
+        originalConsoleWarn.apply(console, args);
+        addLogToConsole('warn', '系统警告 (Warn)', args.length > 1 ? args : args[0]);
+    };
+    console.error = function(...args) {
+        originalConsoleError.apply(console, args);
+        addLogToConsole('error', '系统报错 (Error)', args.length > 1 ? args : args[0]);
+    };
+
+    // ================= 拦截 2: 网络请求 (发起与响应) =================
+    const sysOriginalFetch = window.fetch;
+    window.fetch = async function(...args) {
+        const url = args[0] instanceof Request ? args[0].url : args[0];
+        
+        // 发起请求时记录
+        addLogToConsole('info', '发起网络请求', url);
+
+        try {
+            const response = await sysOriginalFetch.apply(this, args);
+            if (response.ok) {
+                // 成功返回时记录
+                addLogToConsole('success', `请求成功: HTTP ${response.status}`, `请求地址: ${url}`);
+            } else {
+                const cloneRes = response.clone();
+                cloneRes.text().then(text => {
+                    addLogToConsole('error', `请求失败: HTTP ${response.status}`, `地址: ${url}\n\n返回内容:\n${text || '无'}`);
+                }).catch(() => {
+                    addLogToConsole('error', `请求失败: HTTP ${response.status}`, `地址: ${url}\n无法读取原始数据`);
+                });
+            }
+            return response;
+        } catch (error) {
+            if (error.name !== 'AbortError') { 
+                addLogToConsole('error', '请求被强制中断', `地址: ${url}\n错误: ${error.toString()}`);
+            }
+            throw error;
+        }
+    };
+
+    // ================= 拦截 3: 全局代码崩溃 =================
+    window.addEventListener('unhandledrejection', function(event) {
+        const errorStr = event.reason ? (event.reason.stack || event.reason.toString()) : '未知 Promise 异常';
+        addLogToConsole('error', '代码运行中断', errorStr);
+    });
+    window.addEventListener('error', function(event) {
+        addLogToConsole('error', '语法/执行异常', event.message + '\\n位置: ' + event.filename);
+    });
+</script>
 </body>
 </html>
 
