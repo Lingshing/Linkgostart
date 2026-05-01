@@ -15712,32 +15712,32 @@ ${chatContent}
     </div>
     
 <script>
-    // 1. 母子容器高级样式：复刻聊天曲线 + 悬浮胶囊 UI
+    // 1. 母子容器高级样式：像素级同步抬升曲线 + 触感胶囊按钮
     const terminalStyle = document.createElement('style');
     terminalStyle.innerHTML = `
+        /* 母容器：强制锁定，严禁被键盘整体推起 */
         #sub-console { 
             position: fixed !important; top: 0; left: 0; width: 100%; height: 100% !important;
             display: flex !important; flex-direction: column !important; 
             background: var(--bg-color) !important; overflow: hidden !important; z-index: 2000;
         }
 
+        /* 子容器（滚动日志区）：两边留白[cite: 2] */
         #console-scroll-area { 
             flex: 1 !important; overflow-y: auto !important; 
-            padding: 20px 25px !important; padding-bottom: 160px !important; 
+            padding: 20px 25px !important; padding-bottom: 120px !important; 
             -webkit-overflow-scrolling: touch;
         }
         
-        /* 指令母栏：复刻聊天升起动画曲线[cite: 1, 2] */
+        /* 指令母栏：优化抬升时间与曲线，实现瞬间吸附[cite: 1, 2] */
         #console-cmd-area { 
             position: fixed !important; bottom: 0; left: 0; width: 100%;
-            display: flex; align-items: center; gap: 12px; padding: 12px 20px; 
-            padding-bottom: calc(15px + var(--safe-bottom, env(safe-area-inset-bottom))); 
-            background: var(--nav-blur-bg); 
-            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
-            border-top: 0.5px solid var(--border);
-            z-index: 3001;
-            /* 像素级同步聊天窗口的升起速度与曲线 */
-            transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+            display: flex; align-items: center; gap: 12px; padding: 10px 20px; 
+            padding-bottom: calc(10px + var(--safe-bottom, env(safe-area-inset-bottom))); 
+            background: var(--nav-blur-bg); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border-top: 0.5px solid var(--border); z-index: 3001;
+            /* 抬升时间缩短至 0.3s，曲线完全同步聊天界面[cite: 2] */
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         }
         
         #console-cmd-input { 
@@ -15745,34 +15745,33 @@ ${chatContent}
             font-size: 16px; color: var(--text-main); font-family: 'SF Mono', monospace;
         }
         
-        /* 运行按钮：绿色胶囊设计，去塑料感 */
+        /* 运行胶囊：取消文字，改用图标，增加触感反馈 */
         #console-cmd-btn { 
+            background: rgba(52, 199, 89, 0.15) !important; /* 柔和绿色背景 */
+            color: #34C759 !important; border: none; 
+            width: 44px; height: 32px; /* 固定胶囊尺寸 */
+            border-radius: 100px; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; cursor: pointer; flex-shrink: 0;
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        /* 点击瞬间的 Q 弹反馈 */
+        #console-cmd-btn:active { 
+            transform: scale(0.8); 
             background: #34C759 !important; 
             color: #fff !important; 
-            border: none; 
-            padding: 6px 18px; 
-            border-radius: 100px; 
-            font-size: 14px; 
-            font-weight: 500; /* 文字变细 */
-            cursor: pointer;
-            flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(52, 199, 89, 0.2);
-            transition: all 0.2s ease;
         }
-        #console-cmd-btn:active { transform: scale(0.9); opacity: 0.8; }
 
         .log-item-container {
             margin-bottom: 18px; padding-bottom: 12px; border-bottom: 0.5px solid var(--border);
         }
 
         .log-copy-btn {
-            color: var(--text-sub); font-size: 14px; cursor: pointer; 
-            padding: 5px; transition: all 0.2s; opacity: 0.6;
+            color: var(--text-sub); font-size: 14px; cursor: pointer; padding: 5px; opacity: 0.6;
         }
     `;
     document.head.appendChild(terminalStyle);
 
-    // 内存日志存储库，彻底解决复杂字符串导致的 SyntaxError
+    // 内存存储逻辑，防止 SyntaxError
     const LOG_STORAGE = new Map();
 
     const devConsoleLogs = document.getElementById('dev-console-logs');
@@ -15788,36 +15787,29 @@ ${chatContent}
         LOG_STORAGE.clear();
     };
 
-    // 修复版复制功能：从内存提取内容[cite: 1, 3]
     window.copyLogContent = function(btn, logId) {
         const text = LOG_STORAGE.get(logId);
         if (!text) return;
-        
         navigator.clipboard.writeText(text).then(() => {
             const icon = btn.querySelector('i');
             icon.className = 'fa-solid fa-check'; 
             icon.style.color = '#34C759';
-            setTimeout(() => {
-                icon.className = 'fa-regular fa-copy'; 
-                icon.style.color = '';
-            }, 2000);
+            setTimeout(() => { icon.className = 'fa-regular fa-copy'; icon.style.color = ''; }, 2000);
         });
     };
 
     function addLogToConsole(type, title, detail) {
+        // 自动抹除“就绪”提示[cite: 3]
         const readyMsg = document.getElementById('console-ready-msg');
         if (readyMsg) readyMsg.remove();
 
         const time = new Date().toLocaleTimeString('en-US', {hour12: false});
         let dotColor = type === 'error' ? 'var(--danger)' : type === 'warn' ? '#FF9F0A' : '#34C759';
-        
         const logItem = document.createElement('div');
         logItem.className = 'log-item-container';
         
         const logId = 'log_' + Date.now() + Math.random().toString(36).substr(2, 5);
         let detailStr = typeof detail === 'object' ? JSON.stringify(detail, null, 2) : String(detail);
-        
-        // 将详细内容存入内存，避免在 HTML 属性中传递引发错误[cite: 3]
         LOG_STORAGE.set(logId, detailStr);
 
         logItem.innerHTML = `
@@ -15842,10 +15834,11 @@ ${chatContent}
 
         const cmdArea = document.createElement('div');
         cmdArea.id = 'console-cmd-area';
+        // 使用绿色回车符号图标[cite: 1]
         cmdArea.innerHTML = `
             <i class="fa-solid fa-chevron-right" style="color: #34C759; font-size: 14px;"></i>
             <input type="text" id="console-cmd-input" placeholder="输入代码指令..." spellcheck="false" autocomplete="off" inputmode="text">
-            <button id="console-cmd-btn">运行</button>
+            <button id="console-cmd-btn"><i class="fa-solid fa-arrow-turn-down fa-rotate-90"></i></button>
         `;
         motherContainer.appendChild(cmdArea);
 
@@ -15864,9 +15857,9 @@ ${chatContent}
             }
         };
 
-        // 核心优化：改用 pointerdown，在键盘消失前瞬间捕获点击
+        // 核心：使用 pointerdown 并在执行后通过 tiny delay 模拟自然反馈[cite: 1]
         btn.addEventListener('pointerdown', (e) => {
-            e.preventDefault(); // 阻止焦点转移，防止键盘收起
+            e.preventDefault(); // 阻止失焦，防止键盘收起冲突
             run();
         });
         
