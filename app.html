@@ -4323,7 +4323,30 @@
                                     read: async () => {
                                         if (done) return { done: true };
                                         done = true;
-                                        const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
+                                        // --- 智能拆包逻辑开始：解析你抓到的那串数据 ---
+                                        let content = "";
+                                        if (typeof nativeResponse.data === 'string' && nativeResponse.data.includes('data:')) {
+                                            // 如果收到的是你抓到的那种带 data: 的一长串数据
+                                            const lines = nativeResponse.data.split('\n');
+                                            for (const line of lines) {
+                                                const trimmed = line.trim();
+                                                if (trimmed.startsWith('data: ') && !trimmed.includes('[DONE]')) {
+                                                    try {
+                                                        const json = JSON.parse(trimmed.replace('data: ', ''));
+                                                        content += (json.choices?.[0]?.delta?.content || "");
+                                                    } catch (e) {
+                                                        // 忽略格式错误的碎块
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            // 否则走原来的标准格式路径
+                                            content = nativeResponse.data.choices?.[0]?.message?.content || "";
+                                        }
+                                        
+                                        // 如果最后还是没拆出内容，再显示保底文字
+                                        if (!content) content = "（无内容）";
+                                        // --- 智能拆包逻辑结束 ---
                                         const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
                                         return { done: false, value: new TextEncoder().encode(mockSse) };
                                     }
@@ -15689,28 +15712,50 @@ ${chatContent}
     </div>
     
 <script>
-    // 1. 极简样式：适配深浅模式，彻底去框，绿色按钮
+    // 1. 样式精装修：打通 UI 层次，消除直角框，适配键盘同步
     const terminalStyle = document.createElement('style');
     terminalStyle.innerHTML = `
-        #sub-console { display: flex !important; flex-direction: column !important; height: 100vh !important; background: var(--bg-color) !important; }
-        #sub-console > .nav-header { flex-shrink: 0; }
-        
-        /* 日志区：透明背景，纯净线条 */
-        #console-scroll-area { flex: 1 !important; overflow-y: auto !important; padding: 20px; background: var(--bg-color) !important; }
-        .log-item-container {
-            margin-bottom: 15px; padding-bottom: 10px; 
-            border-bottom: 0.5px solid var(--border); /* 极其细微的分割线 */
-            font-family: 'SF Mono', Menlo, monospace;
+        /* 强制父容器撑满屏幕并使用 Flex 布局 */
+        #sub-console { 
+            display: flex !important; 
+            flex-direction: column !important; 
+            height: 100vh !important; 
+            background: var(--bg-color) !important; /* 直接使用圆角页面的底色 */
+        }
+
+        /* 移除原有的直角矩形背景，让日志区域变透明 */
+        #sub-console > div:nth-child(2) {
+            background: transparent !important;
+            border: none !important;
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        /* 日志滚动区：直接在底色上滑动 */
+        #console-scroll-area { 
+            flex: 1 !important; 
+            overflow-y: auto !important; 
+            padding: 20px;
+            -webkit-overflow-scrolling: touch;
         }
         
-        /* 底部输入区：彻底简洁，避开底部安全区 */
+        /* 底部指令区：参考聊天栏的同步逻辑 */
         #console-cmd-area { 
-            flex-shrink: 0; display: flex; align-items: center; gap: 12px;
-            padding: 15px 20px; 
-            padding-bottom: calc(15px + env(safe-area-inset-bottom)); 
-            background: var(--nav-blur-bg); 
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            flex-shrink: 0; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px;
+            padding: 12px 20px; 
+            /* 关键：使用安全区域变量，消除键盘弹起时间差[cite: 1, 2] */
+            padding-bottom: calc(12px + var(--safe-bottom, env(safe-area-inset-bottom))); 
+            background: var(--tab-bar-bg); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
             border-top: 0.5px solid var(--border);
+            z-index: 2001; 
         }
         
         #console-cmd-input { 
@@ -15718,22 +15763,21 @@ ${chatContent}
             font-size: 16px; color: var(--text-main); font-family: monospace;
         }
         
-        /* 运行按钮：清爽绿色 */
+        /* 运行按钮：极致简洁的绿色文本按钮 */
         #console-cmd-btn { 
-            background: #34C759 !important; /* iOS 标准绿色 */
-            color: #fff !important; border: none; 
-            padding: 8px 18px; border-radius: 100px; 
-            font-size: 14px; font-weight: 600; cursor: pointer;
-            transition: transform 0.2s;
+            background: transparent !important;
+            color: #34C759 !important; /* iOS 标准绿 */
+            border: none; 
+            padding: 8px 5px; 
+            font-size: 16px; font-weight: 700; cursor: pointer;
         }
-        #console-cmd-btn:active { transform: scale(0.92); opacity: 0.8; }
+        #console-cmd-btn:active { opacity: 0.5; }
 
-        /* 回顶按钮：悬浮感 */
-        .back-to-top { 
-            position: fixed; right: 20px; bottom: 110px; width: 36px; height: 36px; 
-            background: var(--text-main); color: var(--card-bg); 
-            border-radius: 50%; display: none; align-items: center; justify-content: center; 
-            z-index: 110; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+        /* 日志条目样式 */
+        .log-item-container {
+            margin-bottom: 15px; padding-bottom: 10px; 
+            border-bottom: 0.5px solid var(--border);
+            font-family: 'SF Mono', Menlo, monospace;
         }
     `;
     document.head.appendChild(terminalStyle);
@@ -15746,31 +15790,16 @@ ${chatContent}
         wrapper.appendChild(devConsoleLogs);
     }
 
-    const topBtn = document.createElement('div');
-    topBtn.className = 'back-to-top';
-    topBtn.innerHTML = '▲';
-    topBtn.onclick = () => document.getElementById('console-scroll-area').scrollTo({top: 0, behavior: 'smooth'});
-    document.body.appendChild(topBtn);
-
-    const scrollArea = document.getElementById('console-scroll-area');
-    scrollArea.onscroll = function() {
-        topBtn.style.display = this.scrollTop > 200 ? 'flex' : 'none';
-    };
-
     window.clearDevConsole = function() {
-        devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">已准备就绪</div>';
+        devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">终端已就绪</div>';
     };
 
-    // 核心日志渲染：去掉冗余装饰
     function addLogToConsole(type, title, detail) {
         const time = new Date().toLocaleTimeString('en-US', {hour12: false});
         let dotColor = type === 'error' ? 'var(--danger)' : type === 'warn' ? '#FF9F0A' : '#34C759';
-        
         const logItem = document.createElement('div');
         logItem.className = 'log-item-container';
-        
         let detailStr = typeof detail === 'object' ? JSON.stringify(detail, null, 2) : String(detail);
-
         logItem.innerHTML = `
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
                 <div style="width: 8px; height: 8px; border-radius: 50%; background: ${dotColor};"></div>
@@ -15790,7 +15819,7 @@ ${chatContent}
         cmdArea.id = 'console-cmd-area';
         cmdArea.innerHTML = `
             <span style="color: var(--text-sub); font-family: monospace; font-weight: bold;">$</span>
-            <input type="text" id="console-cmd-input" placeholder="输入代码指令..." spellcheck="false" autocomplete="off">
+            <input type="text" id="console-cmd-input" placeholder="输入指令..." spellcheck="false" autocomplete="off" inputmode="text">
             <button id="console-cmd-btn">运行</button>
         `;
         parent.appendChild(cmdArea);
@@ -15809,6 +15838,13 @@ ${chatContent}
         };
         document.getElementById('console-cmd-btn').onclick = run;
         input.onkeypress = (e) => { if (e.key === 'Enter') run(); };
+        
+        // 键盘弹出同步逻辑：模仿聊天界面[cite: 1, 2]
+        input.addEventListener('focus', () => {
+            setTimeout(() => {
+                input.scrollIntoView({ block: "center", behavior: "smooth" });
+            }, 300);
+        });
     }
 
     window.print = (...args) => addLogToConsole('success', '打印', args.length > 1 ? args : args[0]);
