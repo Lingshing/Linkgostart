@@ -15729,15 +15729,14 @@ ${chatContent}
             -webkit-overflow-scrolling: touch;
         }
         
-        /* 指令母栏：优化抬升时间与曲线，实现瞬间吸附[cite: 1, 2] */
+        /* 指令母栏：彻底移除 transition，让原生系统接管键盘抬升动画，实现真正的零延迟同步 */
         #console-cmd-area { 
             position: fixed !important; bottom: 0; left: 0; width: 100%;
             display: flex; align-items: center; gap: 12px; padding: 10px 20px; 
             padding-bottom: calc(10px + var(--safe-bottom, env(safe-area-inset-bottom))); 
             background: var(--nav-blur-bg); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
             border-top: 0.5px solid var(--border); z-index: 3001;
-            /* 抬升时间缩短至 0.3s，曲线完全同步聊天界面[cite: 2] */
-            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            /* ✨ 彻底删除了 transition，解决抬升粘滞和过慢问题 */
         }
         
         #console-cmd-input { 
@@ -15747,15 +15746,15 @@ ${chatContent}
         
         /* 运行胶囊：取消文字，改用图标，增加触感反馈 */
         #console-cmd-btn { 
-            background: rgba(52, 199, 89, 0.15) !important; /* 柔和绿色背景 */
+            background: rgba(52, 199, 89, 0.15) !important; 
             color: #34C759 !important; border: none; 
-            width: 44px; height: 32px; /* 固定胶囊尺寸 */
+            width: 44px; height: 32px; 
             border-radius: 100px; display: flex; align-items: center; justify-content: center;
             font-size: 14px; cursor: pointer; flex-shrink: 0;
-            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), background 0.2s, color 0.2s;
         }
-        /* 点击瞬间的 Q 弹反馈 */
-        #console-cmd-btn:active { 
+        /* ✨ 点击瞬间的 Q 弹反馈：增加手动激活类 .is-active */
+        #console-cmd-btn.is-active, #console-cmd-btn:active { 
             transform: scale(0.8); 
             background: #34C759 !important; 
             color: #fff !important; 
@@ -15866,18 +15865,24 @@ ${chatContent}
             }
         };
 
-        btn.addEventListener('pointerdown', (e) => {
-            e.preventDefault(); 
+        // ✨ 核心修复：改用 touchstart 并手动添加动画类，解决原生 :active 冲突带来的撕扯感
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // 阻止立刻失焦
+            btn.classList.add('is-active'); // 强制触发缩放 Q弹动画
             run();
-            // 延迟 250ms，等按钮动画弹完再收起键盘
-            setTimeout(() => input.blur(), 250);
-        });
+            
+            // 等待 200ms 让动画播完，然后优雅地恢复按钮状态并收起键盘
+            setTimeout(() => {
+                btn.classList.remove('is-active');
+                input.blur();
+            }, 200);
+        }, { passive: false });
         
         input.onkeypress = (e) => { 
             if (e.key === 'Enter') {
                 run();
-                // 回车同样延迟 250ms 收起键盘
-                setTimeout(() => input.blur(), 250);
+                // 统一修改为 200ms，缩短粘滞感，更加利落
+                setTimeout(() => input.blur(), 200); 
             }
         };
     }
