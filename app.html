@@ -4298,7 +4298,7 @@
                         data: {
                             model: config.model || 'gpt-3.5-turbo',
                             messages: messages,
-                            stream: false, 
+                            stream: PARAM_CONFIG.stream, 
                             temperature: PARAM_CONFIG.temperature, // ⚠️ 注意这里和上面的变量名不同
                             max_tokens: PARAM_CONFIG.maxTokens,
                             frequency_penalty: PARAM_CONFIG.frequencyPenalty,
@@ -15689,23 +15689,56 @@ ${chatContent}
     </div>
     
 <script>
-    // 1. 样式修复：强制布局
-    const styleFix = document.createElement('style');
-    styleFix.innerHTML = `
-        #sub-console { display: flex !important; flex-direction: column !important; height: 100vh !important; background: #0c0c0c !important; }
+    // 1. 极简样式：适配深浅模式，彻底去框，绿色按钮
+    const terminalStyle = document.createElement('style');
+    terminalStyle.innerHTML = `
+        #sub-console { display: flex !important; flex-direction: column !important; height: 100vh !important; background: var(--bg-color) !important; }
         #sub-console > .nav-header { flex-shrink: 0; }
-        /* 日志区：自动拉伸，独立滚动 */
-        #console-scroll-area { flex: 1 !important; overflow-y: auto !important; padding: 20px; display: flex; flex-direction: column; }
-        #dev-console-logs { display: flex; flex-direction: column; } /* 默认排列 */
-        /* 输入区：固定在底部 */
-        #console-cmd-area { flex-shrink: 0; display: flex; align-items: center; padding: 12px; background: #1e1e1e; border-top: 1px solid #00ff00; z-index: 100; }
-        #console-cmd-input { flex: 1; border: none; outline: none; background: transparent; font-family: monospace; font-size: 14px; color: #00ff00; }
-        .back-to-top { position: fixed; right: 20px; bottom: 80px; width: 40px; height: 40px; background: #00ff00; color: #000; border-radius: 50%; display: none; align-items: center; justify-content: center; z-index: 110; font-weight: bold; }
+        
+        /* 日志区：透明背景，纯净线条 */
+        #console-scroll-area { flex: 1 !important; overflow-y: auto !important; padding: 20px; background: var(--bg-color) !important; }
+        .log-item-container {
+            margin-bottom: 15px; padding-bottom: 10px; 
+            border-bottom: 0.5px solid var(--border); /* 极其细微的分割线 */
+            font-family: 'SF Mono', Menlo, monospace;
+        }
+        
+        /* 底部输入区：彻底简洁，避开底部安全区 */
+        #console-cmd-area { 
+            flex-shrink: 0; display: flex; align-items: center; gap: 12px;
+            padding: 15px 20px; 
+            padding-bottom: calc(15px + env(safe-area-inset-bottom)); 
+            background: var(--nav-blur-bg); 
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-top: 0.5px solid var(--border);
+        }
+        
+        #console-cmd-input { 
+            flex: 1; border: none; outline: none; background: transparent; 
+            font-size: 16px; color: var(--text-main); font-family: monospace;
+        }
+        
+        /* 运行按钮：清爽绿色 */
+        #console-cmd-btn { 
+            background: #34C759 !important; /* iOS 标准绿色 */
+            color: #fff !important; border: none; 
+            padding: 8px 18px; border-radius: 100px; 
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #console-cmd-btn:active { transform: scale(0.92); opacity: 0.8; }
+
+        /* 回顶按钮：悬浮感 */
+        .back-to-top { 
+            position: fixed; right: 20px; bottom: 110px; width: 36px; height: 36px; 
+            background: var(--text-main); color: var(--card-bg); 
+            border-radius: 50%; display: none; align-items: center; justify-content: center; 
+            z-index: 110; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+        }
     `;
-    document.head.appendChild(styleFix);
+    document.head.appendChild(terminalStyle);
 
     const devConsoleLogs = document.getElementById('dev-console-logs');
-    // 包裹一层滚动容器
     if (devConsoleLogs && !document.getElementById('console-scroll-area')) {
         const wrapper = document.createElement('div');
         wrapper.id = 'console-scroll-area';
@@ -15713,40 +15746,42 @@ ${chatContent}
         wrapper.appendChild(devConsoleLogs);
     }
 
-    // 回顶按钮
     const topBtn = document.createElement('div');
     topBtn.className = 'back-to-top';
     topBtn.innerHTML = '▲';
     topBtn.onclick = () => document.getElementById('console-scroll-area').scrollTo({top: 0, behavior: 'smooth'});
     document.body.appendChild(topBtn);
 
-    document.getElementById('console-scroll-area').onscroll = function() {
+    const scrollArea = document.getElementById('console-scroll-area');
+    scrollArea.onscroll = function() {
         topBtn.style.display = this.scrollTop > 200 ? 'flex' : 'none';
     };
 
     window.clearDevConsole = function() {
-        devConsoleLogs.innerHTML = '<div style="color: #00ff00; text-align: center; padding: 20px 0;">[系统] 终端已就绪...</div>';
+        devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">已准备就绪</div>';
     };
 
-    // 核心打印函数：最新日志永远在最上面 (prepend)
+    // 核心日志渲染：去掉冗余装饰
     function addLogToConsole(type, title, detail) {
         const time = new Date().toLocaleTimeString('en-US', {hour12: false});
-        let color = type === 'error' ? '#ff5555' : type === 'warn' ? '#f1fa8c' : '#00ff00';
+        let dotColor = type === 'error' ? 'var(--danger)' : type === 'warn' ? '#FF9F0A' : '#34C759';
         
         const logItem = document.createElement('div');
-        logItem.style.cssText = 'margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed #333; font-family: monospace; font-size: 13px;';
+        logItem.className = 'log-item-container';
         
         let detailStr = typeof detail === 'object' ? JSON.stringify(detail, null, 2) : String(detail);
 
         logItem.innerHTML = `
-            <div style="color: #6272a4; font-size: 11px;">[${time}]</div>
-            <div style="color: ${color}; font-weight: bold;">> ${title}</div>
-            ${detailStr && detailStr !== 'undefined' ? `<pre style="color: #ccc; margin: 5px 0; white-space: pre-wrap; word-break: break-all;">${detailStr}</pre>` : ''}
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: ${dotColor};"></div>
+                <div style="color: var(--text-sub); font-size: 11px;">${time}</div>
+                <div style="color: var(--text-main); font-weight: 600; font-size: 13px;">${title}</div>
+            </div>
+            ${detailStr && detailStr !== 'undefined' ? `<pre style="color: var(--text-sub); margin: 0; white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.5;">${detailStr}</pre>` : ''}
         `;
-        devConsoleLogs.prepend(logItem); // 最新日志在最上面
+        devConsoleLogs.prepend(logItem);
     }
 
-    // 指令输入注入
     function injectConsoleCmd() {
         const parent = document.getElementById('sub-console');
         if (!parent || document.getElementById('console-cmd-area')) return;
@@ -15754,9 +15789,9 @@ ${chatContent}
         const cmdArea = document.createElement('div');
         cmdArea.id = 'console-cmd-area';
         cmdArea.innerHTML = `
-            <span style="color: #00ff00; margin-right: 8px; font-weight: bold;">$</span>
-            <input type="text" id="console-cmd-input" placeholder="输入指令 (如 print(window.lastRawResponse))">
-            <button id="console-cmd-btn" style="background:#00ff00; border:none; padding:5px 15px; margin-left:10px; cursor:pointer; font-weight:bold;">运行</button>
+            <span style="color: var(--text-sub); font-family: monospace; font-weight: bold;">$</span>
+            <input type="text" id="console-cmd-input" placeholder="输入代码指令..." spellcheck="false" autocomplete="off">
+            <button id="console-cmd-btn">运行</button>
         `;
         parent.appendChild(cmdArea);
 
@@ -15765,27 +15800,26 @@ ${chatContent}
             const cmd = input.value.trim();
             if (!cmd) return;
             input.value = '';
-            addLogToConsole('info', '执行: ' + cmd);
             try {
                 const result = eval(cmd);
-                addLogToConsole('success', '结果', result);
+                addLogToConsole('success', cmd, result);
             } catch (e) {
-                addLogToConsole('error', '失败', e.message);
+                addLogToConsole('error', '执行失败', e.message);
             }
         };
         document.getElementById('console-cmd-btn').onclick = run;
         input.onkeypress = (e) => { if (e.key === 'Enter') run(); };
     }
 
-    // 重新定义 print
-    window.print = (...args) => addLogToConsole('info', 'Print', args.length > 1 ? args : args[0]);
+    window.print = (...args) => addLogToConsole('success', '打印', args.length > 1 ? args : args[0]);
 
-    // 劫持 Console
-    console.log = (...args) => { if (!String(args[0]).includes('滴答')) addLogToConsole('info', 'Log', args); };
-    console.error = (...args) => addLogToConsole('error', 'Error', args);
-    console.warn = (...args) => addLogToConsole('warn', 'Warn', args);
+    console.log = (...args) => { 
+        const msg = String(args[0]);
+        if (!msg.includes('滴答') && !msg.includes('还活着')) addLogToConsole('info', '系统', args); 
+    };
+    console.error = (...args) => addLogToConsole('error', '报错', args);
+    console.warn = (...args) => addLogToConsole('warn', '警告', args);
 
-    // 自动初始化
     const checkInit = setInterval(() => {
         if (document.getElementById('sub-console')) {
             injectConsoleCmd();
@@ -15793,7 +15827,6 @@ ${chatContent}
         }
     }, 500);
 
-    // 异常拦截
     window.onerror = (msg, url, line) => addLogToConsole('error', '运行时错误', `${msg} (${line}行)`);
 </script>
     
