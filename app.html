@@ -15694,10 +15694,21 @@ ${chatContent}
         #dev-console-header { background-color: #1e1e1e !important; color: #00ff00 !important; border-bottom: 1px solid #333 !important; border-radius: 0 !important; font-family: 'Consolas', monospace !important;}
         #dev-console-header .fa-solid { color: #00ff00 !important; }
         .dev-console-btn { color: #00ff00 !important; background: transparent !important; }
+        
+        /* 终端滚动条美化 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0c0c0c; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00ff00; }
     `;
     document.head.appendChild(terminalStyle);
 
     const devConsoleLogs = document.getElementById('dev-console-logs');
+
+    // 给底部留出空间，防止输入框挡住最后一条日志
+    if (devConsoleLogs) {
+        devConsoleLogs.style.paddingBottom = '60px'; 
+    }
 
     window.clearDevConsole = function() {
         if(devConsoleLogs) devConsoleLogs.innerHTML = '<div style="color: #00ff00; text-align: center; padding: 20px 0; font-family: monospace;">[系统] 电脑终端控制台已就绪...</div>';
@@ -15758,21 +15769,14 @@ ${chatContent}
             ${detailStr ? `<div style="margin-top: 4px; color: #cccccc; white-space: pre-wrap; word-break: break-all;">${detailStr}</div>` : ''}
         `;
         
-        // 终端习惯是新日志加在最底部
-        devConsoleLogs.appendChild(logItem);
-        
-        // 自动滚动到底部
-        const scrollContainer = devConsoleLogs.parentElement || devConsoleLogs;
-        setTimeout(() => {
-            scrollContainer.scrollTop = scrollContainer.scrollHeight;
-        }, 50);
+        // 确保新日志插入到最上方
+        devConsoleLogs.prepend(logItem);
     }
 
     // 1. Console 拦截 & 支持 print 功能
     const originalConsoleLog = console.log;
     console.log = function(...args) {
         originalConsoleLog.apply(console, args);
-        // (注：由于上面你已经删除了代码，这里不需要再专门拦截滴答了)
         addLogToConsole('info', '输出', args.length > 1 ? args : args[0]);
     };
     
@@ -15889,24 +15893,56 @@ ${chatContent}
         }
     };
 
-    // --- 命令行交互逻辑 (内嵌电脑终端UI) ---
+    // --- 命令行交互逻辑 (绝对定位到底部 + 回顶按钮) ---
     function injectConsoleCmd() {
-        const consolePanel = document.getElementById('console-panel') || document.getElementById('dev-console');
+        // 找到控制台的父级窗口
+        const consolePanel = document.getElementById('console-panel') || document.getElementById('dev-console') || (devConsoleLogs ? devConsoleLogs.parentElement : document.body);
         if (!consolePanel || document.getElementById('console-cmd-area')) return;
+
+        // 强行赋予相对定位，让内部的输入框和按钮可以准确吸附
+        if (window.getComputedStyle(consolePanel).position === 'static') {
+            consolePanel.style.position = 'relative';
+        }
 
         const cmdArea = document.createElement('div');
         cmdArea.id = 'console-cmd-area';
-        cmdArea.style.cssText = 'position: sticky; bottom: 0; left: 0; width: 100%; display: flex; align-items: center; padding: 10px; background-color: #000; border-top: 1px solid #333; box-sizing: border-box; z-index: 10;';
+        // 使用 absolute 沉底，超高 z-index 保证强制可见
+        cmdArea.style.cssText = 'position: absolute; bottom: 0; left: 0; width: 100%; display: flex; align-items: center; padding: 10px; background-color: #1e1e1e; border-top: 1px solid #00ff00; box-sizing: border-box; z-index: 999999;';
         
         cmdArea.innerHTML = `
             <span style="color: #00ff00; font-family: monospace; font-size: 14px; margin-right: 8px; font-weight: bold;">></span>
             <input type="text" id="console-cmd-input" placeholder="输入指令，例如：print('测试')" style="flex: 1; border: none; outline: none; background: transparent; font-family: 'Consolas', monospace; font-size: 14px; color: #00ff00; padding: 4px 0;">
-            <button id="console-cmd-btn" style="margin-left: 10px; background: transparent; color: #00ff00; border: 1px solid #00ff00; padding: 4px 12px; font-family: monospace; cursor: pointer;">
+            <button id="console-cmd-btn" style="margin-left: 10px; background: #00ff00; color: #000; font-weight: bold; border: none; padding: 4px 12px; font-family: monospace; cursor: pointer; border-radius: 4px;">
                 运行(Enter)
             </button>
         `;
         
         consolePanel.appendChild(cmdArea);
+
+        // 创建一键回顶按钮
+        const scrollTopBtn = document.createElement('button');
+        scrollTopBtn.id = 'console-scroll-top-btn';
+        scrollTopBtn.innerHTML = '▲';
+        scrollTopBtn.style.cssText = 'position: absolute; bottom: 65px; right: 15px; width: 36px; height: 36px; border-radius: 50%; background: #00ff00; color: #000; border: none; z-index: 999999; cursor: pointer; display: none; box-shadow: 0 0 10px rgba(0,255,0,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center;';
+        
+        // 初始隐藏
+        scrollTopBtn.style.display = 'none';
+        consolePanel.appendChild(scrollTopBtn);
+
+        // 绑定滚动事件，找到真正发生滚动的容器
+        const scrollContainer = (devConsoleLogs && window.getComputedStyle(devConsoleLogs).overflowY === 'auto') ? devConsoleLogs : consolePanel;
+        
+        scrollContainer.addEventListener('scroll', () => {
+            if (scrollContainer.scrollTop > 100) {
+                scrollTopBtn.style.display = 'flex';
+            } else {
+                scrollTopBtn.style.display = 'none';
+            }
+        });
+
+        scrollTopBtn.onclick = () => {
+            scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+        };
 
         const cmdInput = document.getElementById('console-cmd-input');
         const cmdBtn = document.getElementById('console-cmd-btn');
@@ -15937,10 +15973,18 @@ ${chatContent}
         }
     }
 
+    // 严密监听：如果控制台是后续动态加载的，保证输入框也能挂载上去
+    const observer = new MutationObserver((mutations) => {
+        if (document.getElementById('dev-console-logs') && !document.getElementById('console-cmd-area')) {
+            injectConsoleCmd();
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', injectConsoleCmd);
     } else {
-        injectConsoleCmd();
+        setTimeout(injectConsoleCmd, 300);
     }
 
     // 5. 全局代码崩溃拦截
