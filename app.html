@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content">
     
     <title>Linkgo</title>
     <link rel="manifest" href="https://lingshing.github.io/Linkgostart/manifest.json">
@@ -2710,7 +2710,7 @@
             <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; min-height: 60vh;">
                 <!-- 日志输出区 -->
                 <div id="dev-console-logs" style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; font-size: 13px; color: var(--text-main); word-wrap: break-word; line-height: 1.5;">
-                    <div style="color: var(--text-sub); text-align: center; padding: 20px 0;">[系统] 拦截器已就绪，正在监听异常...</div>
+                    <div id="console-ready-msg" style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">拦截器已就绪</div>
                 </div>
             </div>
             <div style="height: 30px;"></div>
@@ -15783,7 +15783,7 @@ ${chatContent}
     }
 
     window.clearDevConsole = function() {
-        devConsoleLogs.innerHTML = '<div id="console-ready-msg" style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">终端已就绪</div>';
+        devConsoleLogs.innerHTML = '<div id="console-ready-msg" style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">拦截器已就绪</div>';
         LOG_STORAGE.clear();
     };
 
@@ -15845,6 +15845,15 @@ ${chatContent}
         const input = document.getElementById('console-cmd-input');
         const btn = document.getElementById('console-cmd-btn');
 
+        // 强压页面滚动，防止获取焦点时被输入法推起页面
+        input.addEventListener('focus', () => {
+            setTimeout(() => {
+                window.scrollTo(0, 0);
+                document.body.scrollTop = 0;
+                document.documentElement.scrollTop = 0;
+            }, 50);
+        });
+
         const run = () => {
             const cmd = input.value.trim();
             if (!cmd) return;
@@ -15857,13 +15866,20 @@ ${chatContent}
             }
         };
 
-        // 核心：使用 pointerdown 并在执行后通过 tiny delay 模拟自然反馈[cite: 1]
         btn.addEventListener('pointerdown', (e) => {
-            e.preventDefault(); // 阻止失焦，防止键盘收起冲突
+            e.preventDefault(); 
             run();
+            // 延迟 250ms，等按钮动画弹完再收起键盘
+            setTimeout(() => input.blur(), 250);
         });
         
-        input.onkeypress = (e) => { if (e.key === 'Enter') run(); };
+        input.onkeypress = (e) => { 
+            if (e.key === 'Enter') {
+                run();
+                // 回车同样延迟 250ms 收起键盘
+                setTimeout(() => input.blur(), 250);
+            }
+        };
     }
 
     window.print = (...args) => addLogToConsole('success', 'PRINT', args.length > 1 ? args : args[0]);
