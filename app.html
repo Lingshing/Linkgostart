@@ -15712,50 +15712,41 @@ ${chatContent}
     </div>
     
 <script>
-    // 1. 样式精装修：打通 UI 层次，消除直角框，适配键盘同步
+    // 1. 视觉与交互重构：增加边距，实现输入框悬浮覆盖
     const terminalStyle = document.createElement('style');
     terminalStyle.innerHTML = `
-        /* 强制父容器撑满屏幕并使用 Flex 布局 */
+        /* 父容器强制保持 100% 高度，禁止被键盘撑起 */
         #sub-console { 
+            position: fixed !important;
+            top: 0; left: 0; width: 100%; height: 100vh !important;
             display: flex !important; 
             flex-direction: column !important; 
-            height: 100vh !important; 
-            background: var(--bg-color) !important; /* 直接使用圆角页面的底色 */
-        }
-
-        /* 移除原有的直角矩形背景，让日志区域变透明 */
-        #sub-console > div:nth-child(2) {
-            background: transparent !important;
-            border: none !important;
-            flex: 1 !important;
-            display: flex !important;
-            flex-direction: column !important;
-            padding: 0 !important;
+            background: var(--bg-color) !important;
             overflow: hidden !important;
         }
 
-        /* 日志滚动区：直接在底色上滑动 */
+        /* 日志区域：增加左右边距 (25px)，移除直角背景 */
         #console-scroll-area { 
             flex: 1 !important; 
             overflow-y: auto !important; 
-            padding: 20px;
+            padding: 20px 25px !important; /* 左右增加边距，拒绝死贴[cite: 2] */
+            padding-bottom: 120px !important; /* 为底部悬浮框留出遮挡空间 */
             -webkit-overflow-scrolling: touch;
         }
         
-        /* 底部指令区：参考聊天栏的同步逻辑 */
+        /* 底部指令区：改为固定定位，不再推挤页面[cite: 1] */
         #console-cmd-area { 
-            flex-shrink: 0; 
-            display: flex; 
-            align-items: center; 
-            gap: 12px;
+            position: fixed !important;
+            bottom: 0; left: 0; width: 100%;
+            display: flex; align-items: center; gap: 12px;
             padding: 12px 20px; 
-            /* 关键：使用安全区域变量，消除键盘弹起时间差[cite: 1, 2] */
-            padding-bottom: calc(12px + var(--safe-bottom, env(safe-area-inset-bottom))); 
-            background: var(--tab-bar-bg); 
-            backdrop-filter: blur(20px); 
-            -webkit-backdrop-filter: blur(20px);
+            /* 适配 iOS 安全区并增加底部间距 */
+            padding-bottom: calc(15px + var(--safe-bottom, env(safe-area-inset-bottom))); 
+            background: var(--nav-blur-bg); 
+            backdrop-filter: blur(25px); 
+            -webkit-backdrop-filter: blur(25px);
             border-top: 0.5px solid var(--border);
-            z-index: 2001; 
+            z-index: 3001; /* 确保在最顶层[cite: 2] */
         }
         
         #console-cmd-input { 
@@ -15763,17 +15754,13 @@ ${chatContent}
             font-size: 16px; color: var(--text-main); font-family: monospace;
         }
         
-        /* 运行按钮：极致简洁的绿色文本按钮 */
         #console-cmd-btn { 
             background: transparent !important;
-            color: #34C759 !important; /* iOS 标准绿 */
-            border: none; 
-            padding: 8px 5px; 
+            color: #34C759 !important; /* 你要求的绿色按钮[cite: 1] */
+            border: none; padding: 8px 5px; 
             font-size: 16px; font-weight: 700; cursor: pointer;
         }
-        #console-cmd-btn:active { opacity: 0.5; }
 
-        /* 日志条目样式 */
         .log-item-container {
             margin-bottom: 15px; padding-bottom: 10px; 
             border-bottom: 0.5px solid var(--border);
@@ -15782,6 +15769,7 @@ ${chatContent}
     `;
     document.head.appendChild(terminalStyle);
 
+    // 2. 核心逻辑：保留之前解决空回的代码[cite: 3]
     const devConsoleLogs = document.getElementById('dev-console-logs');
     if (devConsoleLogs && !document.getElementById('console-scroll-area')) {
         const wrapper = document.createElement('div');
@@ -15791,7 +15779,7 @@ ${chatContent}
     }
 
     window.clearDevConsole = function() {
-        devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">终端已就绪</div>';
+        devConsoleLogs.innerHTML = '<div style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">终端就绪</div>';
     };
 
     function addLogToConsole(type, title, detail) {
@@ -15819,7 +15807,7 @@ ${chatContent}
         cmdArea.id = 'console-cmd-area';
         cmdArea.innerHTML = `
             <span style="color: var(--text-sub); font-family: monospace; font-weight: bold;">$</span>
-            <input type="text" id="console-cmd-input" placeholder="输入指令..." spellcheck="false" autocomplete="off" inputmode="text">
+            <input type="text" id="console-cmd-input" placeholder="输入指令..." spellcheck="false" autocomplete="off">
             <button id="console-cmd-btn">运行</button>
         `;
         parent.appendChild(cmdArea);
@@ -15838,17 +15826,12 @@ ${chatContent}
         };
         document.getElementById('console-cmd-btn').onclick = run;
         input.onkeypress = (e) => { if (e.key === 'Enter') run(); };
-        
-        // 键盘弹出同步逻辑：模仿聊天界面[cite: 1, 2]
-        input.addEventListener('focus', () => {
-            setTimeout(() => {
-                input.scrollIntoView({ block: "center", behavior: "smooth" });
-            }, 300);
-        });
     }
 
+    // 重新定义 print
     window.print = (...args) => addLogToConsole('success', '打印', args.length > 1 ? args : args[0]);
 
+    // 劫持 Console (排除无意义日志)
     console.log = (...args) => { 
         const msg = String(args[0]);
         if (!msg.includes('滴答') && !msg.includes('还活着')) addLogToConsole('info', '系统', args); 
