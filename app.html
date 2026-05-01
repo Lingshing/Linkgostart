@@ -4312,6 +4312,8 @@
                         text: async () => JSON.stringify(nativeResponse.data),
                         json: async () => nativeResponse.data
                     };
+
+                    window.lastRawResponse = JSON.stringify(nativeResponse.data); // 强制记录原生通道返回的数据
                     
                     if (PARAM_CONFIG.stream) {
                         response.body = {
@@ -15687,314 +15689,112 @@ ${chatContent}
     </div>
     
 <script>
-    // 强制注入纯黑终端 CSS，保证绝对生效，覆盖原有白色卡片
-    const terminalStyle = document.createElement('style');
-    terminalStyle.innerHTML = `
-        #dev-console, #console-panel { background-color: #0c0c0c !important; border-radius: 0 !important; }
-        #dev-console-header { background-color: #1e1e1e !important; color: #00ff00 !important; border-bottom: 1px solid #333 !important; border-radius: 0 !important; font-family: 'Consolas', monospace !important;}
-        #dev-console-header .fa-solid { color: #00ff00 !important; }
-        .dev-console-btn { color: #00ff00 !important; background: transparent !important; }
-        
-        /* 终端滚动条美化 */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0c0c0c; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #00ff00; }
+    // 1. 样式修复：强制布局
+    const styleFix = document.createElement('style');
+    styleFix.innerHTML = `
+        #sub-console { display: flex !important; flex-direction: column !important; height: 100vh !important; background: #0c0c0c !important; }
+        #sub-console > .nav-header { flex-shrink: 0; }
+        /* 日志区：自动拉伸，独立滚动 */
+        #console-scroll-area { flex: 1 !important; overflow-y: auto !important; padding: 20px; display: flex; flex-direction: column; }
+        #dev-console-logs { display: flex; flex-direction: column; } /* 默认排列 */
+        /* 输入区：固定在底部 */
+        #console-cmd-area { flex-shrink: 0; display: flex; align-items: center; padding: 12px; background: #1e1e1e; border-top: 1px solid #00ff00; z-index: 100; }
+        #console-cmd-input { flex: 1; border: none; outline: none; background: transparent; font-family: monospace; font-size: 14px; color: #00ff00; }
+        .back-to-top { position: fixed; right: 20px; bottom: 80px; width: 40px; height: 40px; background: #00ff00; color: #000; border-radius: 50%; display: none; align-items: center; justify-content: center; z-index: 110; font-weight: bold; }
     `;
-    document.head.appendChild(terminalStyle);
+    document.head.appendChild(styleFix);
 
     const devConsoleLogs = document.getElementById('dev-console-logs');
-
-    // 给底部留出空间，防止输入框挡住最后一条日志
-    if (devConsoleLogs) {
-        devConsoleLogs.style.paddingBottom = '60px'; 
+    // 包裹一层滚动容器
+    if (devConsoleLogs && !document.getElementById('console-scroll-area')) {
+        const wrapper = document.createElement('div');
+        wrapper.id = 'console-scroll-area';
+        devConsoleLogs.parentNode.insertBefore(wrapper, devConsoleLogs);
+        wrapper.appendChild(devConsoleLogs);
     }
+
+    // 回顶按钮
+    const topBtn = document.createElement('div');
+    topBtn.className = 'back-to-top';
+    topBtn.innerHTML = '▲';
+    topBtn.onclick = () => document.getElementById('console-scroll-area').scrollTo({top: 0, behavior: 'smooth'});
+    document.body.appendChild(topBtn);
+
+    document.getElementById('console-scroll-area').onscroll = function() {
+        topBtn.style.display = this.scrollTop > 200 ? 'flex' : 'none';
+    };
 
     window.clearDevConsole = function() {
-        if(devConsoleLogs) devConsoleLogs.innerHTML = '<div style="color: #00ff00; text-align: center; padding: 20px 0; font-family: monospace;">[系统] 电脑终端控制台已就绪...</div>';
+        devConsoleLogs.innerHTML = '<div style="color: #00ff00; text-align: center; padding: 20px 0;">[系统] 终端已就绪...</div>';
     };
 
-    const errorDict = {
-        '400': '参数错误。高级参数可能超出了模型上限。',
-        '401': 'API Key 无效或余额不足。',
-        '403': '无权限。节点可能被封禁。',
-        '429': '请求太频繁或余额已耗尽。',
-        '502': '上游节点故障。中转站连不上官方服务器。',
-        '520': '未知网络中断。',
-        '524': '请求超时。AI 思考时间过长。',
-        'insufficient_quota': '中转站额度已经彻底耗尽！',
-        'model_not_found': '模型名称不正确或不支持。',
-        'Unexpected token': '数据格式破碎。中转站没返回JSON。',
-        'Failed to fetch': '网络请求彻底失败。'
-    };
-
+    // 核心打印函数：最新日志永远在最上面 (prepend)
     function addLogToConsole(type, title, detail) {
-        if (!devConsoleLogs) return;
-        if (devConsoleLogs.children.length === 1 && devConsoleLogs.innerText.includes('就绪')) {
-            devConsoleLogs.innerHTML = ''; 
-        }
-
         const time = new Date().toLocaleTimeString('en-US', {hour12: false});
+        let color = type === 'error' ? '#ff5555' : type === 'warn' ? '#f1fa8c' : '#00ff00';
         
-        // 纯粹的终端配色
-        let color = type === 'error' ? '#ff5555' : type === 'warn' ? '#f1fa8c' : type === 'success' ? '#50fa7b' : '#00ff00';
-        let prefix = type === 'error' ? '[ERROR]' : type === 'warn' ? '[WARN]' : type === 'success' ? '[OK]' : '[INFO]';
-
-        let detailStr = detail;
-        if (typeof detail === 'object' && detail !== null) {
-            try { detailStr = JSON.stringify(detail, null, 2); } catch(e) { detailStr = String(detail); }
-        }
-
-        let diagnosis = '';
-        if (type === 'error' || type === 'warn') {
-            for (let key in errorDict) {
-                if (title.includes(key) || (detail && typeof detail === 'string' && detail.includes(key))) {
-                    diagnosis = `<div style="color: #ffb86c; margin-top: 4px;">> 诊断分析: ${errorDict[key]}</div>`;
-                    break;
-                }
-            }
-        }
-
         const logItem = document.createElement('div');
-        logItem.style.marginBottom = '8px';
-        logItem.style.paddingBottom = '8px';
-        logItem.style.borderBottom = '1px dashed #333';
-        logItem.style.fontFamily = "'Consolas', 'Courier New', monospace";
-        logItem.style.fontSize = "13px";
+        logItem.style.cssText = 'margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed #333; font-family: monospace; font-size: 13px;';
         
+        let detailStr = typeof detail === 'object' ? JSON.stringify(detail, null, 2) : String(detail);
+
         logItem.innerHTML = `
-            <span style="color: #6272a4;">[${time}]</span> 
-            <span style="font-weight: bold; color: ${color};">${prefix} ${title}</span>
-            ${diagnosis}
-            ${detailStr ? `<div style="margin-top: 4px; color: #cccccc; white-space: pre-wrap; word-break: break-all;">${detailStr}</div>` : ''}
+            <div style="color: #6272a4; font-size: 11px;">[${time}]</div>
+            <div style="color: ${color}; font-weight: bold;">> ${title}</div>
+            ${detailStr && detailStr !== 'undefined' ? `<pre style="color: #ccc; margin: 5px 0; white-space: pre-wrap; word-break: break-all;">${detailStr}</pre>` : ''}
         `;
-        
-        // 确保新日志插入到最上方
-        devConsoleLogs.prepend(logItem);
+        devConsoleLogs.prepend(logItem); // 最新日志在最上面
     }
 
-    // 1. Console 拦截 & 支持 print 功能
-    const originalConsoleLog = console.log;
-    console.log = function(...args) {
-        originalConsoleLog.apply(console, args);
-        addLogToConsole('info', '输出', args.length > 1 ? args : args[0]);
-    };
-    
-    // 【核心新增：让你能像电脑一样直接用 print 打印日志】
-    window.print = function(...args) {
-        console.log(...args);
-    };
-    
-    const originalConsoleWarn = console.warn;
-    console.warn = function(...args) {
-        originalConsoleWarn.apply(console, args);
-        addLogToConsole('warn', '警告', args.length > 1 ? args : args[0]);
-    };
-    const originalConsoleError = console.error;
-    console.error = function(...args) {
-        originalConsoleError.apply(console, args); 
-        addLogToConsole('error', '报错', args.length > 1 ? args : args[0]);
-    };
-
-    // 2. EventSource 拦截
-    if (window.EventSource) {
-        const originalEventSource = window.EventSource;
-        window.EventSource = function(...args) {
-            const url = args[0];
-            addLogToConsole('info', '发起流式网络连接 (SSE)', `地址: ${url}`);
-            const es = new originalEventSource(...args);
-            es.addEventListener('error', (e) => {
-                addLogToConsole('error', '流式连接异常中断', `地址: ${url}\n如果这是回复结束时中断，可能正常；如果立刻中断，则是节点挂了或跨域。`);
-            });
-            return es;
-        };
-    }
-
-    // 3. WebSocket 拦截
-    if (window.WebSocket) {
-        const originalWebSocket = window.WebSocket;
-        window.WebSocket = function(...args) {
-            const url = args[0];
-            addLogToConsole('info', '发起 WebSocket 连接', `地址: ${url}`);
-            const ws = new originalWebSocket(...args);
-            ws.addEventListener('error', (e) => {
-                addLogToConsole('error', 'WebSocket 报错中断', `地址: ${url}`);
-            });
-            return ws;
-        };
-    }
-
-    // 4. 网络请求拦截
-    const originalFetch = window.fetch;
-    window.fetch = async function(...args) {
-        const url = args[0] instanceof Request ? args[0].url : args[0];
-        if (!url.includes('http') || url.includes('.html') || url.includes('.js') || url.includes('.css')) {
-            return originalFetch(...args);
-        }
-        try {
-            const response = await originalFetch(...args);
-            const clone = response.clone();
-            clone.text().then(text => {
-                window.lastRawResponse = text;
-                if (response.status === 401) {
-                    addLogToConsole('error', 'API 密钥错误 (401)', `服务器返回:\n${text}`);
-                } 
-                else if (response.status >= 500) {
-                    addLogToConsole('error', `服务器故障 (${response.status})`, `服务器返回:\n${text}`);
-                }
-                else if (response.ok) {
-                    let isEmpty = false;
-                    let blockReason = '';
-                    if (text.includes('"finish_reason":"content_filter"') || text.includes('"finish_reason": "content_filter"')) {
-                        blockReason = "平台内容审查拦截。";
-                        isEmpty = true;
-                    } 
-                    else if (text.includes('"finish_reason":"safety"') || text.includes('"finish_reason": "safety"')) {
-                        blockReason = "平台安全审核拦截。";
-                        isEmpty = true;
-                    }
-                    else if (text.includes('data:')) {
-                        let fullContent = '';
-                        let hasValidDataLine = false;
-                        const lines = text.split('\n');
-                        for (const line of lines) {
-                            const trimmedLine = line.trim();
-                            if (trimmedLine.startsWith('data:') && !trimmedLine.includes('[DONE]')) {
-                                hasValidDataLine = true;
-                                try {
-                                    const jsonStr = trimmedLine.replace(/^data:\s*/, '');
-                                    const chunk = JSON.parse(jsonStr);
-                                    const deltaContent = chunk.choices?.[0]?.delta?.content || '';
-                                    fullContent += deltaContent;
-                                } catch (e) {} 
-                            }
-                        }
-                        if (hasValidDataLine && fullContent.trim() === '') {
-                            isEmpty = true;
-                            blockReason = "未能抓取到文字内容。";
-                        }
-                    }
-                    if (isEmpty) {
-                        addLogToConsole('error', '严重警告: AI 发生空回', `原因: ${blockReason}`);
-                    } else {
-                        addLogToConsole('success', `网络通信成功`, `API地址: ${url}`);
-                    }
-                } 
-                else {
-                    addLogToConsole('error', `网络请求失败: HTTP ${response.status}`, `服务器返回:\n${text}`);
-                }
-            }).catch((err) => {
-                addLogToConsole('warn', '请求体读取异常', err.toString());
-            });
-            return response;
-        } catch (error) {
-            addLogToConsole('error', '网络请求中断 (无网络或被拦截)', error.toString());
-            throw error;
-        }
-    };
-
-    // --- 命令行交互逻辑 (绝对定位到底部 + 回顶按钮) ---
+    // 指令输入注入
     function injectConsoleCmd() {
-        // 找到控制台的父级窗口
-        const consolePanel = document.getElementById('console-panel') || document.getElementById('dev-console') || (devConsoleLogs ? devConsoleLogs.parentElement : document.body);
-        if (!consolePanel || document.getElementById('console-cmd-area')) return;
-
-        // 强行赋予相对定位，让内部的输入框和按钮可以准确吸附
-        if (window.getComputedStyle(consolePanel).position === 'static') {
-            consolePanel.style.position = 'relative';
-        }
+        const parent = document.getElementById('sub-console');
+        if (!parent || document.getElementById('console-cmd-area')) return;
 
         const cmdArea = document.createElement('div');
         cmdArea.id = 'console-cmd-area';
-        // 使用 absolute 沉底，超高 z-index 保证强制可见
-        cmdArea.style.cssText = 'position: absolute; bottom: 0; left: 0; width: 100%; display: flex; align-items: center; padding: 10px; background-color: #1e1e1e; border-top: 1px solid #00ff00; box-sizing: border-box; z-index: 999999;';
-        
         cmdArea.innerHTML = `
-            <span style="color: #00ff00; font-family: monospace; font-size: 14px; margin-right: 8px; font-weight: bold;">></span>
-            <input type="text" id="console-cmd-input" placeholder="输入指令，例如：print('测试')" style="flex: 1; border: none; outline: none; background: transparent; font-family: 'Consolas', monospace; font-size: 14px; color: #00ff00; padding: 4px 0;">
-            <button id="console-cmd-btn" style="margin-left: 10px; background: #00ff00; color: #000; font-weight: bold; border: none; padding: 4px 12px; font-family: monospace; cursor: pointer; border-radius: 4px;">
-                运行(Enter)
-            </button>
+            <span style="color: #00ff00; margin-right: 8px; font-weight: bold;">$</span>
+            <input type="text" id="console-cmd-input" placeholder="输入指令 (如 print(window.lastRawResponse))">
+            <button id="console-cmd-btn" style="background:#00ff00; border:none; padding:5px 15px; margin-left:10px; cursor:pointer; font-weight:bold;">运行</button>
         `;
-        
-        consolePanel.appendChild(cmdArea);
+        parent.appendChild(cmdArea);
 
-        // 创建一键回顶按钮
-        const scrollTopBtn = document.createElement('button');
-        scrollTopBtn.id = 'console-scroll-top-btn';
-        scrollTopBtn.innerHTML = '▲';
-        scrollTopBtn.style.cssText = 'position: absolute; bottom: 65px; right: 15px; width: 36px; height: 36px; border-radius: 50%; background: #00ff00; color: #000; border: none; z-index: 999999; cursor: pointer; display: none; box-shadow: 0 0 10px rgba(0,255,0,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center;';
-        
-        // 初始隐藏
-        scrollTopBtn.style.display = 'none';
-        consolePanel.appendChild(scrollTopBtn);
-
-        // 绑定滚动事件，找到真正发生滚动的容器
-        const scrollContainer = (devConsoleLogs && window.getComputedStyle(devConsoleLogs).overflowY === 'auto') ? devConsoleLogs : consolePanel;
-        
-        scrollContainer.addEventListener('scroll', () => {
-            if (scrollContainer.scrollTop > 100) {
-                scrollTopBtn.style.display = 'flex';
-            } else {
-                scrollTopBtn.style.display = 'none';
-            }
-        });
-
-        scrollTopBtn.onclick = () => {
-            scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
-        };
-
-        const cmdInput = document.getElementById('console-cmd-input');
-        const cmdBtn = document.getElementById('console-cmd-btn');
-
-        function executeCommand() {
-            const cmd = cmdInput.value.trim();
+        const input = document.getElementById('console-cmd-input');
+        const run = () => {
+            const cmd = input.value.trim();
             if (!cmd) return;
-            
-            cmdInput.value = ''; 
-            addLogToConsole('info', `> 执行指令: ${cmd}`, '');
-            
+            input.value = '';
+            addLogToConsole('info', '执行: ' + cmd);
             try {
                 const result = eval(cmd);
-                if (result !== undefined) {
-                    const output = typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result);
-                    addLogToConsole('success', `< 返回结果`, output);
-                }
-            } catch (err) {
-                addLogToConsole('error', `x 执行报错`, err.toString());
+                addLogToConsole('success', '结果', result);
+            } catch (e) {
+                addLogToConsole('error', '失败', e.message);
             }
-        }
-
-        if(cmdInput && cmdBtn) {
-            cmdInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') executeCommand();
-            });
-            cmdBtn.addEventListener('click', executeCommand);
-        }
+        };
+        document.getElementById('console-cmd-btn').onclick = run;
+        input.onkeypress = (e) => { if (e.key === 'Enter') run(); };
     }
 
-    // 严密监听：如果控制台是后续动态加载的，保证输入框也能挂载上去
-    const observer = new MutationObserver((mutations) => {
-        if (document.getElementById('dev-console-logs') && !document.getElementById('console-cmd-area')) {
+    // 重新定义 print
+    window.print = (...args) => addLogToConsole('info', 'Print', args.length > 1 ? args : args[0]);
+
+    // 劫持 Console
+    console.log = (...args) => { if (!String(args[0]).includes('滴答')) addLogToConsole('info', 'Log', args); };
+    console.error = (...args) => addLogToConsole('error', 'Error', args);
+    console.warn = (...args) => addLogToConsole('warn', 'Warn', args);
+
+    // 自动初始化
+    const checkInit = setInterval(() => {
+        if (document.getElementById('sub-console')) {
             injectConsoleCmd();
+            clearInterval(checkInit);
         }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    }, 500);
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', injectConsoleCmd);
-    } else {
-        setTimeout(injectConsoleCmd, 300);
-    }
-
-    // 5. 全局代码崩溃拦截
-    window.addEventListener('unhandledrejection', function(event) {
-        const errorStr = event.reason ? (event.reason.stack || event.reason.toString()) : '未知异常';
-        addLogToConsole('error', '代码运行崩溃', errorStr);
-    });
-    window.addEventListener('error', function(event) {
-        addLogToConsole('error', '代码执行错误', event.message + '\\n位置: ' + event.filename);
-    });
+    // 异常拦截
+    window.onerror = (msg, url, line) => addLogToConsole('error', '运行时错误', `${msg} (${line}行)`);
 </script>
     
 </body>
