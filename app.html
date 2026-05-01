@@ -15804,124 +15804,198 @@ ${chatContent}
         };
     }
 
-    // 4. Fetch 请求拦截
-    clone.text().then(text => {
-                // 【错误拦截区】
-                if (response.status === 401) {
-                    addLogToConsole('error', '<i class="fa-solid fa-circle-xmark"></i> API 密钥错误或已失效 (401)', `API地址: ${url}\n\n原因: 你在设置中填写的 API Key 不对，或者该 Key 的额度已经用尽。\n\n服务器返回:\n${text}`);
-                } 
-                else if (response.status === 404) {
-                     addLogToConsole('error', '<i class="fa-solid fa-circle-xmark"></i> API 地址无效或模型不存在 (404)', `API地址: ${url}\n\n原因: API 链接填写错误（比如少写了 /v1），或者该服务商不支持当前选中的模型。\n\n服务器返回:\n${text}`);
-                }
-                else if (response.status === 429) {
-                     addLogToConsole('error', '<i class="fa-solid fa-circle-xmark"></i> 请求过于频繁或额度用尽 (429)', `API地址: ${url}\n\n原因: 并发数太高，或者该账号的钱扣光了。\n\n服务器返回:\n${text}`);
-                }
-                else if (response.status >= 500) {
-                    addLogToConsole('error', `<i class="fa-solid fa-circle-xmark"></i> 服务器内部错误 (${response.status})`, `API地址: ${url}\n\n原因: API 供应商的服务器崩了。\n\n服务器返回:\n${text}`);
-                }
-                else if (text && (text.trim().startsWith('<!DOCTYPE') || text.includes('<html'))) {
-                    addLogToConsole('error', `<i class="fa-solid fa-circle-xmark"></i> API 强行返回了 HTML 网页`, `API地址: ${url}\n\n服务器虽然没有报网络错误，但返回的是一个网页！你的代码无法解析它。\n\n网页源代码:\n${text}`);
-                } 
-                // 修复原代码一个小Bug：AI回答的文字里可能也会包含"error"单词，这里改为匹配 JSON 的 "error": 字段更精准
-                else if (text && text.includes('"error":')) {
-                    addLogToConsole('error', `<i class="fa-solid fa-circle-xmark"></i> API 返回包内含错误信息`, `API地址: ${url}\n\n服务器返回了 error 字段，可能额度不足或模型错误:\n${text}`);
-                } 
-                // 【核心：请求成功 200 OK 区，深度检测空回】
-                else if (response.ok) {
-                    checkAndLogSuccess(text, url);
-                } 
-                else {
-                    addLogToConsole('error', `<i class="fa-solid fa-circle-xmark"></i> 网络请求失败: HTTP ${response.status}`, `地址: ${url}\n\n服务器返回:\n${text || '无数据'}`);
-                }
-            }).catch((err) => {
-                addLogToConsole('warn', '<i class="fa-solid fa-triangle-exclamation"></i> 请求体读取被挂起', `地址: ${url}\n网络流仍在传输中或解析被阻断。`);
-            });
+    // 4. 网络请求拦截 (Fetch 拦截)
+    const originalFetch = window.fetch;
+    window.fetch = async function(...args) {
+        const url = args[0] instanceof Request ? args[0].url : args[0];
+        
+        // 忽略非 API 请求
+        if (!url.includes('http') || url.includes('.html') || url.includes('.js') || url.includes('.css')) {
+            return originalFetch(...args);
+        }
+
+        try {
+            const response = await originalFetch(...args);
+            const clone = response.clone();
             
-            // --- 新增的内容透视与空回检测函数 ---
-            function checkAndLogSuccess(text, url) {
-                try {
+            clone.text().then(text => {
+                // 【关键】：将最后一次请求的原始数据暴露到全局，方便下方命令行提取！
+                window.lastRawResponse = text;
+                
+                if (response.status === 401) {
+                    addLogToConsole('error', '<i class="fa-solid fa-key"></i> API 密钥错误 (401)', `服务器返回:\n${text}`);
+                } 
+                else if (response.status >= 500) {
+                    addLogToConsole('error', `<i class="fa-solid fa-server"></i> 服务器故障 (${response.status})`, `服务器返回:\n${text}`);
+                }
+                else if (response.ok) {
+                    // 【内置深度检测】：在这里直接排查手机端流式被截断的空回问题
                     let isEmpty = false;
                     let blockReason = '';
 
-                    // 1. 尝试检测常见的内容审查拦截 (许多国产大模型触发敏感词会返回 content_filter 且掐断对话)
                     if (text.includes('"finish_reason":"content_filter"') || text.includes('"finish_reason": "content_filter"')) {
-                        blockReason = "检测到平台内容审查拦截 (finish_reason: content_filter)。";
+                        blockReason = "平台内容审查拦截 (finish_reason: content_filter)。";
                         isEmpty = true;
                     } 
                     else if (text.includes('"finish_reason":"safety"') || text.includes('"finish_reason": "safety"')) {
-                        blockReason = "检测到平台安全审核拦截 (finish_reason: safety)。";
+                        blockReason = "平台安全审核拦截 (finish_reason: safety)。";
                         isEmpty = true;
                     }
-                    
-                    if (!isEmpty) {
-                        // 2. 尝试解析非流式 JSON 数据
-                        if (text.trim().startsWith('{')) {
-                            const parsedData = JSON.parse(text);
-                            // 针对 OpenAI 兼容格式
-                            if (parsedData.choices && Array.isArray(parsedData.choices)) {
-                                if (parsedData.choices.length === 0) {
-                                    isEmpty = true;
-                                    blockReason = "API返回了成功的状态，但 choices 数组为空。";
-                                } else {
-                                    const content = parsedData.choices[0]?.message?.content;
-                                    // 检查 content 是否完全为空、null 或是纯空格
-                                    if (content === undefined || content === null || content.trim() === '') {
-                                        isEmpty = true;
-                                        blockReason = "API返回包中的 content 字段没有任何有效文字。";
-                                    }
-                                }
+                    else if (text.includes('data:')) {
+                        let fullContent = '';
+                        let hasValidDataLine = false;
+                        const lines = text.split('\n');
+                        for (const line of lines) {
+                            const trimmedLine = line.trim();
+                            if (trimmedLine.startsWith('data:') && !trimmedLine.includes('[DONE]')) {
+                                hasValidDataLine = true;
+                                try {
+                                    const jsonStr = trimmedLine.replace(/^data:\s*/, '');
+                                    const chunk = JSON.parse(jsonStr);
+                                    const deltaContent = chunk.choices?.[0]?.delta?.content || '';
+                                    fullContent += deltaContent;
+                                } catch (e) {} // 忽略碎块
                             }
-                        } 
-                        // 3. 尝试解析流式 (SSE) 格式数据 (最容易发生幽灵空回的地方)
-                        else if (text.includes('data:')) {
-                            let fullContent = '';
-                            let hasValidDataLine = false;
-                            
-                            const lines = text.split('\n');
-                            for (const line of lines) {
-                                const trimmedLine = line.trim();
-                                if (trimmedLine.startsWith('data:') && !trimmedLine.includes('[DONE]')) {
-                                    hasValidDataLine = true;
-                                    try {
-                                        const jsonStr = trimmedLine.replace(/^data:\s*/, '');
-                                        const chunk = JSON.parse(jsonStr);
-                                        const deltaContent = chunk.choices?.[0]?.delta?.content || '';
-                                        fullContent += deltaContent;
-                                    } catch (e) { /* 忽略无法解析的碎块 */ }
-                                }
-                            }
-                            // 如果成功解开了流，但是从头到尾拼不出一句话
-                            if (hasValidDataLine && fullContent.trim() === '') {
-                                isEmpty = true;
-                                blockReason = "流式传输结束，但未能在流中抓取到任何文字内容。";
-                            }
+                        }
+                        if (hasValidDataLine && fullContent.trim() === '') {
+                            isEmpty = true;
+                            blockReason = "流式传输结束，但未能在流中抓取到任何文字内容 (跨端流可能被悄悄掐断)。";
                         }
                     }
 
-                    // 4. 判断并输出最终的控制台日志
                     if (isEmpty) {
-                        // 这里就是你想抓获的“空回”报错！！！
-                        addLogToConsole('error', '<i class="fa-solid fa-triangle-exclamation"></i> 严重警告: AI 发生空回 (HTTP 200)', 
-`虽然网络通信成功，但 AI 返回的内容被掏空了！
-
-<i class="fa-solid fa-thumbtack"></i> 诊断原因:
-- ${blockReason || '未知类型的空回 (可能模型拒绝回答)。'}
-- 你的提示词 (Prompt) 可能让模型不知道如何作答或碰到了平台隐藏违禁词。
-- API 供应商那边的服务遇到了 Bug，光回了个 200 状态码就跑路了。
-
-<i class="fa-solid fa-gear"></i> 请查看下方完整原始返回包，协助排查:
-${text.substring(0, 800)}${text.length > 800 ? '\n...[内容已截断]' : ''}
-`);
+                        addLogToConsole('error', '<i class="fa-solid fa-triangle-exclamation"></i> 严重警告: AI 发生空回', `原因: ${blockReason}\n\n已保存原始数据，可在下方输入框执行 window.lastRawResponse 查看。`);
                     } else {
-                        // 内容正常，打印成功日志
-                        addLogToConsole('success', `<i class="fa-solid fa-circle-check"></i> 网络通信成功: 收到正常数据`, `地址: ${url}\n\n数据预览:\n${text.substring(0, 300)}...`);
+                        addLogToConsole('success', `<i class="fa-solid fa-circle-check"></i> 网络通信成功`, `API地址: ${url}\n\n已将原始数据存入全局变量，如需排查，请在下方输入框执行:\nwindow.lastRawResponse`);
                     }
-                } catch(e) {
-                    // 如果它返回了完全不认识的格式但没报错，依然算它成功
-                    addLogToConsole('success', `<i class="fa-solid fa-circle-check"></i> 网络通信成功 (非标准格式数据)`, `地址: ${url}\n\n数据预览:\n${text.substring(0, 300)}...`);
+                } 
+                else {
+                    addLogToConsole('error', `<i class="fa-solid fa-circle-exclamation"></i> 网络请求失败: HTTP ${response.status}`, `服务器返回:\n${text}`);
+                }
+            }).catch((err) => {
+                addLogToConsole('warn', '<i class="fa-solid fa-spinner fa-spin"></i> 请求体读取中或被中断', err.toString());
+            });
+            
+            return response;
+        } catch (error) {
+            addLogToConsole('error', '网络请求中断 (无网络或被拦截)', error.toString());
+            throw error;
+        }
+    };
+
+    // --- 命令行交互逻辑 (内嵌控制台美化版) ---
+    function injectConsoleCmd() {
+        const consolePanel = document.getElementById('console-panel');
+        // 如果找不到控制台，或者已经注入过了，就不再执行
+        if (!consolePanel || document.getElementById('console-cmd-area')) return;
+
+        const cmdArea = document.createElement('div');
+        cmdArea.id = 'console-cmd-area';
+        // 使用 sticky 定位，完美吸附在控制台内部的最底端，且只有控制台打开时才会显示
+        cmdArea.style.cssText = 'position: sticky; bottom: 0; left: 0; width: 100%; display: flex; align-items: center; padding: 12px 15px; background-color: var(--bg-color, #f2f2f7); border-top: 1px solid rgba(0,0,0,0.1); box-sizing: border-box; z-index: 10;';
+        
+        // 适配主题的高颜值输入框和按钮设计
+        cmdArea.innerHTML = `
+            <div style="flex: 1; display: flex; align-items: center; background: var(--card-bg, #ffffff); border-radius: 20px; padding: 6px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05);">
+                <i class="fa-solid fa-terminal" style="color: var(--text-sub, #8e8e8e); font-size: 13px; margin-right: 8px;"></i>
+                <input type="text" id="console-cmd-input" placeholder="输入 window.lastRawResponse" style="flex: 1; border: none; outline: none; background: transparent; font-family: monospace; font-size: 13px; color: var(--text-main, #000); padding: 4px 0; -webkit-appearance: none;">
+            </div>
+            <button id="console-cmd-btn" style="margin-left: 12px; background: #007aff; color: white; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,122,255,0.3);">
+                <i class="fa-solid fa-arrow-up" style="font-size: 14px;"></i>
+            </button>
+        `;
+        
+        // 【关键改变】直接将输入框追加到控制台 div 的内部！
+        consolePanel.appendChild(cmdArea);
+
+        const cmdInput = document.getElementById('console-cmd-input');
+        const cmdBtn = document.getElementById('console-cmd-btn');
+
+        function executeCommand() {
+            const cmd = cmdInput.value.trim();
+            if (!cmd) return;
+            
+            cmdInput.value = ''; 
+            if(typeof addLogToConsole === 'function') {
+                addLogToConsole('info', `<i class="fa-solid fa-chevron-right"></i> 执行: ${cmd}`, '');
+            }
+            
+            try {
+                const result = eval(cmd);
+                const output = typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result);
+                if(typeof addLogToConsole === 'function') {
+                    addLogToConsole('success', `<i class="fa-solid fa-check"></i> 返回结果`, output || 'undefined');
+                } else {
+                    alert(`返回结果:\n${output}`); 
+                }
+            } catch (err) {
+                if(typeof addLogToConsole === 'function') {
+                    addLogToConsole('error', `<i class="fa-solid fa-xmark"></i> 执行报错`, err.toString());
+                } else {
+                    alert(`执行报错:\n${err.toString()}`);
                 }
             }
+            
+            // 执行完毕后自动让控制台滚到底部
+            setTimeout(() => {
+                consolePanel.scrollTop = consolePanel.scrollHeight;
+            }, 50);
+        }
 
+        if(cmdInput && cmdBtn) {
+            cmdInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') executeCommand();
+            });
+            cmdBtn.addEventListener('click', executeCommand);
+        }
+    }
+
+    // 确保网页结构加载完后立刻注入这根底部的条
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', injectConsoleCmd);
+    } else {
+        injectConsoleCmd();
+    }
+
+    // --- 新增代码开始：把打印和报错重定向到你的UI控制台 ---
+    (function() {
+        var oldLog = console.log;
+        var oldError = console.error;
+
+        // 1. 拦截并接管 console.log
+        console.log = function(...args) {
+            oldLog.apply(console, args); // 保持浏览器原本的底层打印
+            var msg = args.map(arg => {
+                try { return typeof arg === 'object' ? JSON.stringify(arg) : String(arg); } 
+                catch(e) { return String(arg); }
+            }).join(' ');
+            
+            if(typeof addLogToConsole === 'function') {
+                addLogToConsole('info', '<i class="fa-solid fa-terminal"></i> 运行输出', msg);
+            }
+        };
+
+        // 2. 拦截并接管 console.error
+        console.error = function(...args) {
+            oldError.apply(console, args);
+            var msg = args.map(arg => {
+                try { return typeof arg === 'object' ? JSON.stringify(arg) : String(arg); } 
+                catch(e) { return String(arg); }
+            }).join(' ');
+            
+            if(typeof addLogToConsole === 'function') {
+                addLogToConsole('error', '<i class="fa-solid fa-xmark"></i> 报错日志', msg);
+            }
+        };
+
+        // 3. 方便小白：拦截 print() 指令，让它直接在控制台输出，而不是弹出网页打印机窗口
+        window.print = function(...args) {
+            if (args.length > 0) {
+                console.log(...args);
+            }
+        };
+    })();
+    // --- 新增代码结束 ---
     // 5. 全局代码崩溃拦截
     window.addEventListener('unhandledrejection', function(event) {
         const errorStr = event.reason ? (event.reason.stack || event.reason.toString()) : '未知异常';
