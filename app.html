@@ -15,6 +15,18 @@
     <style>
         /* --- 全局重置 --- */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        /* === 新增：冻结整个页面背景，防止键盘弹出时乱跑 === */
+        html, body {
+            margin: 0; 
+            padding: 0;
+            width: 100%; 
+            height: 100%;
+            overflow: hidden; /* 核心：禁止页面默认上下滑动 */
+            position: fixed;  /* 核心：把页面死死钉在屏幕上 */
+            top: 0; 
+            left: 0;
+        }
 
         :root {
             --bg-color: #f2f2f7;
@@ -15816,6 +15828,20 @@ ${chatContent}
             }
         };
     }, 500);
+
+    // === 新增：监听键盘弹出，动态缩小页面高度，从而只把输入框顶起 ===
+    if (window.visualViewport) {
+        const resizeHandler = () => {
+            // 将 body 的高度精确设置为当前可视区域的高度（扣除键盘后的高度）
+            document.body.style.height = window.visualViewport.height + 'px';
+            // 强行锁死在顶部，防止 Header 被浏览器默认行为推走
+            window.scrollTo(0, 0); 
+        };
+        // 监听视口大小变化和滚动
+        window.visualViewport.addEventListener('resize', resizeHandler);
+        window.visualViewport.addEventListener('scroll', resizeHandler);
+        resizeHandler(); // 立即执行一次进行初始化
+    }
 
     window.print = (...args) => addLogToConsole('success', 'PRINT', args.length > 1 ? args : args[0]);
     console.log = (...args) => { 
