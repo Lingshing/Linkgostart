@@ -2691,7 +2691,7 @@
     
    <!-- ================= 独立控制台子页面 UI ================= -->
     <!-- 外壳：禁止原生越界滚动与缩放 -->
-    <div id="sub-console" class="sub-page-scene" style="touch-action: none; overscroll-behavior: none;">
+    <div id="sub-console" class="sub-page-scene">
         
         <!-- 1. 固定的顶部导航 (加了 flex-shrink: 0 绝对禁止压扁) -->
         <div class="nav-header clean-nav" style="flex-shrink: 0; z-index: 10;">
@@ -2710,7 +2710,7 @@
 
         <!-- 3. 真正可滚动的日志区域 (！！！高度锁死魔法！！！) -->
         <!-- 注意看这里的 style：height: 0; flex: 1 1 auto; 让它变成了一根真正的“弹簧”，强制收缩，死也不会把外层撑爆 -->
-        <div id="console-scroll-area" style="flex: 1 1 auto; height: 0; overflow-y: auto; padding: 16px; background-color: var(--bg-color); -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: none; position: relative;">
+        <div id="console-scroll-area" style="flex: 1; overflow-y: auto; padding: 16px; background-color: var(--bg-color); -webkit-overflow-scrolling: touch; position: relative;">
             <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; min-height: 100%;">
                 <div id="dev-console-logs" style="font-family: 'SF Mono', monospace; font-size: 13px; color: var(--text-main); word-wrap: break-word; line-height: 1.5;">
                     <div id="console-ready-msg" style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">拦截器已就绪</div>
