@@ -2692,41 +2692,44 @@
    <!-- ================= 独立控制台子页面 UI ================= -->
     <div id="sub-console" class="sub-page-scene">
         
-        <!-- 🌟 1. 顶部栏 (完全照搬 Chat 界面的 .chat-nav-header 逻辑) -->
-        <div style="position: sticky; top: 0; z-index: 9999; background: var(--bg-color); display: flex; flex-direction: column;">
-            <div class="nav-header clean-nav" style="border-bottom: none; height: calc(44px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 16px 0 16px; position: static;">
+        <!-- 🌟 1. 顶部 Header (借用完美 Chat 的 sticky 类名) -->
+        <!-- 直接复用 .chat-nav-header，重写一点内联样式适配双层结构 -->
+        <div class="chat-nav-header" style="flex-direction: column; align-items: stretch; height: auto; padding: 0;">
+            <!-- 标题栏 -->
+            <div style="display: flex; align-items: center; justify-content: space-between; height: calc(44px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 16px 0 16px;">
                 <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('sub-console')"></i>
                 <span class="nav-title">控制台</span>
                 <div style="width:20px;"></div>
             </div>
-            
-            <div style="padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid var(--border);">
+            <!-- 工具栏 -->
+            <div style="padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid var(--border);">
                 <span style="color: var(--text-sub); font-size: 13px; font-weight: 500;">系统运行日志与网络诊断</span>
-                <button onclick="clearDevConsole()" style="background: var(--card-bg); border: 0.5px solid var(--border); color: var(--danger); font-size: 14px; cursor: pointer; padding: 6px 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <button onclick="clearDevConsole()" style="background: var(--card-bg); border: 0.5px solid var(--border); color: var(--danger); font-size: 14px; cursor: pointer; padding: 6px 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </div>
         </div>
 
-        <!-- 🌟 2. 滚动区域 (完全照搬 #chat-messages-container 逻辑) -->
-        <!-- 注意：将两侧 padding 加宽到了 24px，避免毛玻璃贴边 -->
-        <div id="console-scroll-area" style="flex: 1; overflow-y: auto; background: var(--bg-color); padding: 16px 24px;">
-            <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; min-height: 100%; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+        <!-- 🌟 2. 滚动区域 (破案核心区域！) -->
+        <!-- 必须加 min-height: 0; 这是打破 Safari 弹性盒坍缩 Bug 的神级开关 -->
+        <div id="console-scroll-area" style="flex: 1; overflow-y: auto; background: var(--bg-color); padding: 16px 24px; min-height: 0; -webkit-overflow-scrolling: touch;">
+            <!-- ⚠️ 彻底删除了害死人的 min-height: 100%; -->
+            <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
                 <div id="dev-console-logs" style="font-family: 'SF Mono', monospace; font-size: 13px; color: var(--text-main); word-wrap: break-word; line-height: 1.5;">
                     <div id="console-ready-msg" style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">拦截器已就绪</div>
                 </div>
             </div>
         </div>
 
-        <!-- 🌟 3. 底部输入栏 (完全照搬 #chat-input-bar 逻辑) -->
-        <div id="console-input-bar" style="background: var(--card-bg); border-top: 0.5px solid var(--border); display: flex; flex-direction: column; padding-bottom: var(--safe-bottom);">
-            <div id="console-main-bar" style="display: flex; align-items: flex-start; padding: 8px 16px; gap: 10px; min-height: 56px;">
+        <!-- 🌟 3. 底部输入栏 (1:1 像素级复刻 Chat 的 DOM 树) -->
+        <div id="console-input-bar" style="background: var(--card-bg); border-top: 0.5px solid var(--border); display: flex; flex-direction: column; padding-bottom: var(--safe-bottom); flex-shrink: 0;">
+            <div style="display: flex; align-items: flex-start; padding: 8px 16px; gap: 10px; min-height: 56px;">
                 
-                <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 6px;">
-                    <i class="fa-solid fa-chevron-right" style="color: #34C759; font-size: 14px;"></i>
+                <div class="chat-plus-btn" style="pointer-events: none; opacity: 0.7;">
+                    <i class="fa-solid fa-chevron-right" style="color: #34C759; font-size: 16px;"></i>
                 </div>
                 
-                <!-- 直接套用 .chat-input-field 类 -->
+                <!-- 彻底复用你完美无瑕的 .chat-input-field -->
                 <textarea 
                     id="console-cmd-input" 
                     class="chat-input-field" 
@@ -2737,12 +2740,12 @@
                     autocapitalize="off" 
                     spellcheck="false" 
                     inputmode="text"
-                    style="font-family: 'SF Mono', monospace; color: #34C759;"
+                    style="font-family: 'SF Mono', monospace; color: #34C759; padding-left: 8px;"
                 ></textarea>
 
-                <button id="console-cmd-btn" style="background: rgba(52, 199, 89, 0.15); color: #34C759; border: none; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; flex-shrink: 0; margin-top: 2px;">
-                    <i class="fa-solid fa-arrow-turn-down fa-rotate-90"></i>
-                </button>
+                <div class="chat-plus-btn" id="console-cmd-btn" style="background: rgba(52, 199, 89, 0.15); border-radius: 8px; width: 32px; height: 32px; opacity: 1; pointer-events: auto; display: flex; align-items: center; justify-content: center; margin-top: 4px;">
+                    <i class="fa-solid fa-arrow-turn-down fa-rotate-90" style="color: #34C759; font-size: 14px;"></i>
+                </div>
                 
             </div>
         </div>
