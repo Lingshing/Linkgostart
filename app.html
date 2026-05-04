@@ -2690,32 +2690,37 @@
     </div>
     
    <!-- ================= 独立控制台子页面 UI ================= -->
-    <!-- 外壳：禁止原生越界滚动与缩放 -->
-    <div id="sub-console" class="sub-page-scene">
+    <style>
+        /* 🌟 核心魔法：彻底打破 Safari 的 transform 牢笼 */
+        /* 当页面完全展开时，卸载 transform 和 will-change，让 fixed 真正吸附到系统视口 */
+        #sub-console.show:not(.swiping) {
+            transform: none !important;
+            will-change: auto !important;
+        }
+    </style>
+    
+    <!-- 外壳：强制改为块级布局，脱离 Flex 的束缚 -->
+    <div id="sub-console" class="sub-page-scene" style="display: block;">
         
-        <!-- 🌟 修复键盘顶起 Bug：将 1和2 整体包裹在最高层级的 sticky 容器中，完美模拟 Chat 界面的行为 -->
-        <div style="position: sticky; top: 0; z-index: 9999; background: var(--bg-color); flex-shrink: 0; display: flex; flex-direction: column;">
-            
-            <!-- 1. 固定的顶部导航 (清除原有的 z-index 避免层级混乱) -->
-            <div class="nav-header clean-nav" style="flex-shrink: 0;">
+        <!-- 🌟 1. 绝对固定的顶部 Header (完全钉死在视口顶部) -->
+        <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: var(--bg-color); display: flex; flex-direction: column;">
+            <div class="nav-header clean-nav" style="position: relative; border-bottom: none;">
                 <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('sub-console')"></i>
                 <span class="nav-title">控制台</span>
                 <div style="width:20px;"></div>
             </div>
             
-            <!-- 2. 固定的操作栏 (移除原有的 z-index 和多余的 background) -->
-            <div style="padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 0.5px solid var(--border);">
+            <div style="padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid var(--border);">
                 <span style="color: var(--text-sub); font-size: 13px; font-weight: 500;">系统运行日志与网络诊断</span>
                 <button onclick="clearDevConsole()" style="background: var(--card-bg); border: 0.5px solid var(--border); color: var(--danger); font-size: 14px; cursor: pointer; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </div>
-            
         </div>
 
-        <!-- 3. 真正可滚动的日志区域 (！！！高度锁死魔法！！！) -->
-        <!-- 注意看这里的 style：height: 0; flex: 1 1 auto; 让它变成了一根真正的“弹簧”，强制收缩，死也不会把外层撑爆 -->
-        <div id="console-scroll-area" style="flex: 1; overflow-y: auto; padding: 16px; background-color: var(--bg-color); -webkit-overflow-scrolling: touch; position: relative;">
+        <!-- 🌟 2. 绝对固定的滚动区域 (永远钉死，只会被键盘遮挡下半部分，不会被顶飞) -->
+        <!-- 利用 padding 把内容挤到 Header 和 Input 中间的安全地带 -->
+        <div id="console-scroll-area" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; padding: calc(100px + env(safe-area-inset-top)) 16px calc(65px + env(safe-area-inset-bottom)) 16px; background-color: var(--bg-color); -webkit-overflow-scrolling: touch; box-sizing: border-box; z-index: 1;">
             <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; min-height: 100%;">
                 <div id="dev-console-logs" style="font-family: 'SF Mono', monospace; font-size: 13px; color: var(--text-main); word-wrap: break-word; line-height: 1.5;">
                     <div id="console-ready-msg" style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">拦截器已就绪</div>
@@ -2723,14 +2728,12 @@
             </div>
         </div>
 
-        <!-- 4. 底部输入栏：彻底剥离 calc() 的性能毒瘤，完美复刻 Chat 结构 -->
-        <div id="console-input-bar" style="background: var(--card-bg); border-top: 0.5px solid var(--border); display: flex; flex-direction: column; padding-bottom: var(--safe-bottom, 0px); flex-shrink: 0; position: relative; z-index: 10;">
+        <!-- 🌟 3. 底部输入栏：用 fixed 吸附在视口底部，键盘弹起时会自动骑在键盘上 -->
+        <div id="console-input-bar" style="position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 0.5px solid var(--border); display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); z-index: 9999;">
             
-            <!-- 内层专管间距，外层专管安全区，各司其职 -->
             <div id="console-cmd-area" style="display: flex; align-items: center; gap: 12px; padding: 10px 20px;">
                 <i class="fa-solid fa-chevron-right" style="color: #34C759; font-size: 14px;"></i>
                 
-                <!-- 这里的 textarea 原封不动，保留原有的 overflow: hidden 避开 iOS 滚动 Bug -->
                 <textarea 
                     id="console-cmd-input" 
                     placeholder="输入代码指令..." 
