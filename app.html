@@ -2690,45 +2690,46 @@
     </div>
     
    <!-- ================= 独立控制台子页面 UI ================= -->
-    <div id="sub-console" class="sub-page-scene" style="display: block; background: transparent;">
+    <div id="sub-console" class="sub-page-scene">
         
-        <!-- 🌟 核心分层 1：底层全屏固定区 (Header + 日志列表) -->
-        <!-- 强行脱离 Webview 缩水的影响，定死为 100vh 物理高度，绝不被压缩，绝不上移 -->
-        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100vh; display: flex; flex-direction: column; background: var(--bg-color); z-index: 1;">
-            
-            <div class="nav-header clean-nav" style="flex-shrink: 0; border-bottom: none;">
+        <!-- 🌟 1. 顶部栏 (100% 抄袭 Chat 界面的 position: sticky 架构) -->
+        <div style="position: sticky; top: 0; z-index: 9999; background: var(--bg-color); display: flex; flex-direction: column; flex-shrink: 0;">
+            <div class="nav-header clean-nav" style="position: relative; border-bottom: none; z-index: 10;">
                 <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('sub-console')"></i>
                 <span class="nav-title">控制台</span>
                 <div style="width:20px;"></div>
             </div>
             
-            <div style="padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 0.5px solid var(--border);">
+            <div style="padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid var(--border); position: relative; z-index: 10;">
                 <span style="color: var(--text-sub); font-size: 13px; font-weight: 500;">系统运行日志与网络诊断</span>
                 <button onclick="clearDevConsole()" style="background: var(--card-bg); border: 0.5px solid var(--border); color: var(--danger); font-size: 14px; cursor: pointer; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </div>
+        </div>
 
-            <!-- ✨ 修复 1：滚动区域加大两侧 padding (由 16px 改为 24px)，让毛玻璃离屏幕边框更远，同时底部留出键盘余量 -->
-            <div id="console-scroll-area" style="flex: 1; overflow-y: auto; padding: 20px 24px 120px 24px; -webkit-overflow-scrolling: touch;">
-                <!-- 内部卡片增加圆角和一点点高级的呼吸阴影 -->
-                <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 16px; padding: 20px; min-height: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
-                    <div id="dev-console-logs" style="font-family: 'SF Mono', monospace; font-size: 13px; color: var(--text-main); word-wrap: break-word; line-height: 1.5;">
-                        <div id="console-ready-msg" style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">拦截器已就绪</div>
-                    </div>
+        <!-- 🌟 2. 滚动区域 (100% 抄袭 chat-messages-container 的 flex: 1 架构) -->
+        <!-- 已解决：将两侧 padding 加宽到了 24px，避免毛玻璃贴边 -->
+        <div id="console-scroll-area" style="flex: 1; overflow-y: auto; background: var(--bg-color); padding: 16px 24px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; flex: 1; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+                <div id="dev-console-logs" style="font-family: 'SF Mono', monospace; font-size: 13px; color: var(--text-main); word-wrap: break-word; line-height: 1.5;">
+                    <div id="console-ready-msg" style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">拦截器已就绪</div>
                 </div>
             </div>
         </div>
 
-        <!-- 🌟 核心分层 2：顶层悬浮输入框 -->
-        <!-- 绑定在外层容器底部。当 Webview 被键盘缩小，它会自动上浮，完美悬浮在键盘上 -->
-        <div id="console-input-bar" style="position: absolute; bottom: 0; left: 0; width: 100%; background: var(--card-bg); border-top: 0.5px solid var(--border); padding-bottom: env(safe-area-inset-bottom); z-index: 9999;">
-            <div id="console-cmd-area" style="display: flex; align-items: center; gap: 12px; padding: 10px 20px;">
-                <i class="fa-solid fa-chevron-right" style="color: #34C759; font-size: 14px;"></i>
+        <!-- 🌟 3. 底部输入栏 (100% 抄袭 chat-input-bar 体系) -->
+        <div id="console-input-bar" style="background: var(--card-bg); border-top: 0.5px solid var(--border); display: flex; flex-direction: column; padding-bottom: var(--safe-bottom); flex-shrink: 0;">
+            <div id="console-main-bar" style="display: flex; align-items: flex-start; padding: 8px 16px; gap: 10px; min-height: 56px;">
                 
-                <!-- ✨ 修复 2：加入 onfocus 强行阻断 iOS 恶心的系统级滚动补偿 -->
+                <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 6px;">
+                    <i class="fa-solid fa-chevron-right" style="color: #34C759; font-size: 14px;"></i>
+                </div>
+                
+                <!-- 🎯 关键：废弃乱七八糟的内联样式，直接套用你原本无懈可击的 .chat-input-field 类 -->
                 <textarea 
                     id="console-cmd-input" 
+                    class="chat-input-field" 
                     placeholder="输入代码指令..." 
                     rows="1"
                     autocomplete="off" 
@@ -2736,15 +2737,16 @@
                     autocapitalize="off" 
                     spellcheck="false" 
                     inputmode="text"
-                    style="flex: 1; border: none; outline: none; background: transparent; font-size: 16px; color: var(--text-main); font-family: 'SF Mono', monospace; -webkit-tap-highlight-color: transparent; resize: none; overflow: hidden; padding: 0; line-height: normal; margin-top: -3px;"
-                    onfocus="setTimeout(() => window.scrollTo(0,0), 50)"
+                    style="font-family: 'SF Mono', monospace; color: #34C759;"
                 ></textarea>
 
-                <button id="console-cmd-btn" style="background: rgba(52, 199, 89, 0.15); color: #34C759; border: none; width: 44px; height: 32px; border-radius: 100px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; transition: transform 0.2s, background 0.2s, color 0.2s;">
+                <button id="console-cmd-btn" style="background: rgba(52, 199, 89, 0.15); color: #34C759; border: none; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; flex-shrink: 0; margin-top: 0;">
                     <i class="fa-solid fa-arrow-turn-down fa-rotate-90"></i>
                 </button>
+                
             </div>
         </div>
+        
     </div>
     <!-- ======================================================== -->
 
