@@ -2693,19 +2693,24 @@
     <!-- 外壳：禁止原生越界滚动与缩放 -->
     <div id="sub-console" class="sub-page-scene">
         
-        <!-- 1. 固定的顶部导航 (加了 flex-shrink: 0 绝对禁止压扁) -->
-        <div class="nav-header clean-nav" style="flex-shrink: 0; z-index: 10;">
-            <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('sub-console')"></i>
-            <span class="nav-title">控制台</span>
-            <div style="width:20px;"></div>
-        </div>
-        
-        <!-- 2. 固定的操作栏 (加了 flex-shrink: 0 绝对禁止压扁) -->
-        <div style="padding: 10px 20px; background-color: var(--bg-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 0.5px solid var(--border); z-index: 10;">
-            <span style="color: var(--text-sub); font-size: 13px; font-weight: 500;">系统运行日志与网络诊断</span>
-            <button onclick="clearDevConsole()" style="background: var(--card-bg); border: 0.5px solid var(--border); color: var(--danger); font-size: 14px; cursor: pointer; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                <i class="fa-solid fa-trash-can"></i>
-            </button>
+        <!-- 🌟 修复键盘顶起 Bug：将 1和2 整体包裹在最高层级的 sticky 容器中，完美模拟 Chat 界面的行为 -->
+        <div style="position: sticky; top: 0; z-index: 9999; background: var(--bg-color); flex-shrink: 0; display: flex; flex-direction: column;">
+            
+            <!-- 1. 固定的顶部导航 (清除原有的 z-index 避免层级混乱) -->
+            <div class="nav-header clean-nav" style="flex-shrink: 0;">
+                <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('sub-console')"></i>
+                <span class="nav-title">控制台</span>
+                <div style="width:20px;"></div>
+            </div>
+            
+            <!-- 2. 固定的操作栏 (移除原有的 z-index 和多余的 background) -->
+            <div style="padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 0.5px solid var(--border);">
+                <span style="color: var(--text-sub); font-size: 13px; font-weight: 500;">系统运行日志与网络诊断</span>
+                <button onclick="clearDevConsole()" style="background: var(--card-bg); border: 0.5px solid var(--border); color: var(--danger); font-size: 14px; cursor: pointer; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>
+            
         </div>
 
         <!-- 3. 真正可滚动的日志区域 (！！！高度锁死魔法！！！) -->
