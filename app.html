@@ -2718,11 +2718,9 @@
             </div>
         </div>
 
-        <!-- 4. 底部输入栏：拆分内外层，彻底避开 calc() 导致的 Safari 键盘掉帧 Bug -->
-        <div style="background: var(--nav-blur-bg); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border-top: 0.5px solid var(--border); flex-shrink: 0; position: relative; z-index: 10; padding-bottom: var(--safe-bottom, 0px);">
-            
-            <!-- 内层专心做间距和排版 -->
-            <div id="console-cmd-area" style="display: flex; align-items: center; gap: 12px; padding: 10px 20px;">
+        <!-- 4. 底部输入栏：完全复刻聊天界面的原生结构，并强行接管 0.36秒 原生键盘动画 -->
+        <div id="console-input-bar" style="background: var(--card-bg); border-top: 0.5px solid var(--border); display: flex; flex-direction: column; padding-bottom: var(--safe-bottom); transition: padding-bottom 0.36s cubic-bezier(0.25, 0.8, 0.25, 1) !important;">
+            <div id="console-cmd-area" style="display: flex; align-items: center; padding: 8px 16px; gap: 10px; min-height: 56px;">
                 <i class="fa-solid fa-chevron-right" style="color: #34C759; font-size: 14px;"></i>
                 <textarea 
                     id="console-cmd-input" 
@@ -2735,8 +2733,7 @@
                     inputmode="text"
                     style="flex: 1; border: none; outline: none; background: transparent; font-size: 16px; color: var(--text-main); font-family: 'SF Mono', monospace; -webkit-tap-highlight-color: transparent; resize: none; overflow: hidden; padding: 0; line-height: normal; margin-top: 4px;"
                 ></textarea>
-
-                <button id="console-cmd-btn" style="background: rgba(52, 199, 89, 0.15); color: #34C759; border: none; width: 44px; height: 32px; border-radius: 100px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; flex-shrink: 0; transition: transform 0.2s, background 0.2s, color 0.2s;">
+                <button id="console-cmd-btn" style="background: rgba(52, 199, 89, 0.15); color: #34C759; border: none; width: 44px; height: 32px; border-radius: 100px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; transition: transform 0.2s, background 0.2s, color 0.2s;">
                     <i class="fa-solid fa-arrow-turn-down fa-rotate-90"></i>
                 </button>
             </div>
