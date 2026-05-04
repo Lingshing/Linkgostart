@@ -2690,27 +2690,18 @@
     </div>
     
    <!-- ================= 独立控制台子页面 UI ================= -->
-    <style>
-        /* 🌟 核心魔法：彻底打破 Safari 的 transform 牢笼 */
-        /* 当页面完全展开时，卸载 transform 和 will-change，让 fixed 真正吸附到系统视口 */
-        #sub-console.show:not(.swiping) {
-            transform: none !important;
-            will-change: auto !important;
-        }
-    </style>
-    
-    <!-- 外壳：强制改为块级布局，脱离 Flex 的束缚 -->
-    <div id="sub-console" class="sub-page-scene" style="display: block;">
+    <!-- 1. 外壳强制用 block 替代 flex，避免牵一发而动全身 -->
+    <div id="sub-console" class="sub-page-scene" style="display: block; background: var(--bg-color);">
         
-        <!-- 🌟 1. 绝对固定的顶部 Header (完全钉死在视口顶部) -->
-        <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: var(--bg-color); display: flex; flex-direction: column;">
-            <div class="nav-header clean-nav" style="position: relative; border-bottom: none;">
+        <!-- 2. Header：绝对定位，永远钉死在屏幕最顶部 -->
+        <div style="position: absolute; top: 0; left: 0; width: 100%; z-index: 9999; background: var(--bg-color); display: flex; flex-direction: column; border-bottom: 0.5px solid var(--border);">
+            <div class="nav-header clean-nav" style="border-bottom: none;">
                 <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('sub-console')"></i>
                 <span class="nav-title">控制台</span>
                 <div style="width:20px;"></div>
             </div>
             
-            <div style="padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid var(--border);">
+            <div style="padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: var(--text-sub); font-size: 13px; font-weight: 500;">系统运行日志与网络诊断</span>
                 <button onclick="clearDevConsole()" style="background: var(--card-bg); border: 0.5px solid var(--border); color: var(--danger); font-size: 14px; cursor: pointer; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                     <i class="fa-solid fa-trash-can"></i>
@@ -2718,9 +2709,10 @@
             </div>
         </div>
 
-        <!-- 🌟 2. 绝对固定的滚动区域 (永远钉死，只会被键盘遮挡下半部分，不会被顶飞) -->
-        <!-- 利用 padding 把内容挤到 Header 和 Input 中间的安全地带 -->
-        <div id="console-scroll-area" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; padding: calc(100px + env(safe-area-inset-top)) 16px calc(65px + env(safe-area-inset-bottom)) 16px; background-color: var(--bg-color); -webkit-overflow-scrolling: touch; box-sizing: border-box; z-index: 1;">
+        <!-- 3. 滚动区域：魔法来了！使用 height: 100vh。
+             当 Capacitor 的 Webview 被键盘缩小时，100vh 不会变小！
+             所以它绝对不会被压缩，也绝对不会被顶上去！它只会默默被键盘遮住下半部分。 -->
+        <div id="console-scroll-area" style="position: absolute; top: 0; left: 0; width: 100%; height: 100vh; padding-top: calc(100px + env(safe-area-inset-top)); padding-bottom: 120px; overflow-y: auto; background-color: var(--bg-color); box-sizing: border-box; z-index: 1;">
             <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; min-height: 100%;">
                 <div id="dev-console-logs" style="font-family: 'SF Mono', monospace; font-size: 13px; color: var(--text-main); word-wrap: break-word; line-height: 1.5;">
                     <div id="console-ready-msg" style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">拦截器已就绪</div>
@@ -2728,9 +2720,9 @@
             </div>
         </div>
 
-        <!-- 🌟 3. 底部输入栏：用 fixed 吸附在视口底部，键盘弹起时会自动骑在键盘上 -->
-        <div id="console-input-bar" style="position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 0.5px solid var(--border); display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); z-index: 9999;">
-            
+        <!-- 4. 输入框：使用 absolute + bottom: 0 挂在 Webview 最底部。
+             当 Keyboard.resize: Native 生效导致 Webview 变矮时，bottom: 0 会自动跟着上浮，完美悬浮在键盘上方！ -->
+        <div id="console-input-bar" style="position: absolute; bottom: 0; left: 0; width: 100%; background: var(--card-bg); border-top: 0.5px solid var(--border); padding-bottom: env(safe-area-inset-bottom); z-index: 9999;">
             <div id="console-cmd-area" style="display: flex; align-items: center; gap: 12px; padding: 10px 20px;">
                 <i class="fa-solid fa-chevron-right" style="color: #34C759; font-size: 14px;"></i>
                 
@@ -2746,7 +2738,7 @@
                     style="flex: 1; border: none; outline: none; background: transparent; font-size: 16px; color: var(--text-main); font-family: 'SF Mono', monospace; -webkit-tap-highlight-color: transparent; resize: none; overflow: hidden; padding: 0; line-height: normal; margin-top: -3px;"
                 ></textarea>
 
-                <button id="console-cmd-btn" style="background: rgba(52, 199, 89, 0.15); color: #34C759; border: none; width: 44px; height: 32px; border-radius: 100px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; flex-shrink: 0; transition: transform 0.2s, background 0.2s, color 0.2s;">
+                <button id="console-cmd-btn" style="background: rgba(52, 199, 89, 0.15); color: #34C759; border: none; width: 44px; height: 32px; border-radius: 100px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; transition: transform 0.2s, background 0.2s, color 0.2s;">
                     <i class="fa-solid fa-arrow-turn-down fa-rotate-90"></i>
                 </button>
             </div>
