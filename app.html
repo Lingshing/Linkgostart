@@ -8531,28 +8531,32 @@ ${chatContent}
         function toggleChatExtensions() {
             chatExtensionsPanelOpen = !chatExtensionsPanelOpen;
             const panel = document.getElementById('chat-extensions-panel');
-            const msgContainer = document.getElementById('chat-messages-container');
-            
-            // 记录当前滚动条距离底部的偏移量
-            const oldScrollHeight = msgContainer.scrollHeight;
-            const oldScrollTop = msgContainer.scrollTop;
-            const clientHeight = msgContainer.clientHeight;
-            const distanceToBottom = oldScrollHeight - oldScrollTop - clientHeight;
-            
+            const container = document.getElementById('chat-messages-container');
+
             if (chatExtensionsPanelOpen) {
                 panel.classList.add('show');
             } else {
                 panel.classList.remove('show');
             }
-            
-            // 等待面板高度变化完成后（下一帧）调整滚动位置，保持用户看到的最后一条消息位置不变
-            requestAnimationFrame(() => {
-                const newScrollHeight = msgContainer.scrollHeight;
-                // 计算出新的 scrollTop，使底部内容相对位置不变
-                const newScrollTop = newScrollHeight - distanceToBottom - clientHeight;
-                // 限制在有效范围内
-                msgContainer.scrollTop = Math.max(0, Math.min(newScrollTop, newScrollHeight - clientHeight));
-            });
+
+            // 🎯 等面板的高度动画结束后，平滑滚动到底部
+            const onTransitionEnd = () => {
+                if (container) {
+                    container.style.scrollBehavior = 'smooth';
+                    container.scrollTop = container.scrollHeight;
+                    container.style.scrollBehavior = ''; // 恢复默认，避免其他滚动被影响
+                }
+                panel.removeEventListener('transitionend', onTransitionEnd);
+            };
+
+            panel.addEventListener('transitionend', onTransitionEnd);
+
+            // 兜底：万一 transitionend 没触发，400ms 后强制滚动
+            setTimeout(() => {
+                if (container) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            }, 400);
         }
 
         document.addEventListener('click', function(e) {
