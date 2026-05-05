@@ -2514,7 +2514,6 @@
             cursor: pointer;
             color: var(--text-sub);
             font-size: 18px;
-            background: rgba(128, 128, 128, 0.15);   /* 半透明圆形背景 */
             border-radius: 50%;
             transition: background 0.2s;
         }
@@ -2797,7 +2796,7 @@
         <div id="console-input-bar" style="background: var(--card-bg); border-top: 0.5px solid var(--border); display: flex; flex-direction: column; padding-bottom: var(--safe-bottom);">
             <!-- 新增头部栏，默认隐藏 -->
             <div class="console-expand-header" id="console-expand-header">
-                <i class="fa-solid fa-chevron-left" onclick="closeConsoleExpandDrawer()"></i>
+                <i class="fa-solid fa-circle-chevron-down" onclick="closeConsoleExpandDrawer()"></i>
                 <span>全屏代码编辑器</span>
                 <div></div>
             </div>
