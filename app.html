@@ -2540,6 +2540,7 @@
             padding-top: env(safe-area-inset-top) !important; /* 让头部控件不被灵动岛遮挡 */
             will-change: height;
             transform: translateZ(0);
+            overscroll-behavior: none;
         }
         #console-input-bar.console-expanded .console-expand-header {
             display: flex; /* 显示头部 */
@@ -15285,6 +15286,8 @@ ${chatContent}
                         if (consoleBar && consoleBar.classList.contains('console-expanded')) {
                             // 不进行整体平移，只调整抽屉高度
                             consoleBar.style.height = `${window.innerHeight - kbHeight}px`;
+                            // 防止 iOS 在键盘弹出时可能触发的滚动偏移
+                            window.scrollTo(0, 0);
                             return;
                         }
                         activeEl.style.caretColor = 'transparent';
@@ -15723,6 +15726,15 @@ ${chatContent}
             if (window.lastKbHeight && window.lastKbHeight > 0) {
                 inputBar.style.height = `${window.innerHeight - window.lastKbHeight}px`;
             }
+
+            // 🛡️ 防止 iOS 聚焦自动滚动导致的顶部偏移
+            window.scrollTo(0, 0);
+            document.body.scrollTop = 0;
+            document.documentElement.scrollTop = 0;
+            // 多次复位（覆盖异步滚动）
+            requestAnimationFrame(() => window.scrollTo(0, 0));
+            setTimeout(() => window.scrollTo(0, 0), 50);
+            setTimeout(() => window.scrollTo(0, 0), 200);
         }
 
         function closeConsoleExpandDrawer() {
