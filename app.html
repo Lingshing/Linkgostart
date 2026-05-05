@@ -2524,13 +2524,10 @@
             display: none;   /* 直接隐藏标题文字 */
         }
 
-        /* 全屏编辑器抽屉动画 */
         #console-input-bar {
-            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), height 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+            /* transition 由 JS 动态控制，此处移除默认值 */
         }
-        #console-input-bar.console-expanded {
-            transform: translateY(0) !important;   /* 确保最终位置为屏幕内 */
-        }
+        
         /* 输入栏展开状态 */
         #console-input-bar.console-expanded {
             position: fixed !important;
@@ -2541,7 +2538,6 @@
             z-index: 10002 !important;
             background: var(--card-bg) !important;
             border-radius: 0 !important;
-            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), height 0.45s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.45s cubic-bezier(0.4, 0, 0.2, 1) !important;
             flex-direction: column !important;
             padding-bottom: 0 !important;
             padding-top: env(safe-area-inset-top) !important;
@@ -15716,52 +15712,184 @@ ${chatContent}
         }
         setTimeout(initModelChangeListener, 1000);
 
+       
+        let consoleExpandAnimatorEl = null;  // 覆盖层动画元素
+
         function openConsoleFullEditor() {
             const inputBar = document.getElementById('console-input-bar');
             if (!inputBar || consoleExpandAnimating) return;
 
-            // 1. 获取起点矩形
+            // 1. 捕获起始矩形（底部输入栏的屏幕位置和尺寸）
             consoleExpandStartRect = inputBar.getBoundingClientRect();
+            const startRect = consoleExpandStartRect;
 
-            // 2. 禁止所有过渡，添加全屏布局，并立即应用逆向变换
-            inputBar.style.setProperty('transition', 'none', 'important');
+            // 2. 获取全屏编辑器作为目标参考：先瞬间加上展开类（但隐藏原元素），测量目标布局
             inputBar.classList.add('console-expanded');
-            inputBar.offsetHeight; // 强制重排
+            inputBar.style.opacity = '0';  // 原元素暂时透明，等动画结束再显示
+            inputBar.style.pointerEvents = 'none';
 
-            const targetWidth = window.innerWidth;
-            const targetHeight = window.innerHeight;
-            const scaleX = consoleExpandStartRect.width / targetWidth;
-            const scaleY = consoleExpandStartRect.height / targetHeight;
-            const translateX = consoleExpandStartRect.left;
-            const translateY = consoleExpandStartRect.top;
+            // 3. 获取目标状态：全屏编辑器的各个关键区域
+            const headerEl = document.getElementById('console-expand-header');
+            const cmdInput = document.getElementById('console-cmd-input');
+            // 强制布局确保测量准确
+            inputBar.offsetHeight;
 
-            inputBar.style.transformOrigin = '0 0';
-            inputBar.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
+            const targetHeaderRect = headerEl.getBoundingClientRect();
+            const targetInputRect = cmdInput.getBoundingClientRect();
+            // 输入框目标样式（在全屏下是深色背景，需要和原来对比）
+            const targetInputStyles = getComputedStyle(cmdInput);
+
+            // 4. 恢复原元素（先撤去展开类），开始动画
+            inputBar.classList.remove('console-expanded');
+            inputBar.style.opacity = '';
+            inputBar.style.pointerEvents = '';
+
+            // 5. 创建动画覆盖层，精确复刻底部输入栏的外观
+            const animator = document.createElement('div');
+            animator.style.position = 'fixed';
+            animator.style.zIndex = '10003';
+            animator.style.left = startRect.left + 'px';
+            animator.style.top = startRect.top + 'px';
+            animator.style.width = startRect.width + 'px';
+            animator.style.height = startRect.height + 'px';
+            animator.style.background = 'var(--card-bg)';  // 深色底
+            animator.style.borderRadius = '12px';            // 初始略有圆角
+            animator.style.overflow = 'hidden';
+            animator.style.boxShadow = '0 -1px 0 var(--border)';
+            // 为了内部元素定位，设置 position: relative
+            animator.style.display = 'flex';
+            animator.style.flexDirection = 'column';
+
+            // 6. 在覆盖层内构建和底部输入栏一样的外观
+            // 先放一个占位的标题栏（初始高度0，后面渐显）
+            const animHeader = document.createElement('div');
+            animHeader.style.cssText = `
+                display: flex; align-items: center; justify-content: center;
+                padding: 0 16px; height: 0; overflow: hidden; opacity: 0;
+                flex-shrink: 0;
+                color: var(--text-main); font-size: 16px; font-weight: 600;
+            `;
+            animHeader.innerHTML = '<span>控制台</span>';
+            animator.appendChild(animHeader);
+
+            // 输入区域容器
+            const inputWrapper = document.createElement('div');
+            inputWrapper.style.cssText = `
+                display: flex; align-items: flex-start; padding: 8px 16px; gap: 10px;
+                min-height: 56px; flex: 1;
+            `;
+
+            // 放大按钮（直接复用图标样式，最终会淡出）
+            const expandBtn = document.createElement('div');
+            expandBtn.innerHTML = '<i class="fas fa-up-right-and-down-left-from-center" style="color: #34C759; font-size: 16px;"></i>';
+            expandBtn.style.cssText = `
+                width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+                flex-shrink: 0; margin-top: 6px; transition: opacity 0.2s;
+            `;
+            inputWrapper.appendChild(expandBtn);
+
+            // 输入框（复刻原有样式）
+            const animInput = document.createElement('textarea');
+            animInput.value = cmdInput.value;
+            animInput.placeholder = '';
+            animInput.readOnly = true;
+            animInput.style.cssText = `
+                flex: 1; border: none; outline: none; background: var(--hover-bg);
+                padding: 9px 14px; border-radius: 8px; font-size: 17px; color: var(--text-main);
+                font-family: 'SF Mono', monospace; resize: none; min-height: 40px;
+                line-height: 1.4; overflow-y: auto; caret-color: #07C160;
+            `;
+            inputWrapper.appendChild(animInput);
+
+            // 发送按钮
+            const sendBtn = document.createElement('div');
+            sendBtn.innerHTML = '<i class="fa-solid fa-arrow-turn-down fa-rotate-90" style="color: #34C759; font-size: 14px;"></i>';
+            sendBtn.style.cssText = `
+                width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+                flex-shrink: 0; margin-top: 6px; background: rgba(52,199,89,0.15);
+                border-radius: 8px; transition: opacity 0.2s;
+            `;
+            inputWrapper.appendChild(sendBtn);
+
+            animator.appendChild(inputWrapper);
+            document.body.appendChild(animator);
+            consoleExpandAnimatorEl = animator;
+
+            // 隐藏原始输入栏（动画期间）
             inputBar.style.opacity = '0';
+            inputBar.style.pointerEvents = 'none';
 
-            // 3. 启动变形动画
-            requestAnimationFrame(() => {
-                // 启用过渡（此时优先级高于 CSS 中的 !important，因为内联 !important 覆盖一切）
-                inputBar.style.setProperty('transition', 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease', 'important');
-                inputBar.style.opacity = '1';
-                inputBar.style.transform = 'none'; // 动画目标：全屏无变换
+            // 7. 启动变形动画
+            animator.offsetHeight; // 强制重绘
 
-                const onTransitionEnd = () => {
-                    inputBar.removeEventListener('transitionend', onTransitionEnd);
-                    // 动画完成后恢复由 CSS 接管
-                    inputBar.style.removeProperty('transition');
-                    inputBar.style.removeProperty('transform');
-                    inputBar.style.removeProperty('transform-origin');
-                    inputBar.style.removeProperty('opacity');
-                    consoleExpandAnimating = false;
-                };
-                inputBar.addEventListener('transitionend', onTransitionEnd);
-                consoleExpandAnimating = true;
-            });
+            animator.style.transition = `
+                left 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                top 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                width 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                height 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                border-radius 0.4s cubic-bezier(0.25, 1, 0.5, 1)
+            `;
+            // 目标：全屏
+            animator.style.left = '0';
+            animator.style.top = '0';
+            animator.style.width = '100vw';
+            animator.style.height = '100vh';
+            animator.style.borderRadius = '0';
 
-            // 聚焦输入框
-            const input = document.getElementById('console-cmd-input');
-            if (input) setTimeout(() => input.focus(), 150);
+            // 标题栏渐显
+            animHeader.style.transition = 'height 0.3s ease, opacity 0.3s ease';
+            animHeader.style.height = 'calc(50px + env(safe-area-inset-top))';
+            animHeader.style.paddingTop = 'env(safe-area-inset-top)';
+            animHeader.style.opacity = '1';
+
+            // 按钮淡出
+            expandBtn.style.opacity = '0';
+            sendBtn.style.opacity = '0';
+
+            // 输入框变形到目标位置和大小
+            const inputStyleTarget = {
+                padding: targetInputStyles.padding,
+                borderRadius: targetInputStyles.borderRadius,
+                background: targetInputStyles.background,
+                fontSize: targetInputStyles.fontSize,
+                lineHeight: targetInputStyles.lineHeight,
+                marginTop: '0',
+            };
+            animInput.style.transition = `
+                padding 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                border-radius 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                background 0.4s ease,
+                font-size 0.4s ease,
+                margin-top 0.4s ease
+            `;
+            animInput.style.padding = '12px';
+            animInput.style.borderRadius = '8px';
+            animInput.style.background = 'var(--hover-bg)';
+            animInput.style.fontSize = '15px';
+            animInput.style.lineHeight = '1.6';
+
+            // 动画结束时，切换真实的全屏编辑器
+            const onTransitionEnd = () => {
+                animator.removeEventListener('transitionend', onTransitionEnd);
+                animator.remove();
+                consoleExpandAnimatorEl = null;
+
+                // 显示真实的全屏编辑器
+                inputBar.classList.add('console-expanded');
+                inputBar.style.opacity = '';
+                inputBar.style.pointerEvents = '';
+                // 聚焦输入框
+                if (cmdInput) {
+                    cmdInput.focus();
+                    cmdInput.setSelectionRange(cmdInput.value.length, cmdInput.value.length);
+                }
+                consoleExpandAnimating = false;
+                // 清理键盘偏移标记
+                delete inputBar.dataset.kbShifted;
+                inputBar.removeAttribute('data-orig-transform');
+            };
+            animator.addEventListener('transitionend', onTransitionEnd);
+            consoleExpandAnimating = true;
 
             // 清理键盘偏移标记
             delete inputBar.dataset.kbShifted;
@@ -15774,37 +15902,144 @@ ${chatContent}
             if (!inputBar || consoleExpandAnimating || !consoleExpandStartRect) return;
 
             const startRect = consoleExpandStartRect;
-            const currentWidth = window.innerWidth;
-            const currentHeight = window.innerHeight;
-            const scaleX = startRect.width / currentWidth;
-            const scaleY = startRect.height / currentHeight;
-            const translateX = startRect.left;
-            const translateY = startRect.top;
+            const headerEl = document.getElementById('console-expand-header');
+            const cmdInput = document.getElementById('console-cmd-input');
 
-            // 1. 启动收缩动画（同样用内联 !important 压制 CSS）
-            inputBar.style.setProperty('transition', 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease', 'important');
-            inputBar.style.transformOrigin = '0 0';
-            inputBar.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
-            inputBar.style.opacity = '0.9';
+            // 1. 获取当前全屏编辑器的各个区域位置，用于反向动画的起始状态
+            const currentHeaderRect = headerEl ? headerEl.getBoundingClientRect() : null;
+            const currentInputRect = cmdInput ? cmdInput.getBoundingClientRect() : null;
+
+            // 2. 隐藏真实的全屏编辑器
+            inputBar.classList.remove('console-expanded');
+            inputBar.style.opacity = '0';
+            inputBar.style.pointerEvents = 'none';
+            // 必须强制重绘，确保 console-expanded 的样式已移除
+            inputBar.offsetHeight;
+
+            // 3. 创建覆盖层，复刻全屏编辑器的外观
+            const animator = document.createElement('div');
+            animator.style.position = 'fixed';
+            animator.style.zIndex = '10003';
+            animator.style.left = '0';
+            animator.style.top = '0';
+            animator.style.width = '100vw';
+            animator.style.height = '100vh';
+            animator.style.background = 'var(--card-bg)';
+            animator.style.borderRadius = '0';
+            animator.style.overflow = 'hidden';
+            animator.style.display = 'flex';
+            animator.style.flexDirection = 'column';
+            animator.style.boxShadow = 'none';
+
+            // 标题栏（全屏状态）
+            const animHeader = document.createElement('div');
+            animHeader.style.cssText = `
+                display: flex; align-items: center; justify-content: center;
+                padding: 0 16px; height: calc(50px + env(safe-area-inset-top));
+                padding-top: env(safe-area-inset-top); flex-shrink: 0;
+                color: var(--text-main); font-size: 16px; font-weight: 600;
+                opacity: 1;
+            `;
+            animHeader.innerHTML = '<span>控制台</span>';
+            animator.appendChild(animHeader);
+
+            // 输入区域
+            const inputWrapper = document.createElement('div');
+            inputWrapper.style.cssText = `
+                display: flex; align-items: flex-start; padding: 8px 16px; gap: 10px;
+                min-height: 56px; flex: 1;
+            `;
+
+            // 放大按钮（全屏下已隐藏，直接设为透明）
+            const expandBtn = document.createElement('div');
+            expandBtn.innerHTML = '<i class="fas fa-up-right-and-down-left-from-center" style="color: #34C759; font-size: 16px;"></i>';
+            expandBtn.style.cssText = `
+                width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+                flex-shrink: 0; margin-top: 6px; opacity: 0;
+            `;
+            inputWrapper.appendChild(expandBtn);
+
+            // 输入框（全屏样式）
+            const animInput = document.createElement('textarea');
+            animInput.value = cmdInput ? cmdInput.value : '';
+            animInput.placeholder = '';
+            animInput.readOnly = true;
+            animInput.style.cssText = `
+                flex: 1; border: none; outline: none; background: var(--hover-bg);
+                padding: 12px; border-radius: 8px; font-size: 15px; color: var(--text-main);
+                font-family: 'SF Mono', monospace; resize: none; min-height: 40px;
+                line-height: 1.6; overflow-y: auto; caret-color: #07C160;
+            `;
+            inputWrapper.appendChild(animInput);
+
+            // 发送按钮
+            const sendBtn = document.createElement('div');
+            sendBtn.innerHTML = '<i class="fa-solid fa-arrow-turn-down fa-rotate-90" style="color: #34C759; font-size: 14px;"></i>';
+            sendBtn.style.cssText = `
+                width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+                flex-shrink: 0; margin-top: 6px; background: rgba(52,199,89,0.15);
+                border-radius: 8px; opacity: 0;
+            `;
+            inputWrapper.appendChild(sendBtn);
+
+            animator.appendChild(inputWrapper);
+            document.body.appendChild(animator);
+            consoleExpandAnimatorEl = animator;
+
+            // 4. 启动反向动画：收缩到底部输入栏
+            animator.offsetHeight;
+
+            animator.style.transition = `
+                left 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                top 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                width 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                height 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                border-radius 0.35s cubic-bezier(0.25, 1, 0.5, 1)
+            `;
+            animator.style.left = startRect.left + 'px';
+            animator.style.top = startRect.top + 'px';
+            animator.style.width = startRect.width + 'px';
+            animator.style.height = startRect.height + 'px';
+            animator.style.borderRadius = '12px';
+
+            // 标题栏渐隐
+            animHeader.style.transition = 'height 0.3s ease, opacity 0.3s ease';
+            animHeader.style.height = '0';
+            animHeader.style.paddingTop = '0';
+            animHeader.style.opacity = '0';
+
+            // 按钮渐显
+            expandBtn.style.opacity = '1';
+            sendBtn.style.opacity = '1';
+
+            // 输入框回到原始样式
+            animInput.style.transition = `
+                padding 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                border-radius 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                background 0.35s ease,
+                font-size 0.35s ease
+            `;
+            animInput.style.padding = '9px 14px';
+            animInput.style.fontSize = '17px';
 
             const onTransitionEnd = () => {
-                inputBar.removeEventListener('transitionend', onTransitionEnd);
-                // 2. 动画结束，撤去全屏状态，彻底清理内联样式
-                inputBar.classList.remove('console-expanded');
-                inputBar.style.removeProperty('transition');
-                inputBar.style.removeProperty('transform');
-                inputBar.style.removeProperty('transform-origin');
-                inputBar.style.removeProperty('opacity');
-                inputBar.style.removeProperty('height');
-                delete inputBar.dataset.kbShifted;
-                inputBar.removeAttribute('data-orig-transform');
+                animator.removeEventListener('transitionend', onTransitionEnd);
+                animator.remove();
+                consoleExpandAnimatorEl = null;
+
+                // 显示正常的底部输入栏
+                inputBar.style.opacity = '';
+                inputBar.style.pointerEvents = '';
+                // 恢复滚动区域
+                const scrollArea = document.getElementById('console-scroll-area');
+                if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
+
                 consoleExpandStartRect = null;
                 consoleExpandAnimating = false;
             };
-            inputBar.addEventListener('transitionend', onTransitionEnd);
+            animator.addEventListener('transitionend', onTransitionEnd);
             consoleExpandAnimating = true;
         }
-
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
