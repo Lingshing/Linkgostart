@@ -832,7 +832,6 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
-            transition: padding-bottom 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
         
         /* 消息气泡 */
@@ -8533,19 +8532,29 @@ ${chatContent}
             chatExtensionsPanelOpen = !chatExtensionsPanelOpen;
             const panel = document.getElementById('chat-extensions-panel');
             const msgContainer = document.getElementById('chat-messages-container');
-            
+
+            // 给消息容器加上平滑过渡（如果还没有）
+            msgContainer.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+
             if (chatExtensionsPanelOpen) {
+                // 1. 先让面板瞬间获得内容高度（无动画），用来测量实际高度
+                panel.style.transition = 'none';
                 panel.classList.add('show');
-                // 假设展开后面板高度为 300px（与CSS中 max-height: 300px 一致）
-                if (msgContainer) {
-                    msgContainer.style.paddingBottom = '300px';
-                    msgContainer.style.transition = 'padding-bottom 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-                }
+                const panelHeight = panel.offsetHeight;   // 测量面板完全展开后的真实高度
+
+                // 2. 立刻把面板收回去并恢复动画，然后通过真实动画再次展开
+                panel.classList.remove('show');
+                void panel.offsetWidth;                   // 强制重绘，保证后续动画生效
+                panel.style.transition = '';              // 恢复 CSS 中定义的过渡
+
+                panel.classList.add('show');
+
+                // 3. 消息容器同步上移（负 translateY）
+                msgContainer.style.transform = `translateY(-${panelHeight}px)`;
             } else {
                 panel.classList.remove('show');
-                if (msgContainer) {
-                    msgContainer.style.paddingBottom = '10px'; // 恢复原有的 10px padding
-                }
+                // 消息容器回到原位
+                msgContainer.style.transform = 'translateY(0)';
             }
         }
 
