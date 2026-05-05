@@ -2537,14 +2537,14 @@
             bottom: 0 !important;
             left: 0 !important;
             right: 0 !important;
-            height: 100vh !important;                     /* 改为满屏，配合 padding-top 避开状态栏 */
+            height: 100vh !important;
             z-index: 10002 !important;
             background: var(--card-bg) !important;
-            border-radius: 0 !important;                 /* 全屏时无需圆角 */
-            transition: height 0.45s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.45s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            border-radius: 0 !important;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), height 0.45s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.45s cubic-bezier(0.4, 0, 0.2, 1) !important;
             flex-direction: column !important;
             padding-bottom: 0 !important;
-            padding-top: env(safe-area-inset-top) !important; /* 让头部控件不被灵动岛遮挡 */
+            padding-top: env(safe-area-inset-top) !important;
             will-change: height;
             transform: translateZ(0);
             overscroll-behavior: none;
@@ -15716,34 +15716,26 @@ ${chatContent}
 
         function openConsoleFullEditor() {
             const inputBar = document.getElementById('console-input-bar');
-            
-            // 先瞬间移到底部之外（为动画做准备）
-            inputBar.style.transition = 'none';
-            inputBar.style.transform = 'translateY(100%)';
-            inputBar.offsetHeight;   // 强制重绘
-            
-            // 恢复过渡，清除内联 transform，让 CSS 的 .console-expanded 接管
-            inputBar.style.transition = '';
+
+            // 1. 清除键盘事件可能遗留的平移 transform
             inputBar.style.transform = '';
-            
-            // 添加展开类，触发位移动画
-            inputBar.classList.add('console-expanded');
-            
-            // 清除键盘遗留的标记
+            inputBar.style.removeProperty('transform');
             delete inputBar.dataset.kbShifted;
             inputBar.removeAttribute('data-orig-transform');
-            
+
+            // 2. 添加展开类，触发全屏动画
+            inputBar.classList.add('console-expanded');
+
+            // 3. 保持输入框焦点
             const input = document.getElementById('console-cmd-input');
             input.focus();
-            
-            // 键盘适配（在动画完成后调整高度更完美）
+
+            // 4. 若此时键盘已显示，立刻将高度适配为键盘上方剩余空间
             if (window.lastKbHeight && window.lastKbHeight > 0) {
-                setTimeout(() => {
-                    inputBar.style.height = `${window.innerHeight - window.lastKbHeight}px`;
-                }, 400);
+                inputBar.style.height = `${window.innerHeight - window.lastKbHeight}px`;
             }
-            
-            // 防止 iOS 滚动偏移
+
+            // 🛡️ 防止 iOS 聚焦自动滚动导致的顶部偏移
             window.scrollTo(0, 0);
             document.body.scrollTop = 0;
             document.documentElement.scrollTop = 0;
