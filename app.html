@@ -983,8 +983,14 @@
         #chat-extensions-panel {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            opacity: 0;
+            transition: max-height 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.25s ease;
             background: var(--card-bg);
+        }
+
+        #chat-extensions-panel.show {
+            max-height: 300px;
+            opacity: 1;
         }
         
         #chat-extensions-panel.show {
