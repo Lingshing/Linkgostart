@@ -5923,13 +5923,18 @@ ${recentChat}
                 
                 const syncEditorViewport = () => {
                     if (inputBar.classList.contains('console-expanded')) {
-                        // 🌟 魔法核心：必须使用 setProperty 和 important，以绝对压制任何 CSS 规则！
-                        
                         // 1. 获取真实视口的高度（剔除键盘后的绝对安全高度）
-                        inputBar.style.setProperty('height', window.visualViewport.height + 'px', 'important');
+                        // 注意：关闭动画未结束时，可能会读出 0 或极小值，这里加个兜底
+                        const vh = window.visualViewport.height;
+                        if (vh > 100) {
+                            inputBar.style.setProperty('height', vh + 'px', 'important');
+                        }
                         
-                        // 2. 获取浏览器为了光标可见而强行推上去的偏移量，把它加回来，让抽屉死死咬住屏幕最顶部
-                        inputBar.style.setProperty('top', '0px', 'important');
+                        // 2. 【核心修复】利用 offsetTop 动态咬合，而不是写死为 0！
+                        // 键盘弹出时，visualViewport 会整体上移，offsetTop 就是它的上移量。
+                        // 用这个值来算 top，才能保证键盘状态下展开也不会超出屏幕。
+                        const currentOffsetTop = window.visualViewport.offsetTop || 0;
+                        inputBar.style.setProperty('top', currentOffsetTop + 'px', 'important');
                         
                         // 3. 必须干掉 bottom，防止上下拉扯导致高度错乱
                         inputBar.style.setProperty('bottom', 'auto', 'important');
@@ -5948,14 +5953,21 @@ ${recentChat}
                                 // 刚展开时立即计算一次真实视口
                                 syncEditorViewport();
                                 
-                                // 等待 0.35s 的 CSS 展开动画播完后，强行关闭元素的过渡效果
-                                // 这样一旦之后键盘弹起，窗口的缩放是 0 延迟绝对跟手的！
+                                // 等动画稍微稳定后再微调一次，确保视口贴合
                                 setTimeout(() => {
                                     if (inputBar.classList.contains('console-expanded')) {
-                                        inputBar.style.setProperty('transition', 'none', 'important');
+                                        // 先同步一次视口
                                         syncEditorViewport();
+                                        // 稍微再等一丢丢，给 iOS 的键盘动画一点时间
+                                        setTimeout(() => {
+                                            if (inputBar.classList.contains('console-expanded')) {
+                                                syncEditorViewport();
+                                                // 彻底锁死 transition，防止后续系统事件拉扯造成抖动
+                                                inputBar.style.setProperty('transition', 'none', 'important');
+                                            }
+                                        }, 150);
                                     }
-                                }, 350);
+                                }, 400); // 从 350 延后到 400，给原生的键盘动画多留一点时间
                             } else {
                                 // 收起为底部输入框时，彻底清空 JS 强加的所有内联样式，完美恢复底层 CSS 的原始控制权
                                 inputBar.style.removeProperty('top');
@@ -15329,13 +15341,14 @@ ${chatContent}
                     const activePage = document.querySelector('.sub-page-scene.show') || document.querySelector('.tab-page.active');
                     const sab = getSafeAreaBottom();
 
-                    // --- 🌟 新增：全屏控制台专用处理（固定面板 + 内边距避让） ---
                     const consoleInputBar = document.getElementById('console-input-bar');
                     if (consoleInputBar && consoleInputBar.classList.contains('console-expanded') &&
                         (activeEl.id === 'console-cmd-input' || activeEl.closest('#console-input-bar'))) {
-                        // 全屏展开状态下，不移动面板，改为向内增加底部 padding
-                        consoleInputBar.style.paddingBottom = (kbHeight - sab) + 'px';
-                        return; // 直接返回，不再走旧的 translateY 逻辑
+                        // 【核心修复】全屏状态下高度完全由 visualViewport 接管，不需要再单独加内边距
+                        // 否则会导致底部出现多余空白区，间接导致输入框高度不对
+                        // consoleInputBar.style.paddingBottom = (kbHeight - sab) + 'px'; 
+                        // 什么都不做，交给上面的 syncEditorViewport 搞定
+                        return;
                     }
 
                     // 1️⃣ 聊天主界面
@@ -15758,17 +15771,39 @@ ${chatContent}
 
         function openConsoleFullEditor() {
             const inputBar = document.getElementById('console-input-bar');
-            // 添加展开类，触发变形动画
             inputBar.classList.add('console-expanded');
-            // 让输入框保持焦点（焦点本来就没丢）
             const input = document.getElementById('console-cmd-input');
             input.focus();
+            
+            // 【新增保险】刚展开的一瞬间，立刻按当前视口强行同步一次
+            // 这样无论键盘在不在，顶栏都不会飞到屏幕外面去
+            const syncEditorViewport = () => { /* 这里引用你刚刚修改过的那个同名函数即可 */ };
+            setTimeout(() => {
+                if (inputBar.classList.contains('console-expanded')) {
+                    const vh = window.visualViewport.height;
+                    if (vh > 100) {
+                        inputBar.style.setProperty('height', vh + 'px', 'important');
+                        inputBar.style.setProperty('top', (window.visualViewport.offsetTop || 0) + 'px', 'important');
+                        inputBar.style.setProperty('bottom', 'auto', 'important');
+                    }
+                }
+            }, 50);
         }
 
         function closeConsoleExpandDrawer() {
             const inputBar = document.getElementById('console-input-bar');
             inputBar.classList.remove('console-expanded');
-            inputBar.style.paddingBottom = ''; // 🌟 新增
+            inputBar.style.paddingBottom = '';
+            // 【核心新增】不管三七二十一，收起时彻底清除 JS 强行植入的宽高和偏移量！
+            // 把舞台干干净净还给 CSS。
+            inputBar.style.removeProperty('top');
+            inputBar.style.removeProperty('bottom');
+            inputBar.style.removeProperty('height');
+            inputBar.style.removeProperty('transition');
+            // 焦点转移一下，让手机也知道“别盯着这个框了”
+            if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') {
+                document.activeElement.blur();
+            }
         }
 
     </script>
