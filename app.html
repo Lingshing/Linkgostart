@@ -2636,11 +2636,11 @@
             margin: 0;
         }
         /* ── 面板展开时，消息容器自动同步上移 ── */
-        #chat-input-bar.extensions-open #chat-extensions-panel {
+        #chat-extensions-panel.show {
             max-height: 300px;
             opacity: 1;
         }
-        #chat-input-bar.extensions-open ~ #chat-messages-container {
+        #scene-chat.extensions-open #chat-messages-container {
             transform: translateY(-300px);
             transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
@@ -8539,17 +8539,25 @@ ${chatContent}
         // --- 切换扩展功能面板 ---
         function toggleChatExtensions() {
             chatExtensionsPanelOpen = !chatExtensionsPanelOpen;
-            const inputBar = document.getElementById('chat-input-bar');
+            const panel = document.getElementById('chat-extensions-panel');
+            const chatScene = document.getElementById('scene-chat');
             const container = document.getElementById('chat-messages-container');
 
-            // 所有动画交给 CSS class 处理
+            // 面板本身的开/关动画
             if (chatExtensionsPanelOpen) {
-                inputBar.classList.add('extensions-open');
+                panel.classList.add('show');
             } else {
-                inputBar.classList.remove('extensions-open');
+                panel.classList.remove('show');
             }
 
-            // 面板缩回后，自动滚到底部（可选）
+            // 通过父容器 class 让消息容器同步移动
+            if (chatExtensionsPanelOpen) {
+                chatScene.classList.add('extensions-open');
+            } else {
+                chatScene.classList.remove('extensions-open');
+            }
+
+            // 面板关闭时自动滚到底部
             if (!chatExtensionsPanelOpen) {
                 const onTransitionEnd = () => {
                     container.style.scrollBehavior = 'smooth';
