@@ -832,6 +832,7 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
         
         /* 消息气泡 */
@@ -8540,34 +8541,29 @@ ${chatContent}
         function toggleChatExtensions() {
             chatExtensionsPanelOpen = !chatExtensionsPanelOpen;
             const panel = document.getElementById('chat-extensions-panel');
-            const chatScene = document.getElementById('scene-chat');
             const container = document.getElementById('chat-messages-container');
+            const panelHeight = 300; // 与 #chat-extensions-panel.show 里的 max-height 一致
 
-            // 面板本身的开/关动画
+            // 1. 面板的动画（由 CSS 类控制）
             if (chatExtensionsPanelOpen) {
                 panel.classList.add('show');
             } else {
                 panel.classList.remove('show');
             }
 
-            // 通过父容器 class 让消息容器同步移动
-            if (chatExtensionsPanelOpen) {
-                chatScene.classList.add('extensions-open');
-            } else {
-                chatScene.classList.remove('extensions-open');
-            }
+            // 2. 消息容器同步移动（与面板动画同时长、同缓动）
+            container.style.transform = chatExtensionsPanelOpen
+                ? `translateY(-${panelHeight}px)`
+                : 'translateY(0)';
 
-            // 面板关闭时自动滚到底部
+            // 3. 面板收回后，自动滚到底部
             if (!chatExtensionsPanelOpen) {
                 const onTransitionEnd = () => {
-                    container.style.scrollBehavior = 'smooth';
                     container.scrollTop = container.scrollHeight;
-                    container.style.scrollBehavior = '';
                     container.removeEventListener('transitionend', onTransitionEnd);
                 };
                 container.addEventListener('transitionend', onTransitionEnd);
-
-                // 兜底
+                // 兜底（万一没触发 transitionend）
                 setTimeout(() => {
                     container.scrollTop = container.scrollHeight;
                 }, 400);
