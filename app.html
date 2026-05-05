@@ -2527,17 +2527,20 @@
         /* 输入栏展开状态 */
         #console-input-bar.console-expanded {
             position: fixed !important;
+            top: 0 !important;            /* 🌟 恢复 top: 0 */
+            bottom: 0 !important;         /* 🌟 恢复 bottom: 0 */
             left: 0 !important;
             right: 0 !important;
+            height: auto !important;      /* 🌟 改回 auto，由 top 和 bottom 自然拉满全屏 */
             z-index: 10002 !important;
             background: var(--card-bg) !important;
             border-radius: 0 !important;                 
-            /* 🌟 核心修改1：删除了 top, bottom, height 的硬编码，全权交给底层 JS 引擎动态接管 */
-            transition: height 0.35s cubic-bezier(0.25, 1, 0.5, 1), top 0.35s cubic-bezier(0.25, 1, 0.5, 1), border-radius 0.35s ease !important;
+            /* 🌟 核心：去掉了 top 的动画，只保留 height 和 border-radius，防止起飞 */
+            transition: height 0.35s cubic-bezier(0.25, 1, 0.5, 1), border-radius 0.35s ease !important;
             flex-direction: column !important;
             padding-bottom: 0 !important;
             padding-top: env(safe-area-inset-top) !important; 
-            will-change: height, top;
+            will-change: height;
             transform: translateZ(0);
         }
         #console-input-bar.console-expanded .console-expand-header {
@@ -5920,60 +5923,58 @@ ${recentChat}
             // ==========================================
             const inputBar = document.getElementById('console-input-bar');
             if (inputBar && window.visualViewport) {
-                
+                let isKeyboardOpen = false;
+
                 const syncEditorViewport = () => {
-                    if (inputBar.classList.contains('console-expanded')) {
-                        // 1. 获取真实视口的高度（剔除键盘后的绝对安全高度）
-                        // 注意：关闭动画未结束时，可能会读出 0 或极小值，这里加个兜底
-                        const vh = window.visualViewport.height;
-                        if (vh > 100) {
-                            inputBar.style.setProperty('height', vh + 'px', 'important');
-                        }
-                        
-                        // 2. 【核心修复】利用 offsetTop 动态咬合，而不是写死为 0！
-                        // 键盘弹出时，visualViewport 会整体上移，offsetTop 就是它的上移量。
-                        // 用这个值来算 top，才能保证键盘状态下展开也不会超出屏幕。
-                        const currentOffsetTop = window.visualViewport.offsetTop || 0;
-                        inputBar.style.setProperty('top', currentOffsetTop + 'px', 'important');
-                        
-                        // 3. 必须干掉 bottom，防止上下拉扯导致高度错乱
+                    if (!inputBar.classList.contains('console-expanded')) return;
+                    
+                    const vv = window.visualViewport;
+                    const windowHeight = window.innerHeight;
+                    
+                    // 判断键盘是否处于弹出状态 (如果可视高度小于窗口高度的 80%)
+                    isKeyboardOpen = vv.height < windowHeight * 0.8;
+
+                    if (isKeyboardOpen) {
+                        // 🌟 键盘弹出时：绝对锁定尺寸，并【瞬间】关闭所有动画！
+                        // 彻底解决动画滞后导致的输入框被遮挡、以及顶部飞出屏幕的问题
+                        inputBar.style.setProperty('transition', 'none', 'important');
+                        inputBar.style.setProperty('height', vv.height + 'px', 'important');
+                        inputBar.style.setProperty('top', vv.offsetTop + 'px', 'important');
                         inputBar.style.setProperty('bottom', 'auto', 'important');
+                    } else {
+                        // 🌟 键盘收起时：清空 JS 强加的尺寸限制，完全交还给 CSS！
+                        // 靠 CSS 的 top:0 和 bottom:0 自动完美撑满屏幕，解决"高度低了一点"的 Bug
+                        inputBar.style.removeProperty('height');
+                        inputBar.style.removeProperty('top');
+                        inputBar.style.removeProperty('bottom');
+                        
+                        // 恢复过渡动画 (给极短暂的延迟，防止属性重置瞬间发生闪烁)
+                        setTimeout(() => {
+                            if (!isKeyboardOpen && inputBar.classList.contains('console-expanded')) {
+                                inputBar.style.setProperty('transition', 'height 0.35s cubic-bezier(0.25, 1, 0.5, 1), border-radius 0.35s ease', 'important');
+                            }
+                        }, 50);
                     }
                 };
-                
-                // 键盘弹起、收起及页面被系统强行滑动时的高频同步
+
+                // 监听键盘的高频同步
                 window.visualViewport.addEventListener('resize', syncEditorViewport);
                 window.visualViewport.addEventListener('scroll', syncEditorViewport);
-                
-                // 监听抽屉的展开/收起状态
+
+                // 监听抽屉展开/收起状态
                 const observer = new MutationObserver((mutations) => {
                     mutations.forEach((mutation) => {
                         if (mutation.attributeName === 'class') {
                             if (inputBar.classList.contains('console-expanded')) {
-                                // 刚展开时立即计算一次真实视口
+                                // 刚展开时立即同步
                                 syncEditorViewport();
-                                
-                                // 等动画稍微稳定后再微调一次，确保视口贴合
-                                setTimeout(() => {
-                                    if (inputBar.classList.contains('console-expanded')) {
-                                        // 先同步一次视口
-                                        syncEditorViewport();
-                                        // 稍微再等一丢丢，给 iOS 的键盘动画一点时间
-                                        setTimeout(() => {
-                                            if (inputBar.classList.contains('console-expanded')) {
-                                                syncEditorViewport();
-                                                // 彻底锁死 transition，防止后续系统事件拉扯造成抖动
-                                                inputBar.style.setProperty('transition', 'none', 'important');
-                                            }
-                                        }, 150);
-                                    }
-                                }, 400); // 从 350 延后到 400，给原生的键盘动画多留一点时间
                             } else {
-                                // 收起为底部输入框时，彻底清空 JS 强加的所有内联样式，完美恢复底层 CSS 的原始控制权
+                                // 收起为小输入框时，彻底清空所有内联样式，恢复本来面貌
                                 inputBar.style.removeProperty('top');
                                 inputBar.style.removeProperty('bottom');
                                 inputBar.style.removeProperty('height');
                                 inputBar.style.removeProperty('transition');
+                                isKeyboardOpen = false;
                             }
                         }
                     });
