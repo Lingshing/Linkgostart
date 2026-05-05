@@ -984,7 +984,7 @@
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            background: var(--bg-color);
+            background: var(--card-bg);
         }
         
         #chat-extensions-panel.show {
@@ -1021,12 +1021,12 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            background: #d1d1d6 !important;
+            background: var(--ext-icon-bg) !important;
         }
         
         .chat-ext-icon i {
             font-size: 24px;
-            color: #8e8e93 !important;
+            color: var(--ext-icon-color) !important;
         }
         
         /* 扩展功能标签 */
@@ -3349,7 +3349,7 @@
             <div id="chat-extensions-panel">
                 <div class="chat-ext-grid">
                     <div class="chat-ext-item" onclick="chatExtAction('transfer')">
-                        <div class="chat-ext-icon" style="background: linear-gradient(135deg, #FF9F0A 0%, #FFB340 100%);">
+                        <div class="chat-ext-icon">
                             <i class="fas fa-exchange-alt"></i>
                         </div>
                         <div class="chat-ext-label">转账</div>
@@ -4805,7 +4805,9 @@
                 '--icon-color': '#000000',
                 '--divider': 'rgba(0,0,0,0.1)',
                 '--user-bubble-bg': '#95ec69',
-                '--user-bubble-text': '#000000'
+                '--user-bubble-text': '#000000',
+                '--ext-icon-bg': '#ffffff',   // 白色背景
+                '--ext-icon-color': '#333333' // 深灰色图标
             },
             dark: {
                 name: '深色',
@@ -4825,7 +4827,9 @@
                 '--icon-color': '#ffffff',
                 '--divider': 'rgba(255,255,255,0.1)',
                 '--user-bubble-bg': '#17A963', /* 你选的深绿色 */
-                '--user-bubble-text': '#000000' /* 解决深色模式气泡文字看不清的问题 */
+                '--user-bubble-text': '#000000', /* 解决深色模式气泡文字看不清的问题 */
+                '--ext-icon-bg': '#3a3a3c',
+                '--ext-icon-color': '#98989d'
             }
         };
         
