@@ -2616,9 +2616,23 @@
             font-size: 16px;
             pointer-events: none;
         }
+
+        /* Token 预算弹窗专用样式 */
+        #token-budget-modal .config-modal-content {
+            background: var(--card-bg);
+        }
+        #token-budget-modal input {
+            outline: none;
+        }
+        #token-budget-modal input[type="number"]::-webkit-inner-spin-button,
+        #token-budget-modal input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/js-tiktoken@1.0.16/dist/index.umd.min.js"></script>
 </head>
 <body>
     <div id="backfill-progress-bar"></div>
@@ -3376,11 +3390,11 @@
                         <div class="chat-ext-label">文件</div>
                     </div>
                     
-                    <div class="chat-ext-item" onclick="chatExtAction('card')">
-                        <div class="chat-ext-icon" style="background: linear-gradient(135deg, #FFD60A 0%, #FFE55C 100%);">
-                            <i class="fas fa-address-card"></i>
+                    <div class="chat-ext-item" onclick="openTokenBudget()">
+                        <div class="chat-ext-icon" style="background: linear-gradient(135deg, #8E8E93 0%, #AEAEB2 100%);">
+                            <i class="fas fa-calculator"></i>
                         </div>
-                        <div class="chat-ext-label">名片</div>
+                        <div class="chat-ext-label">预算</div>
                     </div>
                     
                     <div class="chat-ext-item" onclick="chatExtAction('video')">
@@ -3624,7 +3638,52 @@
     
     <div id="scene-options" class="sub-page-scene"><div class="nav-header"><span class="nav-title">设置</span><span class="clickable" onclick="hideOptionsWindow()">完成</span></div><div id="options-content"></div></div>
 
-    
+    <!-- Token 预算弹窗 -->
+    <div id="token-budget-modal" class="config-modal-overlay" onclick="closeTokenBudget(event)">
+        <div class="config-modal-content" style="max-width: 400px; width: 90%;" onclick="event.stopPropagation()">
+            <div class="config-modal-header">
+                <h3 class="config-modal-title">预算估算</h3>
+            </div>
+            <div class="config-modal-body" style="padding: 20px;">
+                <!-- 输入 Tokens -->
+                <div style="margin-bottom: 20px;">
+                    <div style="font-size:13px; color:var(--text-sub); margin-bottom:6px;">输入 Tokens</div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="text" id="budget-input-tokens" readonly style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--hover-bg); color:var(--text-main); font-size:14px; text-align:center;">
+                        <span style="font-size:13px; color:var(--text-sub);">tokens</span>
+                    </div>
+                </div>
+                <!-- 输出 Tokens -->
+                <div style="margin-bottom: 20px;">
+                    <div style="font-size:13px; color:var(--text-sub); margin-bottom:6px;">预估输出 Tokens</div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="number" id="budget-output-tokens" value="2048" step="1" oninput="calculateBudgetCosts()" style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text-main); font-size:14px; text-align:center;">
+                        <span style="font-size:13px; color:var(--text-sub);">tokens</span>
+                    </div>
+                </div>
+                <!-- 单价与费用 -->
+                <div style="background:var(--hover-bg); border-radius:12px; padding:12px; margin-bottom:16px;">
+                    <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+                        <span style="font-size:13px; color:var(--text-sub); white-space:nowrap;">输入单价</span>
+                        <input type="number" id="budget-input-price" value="2.00" step="0.01" onchange="calculateBudgetCosts()" style="width:80px; padding:6px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text-main); font-size:13px; text-align:center;">
+                        <span style="font-size:13px; color:var(--text-sub);">$/M</span>
+                        <span id="budget-input-cost" style="margin-left:auto; font-size:14px; font-weight:600; color:var(--text-main);">$0.000</span>
+                    </div>
+                    <div style="display:flex; gap:12px; align-items:center;">
+                        <span style="font-size:13px; color:var(--text-sub); white-space:nowrap;">输出单价</span>
+                        <input type="number" id="budget-output-price" value="5.00" step="0.01" onchange="calculateBudgetCosts()" style="width:80px; padding:6px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text-main); font-size:13px; text-align:center;">
+                        <span style="font-size:13px; color:var(--text-sub);">$/M</span>
+                        <span id="budget-output-cost" style="margin-left:auto; font-size:14px; font-weight:600; color:var(--text-main);">$0.000</span>
+                    </div>
+                </div>
+                <!-- 总费用 -->
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top: 1px solid var(--border);">
+                    <span style="font-size:15px; font-weight:600; color:var(--text-main);">预估总费用</span>
+                    <span id="budget-total-cost" style="font-size:18px; font-weight:700; color:var(--accent);">$0.000</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
 
     <!-- 配置选择弹窗 -->
@@ -15829,6 +15888,190 @@ ${chatContent}
             }, 400);
         }
 
+        // ========== Token 预算计算器 ==========
+
+        let budgetTiktokenEncoder = null;
+
+        // 初始化 tiktoken 编码器
+        async function initTiktokenEncoder() {
+            if (!budgetTiktokenEncoder) {
+                // 使用 cl100k_base 编码，适用于 GPT-4, GPT-3.5-turbo, text-embedding-ada-002
+                budgetTiktokenEncoder = await tiktoken.get_encoding("cl100k_base");
+            }
+            return budgetTiktokenEncoder;
+        }
+
+        // 打开预算弹窗
+        async function openTokenBudget() {
+            // 关闭扩展面板
+            toggleChatExtensions();
+            
+            const modal = document.getElementById('token-budget-modal');
+            
+            // 恢复用户上次设置的单价（或默认值）
+            const savedPrices = JSON.parse(localStorage.getItem('LINQGO_TOKEN_PRICES') || '{"input":2.00,"output":5.00}');
+            document.getElementById('budget-input-price').value = savedPrices.input;
+            document.getElementById('budget-output-price').value = savedPrices.output;
+            
+            // 设置预估输出 token（默认使用当前 API 设置的 max_tokens）
+            const suggestedOutput = PARAM_CONFIG.maxTokens || 2048;
+            document.getElementById('budget-output-tokens').value = suggestedOutput;
+            
+            // 计算输入 token
+            const inputTokens = await calculateInputTokens();
+            document.getElementById('budget-input-tokens').value = inputTokens;
+            
+            // 重新计算费用
+            calculateBudgetCosts();
+            
+            // 显示弹窗
+            modal.style.display = ''; // 确保 display 不是 none
+            requestAnimationFrame(() => {
+                modal.classList.add('show');
+            });
+        }
+
+        // 关闭预算弹窗（点击外部或手动调用）
+        function closeTokenBudget(event) {
+            if (event && event.target !== document.getElementById('token-budget-modal')) return;
+            const modal = document.getElementById('token-budget-modal');
+            modal.classList.remove('show');
+        }
+
+        // 计算输入 token 数量（模拟本次发送的消息数组）
+        async function calculateInputTokens() {
+            if (!currentChatContactId) return 0;
+            
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            const conversation = getConversation(currentChatContactId);
+            
+            // 构建和发送消息时一模一样的 messages 数组
+            const messages = [];
+            
+            // 系统提示词（和 sendChatMessage 里一样）
+            let systemPrompt = getSystemPromptWithMode(contact);
+            
+            // 注入长期记忆（和 sendChatMessage 逻辑一致）
+            const userMessage = document.getElementById('chat-message-input').value.trim();
+            if (userMessage && contact.longMemories && contact.longMemories.length > 0) {
+                const queryKeywords = extractKeywords(userMessage);
+                const coreMemories = contact.longMemories.filter(m => (m.score || 0) >= 5);
+                const contextualMemories = contact.longMemories.filter(m => {
+                    if ((m.score || 0) >= 5) return false;
+                    if (!m.keywords) return false;
+                    const keywords = Array.isArray(m.keywords) ? m.keywords : [m.keywords];
+                    return keywords.some(kw => userMessage.includes(kw)) || m.content.includes(userMessage);
+                });
+                const relevantMemories = [...coreMemories, ...contextualMemories.slice(0, 5)];
+                if (relevantMemories.length > 0) {
+                    systemPrompt += "\n\n【系统提示：与当前对话相关的历史档案】\n" + relevantMemories.map(m => `[${m.category || '记录'}] ${m.content}`).join('\n');
+                }
+            }
+            
+            // 组装系统消息
+            let finalSystemString = "";
+            // 预设背景（简化处理，只取启用的第一个预设文件的非越狱部分，可根据需要完善）
+            if (window.ADVANCED_PRESET_FILES) {
+                const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
+                for (const file of enabledFiles) {
+                    if (file.prompts) {
+                        for (const p of file.prompts) {
+                            if (p.enabled !== false && p.content && p.identifier !== "jailbreak") {
+                                finalSystemString += "\n\n" + p.content;
+                            }
+                        }
+                    }
+                }
+            }
+            finalSystemString += "\n\n" + systemPrompt;
+            
+            if (finalSystemString.trim()) {
+                messages.push({ role: 'system', content: finalSystemString });
+            }
+            
+            // 历史对话
+            const roundLimit = GENERAL_CONFIG.memory.contextLimit || 10;
+            let startIndex = 0;
+            let userMsgCount = 0;
+            for (let i = conversation.length - 1; i >= 0; i--) {
+                if (conversation[i].role === 'user') {
+                    userMsgCount++;
+                    if (userMsgCount > roundLimit) {
+                        startIndex = i + 1;
+                        break;
+                    }
+                }
+            }
+            const limitedConversation = conversation.slice(startIndex);
+            
+            // 合并相同角色并应用正则
+            let merged = [];
+            for (const msg of limitedConversation) {
+                if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
+                    merged[merged.length - 1].content += '\n\n' + msg.content;
+                } else {
+                    merged.push({ role: msg.role, content: msg.content });
+                }
+            }
+            // 应用正则（仅用户消息）
+            if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
+                merged.forEach(msg => {
+                    if (msg.role === 'user') {
+                        msg.content = applyRegexRules(msg.content);
+                    }
+                });
+            }
+            
+            messages.push(...merged);
+            
+            // 当前用户输入（如果有）
+            if (userMessage) {
+                // 这里也应用一次正则
+                let finalUserMsg = userMessage;
+                if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
+                    finalUserMsg = applyRegexRules(finalUserMsg);
+                }
+                messages.push({ role: 'user', content: finalUserMsg });
+            }
+            
+            try {
+                const encoder = await initTiktokenEncoder();
+                // 按照 OpenAI 官方公式计算 token 数
+                let tokenCount = 0;
+                for (const msg of messages) {
+                    // 每条消息的固定标记 token (role 和 特殊标记)
+                    tokenCount += 4;
+                    // 内容的 token
+                    tokenCount += encoder.encode(msg.content).length;
+                }
+                tokenCount += 2; // 对话终结标记
+                return tokenCount;
+            } catch (e) {
+                console.error('Token 计算失败:', e);
+                // 降级使用旧的估算方法
+                return countTokens(messages);
+            }
+        }
+
+        // 计算费用并更新显示
+        function calculateBudgetCosts() {
+            const inputTokens = parseFloat(document.getElementById('budget-input-tokens').value) || 0;
+            const outputTokens = parseFloat(document.getElementById('budget-output-tokens').value) || 0;
+            const inputPrice = parseFloat(document.getElementById('budget-input-price').value) || 2.00;
+            const outputPrice = parseFloat(document.getElementById('budget-output-price').value) || 5.00;
+            
+            // 计算费用 (美元，转换成每百万 token 的价格计算)
+            const inputCost = (inputTokens / 1000000) * inputPrice;
+            const outputCost = (outputTokens / 1000000) * outputPrice;
+            const totalCost = inputCost + outputCost;
+            
+            document.getElementById('budget-input-cost').textContent = '$' + inputCost.toFixed(4);
+            document.getElementById('budget-output-cost').textContent = '$' + outputCost.toFixed(4);
+            document.getElementById('budget-total-cost').textContent = '$' + totalCost.toFixed(6);
+            
+            // 保存当前单价到本地存储
+            localStorage.setItem('LINQGO_TOKEN_PRICES', JSON.stringify({ input: inputPrice, output: outputPrice }));
+        }
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
