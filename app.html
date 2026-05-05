@@ -15271,6 +15271,8 @@ ${chatContent}
 
                 Keyboard.addListener('keyboardWillShow', info => {
                     const kbHeight = info.keyboardHeight;
+                    // 保存键盘高度，供 openConsoleFullEditor 使用
+                    window.lastKbHeight = kbHeight;
                     const activeEl = document.activeElement;
                     if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) return;
 
@@ -15331,6 +15333,7 @@ ${chatContent}
                 });
 
                 Keyboard.addListener('keyboardWillHide', () => {
+                    window.lastKbHeight = 0;
                     // 恢复展开的控制台高度
                     const consoleBar = document.getElementById('console-input-bar');
                     if (consoleBar && consoleBar.classList.contains('console-expanded')) {
@@ -15708,11 +15711,17 @@ ${chatContent}
             // 让输入框保持焦点（焦点本来就没丢）
             const input = document.getElementById('console-cmd-input');
             input.focus();
+            // 如果此时键盘已经显示（例如通过 Capacitor 监听已触发），立即适配高度
+            if (window.lastKbHeight && window.lastKbHeight > 0) {
+                inputBar.style.height = `${window.innerHeight - window.lastKbHeight}px`;
+            }
         }
 
         function closeConsoleExpandDrawer() {
             const inputBar = document.getElementById('console-input-bar');
             inputBar.classList.remove('console-expanded');
+            // 清除可能设置的内联高度，恢复 CSS 默认的 100vh
+            inputBar.style.height = '';
             // 焦点仍然在输入框内，键盘继续保持
         }
 
