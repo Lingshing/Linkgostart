@@ -8527,7 +8527,6 @@ ${chatContent}
             }
         }
 
-        // --- 切换扩展功能面板 ---
         function toggleChatExtensions() {
             chatExtensionsPanelOpen = !chatExtensionsPanelOpen;
             const panel = document.getElementById('chat-extensions-panel');
@@ -8537,6 +8536,11 @@ ${chatContent}
             } else {
                 panel.classList.remove('show');
             }
+
+            // 强制滚动到底部，消息区域会被“顶上去”
+            requestAnimationFrame(() => {
+                scrollToBottom(true);
+            });
         }
 
         document.addEventListener('click', function(e) {
