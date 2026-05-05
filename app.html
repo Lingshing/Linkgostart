@@ -2570,7 +2570,7 @@
             height: auto !important;
             resize: none !important;
             border-radius: 8px !important;
-            background: var(--bg-color) !important;
+            background: var(--hover-bg) !important;
             padding: 12px !important;
             font-size: 15px !important;
             line-height: 1.6 !important;
@@ -15717,25 +15717,33 @@ ${chatContent}
         function openConsoleFullEditor() {
             const inputBar = document.getElementById('console-input-bar');
 
-            // 1. 清除键盘事件可能遗留的平移 transform
+            // 1. 先瞬间移到底部之外（为动画准备起始状态）
+            inputBar.style.transition = 'none';
+            inputBar.style.transform = 'translateY(100%)';
+            inputBar.offsetHeight;   // 强制重绘
+
+            // 2. 恢复过渡，清除内联 transform，让 CSS 的 .console-expanded 接管动画
+            inputBar.style.transition = '';
             inputBar.style.transform = '';
-            inputBar.style.removeProperty('transform');
+
+            // 3. 添加展开类，触发动：从 translateY(100%) → translateY(0)
+            inputBar.classList.add('console-expanded');
+
+            // 4. 清除键盘可能留下的平移标记
             delete inputBar.dataset.kbShifted;
             inputBar.removeAttribute('data-orig-transform');
 
-            // 2. 添加展开类，触发全屏动画
-            inputBar.classList.add('console-expanded');
-
-            // 3. 保持输入框焦点
             const input = document.getElementById('console-cmd-input');
             input.focus();
 
-            // 4. 若此时键盘已显示，立刻将高度适配为键盘上方剩余空间
+            // 5. 若键盘已显示，适配高度
             if (window.lastKbHeight && window.lastKbHeight > 0) {
-                inputBar.style.height = `${window.innerHeight - window.lastKbHeight}px`;
+                setTimeout(() => {
+                    inputBar.style.height = `${window.innerHeight - window.lastKbHeight}px`;
+                }, 400);
             }
 
-            // 🛡️ 防止 iOS 聚焦自动滚动导致的顶部偏移
+            // 6. 防止 iOS 滚动偏移
             window.scrollTo(0, 0);
             document.body.scrollTop = 0;
             document.documentElement.scrollTop = 0;
