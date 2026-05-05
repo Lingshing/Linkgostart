@@ -8532,29 +8532,34 @@ ${chatContent}
             chatExtensionsPanelOpen = !chatExtensionsPanelOpen;
             const panel = document.getElementById('chat-extensions-panel');
             const container = document.getElementById('chat-messages-container');
+            const panelHeight = 300; // 与 CSS 中 .show 的 max-height 一致
 
+            // 1. 切换面板的显示/隐藏
             if (chatExtensionsPanelOpen) {
                 panel.classList.add('show');
             } else {
                 panel.classList.remove('show');
             }
 
-            // 🎯 等面板的高度动画结束后，平滑滚动到底部
-            const onTransitionEnd = () => {
-                if (container) {
-                    container.style.scrollBehavior = 'smooth';
-                    container.scrollTop = container.scrollHeight;
-                    container.style.scrollBehavior = ''; // 恢复默认，避免其他滚动被影响
-                }
-                panel.removeEventListener('transitionend', onTransitionEnd);
-            };
+            // 2. 同步调整消息容器的底部内边距，让其与面板动画同步上/下移
+            container.style.transition = 'padding-bottom 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+            container.style.paddingBottom = chatExtensionsPanelOpen ? panelHeight + 'px' : '0px';
 
+            // 3. 等面板的过渡动画结束后，清理内联样式，并滚到底部
+            const onTransitionEnd = () => {
+                container.style.transition = '';
+                container.style.paddingBottom = '';
+                panel.removeEventListener('transitionend', onTransitionEnd);
+                scrollToBottom(); // 确保最新消息可见
+            };
             panel.addEventListener('transitionend', onTransitionEnd);
 
-            // 兜底：万一 transitionend 没触发，400ms 后强制滚动
+            // 兜底：万一 transitionend 没触发，400ms 后强制复位
             setTimeout(() => {
-                if (container) {
-                    container.scrollTop = container.scrollHeight;
+                if (container.style.transition) {
+                    container.style.transition = '';
+                    container.style.paddingBottom = '';
+                    scrollToBottom();
                 }
             }, 400);
         }
