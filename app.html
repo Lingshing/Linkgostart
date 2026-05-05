@@ -8522,7 +8522,6 @@ ${chatContent}
             
             if (chatExtensionsPanelOpen) {
                 panel.classList.add('show');
-                scrollToBottom(true);
             } else {
                 panel.classList.remove('show');
             }
@@ -15932,7 +15931,6 @@ ${chatContent}
             const avg = Math.round(sum / roundTokens.length);
             return avg > 0 ? avg : null;
         }
-        
         // 打开预算弹窗
         async function openTokenBudget() {
             // 关闭扩展面板
@@ -16104,13 +16102,6 @@ ${chatContent}
             // 保存当前单价到本地存储
             localStorage.setItem('LINQGO_TOKEN_PRICES', JSON.stringify({ input: inputPrice, output: outputPrice }));
         }
-        document.addEventListener('click', function(e) {
-            const panel = document.getElementById('chat-extensions-panel');
-            const plusBtn = document.querySelector('.chat-plus-btn');
-            if (chatExtensionsPanelOpen && panel && !panel.contains(e.target) && !plusBtn.contains(e.target)) {
-                toggleChatExtensions();
-            }
-        });
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
