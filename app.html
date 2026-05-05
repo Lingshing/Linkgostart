@@ -2495,7 +2495,7 @@
 
         /* 默认隐藏抽屉头部 */
         .console-expand-header {
-            display: none;
+            display: none !important;
             align-items: center;
             padding: 12px 16px;
             border-bottom: 0.5px solid var(--border);
@@ -2531,17 +2531,17 @@
         /* 输入栏展开状态 */
         #console-input-bar.console-expanded {
             position: fixed !important;
-            bottom: 0 !important;
+            top: 0 !important;
             left: 0 !important;
             right: 0 !important;
-            height: 100vh !important;
-            z-index: 10002 !important;
+            bottom: 0 !important;        /* 让键盘自动推起底部 */
+            height: auto !important;     /* 取消固定高度 */
             background: var(--card-bg) !important;
             border-radius: 0 !important;
             flex-direction: column !important;
             padding-bottom: 0 !important;
             padding-top: env(safe-area-inset-top) !important;
-            will-change: height;
+            will-change: auto;
             overscroll-behavior: none;
         }
         #console-input-bar.console-expanded .console-expand-header {
@@ -15719,25 +15719,28 @@ ${chatContent}
             const inputBar = document.getElementById('console-input-bar');
             if (!inputBar || consoleExpandAnimating) return;
 
-            // 1. 测量起始矩形（键盘弹起时是当前可见位置）
+            // ✅ 键盘适配：展开前强制收起键盘，防止把编辑器顶出屏幕
+            if (document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT')) {
+                document.activeElement.blur();
+            }
+
             consoleExpandStartRect = inputBar.getBoundingClientRect();
             const startRect = consoleExpandStartRect;
+            const cmdInput = document.getElementById('console-cmd-input');
+            const initialInputHeight = cmdInput ? cmdInput.offsetHeight : 40;
 
-            // 2. 瞬间展开真身以便测量目标样式，再立刻隐藏
+            // 瞬间展开真身以便测量，再立刻隐藏
             inputBar.classList.add('console-expanded');
             inputBar.style.opacity = '0';
             inputBar.style.pointerEvents = 'none';
+            inputBar.offsetHeight;
 
-            const headerEl = document.getElementById('console-expand-header');
-            const cmdInput = document.getElementById('console-cmd-input');
-            inputBar.offsetHeight; // 强制布局
-
-            // 3. 撤去展开类，准备动画
+            // 撤去展开类，准备动画
             inputBar.classList.remove('console-expanded');
             inputBar.style.opacity = '';
             inputBar.style.pointerEvents = '';
 
-            // 4. 创建覆盖层，精准复刻底部输入栏
+            // 创建覆盖层，精准复刻底部输入栏（❌ 没有标题栏）
             const animator = document.createElement('div');
             animator.style.position = 'fixed';
             animator.style.zIndex = '10003';
@@ -15752,113 +15755,73 @@ ${chatContent}
             animator.style.display = 'flex';
             animator.style.flexDirection = 'column';
 
-            // 标题栏（初始隐藏）
-            const animHeader = document.createElement('div');
-            animHeader.style.cssText = `
-                display: flex; align-items: center; justify-content: center;
-                padding: 0 16px; height: 0; overflow: hidden; opacity: 0;
-                flex-shrink: 0; color: var(--text-main); font-size: 16px; font-weight: 600;
-            `;
-            animHeader.innerHTML = '<span>控制台</span>';
-            animator.appendChild(animHeader);
-
-            // 输入区域容器
             const inputWrapper = document.createElement('div');
-            inputWrapper.style.cssText = `
-                display: flex; align-items: flex-start; padding: 8px 16px; gap: 10px;
-                min-height: 56px; flex: 1;
-            `;
+            inputWrapper.style.cssText = `display:flex; align-items:flex-start; padding:8px 16px; gap:10px; min-height:56px; flex:1;`;
 
-            // 放大按钮
             const expandBtn = document.createElement('div');
-            expandBtn.innerHTML = '<i class="fas fa-up-right-and-down-left-from-center" style="color: #34C759; font-size: 16px;"></i>';
-            expandBtn.style.cssText = `
-                width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-                flex-shrink: 0; margin-top: 6px; transition: opacity 0.2s;
-            `;
+            expandBtn.innerHTML = '<i class="fas fa-up-right-and-down-left-from-center" style="color:#34C759; font-size:16px;"></i>';
+            expandBtn.style.cssText = `width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:6px; transition:opacity 0.2s;`;
             inputWrapper.appendChild(expandBtn);
 
-            // 伪输入框（复刻底部样式，并加上高度限制以便过渡）
             const animInput = document.createElement('textarea');
-            animInput.value = cmdInput.value;
+            animInput.value = cmdInput ? cmdInput.value : '';
             animInput.placeholder = '';
             animInput.readOnly = true;
+            // ✅ 丝滑变形：用 height/min-height/max-height 同步过渡，不再突然跳变
             animInput.style.cssText = `
-                flex: 1; border: none; outline: none; background: var(--hover-bg);
-                padding: 9px 14px; border-radius: 8px; font-size: 17px; color: var(--text-main);
-                font-family: 'SF Mono', monospace; resize: none;
-                line-height: 1.4; overflow-y: auto; caret-color: #07C160;
-                max-height: 100px; min-height: 40px;   /* 关键：初始高度限制 */
+                flex:1; border:none; outline:none; background:var(--hover-bg);
+                padding:9px 14px; border-radius:8px; font-size:17px; color:var(--text-main);
+                font-family:'SF Mono', monospace; resize:none; line-height:1.4; overflow-y:auto;
+                caret-color:#07C160;
+                height:${initialInputHeight}px;
+                min-height:${initialInputHeight}px;
+                max-height:${initialInputHeight}px;
+                transition: height 0.4s cubic-bezier(0.25,1,0.5,1),
+                            min-height 0.4s cubic-bezier(0.25,1,0.5,1),
+                            max-height 0.4s cubic-bezier(0.25,1,0.5,1),
+                            padding 0.4s cubic-bezier(0.25,1,0.5,1),
+                            font-size 0.4s ease,
+                            line-height 0.4s ease;
             `;
             inputWrapper.appendChild(animInput);
 
-            // 发送按钮
             const sendBtn = document.createElement('div');
-            sendBtn.innerHTML = '<i class="fa-solid fa-arrow-turn-down fa-rotate-90" style="color: #34C759; font-size: 14px;"></i>';
-            sendBtn.style.cssText = `
-                width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-                flex-shrink: 0; margin-top: 6px; background: rgba(52,199,89,0.15);
-                border-radius: 8px; transition: opacity 0.2s;
-            `;
+            sendBtn.innerHTML = '<i class="fa-solid fa-arrow-turn-down fa-rotate-90" style="color:#34C759; font-size:14px;"></i>';
+            sendBtn.style.cssText = `width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:6px; background:rgba(52,199,89,0.15); border-radius:8px; transition:opacity 0.2s;`;
             inputWrapper.appendChild(sendBtn);
 
             animator.appendChild(inputWrapper);
             document.body.appendChild(animator);
             consoleExpandAnimatorEl = animator;
 
-            // 隐藏真实输入栏
             inputBar.style.opacity = '0';
             inputBar.style.pointerEvents = 'none';
 
-            // 5. 启动变形动画
-            animator.offsetHeight; // 强制重绘
-
-            animator.style.transition = `
-                left 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-                top 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-                width 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-                height 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-                border-radius 0.4s cubic-bezier(0.25, 1, 0.5, 1)
-            `;
-            // 目标：铺满当前可视区域（键盘上方）
+            // 启动变形动画
+            animator.offsetHeight;
+            animator.style.transition = `left 0.4s cubic-bezier(0.25,1,0.5,1), top 0.4s cubic-bezier(0.25,1,0.5,1), width 0.4s cubic-bezier(0.25,1,0.5,1), height 0.4s cubic-bezier(0.25,1,0.5,1), border-radius 0.4s cubic-bezier(0.25,1,0.5,1)`;
             animator.style.left = '0';
             animator.style.top = '0';
             animator.style.width = window.innerWidth + 'px';
             animator.style.height = window.innerHeight + 'px';
             animator.style.borderRadius = '0';
 
-            // 标题栏渐显
-            animHeader.style.transition = 'height 0.3s ease, opacity 0.3s ease';
-            animHeader.style.height = 'calc(50px + env(safe-area-inset-top))';
-            animHeader.style.paddingTop = 'env(safe-area-inset-top)';
-            animHeader.style.opacity = '1';
-
-            // 按钮淡出
             expandBtn.style.opacity = '0';
             sendBtn.style.opacity = '0';
 
-            // 输入框样式过渡（包含高度限制释放）
-            animInput.style.transition = `
-                padding 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-                border-radius 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-                background 0.4s ease,
-                font-size 0.4s ease,
-                line-height 0.4s ease,
-                max-height 0.4s ease,
-                min-height 0.4s ease
-            `;
+            // ✅ 输入框同步放大到全屏高度
+            animInput.style.height = '100%';
+            animInput.style.minHeight = '200px';
+            animInput.style.maxHeight = 'none';
             animInput.style.padding = '12px';
             animInput.style.fontSize = '15px';
             animInput.style.lineHeight = '1.6';
-            animInput.style.maxHeight = '9999px';  // 解除高度限制
-            animInput.style.minHeight = '0';
 
             const onTransitionEnd = () => {
                 animator.removeEventListener('transitionend', onTransitionEnd);
                 animator.remove();
                 consoleExpandAnimatorEl = null;
 
-                // 显示真实全屏编辑器
                 inputBar.classList.add('console-expanded');
                 inputBar.style.opacity = '';
                 inputBar.style.pointerEvents = '';
@@ -15885,13 +15848,11 @@ ${chatContent}
             const startRect = consoleExpandStartRect;
             const cmdInput = document.getElementById('console-cmd-input');
 
-            // 1. 隐藏真身
             inputBar.classList.remove('console-expanded');
             inputBar.style.opacity = '0';
             inputBar.style.pointerEvents = 'none';
             inputBar.offsetHeight;
 
-            // 2. 创建覆盖层（全屏外观）
             const animator = document.createElement('div');
             animator.style.position = 'fixed';
             animator.style.zIndex = '10003';
@@ -15906,28 +15867,12 @@ ${chatContent}
             animator.style.flexDirection = 'column';
             animator.style.boxShadow = 'none';
 
-            const animHeader = document.createElement('div');
-            animHeader.style.cssText = `
-                display: flex; align-items: center; justify-content: center;
-                padding: 0 16px; height: calc(50px + env(safe-area-inset-top));
-                padding-top: env(safe-area-inset-top); flex-shrink: 0;
-                color: var(--text-main); font-size: 16px; font-weight: 600; opacity: 1;
-            `;
-            animHeader.innerHTML = '<span>控制台</span>';
-            animator.appendChild(animHeader);
-
             const inputWrapper = document.createElement('div');
-            inputWrapper.style.cssText = `
-                display: flex; align-items: flex-start; padding: 8px 16px; gap: 10px;
-                min-height: 56px; flex: 1;
-            `;
+            inputWrapper.style.cssText = `display:flex; align-items:flex-start; padding:8px 16px; gap:10px; min-height:56px; flex:1;`;
 
             const expandBtn = document.createElement('div');
-            expandBtn.innerHTML = '<i class="fas fa-up-right-and-down-left-from-center" style="color: #34C759; font-size: 16px;"></i>';
-            expandBtn.style.cssText = `
-                width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-                flex-shrink: 0; margin-top: 6px; opacity: 0;
-            `;
+            expandBtn.innerHTML = '<i class="fas fa-up-right-and-down-left-from-center" style="color:#34C759; font-size:16px;"></i>';
+            expandBtn.style.cssText = `width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:6px; opacity:0;`;
             inputWrapper.appendChild(expandBtn);
 
             const animInput = document.createElement('textarea');
@@ -15935,62 +15880,43 @@ ${chatContent}
             animInput.placeholder = '';
             animInput.readOnly = true;
             animInput.style.cssText = `
-                flex: 1; border: none; outline: none; background: var(--hover-bg);
-                padding: 12px; border-radius: 8px; font-size: 15px; color: var(--text-main);
-                font-family: 'SF Mono', monospace; resize: none;
-                line-height: 1.6; overflow-y: auto; caret-color: #07C160;
-                max-height: 9999px; min-height: 0;
+                flex:1; border:none; outline:none; background:var(--hover-bg);
+                padding:12px; border-radius:8px; font-size:15px; color:var(--text-main);
+                font-family:'SF Mono', monospace; resize:none; line-height:1.6; overflow-y:auto;
+                caret-color:#07C160;
+                height:100%; min-height:200px; max-height:none;
             `;
             inputWrapper.appendChild(animInput);
 
             const sendBtn = document.createElement('div');
-            sendBtn.innerHTML = '<i class="fa-solid fa-arrow-turn-down fa-rotate-90" style="color: #34C759; font-size: 14px;"></i>';
-            sendBtn.style.cssText = `
-                width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-                flex-shrink: 0; margin-top: 6px; background: rgba(52,199,89,0.15);
-                border-radius: 8px; opacity: 0;
-            `;
+            sendBtn.innerHTML = '<i class="fa-solid fa-arrow-turn-down fa-rotate-90" style="color:#34C759; font-size:14px;"></i>';
+            sendBtn.style.cssText = `width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:6px; background:rgba(52,199,89,0.15); border-radius:8px; opacity:0;`;
             inputWrapper.appendChild(sendBtn);
 
             animator.appendChild(inputWrapper);
             document.body.appendChild(animator);
             consoleExpandAnimatorEl = animator;
 
-            // 3. 反向收缩动画
             animator.offsetHeight;
-            animator.style.transition = `
-                left 0.35s cubic-bezier(0.25, 1, 0.5, 1),
-                top 0.35s cubic-bezier(0.25, 1, 0.5, 1),
-                width 0.35s cubic-bezier(0.25, 1, 0.5, 1),
-                height 0.35s cubic-bezier(0.25, 1, 0.5, 1),
-                border-radius 0.35s cubic-bezier(0.25, 1, 0.5, 1)
-            `;
+            animator.style.transition = `left 0.35s cubic-bezier(0.25,1,0.5,1), top 0.35s cubic-bezier(0.25,1,0.5,1), width 0.35s cubic-bezier(0.25,1,0.5,1), height 0.35s cubic-bezier(0.25,1,0.5,1), border-radius 0.35s cubic-bezier(0.25,1,0.5,1)`;
             animator.style.left = startRect.left + 'px';
             animator.style.top = startRect.top + 'px';
             animator.style.width = startRect.width + 'px';
             animator.style.height = startRect.height + 'px';
             animator.style.borderRadius = '12px';
 
-            animHeader.style.transition = 'height 0.3s ease, opacity 0.3s ease';
-            animHeader.style.height = '0';
-            animHeader.style.paddingTop = '0';
-            animHeader.style.opacity = '0';
-
             expandBtn.style.opacity = '1';
             sendBtn.style.opacity = '1';
 
-            animInput.style.transition = `
-                padding 0.35s cubic-bezier(0.25, 1, 0.5, 1),
-                border-radius 0.35s cubic-bezier(0.25, 1, 0.5, 1),
-                background 0.35s ease,
-                font-size 0.35s ease,
-                max-height 0.35s ease,
-                min-height 0.35s ease
-            `;
+            // ✅ 反向将输入框限制回底部小窗样式
+            const initialInputHeight = (cmdInput && cmdInput.offsetHeight) ? cmdInput.offsetHeight : 40;
+            animInput.style.height = initialInputHeight + 'px';
+            animInput.style.minHeight = initialInputHeight + 'px';
+            animInput.style.maxHeight = initialInputHeight + 'px';
             animInput.style.padding = '9px 14px';
             animInput.style.fontSize = '17px';
-            animInput.style.maxHeight = '100px';
-            animInput.style.minHeight = '40px';
+            animInput.style.lineHeight = '1.4';
+            animInput.style.transition = `padding 0.35s cubic-bezier(0.25,1,0.5,1), font-size 0.35s ease, max-height 0.35s ease, min-height 0.35s ease, height 0.35s ease`;
 
             const onTransitionEnd = () => {
                 animator.removeEventListener('transitionend', onTransitionEnd);
