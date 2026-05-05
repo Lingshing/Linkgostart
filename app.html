@@ -8532,30 +8532,27 @@ ${chatContent}
             chatExtensionsPanelOpen = !chatExtensionsPanelOpen;
             const panel = document.getElementById('chat-extensions-panel');
             const msgContainer = document.getElementById('chat-messages-container');
-
-            // 给消息容器加上平滑过渡（如果还没有）
-            msgContainer.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
-
+            
+            // 记录当前滚动条距离底部的偏移量
+            const oldScrollHeight = msgContainer.scrollHeight;
+            const oldScrollTop = msgContainer.scrollTop;
+            const clientHeight = msgContainer.clientHeight;
+            const distanceToBottom = oldScrollHeight - oldScrollTop - clientHeight;
+            
             if (chatExtensionsPanelOpen) {
-                // 1. 先让面板瞬间获得内容高度（无动画），用来测量实际高度
-                panel.style.transition = 'none';
                 panel.classList.add('show');
-                const panelHeight = panel.offsetHeight;   // 测量面板完全展开后的真实高度
-
-                // 2. 立刻把面板收回去并恢复动画，然后通过真实动画再次展开
-                panel.classList.remove('show');
-                void panel.offsetWidth;                   // 强制重绘，保证后续动画生效
-                panel.style.transition = '';              // 恢复 CSS 中定义的过渡
-
-                panel.classList.add('show');
-
-                // 3. 消息容器同步上移（负 translateY）
-                msgContainer.style.transform = `translateY(-${panelHeight}px)`;
             } else {
                 panel.classList.remove('show');
-                // 消息容器回到原位
-                msgContainer.style.transform = 'translateY(0)';
             }
+            
+            // 等待面板高度变化完成后（下一帧）调整滚动位置，保持用户看到的最后一条消息位置不变
+            requestAnimationFrame(() => {
+                const newScrollHeight = msgContainer.scrollHeight;
+                // 计算出新的 scrollTop，使底部内容相对位置不变
+                const newScrollTop = newScrollHeight - distanceToBottom - clientHeight;
+                // 限制在有效范围内
+                msgContainer.scrollTop = Math.max(0, Math.min(newScrollTop, newScrollHeight - clientHeight));
+            });
         }
 
         document.addEventListener('click', function(e) {
