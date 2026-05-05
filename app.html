@@ -15277,6 +15277,15 @@ ${chatContent}
                     const activePage = document.querySelector('.sub-page-scene.show') || document.querySelector('.tab-page.active');
                     const sab = getSafeAreaBottom();
 
+                    // --- 🌟 新增：全屏控制台专用处理（固定面板 + 内边距避让） ---
+                    const consoleInputBar = document.getElementById('console-input-bar');
+                    if (consoleInputBar && consoleInputBar.classList.contains('console-expanded') &&
+                        (activeEl.id === 'console-cmd-input' || activeEl.closest('#console-input-bar'))) {
+                        // 全屏展开状态下，不移动面板，改为向内增加底部 padding
+                        consoleInputBar.style.paddingBottom = (kbHeight - sab) + 'px';
+                        return; // 直接返回，不再走旧的 translateY 逻辑
+                    }
+
                     // 1️⃣ 聊天主界面
                     if (activeEl.id === 'chat-message-input' || activeEl.closest('#chat-input-bar') || activeEl.id === 'console-cmd-input' || activeEl.closest('#console-input-bar')) {
                         activeEl.style.caretColor = 'transparent';
@@ -15325,6 +15334,11 @@ ${chatContent}
                 });
 
                 Keyboard.addListener('keyboardWillHide', () => {
+                    // --- 🌟 新增：恢复全屏控制台的内边距 ---
+                    const consoleInputBar = document.getElementById('console-input-bar');
+                    if (consoleInputBar && consoleInputBar.classList.contains('console-expanded')) {
+                        consoleInputBar.style.paddingBottom = ''; // 恢复为 CSS 默认值
+                    }
                     document.querySelectorAll('[data-kb-shifted="true"]').forEach(el => {
                         const orig = el.getAttribute('data-orig-transform');
                         el.style.transform = orig || '';
@@ -15702,7 +15716,7 @@ ${chatContent}
         function closeConsoleExpandDrawer() {
             const inputBar = document.getElementById('console-input-bar');
             inputBar.classList.remove('console-expanded');
-            // 焦点仍然在输入框内，键盘继续保持
+            inputBar.style.paddingBottom = ''; // 🌟 新增
         }
 
     </script>
