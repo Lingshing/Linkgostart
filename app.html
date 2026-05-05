@@ -2495,7 +2495,7 @@
 
         /* 默认隐藏抽屉头部 */
         .console-expand-header {
-            display: none !important;
+            display: none;
             align-items: center;
             padding: 12px 16px;
             border-bottom: 0.5px solid var(--border);
@@ -2524,26 +2524,49 @@
             display: none;   /* 直接隐藏标题文字 */
         }
 
-        #console-input-bar {
-            /* transition 由 JS 动态控制，此处移除默认值 */
+        .console-close-btn {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.2s;
+            flex-shrink: 0;
         }
-        
+        .console-close-btn:active {
+            background: rgba(128, 128, 128, 0.25);
+        }
+        .console-close-btn i {
+            font-size: 20px;
+            color: var(--icon-color);
+            pointer-events: none;
+        }
+        /* 全屏编辑器抽屉动画 */
+        #console-input-bar {
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), height 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #console-input-bar.console-expanded {
+            transform: translateY(0) !important;   /* 确保最终位置为屏幕内 */
+        }
         /* 输入栏展开状态 */
         #console-input-bar.console-expanded {
             position: fixed !important;
-            top: 0 !important;
+            bottom: 0 !important;
             left: 0 !important;
             right: 0 !important;
-            bottom: 0 !important;
-            height: auto !important;
+            height: 100vh !important;
+            z-index: 10002 !important;
             background: var(--card-bg) !important;
             border-radius: 0 !important;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), height 0.45s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.45s cubic-bezier(0.4, 0, 0.2, 1) !important;
             flex-direction: column !important;
             padding-bottom: 0 !important;
             padding-top: env(safe-area-inset-top) !important;
-            will-change: auto;
+            will-change: height;
+            transform: translateZ(0);
             overscroll-behavior: none;
-            z-index: 10001 !important;   /* ← 新加的 */
         }
         #console-input-bar.console-expanded .console-expand-header {
             display: flex; /* 显示头部 */
@@ -2572,6 +2595,28 @@
             line-height: 1.6 !important;
             display: block !important;       /* 新增 */
             width: 100% !important;          /* 新增，确保占满 */
+        }
+        .console-send-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: rgba(52, 199, 89, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.1s;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .console-send-btn:active {
+            transform: scale(0.9);
+            background: #34C759;
+        }
+        .console-send-btn i {
+            color: #34C759;
+            font-size: 16px;
+            pointer-events: none;
         }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
@@ -2800,7 +2845,9 @@
         <div id="console-input-bar" style="background: var(--card-bg); border-top: 0.5px solid var(--border); display: flex; flex-direction: column; padding-bottom: var(--safe-bottom);">
             <!-- 新增头部栏，默认隐藏 -->
             <div class="console-expand-header" id="console-expand-header">
-                <i class="fa-solid fa-circle-chevron-down" onclick="closeConsoleExpandDrawer()"></i>
+                <div class="console-close-btn" onclick="setTimeout(() => closeConsoleExpandDrawer(), 100)">
+                    <i class="fa-solid fa-circle-chevron-down"></i>
+                </div>
                 <span>全屏代码编辑器</span>
                 <div></div>
             </div>
@@ -2825,8 +2872,8 @@
                     style="font-family: 'SF Mono', monospace; color: #34C759;"
                 ></textarea>
 
-                <div class="chat-plus-btn" id="console-cmd-btn" style="background: rgba(52, 199, 89, 0.15); border-radius: 8px; margin-top: 2px; pointer-events: auto;">
-                    <i class="fa-solid fa-arrow-turn-down fa-rotate-90" style="color: #34C759; font-size: 14px;"></i>
+                <div class="console-send-btn" id="console-cmd-btn">
+                    <i class="fa-solid fa-arrow-turn-down fa-rotate-90"></i>
                 </div>
                 
             </div>
@@ -15363,9 +15410,6 @@ ${chatContent}
         });
 
         let activeTodoId = null;
-        // 全屏编辑器形变动画用的缓存
-        let consoleExpandStartRect = null;   // 保存展开前的底部输入栏矩形
-        let consoleExpandAnimating = false;  // 防止动画冲突
 
         // 🗑️ 终极纯净版：删除任务
         function deleteCurrentTodo() {
@@ -15713,242 +15757,81 @@ ${chatContent}
         }
         setTimeout(initModelChangeListener, 1000);
 
-       
-        let consoleExpandAnimatorEl = null;
-
         function openConsoleFullEditor() {
             const inputBar = document.getElementById('console-input-bar');
-            if (!inputBar || consoleExpandAnimating) return;
 
-            // ✅ 先收起键盘，防止顶出屏幕
-            if (document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT')) {
-                document.activeElement.blur();
-            }
+            // 1. 先瞬间移到底部之外（为动画准备起始状态）
+            inputBar.style.transition = 'none';
+            inputBar.style.transform = 'translateY(100%)';
+            inputBar.offsetHeight;   // 强制重绘
 
-            consoleExpandStartRect = inputBar.getBoundingClientRect();
-            const startRect = consoleExpandStartRect;
-            const cmdInput = document.getElementById('console-cmd-input');
-            const initialInputHeight = cmdInput ? cmdInput.offsetHeight : 40;
+            // 2. 恢复过渡，清除内联 transform，让 CSS 的 .console-expanded 接管动画
+            inputBar.style.transition = '';
+            inputBar.style.transform = '';
 
-            // 保存原始父节点，用于关闭时还原
-            window._consoleOriginalParent = inputBar.parentNode;
-            window._consoleOriginalNextSibling = inputBar.nextSibling;
-
-            // 瞬间展开真身以便测量，再立刻隐藏
+            // 3. 添加展开类，触发动：从 translateY(100%) → translateY(0)
             inputBar.classList.add('console-expanded');
-            inputBar.style.opacity = '0';
-            inputBar.style.pointerEvents = 'none';
-            inputBar.offsetHeight;
 
-            // 撤去展开类，准备动画
-            inputBar.classList.remove('console-expanded');
-            inputBar.style.opacity = '';
-            inputBar.style.pointerEvents = '';
-
-            // 创建覆盖层，精准复刻底部输入栏
-            const animator = document.createElement('div');
-            animator.style.position = 'fixed';
-            animator.style.zIndex = '10003';
-            animator.style.left = startRect.left + 'px';
-            animator.style.top = startRect.top + 'px';
-            animator.style.width = startRect.width + 'px';
-            animator.style.height = startRect.height + 'px';
-            animator.style.background = 'var(--card-bg)';
-            animator.style.borderRadius = '12px';
-            animator.style.overflow = 'hidden';
-            animator.style.boxShadow = '0 -1px 0 var(--border)';
-            animator.style.display = 'flex';
-            animator.style.flexDirection = 'column';
-
-            const inputWrapper = document.createElement('div');
-            inputWrapper.style.cssText = `display:flex; align-items:flex-start; padding:8px 16px; gap:10px; min-height:56px; flex:1;`;
-
-            const expandBtn = document.createElement('div');
-            expandBtn.innerHTML = '<i class="fas fa-up-right-and-down-left-from-center" style="color:#34C759; font-size:16px;"></i>';
-            expandBtn.style.cssText = `width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:6px; transition:opacity 0.2s;`;
-            inputWrapper.appendChild(expandBtn);
-
-            const animInput = document.createElement('textarea');
-            animInput.value = cmdInput ? cmdInput.value : '';
-            animInput.placeholder = '';
-            animInput.readOnly = true;
-            animInput.style.cssText = `
-                flex:1; border:none; outline:none; background:var(--hover-bg);
-                padding:9px 14px; border-radius:8px; font-size:17px; color:var(--text-main);
-                font-family:'SF Mono', monospace; resize:none; line-height:1.4; overflow-y:auto;
-                caret-color:#07C160;
-                height:${initialInputHeight}px;
-                min-height:${initialInputHeight}px;
-                max-height:${initialInputHeight}px;
-                transition: height 0.4s cubic-bezier(0.25,1,0.5,1),
-                            min-height 0.4s cubic-bezier(0.25,1,0.5,1),
-                            max-height 0.4s cubic-bezier(0.25,1,0.5,1),
-                            padding 0.4s cubic-bezier(0.25,1,0.5,1),
-                            font-size 0.4s ease,
-                            line-height 0.4s ease;
-            `;
-            inputWrapper.appendChild(animInput);
-
-            const sendBtn = document.createElement('div');
-            sendBtn.innerHTML = '<i class="fa-solid fa-arrow-turn-down fa-rotate-90" style="color:#34C759; font-size:14px;"></i>';
-            sendBtn.style.cssText = `width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:6px; background:rgba(52,199,89,0.15); border-radius:8px; transition:opacity 0.2s;`;
-            inputWrapper.appendChild(sendBtn);
-
-            animator.appendChild(inputWrapper);
-            document.body.appendChild(animator);
-            consoleExpandAnimatorEl = animator;
-
-            inputBar.style.opacity = '0';
-            inputBar.style.pointerEvents = 'none';
-
-            // 启动变形动画
-            animator.offsetHeight;
-            animator.style.transition = `left 0.4s cubic-bezier(0.25,1,0.5,1), top 0.4s cubic-bezier(0.25,1,0.5,1), width 0.4s cubic-bezier(0.25,1,0.5,1), height 0.4s cubic-bezier(0.25,1,0.5,1), border-radius 0.4s cubic-bezier(0.25,1,0.5,1)`;
-            animator.style.left = '0';
-            animator.style.top = '0';
-            animator.style.width = window.innerWidth + 'px';
-            animator.style.height = window.innerHeight + 'px';
-            animator.style.borderRadius = '0';
-
-            expandBtn.style.opacity = '0';
-            sendBtn.style.opacity = '0';
-
-            animInput.style.height = '100%';
-            animInput.style.minHeight = '200px';
-            animInput.style.maxHeight = 'none';
-            animInput.style.padding = '12px';
-            animInput.style.fontSize = '15px';
-            animInput.style.lineHeight = '1.6';
-
-            const onTransitionEnd = () => {
-                animator.removeEventListener('transitionend', onTransitionEnd);
-                animator.remove();
-                consoleExpandAnimatorEl = null;
-
-                // ✅ 关键修复：把输入栏移到 body 上，脱离 sub-console 的 transform 限制
-                document.body.appendChild(inputBar);
-                inputBar.classList.add('console-expanded');
-                inputBar.style.opacity = '';
-                inputBar.style.pointerEvents = '';
-                if (cmdInput) {
-                    cmdInput.focus();
-                    cmdInput.setSelectionRange(cmdInput.value.length, cmdInput.value.length);
-                }
-                consoleExpandAnimating = false;
-                delete inputBar.dataset.kbShifted;
-                inputBar.removeAttribute('data-orig-transform');
-            };
-            animator.addEventListener('transitionend', onTransitionEnd);
-            consoleExpandAnimating = true;
-
+            // 4. 清除键盘可能留下的平移标记
             delete inputBar.dataset.kbShifted;
             inputBar.removeAttribute('data-orig-transform');
+
+            const input = document.getElementById('console-cmd-input');
+            input.focus();
+
+            // 5. 若键盘已显示，适配高度
+            if (window.lastKbHeight && window.lastKbHeight > 0) {
+                setTimeout(() => {
+                    inputBar.style.height = `${window.innerHeight - window.lastKbHeight}px`;
+                }, 400);
+            }
+
+            // 6. 防止 iOS 滚动偏移
             window.scrollTo(0, 0);
+            document.body.scrollTop = 0;
+            document.documentElement.scrollTop = 0;
+            requestAnimationFrame(() => window.scrollTo(0, 0));
+            setTimeout(() => window.scrollTo(0, 0), 50);
+            setTimeout(() => window.scrollTo(0, 0), 200);
         }
 
         function closeConsoleExpandDrawer() {
             const inputBar = document.getElementById('console-input-bar');
-            if (!inputBar || consoleExpandAnimating || !consoleExpandStartRect) return;
+            if (!inputBar) return;
 
-            const startRect = consoleExpandStartRect;
-            const cmdInput = document.getElementById('console-cmd-input');
-
-            inputBar.classList.remove('console-expanded');
-            inputBar.style.opacity = '0';
-            inputBar.style.pointerEvents = 'none';
-            inputBar.offsetHeight;
-
-            const animator = document.createElement('div');
-            animator.style.position = 'fixed';
-            animator.style.zIndex = '10003';
-            animator.style.left = '0';
-            animator.style.top = '0';
-            animator.style.width = window.innerWidth + 'px';
-            animator.style.height = window.innerHeight + 'px';
-            animator.style.background = 'var(--card-bg)';
-            animator.style.borderRadius = '0';
-            animator.style.overflow = 'hidden';
-            animator.style.display = 'flex';
-            animator.style.flexDirection = 'column';
-            animator.style.boxShadow = 'none';
-
-            const inputWrapper = document.createElement('div');
-            inputWrapper.style.cssText = `display:flex; align-items:flex-start; padding:8px 16px; gap:10px; min-height:56px; flex:1;`;
-
-            const expandBtn = document.createElement('div');
-            expandBtn.innerHTML = '<i class="fas fa-up-right-and-down-left-from-center" style="color:#34C759; font-size:16px;"></i>';
-            expandBtn.style.cssText = `width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:6px; opacity:0;`;
-            inputWrapper.appendChild(expandBtn);
-
-            const animInput = document.createElement('textarea');
-            animInput.value = cmdInput ? cmdInput.value : '';
-            animInput.placeholder = '';
-            animInput.readOnly = true;
-            animInput.style.cssText = `
-                flex:1; border:none; outline:none; background:var(--hover-bg);
-                padding:12px; border-radius:8px; font-size:15px; color:var(--text-main);
-                font-family:'SF Mono', monospace; resize:none; line-height:1.6; overflow-y:auto;
-                caret-color:#07C160;
-                height:100%; min-height:200px; max-height:none;
-            `;
-            inputWrapper.appendChild(animInput);
-
-            const sendBtn = document.createElement('div');
-            sendBtn.innerHTML = '<i class="fa-solid fa-arrow-turn-down fa-rotate-90" style="color:#34C759; font-size:14px;"></i>';
-            sendBtn.style.cssText = `width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:6px; background:rgba(52,199,89,0.15); border-radius:8px; opacity:0;`;
-            inputWrapper.appendChild(sendBtn);
-
-            animator.appendChild(inputWrapper);
-            document.body.appendChild(animator);
-            consoleExpandAnimatorEl = animator;
-
-            animator.offsetHeight;
-            animator.style.transition = `left 0.35s cubic-bezier(0.25,1,0.5,1), top 0.35s cubic-bezier(0.25,1,0.5,1), width 0.35s cubic-bezier(0.25,1,0.5,1), height 0.35s cubic-bezier(0.25,1,0.5,1), border-radius 0.35s cubic-bezier(0.25,1,0.5,1)`;
-            animator.style.left = startRect.left + 'px';
-            animator.style.top = startRect.top + 'px';
-            animator.style.width = startRect.width + 'px';
-            animator.style.height = startRect.height + 'px';
-            animator.style.borderRadius = '12px';
-
-            expandBtn.style.opacity = '1';
-            sendBtn.style.opacity = '1';
-
-            const initialInputHeight = (cmdInput && cmdInput.offsetHeight) ? cmdInput.offsetHeight : 40;
-            animInput.style.height = initialInputHeight + 'px';
-            animInput.style.minHeight = initialInputHeight + 'px';
-            animInput.style.maxHeight = initialInputHeight + 'px';
-            animInput.style.padding = '9px 14px';
-            animInput.style.fontSize = '17px';
-            animInput.style.lineHeight = '1.4';
-            animInput.style.transition = `padding 0.35s cubic-bezier(0.25,1,0.5,1), font-size 0.35s ease, max-height 0.35s ease, min-height 0.35s ease, height 0.35s ease`;
+            // 确保展开类还在，先不移除
+            // 强制应用向下滑出动画
+            inputBar.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+            inputBar.style.transform = 'translateY(100%)';
 
             const onTransitionEnd = () => {
-                animator.removeEventListener('transitionend', onTransitionEnd);
-                animator.remove();
-                consoleExpandAnimatorEl = null;
-
-                // ✅ 把输入栏移回原来的位置
-                const originalParent = window._consoleOriginalParent;
-                const originalNext = window._consoleOriginalNextSibling;
-                if (originalParent) {
-                    if (originalNext && originalNext.parentNode === originalParent) {
-                        originalParent.insertBefore(inputBar, originalNext);
-                    } else {
-                        originalParent.appendChild(inputBar);
-                    }
-                }
-
-                inputBar.style.opacity = '';
-                inputBar.style.pointerEvents = '';
-                const scrollArea = document.getElementById('console-scroll-area');
-                if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
-
-                consoleExpandStartRect = null;
-                consoleExpandAnimating = false;
+                // 动画结束后移除展开类，并彻底清理所有内联样式残留
+                inputBar.classList.remove('console-expanded');
+                inputBar.style.transition = '';
+                inputBar.style.transform = '';
+                inputBar.style.height = '';
+                inputBar.style.removeProperty('height');
+                delete inputBar.dataset.kbShifted;
+                inputBar.removeAttribute('data-orig-transform');
+                inputBar.removeEventListener('transitionend', onTransitionEnd);
             };
-            animator.addEventListener('transitionend', onTransitionEnd);
-            consoleExpandAnimating = true;
+
+            inputBar.addEventListener('transitionend', onTransitionEnd);
+
+            // 兜底：如果 transitionend 没触发（极少情况），300ms 后强制清理
+            setTimeout(() => {
+                if (inputBar.classList.contains('console-expanded')) {
+                    inputBar.classList.remove('console-expanded');
+                    inputBar.style.transition = '';
+                    inputBar.style.transform = '';
+                    inputBar.style.height = '';
+                    inputBar.style.removeProperty('height');
+                    delete inputBar.dataset.kbShifted;
+                    inputBar.removeAttribute('data-orig-transform');
+                }
+            }, 400);
         }
+
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
@@ -16155,20 +16038,21 @@ ${chatContent}
             if(scrollArea) scrollArea.scrollTop = 0; 
         };
 
-        // 按钮点击效果：告别原生 active 拉扯，彻底用代码精确掌控反馈
         btn.addEventListener('touchstart', (e) => {
-            e.preventDefault(); 
-            btn.style.transform = 'scale(0.8)';
+            e.preventDefault();
+            btn.style.transform = 'scale(0.9)';
             btn.style.background = '#34C759';
-            btn.style.color = '#fff';
-            run();
-            // 200毫秒完美收边动画
+            btn.querySelector('i').style.color = '#fff';
+            // 延迟 100ms 执行
             setTimeout(() => {
-                btn.style.transform = '';
-                btn.style.background = 'rgba(52, 199, 89, 0.15)';
-                btn.style.color = '#34C759';
-                input.blur();
-            }, 200);
+                run();
+                setTimeout(() => {
+                    btn.style.transform = '';
+                    btn.style.background = 'rgba(52, 199, 89, 0.15)';
+                    btn.querySelector('i').style.color = '#34C759';
+                    input.blur();
+                }, 200);
+            }, 100);
         }, { passive: false });
         
         input.addEventListener('keydown', (e) => {
