@@ -2546,7 +2546,6 @@
             padding-bottom: 0 !important;
             padding-top: env(safe-area-inset-top) !important;
             will-change: height;
-            transform: translateZ(0);
             overscroll-behavior: none;
         }
         #console-input-bar.console-expanded .console-expand-header {
@@ -15721,65 +15720,52 @@ ${chatContent}
             const inputBar = document.getElementById('console-input-bar');
             if (!inputBar || consoleExpandAnimating) return;
 
-            // 如果键盘弹出，获取键盘高度（用于后期计算，但不影响测量）
-            const kbHeight = window.lastKbHeight || 0;
-
-            // 1. 获取底部输入栏的当前可视矩形（起点）
+            // 1. 获取起点矩形
             consoleExpandStartRect = inputBar.getBoundingClientRect();
 
-            // 2. 瞬间将元素切换为全屏布局，但先设为透明
-            inputBar.style.transition = 'none';
+            // 2. 禁止所有过渡，添加全屏布局，并立即应用逆向变换
+            inputBar.style.setProperty('transition', 'none', 'important');
             inputBar.classList.add('console-expanded');
+            inputBar.offsetHeight; // 强制重排
 
-            // 3. 强制读取一次布局，让 console-expanded 的样式生效
-            inputBar.offsetHeight;
-
-            // 4. 计算目标（全屏）矩形
             const targetWidth = window.innerWidth;
-            const targetHeight = window.innerHeight; // 全屏高度，受键盘影响时实际可见区域会变小，但100vh在fixed下会自适应
-
-            // 5. 计算从起点矩形到全屏的逆变换（先应用，表现为起点）
+            const targetHeight = window.innerHeight;
             const scaleX = consoleExpandStartRect.width / targetWidth;
             const scaleY = consoleExpandStartRect.height / targetHeight;
             const translateX = consoleExpandStartRect.left;
             const translateY = consoleExpandStartRect.top;
 
-            // 设置 transform-origin 为左上角，方便计算
             inputBar.style.transformOrigin = '0 0';
             inputBar.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
-            inputBar.style.opacity = '0'; // 防止闪屏
+            inputBar.style.opacity = '0';
 
-            // 6. 显示并启动动画
+            // 3. 启动变形动画
             requestAnimationFrame(() => {
-                // 清除内联 transition，让 CSS 的 transition 接管（我们将在 inputBar 上设置一个统一的 transition）
-                inputBar.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease';
+                // 启用过渡（此时优先级高于 CSS 中的 !important，因为内联 !important 覆盖一切）
+                inputBar.style.setProperty('transition', 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease', 'important');
                 inputBar.style.opacity = '1';
-                // 动画目标：无变换，即全屏状态
-                inputBar.style.transform = 'none';
+                inputBar.style.transform = 'none'; // 动画目标：全屏无变换
 
-                // 动画结束后清理
                 const onTransitionEnd = () => {
                     inputBar.removeEventListener('transitionend', onTransitionEnd);
-                    inputBar.style.transition = '';
-                    inputBar.style.transform = '';
-                    inputBar.style.transformOrigin = '';
+                    // 动画完成后恢复由 CSS 接管
+                    inputBar.style.removeProperty('transition');
+                    inputBar.style.removeProperty('transform');
+                    inputBar.style.removeProperty('transform-origin');
+                    inputBar.style.removeProperty('opacity');
                     consoleExpandAnimating = false;
                 };
                 inputBar.addEventListener('transitionend', onTransitionEnd);
                 consoleExpandAnimating = true;
             });
 
-            // 7. 聚焦输入框（可保留）
+            // 聚焦输入框
             const input = document.getElementById('console-cmd-input');
-            if (input) {
-                setTimeout(() => input.focus(), 100);
-            }
+            if (input) setTimeout(() => input.focus(), 150);
 
-            // 8. 清除可能残留的键盘偏移标记（避免影响动画）
+            // 清理键盘偏移标记
             delete inputBar.dataset.kbShifted;
             inputBar.removeAttribute('data-orig-transform');
-
-            // 9. 阻止页面滚动偏移
             window.scrollTo(0, 0);
         }
 
@@ -15787,11 +15773,7 @@ ${chatContent}
             const inputBar = document.getElementById('console-input-bar');
             if (!inputBar || consoleExpandAnimating || !consoleExpandStartRect) return;
 
-            // 1. 获取当前全屏编辑器的矩形（以备计算）
-            // 但我们要动画到保存的起点矩形，所以直接使用 consoleExpandStartRect
             const startRect = consoleExpandStartRect;
-
-            // 2. 计算从全屏到起点矩形的变换参数
             const currentWidth = window.innerWidth;
             const currentHeight = window.innerHeight;
             const scaleX = startRect.width / currentWidth;
@@ -15799,22 +15781,20 @@ ${chatContent}
             const translateX = startRect.left;
             const translateY = startRect.top;
 
-            // 3. 准备动画：目标 transform 是缩小并移动到起点位置
-            inputBar.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease';
+            // 1. 启动收缩动画（同样用内联 !important 压制 CSS）
+            inputBar.style.setProperty('transition', 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease', 'important');
             inputBar.style.transformOrigin = '0 0';
             inputBar.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
-            // 同时可以稍微降低透明度，让收缩更自然
             inputBar.style.opacity = '0.9';
 
             const onTransitionEnd = () => {
                 inputBar.removeEventListener('transitionend', onTransitionEnd);
-                // 4. 动画结束，真正移除全屏状态
+                // 2. 动画结束，撤去全屏状态，彻底清理内联样式
                 inputBar.classList.remove('console-expanded');
-                inputBar.style.transition = '';
-                inputBar.style.transform = '';
-                inputBar.style.transformOrigin = '';
-                inputBar.style.opacity = '';
-                // 清理可能留下的内联 height 等
+                inputBar.style.removeProperty('transition');
+                inputBar.style.removeProperty('transform');
+                inputBar.style.removeProperty('transform-origin');
+                inputBar.style.removeProperty('opacity');
                 inputBar.style.removeProperty('height');
                 delete inputBar.dataset.kbShifted;
                 inputBar.removeAttribute('data-orig-transform');
@@ -15823,8 +15803,6 @@ ${chatContent}
             };
             inputBar.addEventListener('transitionend', onTransitionEnd);
             consoleExpandAnimating = true;
-
-            // 5. 不主动操作键盘，任由键盘保持当前状态
         }
 
     </script>
