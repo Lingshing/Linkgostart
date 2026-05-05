@@ -8532,34 +8532,36 @@ ${chatContent}
             chatExtensionsPanelOpen = !chatExtensionsPanelOpen;
             const panel = document.getElementById('chat-extensions-panel');
             const container = document.getElementById('chat-messages-container');
-            const panelHeight = 300; // 与 CSS 中 .show 的 max-height 一致
+            const panelHeight = 300; // 必须与 CSS 中 #chat-extensions-panel.show 的 max-height 一致
 
-            // 1. 切换面板的显示/隐藏
+            // 1. 面板的显示/隐藏（触发 CSS 动画）
             if (chatExtensionsPanelOpen) {
                 panel.classList.add('show');
             } else {
                 panel.classList.remove('show');
             }
 
-            // 2. 同步调整消息容器的底部内边距，让其与面板动画同步上/下移
-            container.style.transition = 'padding-bottom 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-            container.style.paddingBottom = chatExtensionsPanelOpen ? panelHeight + 'px' : '0px';
+            // 2. 消息容器同步平移（使用 transform，与面板动画时长、缓动完全一致）
+            container.style.transition = 'transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+            container.style.transform = chatExtensionsPanelOpen
+                ? `translateY(-${panelHeight}px)`
+                : 'translateY(0)';
 
-            // 3. 等面板的过渡动画结束后，清理内联样式，并滚到底部
+            // 3. 动画结束后清理内联样式，并确保消息滚动到底部
             const onTransitionEnd = () => {
                 container.style.transition = '';
-                container.style.paddingBottom = '';
+                container.style.transform = '';
                 panel.removeEventListener('transitionend', onTransitionEnd);
-                scrollToBottom(); // 确保最新消息可见
+                scrollToBottom(true); // 保证最新消息可见
             };
             panel.addEventListener('transitionend', onTransitionEnd);
 
-            // 兜底：万一 transitionend 没触发，400ms 后强制复位
+            // 兜底：万一 transitionend 未触发，400ms 后强制复位
             setTimeout(() => {
                 if (container.style.transition) {
                     container.style.transition = '';
-                    container.style.paddingBottom = '';
-                    scrollToBottom();
+                    container.style.transform = '';
+                    scrollToBottom(true);
                 }
             }, 400);
         }
