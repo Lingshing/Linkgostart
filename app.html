@@ -6035,6 +6035,8 @@ ${recentChat}
             
             initGlobalPullRefresh();
         });
+
+        
         
         // ==========================================
         // 长期记忆补全功能
@@ -8536,6 +8538,23 @@ ${chatContent}
                 panel.classList.remove('show');
             }
         }
+
+        document.addEventListener('click', function(e) {
+            // 只在面板处于打开状态时才处理
+            if (!chatExtensionsPanelOpen) return;
+
+            const panel = document.getElementById('chat-extensions-panel');
+            if (!panel) return;
+
+            // 如果点击的是加号按钮本身（或其内部子元素），则忽略，让按钮自己的 onclick 处理开关
+            if (e.target.closest('.chat-plus-btn')) return;
+
+            // 如果点击的是面板内部区域，也不关闭
+            if (panel.contains(e.target)) return;
+
+            // 其他情况：点击了面板和加号之外的区域 → 关闭面板
+            toggleChatExtensions();
+        });
         
         
         // --- 添加消息到聊天界面 ---
