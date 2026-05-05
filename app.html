@@ -2692,22 +2692,22 @@
    <!-- ================= 独立控制台子页面 UI ================= -->
     <div id="sub-console" class="sub-page-scene">
         
-        <!-- 🌟 1. 顶部导航栏 (完全借用你完美的 .chat-nav-header 类) -->
+        <!-- 🌟 1. 顶部栏：直接复用完美的聊天类 .chat-nav-header -->
+        <!-- 去掉多余的第二层标题，把垃圾桶放右上角，完美复刻 Chat 界面的结构 -->
         <div class="chat-nav-header">
-            <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('sub-console')"></i>
+            <i class="fas fa-chevron-left clickable" style="font-size:20px; color:var(--icon-color);" onclick="closeSubPage('sub-console')"></i>
             <span class="nav-title">控制台</span>
-            <!-- 垃圾桶放在右上角，结构完全对齐聊天界面的 ... 按钮 -->
-            <i class="fa-solid fa-trash-can clickable" style="font-size:18px; color:var(--danger);" onclick="clearDevConsole()"></i>
+            <i class="fas fa-trash-can clickable" style="font-size:18px; color:var(--danger);" onclick="clearDevConsole()"></i>
         </div>
 
-        <!-- 🌟 2. 滚动区域 (破案关键：彻底清理内部的 flex 和 overflow 毒瘤！) -->
+        <!-- 🌟 2. 滚动区域：100% 复刻 Chat，内部绝对不再套任何 overflow-y 或 flex: 1 -->
+        <!-- 已增加两侧 padding 为 24px，让两侧不会太挤 -->
         <div id="console-scroll-area" style="flex: 1; overflow-y: auto; background: var(--bg-color); padding: 16px 24px;">
             
             <div style="font-size: 12px; color: var(--text-sub); text-align: center; margin-bottom: 12px;">系统运行日志与网络诊断</div>
             
-            <!-- ⚠️ 绝对干净的卡片容器：没有任何 height, flex:1, 也没有 overflow-y:auto -->
-            <!-- 就让它像聊天气泡一样自然撑开，把滚动权 100% 交给外层的 console-scroll-area -->
-            <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.03);">
+            <!-- ⚠️ 这里就是个普通容器，千万不能加 flex:1 和 overflow-y:auto，让外层去负责滚动！ -->
+            <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; min-height: 80%; box-shadow: 0 1px 4px rgba(0,0,0,0.03);">
                 <div id="dev-console-logs" style="font-family: 'SF Mono', monospace; font-size: 13px; color: var(--text-main); word-wrap: break-word; line-height: 1.5;">
                     <div id="console-ready-msg" style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">拦截器已就绪</div>
                 </div>
@@ -2715,16 +2715,15 @@
             
         </div>
 
-        <!-- 🌟 3. 底部输入栏 (100% 照搬 #chat-input-bar 体系) -->
+        <!-- 🌟 3. 底部输入栏：用内联样式 1:1 复刻 #chat-input-bar 体系 -->
         <div id="console-input-bar" style="background: var(--card-bg); border-top: 0.5px solid var(--border); display: flex; flex-direction: column; padding-bottom: var(--safe-bottom);">
             <div style="display: flex; align-items: flex-start; padding: 8px 16px; gap: 10px; min-height: 56px;">
                 
-                <!-- 占位符模拟聊天界面的 + 号 -->
-                <div class="chat-plus-btn" style="pointer-events: none; opacity: 0;">
-                    <i class="fa-solid fa-chevron-right" style="color: #34C759; font-size: 16px;"></i>
+                <div class="chat-plus-btn" style="pointer-events: none; opacity: 0.5; margin-top: 6px;">
+                    <i class="fa-solid fa-chevron-right" style="color: #34C759; font-size: 14px;"></i>
                 </div>
                 
-                <!-- 直接套用完美适配的 .chat-input-field 类 -->
+                <!-- 🌟 彻底套用完美的 .chat-input-field 类 -->
                 <textarea 
                     id="console-cmd-input" 
                     class="chat-input-field" 
@@ -2735,11 +2734,10 @@
                     autocapitalize="off" 
                     spellcheck="false" 
                     inputmode="text"
-                    style="font-family: 'SF Mono', monospace; color: #34C759; padding-left: 8px;"
+                    style="font-family: 'SF Mono', monospace; color: #34C759;"
                 ></textarea>
 
-                <!-- 按钮继续使用 .chat-plus-btn，覆盖内联属性适应当前功能 -->
-                <div class="chat-plus-btn" id="console-cmd-btn" style="background: rgba(52, 199, 89, 0.15); border-radius: 8px; pointer-events: auto; display: flex; align-items: center; justify-content: center; margin-top: 4px;">
+                <div class="chat-plus-btn" id="console-cmd-btn" style="background: rgba(52, 199, 89, 0.15); border-radius: 8px; margin-top: 2px; pointer-events: auto;">
                     <i class="fa-solid fa-arrow-turn-down fa-rotate-90" style="color: #34C759; font-size: 14px;"></i>
                 </div>
                 
@@ -15196,7 +15194,7 @@ ${chatContent}
                     const sab = getSafeAreaBottom();
 
                     // 1️⃣ 聊天主界面
-                    if (activeEl.id === 'chat-message-input' || activeEl.closest('#chat-input-bar')) {
+                    if (activeEl.id === 'chat-message-input' || activeEl.closest('#chat-input-bar') || activeEl.id === 'console-cmd-input' || activeEl.closest('#console-input-bar')) {
                         activeEl.style.caretColor = 'transparent';
                         setTimeout(() => { activeEl.style.caretColor = ''; }, 400);
                         const targetPage = activePage || document.body;
