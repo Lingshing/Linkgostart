@@ -15706,12 +15706,20 @@ ${chatContent}
 
         function openConsoleFullEditor() {
             const inputBar = document.getElementById('console-input-bar');
-            // 添加展开类，触发变形动画
+            // 1. 清除键盘事件可能遗留的平移 transform（否则顶部会被推出）
+            inputBar.style.transform = '';
+            inputBar.style.removeProperty('transform');
+            delete inputBar.dataset.kbShifted;
+            inputBar.removeAttribute('data-orig-transform');
+
+            // 2. 添加展开类，触发全屏动画
             inputBar.classList.add('console-expanded');
-            // 让输入框保持焦点（焦点本来就没丢）
+
+            // 3. 保持输入框焦点
             const input = document.getElementById('console-cmd-input');
             input.focus();
-            // 如果此时键盘已经显示（例如通过 Capacitor 监听已触发），立即适配高度
+
+            // 4. 若此时键盘已显示，立刻将高度适配为键盘上方剩余空间
             if (window.lastKbHeight && window.lastKbHeight > 0) {
                 inputBar.style.height = `${window.innerHeight - window.lastKbHeight}px`;
             }
@@ -15719,10 +15727,42 @@ ${chatContent}
 
         function closeConsoleExpandDrawer() {
             const inputBar = document.getElementById('console-input-bar');
+            // 1. 移除展开类，并清除内联高度
             inputBar.classList.remove('console-expanded');
-            // 清除可能设置的内联高度，恢复 CSS 默认的 100vh
             inputBar.style.height = '';
-            // 焦点仍然在输入框内，键盘继续保持
+            inputBar.style.removeProperty('height');
+
+            // 2. 清除可能残留的 transform
+            inputBar.style.transform = '';
+            inputBar.style.removeProperty('transform');
+            delete inputBar.dataset.kbShifted;
+            inputBar.removeAttribute('data-orig-transform');
+
+            // 3. 若键盘仍然显示，需要重新将输入栏推至键盘上方（恢复未展开时的平移逻辑）
+            if (window.lastKbHeight && window.lastKbHeight > 0 &&
+                window.Capacitor && window.Capacitor.Plugins.Keyboard) {
+                // 计算与 keyboardWillShow 相同的偏移量（键盘高度 - 安全区底部）
+                const getSafeAreaBottom = () => {
+                    const div = document.createElement('div');
+                    div.style.height = 'env(safe-area-inset-bottom)';
+                    div.style.position = 'absolute';
+                    div.style.visibility = 'hidden';
+                    document.body.appendChild(div);
+                    const sab = div.clientHeight || 0;
+                    document.body.removeChild(div);
+                    return sab;
+                };
+                const sab = getSafeAreaBottom();
+                const shiftValue = window.lastKbHeight - sab;
+                // 应用平移，与键盘事件中的 setShift 行为一致
+                inputBar.style.transition = 'transform 0.38s cubic-bezier(0.15, 0.85, 0.3, 1)';
+                inputBar.style.transform = `translateY(-${shiftValue}px)`;
+                inputBar.dataset.kbShifted = 'true';
+                // 保存原始 transform 以便 keyboardWillHide 恢复
+                inputBar.setAttribute('data-orig-transform', '');
+            }
+
+            // 4. 焦点仍在输入框内（如需）
         }
 
     </script>
