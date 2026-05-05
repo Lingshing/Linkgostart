@@ -2534,8 +2534,8 @@
             top: 0 !important;
             left: 0 !important;
             right: 0 !important;
-            bottom: 0 !important;        /* 让键盘自动推起底部 */
-            height: auto !important;     /* 取消固定高度 */
+            bottom: 0 !important;
+            height: auto !important;
             background: var(--card-bg) !important;
             border-radius: 0 !important;
             flex-direction: column !important;
@@ -2543,6 +2543,7 @@
             padding-top: env(safe-area-inset-top) !important;
             will-change: auto;
             overscroll-behavior: none;
+            z-index: 10001 !important;   /* ← 新加的 */
         }
         #console-input-bar.console-expanded .console-expand-header {
             display: flex; /* 显示头部 */
@@ -15719,7 +15720,7 @@ ${chatContent}
             const inputBar = document.getElementById('console-input-bar');
             if (!inputBar || consoleExpandAnimating) return;
 
-            // ✅ 键盘适配：展开前强制收起键盘，防止把编辑器顶出屏幕
+            // ✅ 先收起键盘，防止顶出屏幕
             if (document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT')) {
                 document.activeElement.blur();
             }
@@ -15728,6 +15729,10 @@ ${chatContent}
             const startRect = consoleExpandStartRect;
             const cmdInput = document.getElementById('console-cmd-input');
             const initialInputHeight = cmdInput ? cmdInput.offsetHeight : 40;
+
+            // 保存原始父节点，用于关闭时还原
+            window._consoleOriginalParent = inputBar.parentNode;
+            window._consoleOriginalNextSibling = inputBar.nextSibling;
 
             // 瞬间展开真身以便测量，再立刻隐藏
             inputBar.classList.add('console-expanded');
@@ -15740,7 +15745,7 @@ ${chatContent}
             inputBar.style.opacity = '';
             inputBar.style.pointerEvents = '';
 
-            // 创建覆盖层，精准复刻底部输入栏（❌ 没有标题栏）
+            // 创建覆盖层，精准复刻底部输入栏
             const animator = document.createElement('div');
             animator.style.position = 'fixed';
             animator.style.zIndex = '10003';
@@ -15767,7 +15772,6 @@ ${chatContent}
             animInput.value = cmdInput ? cmdInput.value : '';
             animInput.placeholder = '';
             animInput.readOnly = true;
-            // ✅ 丝滑变形：用 height/min-height/max-height 同步过渡，不再突然跳变
             animInput.style.cssText = `
                 flex:1; border:none; outline:none; background:var(--hover-bg);
                 padding:9px 14px; border-radius:8px; font-size:17px; color:var(--text-main);
@@ -15809,7 +15813,6 @@ ${chatContent}
             expandBtn.style.opacity = '0';
             sendBtn.style.opacity = '0';
 
-            // ✅ 输入框同步放大到全屏高度
             animInput.style.height = '100%';
             animInput.style.minHeight = '200px';
             animInput.style.maxHeight = 'none';
@@ -15822,6 +15825,8 @@ ${chatContent}
                 animator.remove();
                 consoleExpandAnimatorEl = null;
 
+                // ✅ 关键修复：把输入栏移到 body 上，脱离 sub-console 的 transform 限制
+                document.body.appendChild(inputBar);
                 inputBar.classList.add('console-expanded');
                 inputBar.style.opacity = '';
                 inputBar.style.pointerEvents = '';
@@ -15908,7 +15913,6 @@ ${chatContent}
             expandBtn.style.opacity = '1';
             sendBtn.style.opacity = '1';
 
-            // ✅ 反向将输入框限制回底部小窗样式
             const initialInputHeight = (cmdInput && cmdInput.offsetHeight) ? cmdInput.offsetHeight : 40;
             animInput.style.height = initialInputHeight + 'px';
             animInput.style.minHeight = initialInputHeight + 'px';
@@ -15922,6 +15926,17 @@ ${chatContent}
                 animator.removeEventListener('transitionend', onTransitionEnd);
                 animator.remove();
                 consoleExpandAnimatorEl = null;
+
+                // ✅ 把输入栏移回原来的位置
+                const originalParent = window._consoleOriginalParent;
+                const originalNext = window._consoleOriginalNextSibling;
+                if (originalParent) {
+                    if (originalNext && originalNext.parentNode === originalParent) {
+                        originalParent.insertBefore(inputBar, originalNext);
+                    } else {
+                        originalParent.appendChild(inputBar);
+                    }
+                }
 
                 inputBar.style.opacity = '';
                 inputBar.style.pointerEvents = '';
