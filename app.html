@@ -98,15 +98,6 @@
         /* 手指滑动时禁用过渡，保证跟手 */
         .sub-page-scene.swiping { transition: none; }
 
-        /* 控制台底部弹出动画 */
-        #sub-console {
-            transform: translateY(100%) !important; /* 覆盖默认的 translateX(100%) */
-            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-        }
-        #sub-console.show {
-            transform: translateY(0) !important;
-        }
-
         /* --- UI 组件 --- */
         /* 3. 大标题顶部 (Apps, Chat 首页) */
         .large-header {
@@ -2533,6 +2524,13 @@
             display: none;   /* 直接隐藏标题文字 */
         }
 
+        /* 全屏编辑器抽屉动画 */
+        #console-input-bar {
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), height 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #console-input-bar.console-expanded {
+            transform: translateY(0) !important;   /* 确保最终位置为屏幕内 */
+        }
         /* 输入栏展开状态 */
         #console-input-bar.console-expanded {
             position: fixed !important;
@@ -6447,37 +6445,19 @@ ${chatContent}
             document.getElementById('exp-sec-' + index).classList.add('active');
         }
 
-        function openSubPage(id) {
+        // --- 子页面显示逻辑 ---
+        function openSubPage(id) { document.getElementById(id).classList.add('show'); }
+        
+        // 🌟 核心修改：关闭时强制接管退出动画，防止被内部呼吸动画卡掉
+        function closeSubPage(id) { 
             const el = document.getElementById(id);
-            if (id === 'sub-console') {
-                // 控制台使用底部弹出动画
-                el.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
-                el.classList.add('show');
-            } else {
-                el.classList.add('show');
-            }
-        }
-
-        function closeSubPage(id) {
-            const el = document.getElementById(id);
-            if (id === 'sub-console') {
-                // 控制台向下收回
-                el.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
-                el.style.transform = 'translateY(100%)';
-                setTimeout(() => {
-                    el.style.transition = '';
-                    el.style.transform = '';
-                    el.classList.remove('show');
-                }, 400);
-            } else {
-                el.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
-                el.style.transform = 'translateX(100%)';
-                setTimeout(() => {
-                    el.style.transition = '';
-                    el.style.transform = '';
-                    el.classList.remove('show');
-                }, 350);
-            }
+            el.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+            el.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                el.style.transition = '';
+                el.style.transform = '';
+                el.classList.remove('show');
+            }, 350);
         }
         
         function showChatWindow() { document.getElementById('scene-chat').classList.add('show'); }
@@ -7709,28 +7689,24 @@ ${chatContent}
         let touchStartX = 0;
         let touchStartY = 0;
         let activePage = null;
-        let isActivePageModal = false;
-        let isActuallySwiping = false;
-        let isConsoleVerticalSwipe = false; // 新增：标记是否为控制台垂直拖动
+        let isActivePageModal = false; // 记录当前滑动的对象是不是弹窗
+        let isActuallySwiping = false; // 🌟 核心新增：真正开始滑动的标记
 
         document.addEventListener('touchstart', (e) => {
             const swipeableLayers = Array.from(document.querySelectorAll('.sub-page-scene.show, #chat-detail-panel.show, .modal-overlay.show, .config-modal-overlay.show, .prompt-modal-overlay.show'));
             if (swipeableLayers.length === 0) return;
-
-            activePage = swipeableLayers[swipeableLayers.length - 1];
+            
+            activePage = swipeableLayers[swipeableLayers.length - 1]; 
             isActivePageModal = activePage.classList.contains('modal-overlay') || activePage.classList.contains('config-modal-overlay') || activePage.classList.contains('prompt-modal-overlay');
-            isConsoleVerticalSwipe = (activePage.id === 'sub-console'); // 判断是否是控制台
-
+            
             const touch = e.touches[0];
-            // 控制台允许在任意位置向下拖动（不需要边缘限定）
-            if (isConsoleVerticalSwipe) {
+            // 仅左侧边缘 30px 内触发
+            if (touch.clientX < 30) {
                 touchStartX = touch.clientX;
                 touchStartY = touch.clientY;
-                isActuallySwiping = false;
-            } else if (touch.clientX < 30) { // 其他页面依然只从左边缘触发
-                touchStartX = touch.clientX;
-                touchStartY = touch.clientY;
-                isActuallySwiping = false;
+                isActuallySwiping = false; // 🌟 重置滑动标记
+                // 🌟 核心修复：手指刚放上去时绝不立刻添加 swiping 类！
+                // 彻底解决 Safari 浏览器因此重置呼吸动画、吞掉返回键点击事件的 Bug！
             } else {
                 activePage = null;
             }
@@ -7739,113 +7715,74 @@ ${chatContent}
         document.addEventListener('touchmove', (e) => {
             if (!activePage) return;
             const touch = e.touches[0];
-
-            if (isConsoleVerticalSwipe) {
-                let deltaY = touch.clientY - touchStartY;
-                // 仅允许向下拉（关闭手势）
-                if (deltaY > 0) {
-                    if (deltaY > 10) {
-                        if (!isActuallySwiping) {
-                            isActuallySwiping = true;
-                            activePage.classList.add('swiping');
-                        }
-                        activePage.style.transform = `translateY(${deltaY}px)`;
-                        e.preventDefault();
+            let deltaX = touch.clientX - touchStartX;
+            
+            // 只有向右滑才移动
+            if (deltaX > 0) {
+                // 🌟 核心修复：引入 10px 的防误触死区！
+                // 只有真正滑出 10px，才开始接管页面，保护了微小抖动时的 Click 点击事件！
+                if (deltaX > 10) {
+                    if (!isActuallySwiping) {
+                        isActuallySwiping = true;
+                        if (!isActivePageModal) activePage.classList.add('swiping');
                     }
-                }
-            } else {
-                let deltaX = touch.clientX - touchStartX;
-                if (deltaX > 0) {
-                    if (deltaX > 10) {
-                        if (!isActuallySwiping) {
-                            isActuallySwiping = true;
-                            if (!isActivePageModal) activePage.classList.add('swiping');
-                        }
-                        if (!isActivePageModal) {
-                            activePage.style.transform = `translateX(${deltaX}px)`;
-                        }
-                        e.preventDefault();
+                    
+                    if (!isActivePageModal) {
+                        activePage.style.transform = `translateX(${deltaX}px)`;
                     }
+                    e.preventDefault(); 
                 }
             }
         }, { passive: false });
 
         document.addEventListener('touchend', (e) => {
             if (!activePage) return;
-
-            if (!isActivePageModal && isConsoleVerticalSwipe) {
-                activePage.classList.remove('swiping');
-                const touch = e.changedTouches[0];
-                const deltaY = touch.clientY - touchStartY;
-
-                if (!isActuallySwiping || Math.abs(deltaY) < 10) {
-                    activePage.style.transform = '';
-                    activePage = null;
-                    return;
-                }
-
-                const threshold = window.innerHeight * 0.2; // 向下拖动超过20%屏幕高度即关闭
-                if (deltaY > threshold) {
-                    // 执行关闭动画
-                    activePage.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
-                    activePage.style.transform = 'translateY(100%)';
+            
+            if (!isActivePageModal) activePage.classList.remove('swiping');
+            
+            const touch = e.changedTouches[0];
+            const deltaX = touch.clientX - touchStartX;
+            
+            // 🌟 核心修复：如果没有真正滑动（位移极小），完美放行点击事件！
+            if (!isActuallySwiping || Math.abs(deltaX) < 10) {
+                if (!isActivePageModal) activePage.style.transform = '';
+                activePage = null;
+                return;
+            }
+            
+            const threshold = isActivePageModal ? 40 : window.innerWidth * 0.25;
+            if (deltaX > threshold) {
+                const pageId = activePage.id;
+                const targetPage = activePage; 
+                const isModal = isActivePageModal;
+                if (!isModal) {
+                    void targetPage.offsetWidth;
+                    targetPage.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+                    targetPage.style.transform = 'translateX(100%)';
                     setTimeout(() => {
-                        activePage.style.transition = '';
-                        activePage.style.transform = '';
-                        activePage.classList.remove('show');
-                        activePage = null;
-                    }, 400);
-                } else {
-                    // 弹回原位
-                    activePage.style.transform = 'translateY(0)';
-                    setTimeout(() => {
-                        if (activePage) activePage.style.transform = '';
-                    }, 400);
-                }
-            } else if (!isConsoleVerticalSwipe) {
-                if (!isActivePageModal) activePage.classList.remove('swiping');
-                const touch = e.changedTouches[0];
-                const deltaX = touch.clientX - touchStartX;
-
-                if (!isActuallySwiping || Math.abs(deltaX) < 10) {
-                    if (!isActivePageModal) activePage.style.transform = '';
-                    activePage = null;
-                    return;
-                }
-
-                const threshold = isActivePageModal ? 40 : window.innerWidth * 0.25;
-                if (deltaX > threshold) {
-                    const pageId = activePage.id;
-                    const targetPage = activePage;
-                    const isModal = isActivePageModal;
-                    if (!isModal) {
-                        void targetPage.offsetWidth;
-                        targetPage.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
-                        targetPage.style.transform = 'translateX(100%)';
-                        setTimeout(() => {
-                            targetPage.style.transition = '';
-                            targetPage.style.transform = '';
-                            targetPage.classList.remove('show');
-                            if (pageId === 'sub-preset-detail') openPresetManagementModal();
-                            if (pageId === 'sub-regex-detail') openRegexManagementModal();
-                            document.querySelectorAll('.modal-overlay.show, .config-modal-overlay.show, .prompt-modal-overlay.show').forEach(m => {
-                                m.style.transform = '';
-                                m.classList.remove('show');
-                            });
-                        }, 350);
-                    } else {
+                        targetPage.style.transition = '';
                         targetPage.style.transform = '';
                         targetPage.classList.remove('show');
-                    }
+                        if (pageId === 'sub-preset-detail') openPresetManagementModal();
+                        if (pageId === 'sub-regex-detail') openRegexManagementModal();
+                        document.querySelectorAll('.modal-overlay.show, .config-modal-overlay.show, .prompt-modal-overlay.show').forEach(m => {
+                            m.style.transform = '';
+                            m.classList.remove('show');
+                        });
+                    }, 350);
                 } else {
-                    if (!isActivePageModal) {
-                        activePage.style.transform = 'translateX(0)';
-                        setTimeout(() => {
-                            if (activePage) activePage.style.transform = '';
-                        }, 400);
-                    }
+                    targetPage.style.transform = '';
+                    targetPage.classList.remove('show');
+                }
+            } else {
+                if (!isActivePageModal) {
+                    activePage.style.transform = 'translateX(0)';
+                    setTimeout(() => {
+                        if(activePage) activePage.style.transform = '';
+                    }, 400);
                 }
             }
+            
             activePage = null;
         });
 
@@ -15779,29 +15716,37 @@ ${chatContent}
 
         function openConsoleFullEditor() {
             const inputBar = document.getElementById('console-input-bar');
-            // 1. 清除键盘事件可能遗留的平移 transform（否则顶部会被推出）
+            
+            // 先瞬间移到底部之外（为动画做准备）
+            inputBar.style.transition = 'none';
+            inputBar.style.transform = 'translateY(100%)';
+            inputBar.offsetHeight;   // 强制重绘
+            
+            // 恢复过渡，清除内联 transform，让 CSS 的 .console-expanded 接管
+            inputBar.style.transition = '';
             inputBar.style.transform = '';
-            inputBar.style.removeProperty('transform');
+            
+            // 添加展开类，触发位移动画
+            inputBar.classList.add('console-expanded');
+            
+            // 清除键盘遗留的标记
             delete inputBar.dataset.kbShifted;
             inputBar.removeAttribute('data-orig-transform');
-
-            // 2. 添加展开类，触发全屏动画
-            inputBar.classList.add('console-expanded');
-
-            // 3. 保持输入框焦点
+            
             const input = document.getElementById('console-cmd-input');
             input.focus();
-
-            // 4. 若此时键盘已显示，立刻将高度适配为键盘上方剩余空间
+            
+            // 键盘适配（在动画完成后调整高度更完美）
             if (window.lastKbHeight && window.lastKbHeight > 0) {
-                inputBar.style.height = `${window.innerHeight - window.lastKbHeight}px`;
+                setTimeout(() => {
+                    inputBar.style.height = `${window.innerHeight - window.lastKbHeight}px`;
+                }, 400);
             }
-
-            // 🛡️ 防止 iOS 聚焦自动滚动导致的顶部偏移
+            
+            // 防止 iOS 滚动偏移
             window.scrollTo(0, 0);
             document.body.scrollTop = 0;
             document.documentElement.scrollTop = 0;
-            // 多次复位（覆盖异步滚动）
             requestAnimationFrame(() => window.scrollTo(0, 0));
             setTimeout(() => window.scrollTo(0, 0), 50);
             setTimeout(() => window.scrollTo(0, 0), 200);
@@ -15809,42 +15754,22 @@ ${chatContent}
 
         function closeConsoleExpandDrawer() {
             const inputBar = document.getElementById('console-input-bar');
-            // 1. 移除展开类，并清除内联高度
-            inputBar.classList.remove('console-expanded');
-            inputBar.style.height = '';
-            inputBar.style.removeProperty('height');
-
-            // 2. 清除可能残留的 transform
-            inputBar.style.transform = '';
-            inputBar.style.removeProperty('transform');
-            delete inputBar.dataset.kbShifted;
-            inputBar.removeAttribute('data-orig-transform');
-
-            // 3. 若键盘仍然显示，需要重新将输入栏推至键盘上方（恢复未展开时的平移逻辑）
-            if (window.lastKbHeight && window.lastKbHeight > 0 &&
-                window.Capacitor && window.Capacitor.Plugins.Keyboard) {
-                // 计算与 keyboardWillShow 相同的偏移量（键盘高度 - 安全区底部）
-                const getSafeAreaBottom = () => {
-                    const div = document.createElement('div');
-                    div.style.height = 'env(safe-area-inset-bottom)';
-                    div.style.position = 'absolute';
-                    div.style.visibility = 'hidden';
-                    document.body.appendChild(div);
-                    const sab = div.clientHeight || 0;
-                    document.body.removeChild(div);
-                    return sab;
-                };
-                const sab = getSafeAreaBottom();
-                const shiftValue = window.lastKbHeight - sab;
-                // 应用平移，与键盘事件中的 setShift 行为一致
-                inputBar.style.transition = 'transform 0.38s cubic-bezier(0.15, 0.85, 0.3, 1)';
-                inputBar.style.transform = `translateY(-${shiftValue}px)`;
-                inputBar.dataset.kbShifted = 'true';
-                // 保存原始 transform 以便 keyboardWillHide 恢复
-                inputBar.setAttribute('data-orig-transform', '');
-            }
-
-            // 4. 焦点仍在输入框内（如需）
+            
+            // 触发向下滑出动画
+            inputBar.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+            inputBar.style.transform = 'translateY(100%)';
+            
+            const onTransitionEnd = () => {
+                inputBar.classList.remove('console-expanded');
+                inputBar.style.transition = '';
+                inputBar.style.transform = '';
+                inputBar.style.height = '';
+                inputBar.style.removeProperty('height');
+                delete inputBar.dataset.kbShifted;
+                inputBar.removeAttribute('data-orig-transform');
+                inputBar.removeEventListener('transitionend', onTransitionEnd);
+            };
+            inputBar.addEventListener('transitionend', onTransitionEnd);
         }
 
     </script>
