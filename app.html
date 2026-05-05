@@ -2492,6 +2492,37 @@
             }
         }
 
+        .console-full-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 5000;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .console-full-overlay.show {
+            opacity: 1; pointer-events: auto;
+        }
+        .console-full-content {
+            background: var(--card-bg); width: 90%; max-width: 700px; height: 70vh;
+            border-radius: 16px; display: flex; flex-direction: column;
+            overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .console-full-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 20px; border-bottom: 0.5px solid var(--border);
+            font-weight: 600; color: var(--text-main);
+        }
+        .console-full-textarea {
+            flex: 1; border: none; outline: none; resize: none;
+            padding: 16px; font-family: 'SF Mono', monospace; font-size: 14px;
+            color: var(--text-main); background: var(--bg-color);
+            line-height: 1.6; width: 100%; box-sizing: border-box;
+        }
+        .console-full-btn {
+            background: var(--text-main); color: var(--card-bg); border: none;
+            border-radius: 8px; padding: 8px 16px; font-size: 14px; cursor: pointer;
+            font-weight: 500;
+        }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
@@ -2707,7 +2738,7 @@
             <div style="font-size: 12px; color: var(--text-sub); text-align: center; margin-bottom: 12px;">系统运行日志与网络诊断</div>
             
             <!-- ⚠️ 这里就是个普通容器，千万不能加 flex:1 和 overflow-y:auto，让外层去负责滚动！ -->
-            <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; min-height: 80%; box-shadow: 0 1px 4px rgba(0,0,0,0.03);">
+            <div style="background: var(--card-bg); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; flex: 1; box-shadow: 0 1px 4px rgba(0,0,0,0.03);">
                 <div id="dev-console-logs" style="font-family: 'SF Mono', monospace; font-size: 13px; color: var(--text-main); word-wrap: break-word; line-height: 1.5;">
                     <div id="console-ready-msg" style="color: var(--text-sub); text-align: center; padding: 20px 0; font-size: 13px;">拦截器已就绪</div>
                 </div>
@@ -2719,8 +2750,8 @@
         <div id="console-input-bar" style="background: var(--card-bg); border-top: 0.5px solid var(--border); display: flex; flex-direction: column; padding-bottom: var(--safe-bottom);">
             <div style="display: flex; align-items: flex-start; padding: 8px 16px; gap: 10px; min-height: 56px;">
                 
-                <div class="chat-plus-btn" style="pointer-events: none; opacity: 0.5; margin-top: 6px;">
-                    <i class="fa-solid fa-chevron-right" style="color: #34C759; font-size: 14px;"></i>
+                <div class="chat-plus-btn" style="margin-top: 6px; cursor: pointer;" onclick="openConsoleFullEditor()">
+                    <i class="fa-solid fa-expand" style="color: #34C759; font-size: 16px;"></i>
                 </div>
                 
                 <!-- 🌟 彻底套用完美的 .chat-input-field 类 -->
@@ -15605,6 +15636,43 @@ ${chatContent}
             modelInput.addEventListener('input', handleModelChange);
         }
         setTimeout(initModelChangeListener, 1000);
+
+        function openConsoleFullEditor() {
+            const overlay = document.getElementById('console-full-overlay');
+            const textarea = document.getElementById('console-full-textarea');
+            const currentCode = document.getElementById('console-cmd-input').value;
+            textarea.value = currentCode;
+            overlay.classList.add('show');
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        }
+
+        function closeConsoleFullEditor() {
+            document.getElementById('console-full-overlay').classList.remove('show');
+        }
+
+        function executeConsoleFullCode() {
+            const code = document.getElementById('console-full-textarea').value.trim();
+            if (!code) return;
+            
+            // 同步回输入框（方便下次快速修改）
+            const originalInput = document.getElementById('console-cmd-input');
+            originalInput.value = code;
+            
+            // 执行代码（复用 run 逻辑）
+            try {
+                const result = eval(code);
+                addLogToConsole('success', '指令执行', result);
+            } catch (e) {
+                addLogToConsole('error', '执行报错', e.message);
+            }
+            
+            closeConsoleFullEditor();
+            
+            // 让日志区滚动到顶部
+            const scrollArea = document.getElementById('console-scroll-area');
+            if(scrollArea) scrollArea.scrollTop = 0;
+        }
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
@@ -15827,13 +15895,17 @@ ${chatContent}
             }, 200);
         }, { passive: false });
         
-        input.addEventListener('keydown', (e) => { 
-            if (e.key === 'Enter') {
-                e.preventDefault(); // 阻止 textarea 默认的换行行为
-                run();
-                setTimeout(() => input.blur(), 200);
-            }
-        });
+        input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        if (e.shiftKey || e.ctrlKey || e.metaKey) {
+            // 按住 Shift/Ctrl/Cmd 再按 Enter 才发送
+            e.preventDefault();
+            run();
+            setTimeout(() => input.blur(), 200);
+        }
+        // 否则默认就是换行，不要阻止
+    }
+});
 
     }, 500);
 
@@ -15846,7 +15918,19 @@ ${chatContent}
     console.warn = (...args) => addLogToConsole('warn', 'WARN', args);
     window.onerror = (msg, url, line) => addLogToConsole('error', '运行时崩溃', `${msg} (Line: ${line})`);
 </script>
-    
+
+<div id="console-full-overlay" class="console-full-overlay" onclick="if(event.target===this) closeConsoleFullEditor()">
+    <div class="console-full-content">
+        <div class="console-full-header">
+            <span>代码编辑器</span>
+            <div>
+                <button class="console-full-btn" onclick="executeConsoleFullCode()" style="margin-right: 8px;">运行</button>
+                <button class="console-full-btn" onclick="closeConsoleFullEditor()">取消</button>
+            </div>
+        </div>
+        <textarea id="console-full-textarea" class="console-full-textarea" placeholder="输入多行代码..."></textarea>
+    </div>
+</div>
 </body>
 </html>
 
