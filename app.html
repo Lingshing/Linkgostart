@@ -15279,6 +15279,12 @@ ${chatContent}
 
                     // 1️⃣ 聊天主界面
                     if (activeEl.id === 'chat-message-input' || activeEl.closest('#chat-input-bar') || activeEl.id === 'console-cmd-input' || activeEl.closest('#console-input-bar')) {
+                        const consoleBar = document.getElementById('console-input-bar');
+                        if (consoleBar && consoleBar.classList.contains('console-expanded')) {
+                            // 不进行整体平移，只调整抽屉高度
+                            consoleBar.style.height = `${window.innerHeight - kbHeight}px`;
+                            return;
+                        }
                         activeEl.style.caretColor = 'transparent';
                         setTimeout(() => { activeEl.style.caretColor = ''; }, 400);
                         const targetPage = activePage || document.body;
@@ -15325,6 +15331,11 @@ ${chatContent}
                 });
 
                 Keyboard.addListener('keyboardWillHide', () => {
+                    // 恢复展开的控制台高度
+                    const consoleBar = document.getElementById('console-input-bar');
+                    if (consoleBar && consoleBar.classList.contains('console-expanded')) {
+                        consoleBar.style.height = ''; // 还原为 CSS 默认的 100vh
+                    }
                     document.querySelectorAll('[data-kb-shifted="true"]').forEach(el => {
                         const orig = el.getAttribute('data-orig-transform');
                         el.style.transform = orig || '';
