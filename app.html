@@ -2527,17 +2527,18 @@
         /* 输入栏展开状态 */
         #console-input-bar.console-expanded {
             position: fixed !important;
-            bottom: 0 !important;
+            top: 0 !important;            /* ✨ 新增：将顶部死死钉在屏幕最上方 */
+            bottom: 0 !important;         /* 保持底部固定在可视区域最下方 */
             left: 0 !important;
             right: 0 !important;
-            height: 100vh !important;                     /* 改为满屏，配合 padding-top 避开状态栏 */
+            height: 100% !important;      /* ✨ 修改：将 100vh 改为 100%，让它根据 top 和 bottom 自动动态伸缩 */
             z-index: 10002 !important;
             background: var(--card-bg) !important;
-            border-radius: 0 !important;                 /* 全屏时无需圆角 */
+            border-radius: 0 !important;                 
             transition: height 0.45s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.45s cubic-bezier(0.4, 0, 0.2, 1) !important;
             flex-direction: column !important;
             padding-bottom: 0 !important;
-            padding-top: env(safe-area-inset-top) !important; /* 让头部控件不被灵动岛遮挡 */
+            padding-top: env(safe-area-inset-top) !important; 
             will-change: height;
             transform: translateZ(0);
         }
