@@ -5929,7 +5929,7 @@ ${recentChat}
                         inputBar.style.setProperty('height', window.visualViewport.height + 'px', 'important');
                         
                         // 2. 获取浏览器为了光标可见而强行推上去的偏移量，把它加回来，让抽屉死死咬住屏幕最顶部
-                        inputBar.style.setProperty('top', window.visualViewport.offsetTop + 'px', 'important');
+                        inputBar.style.setProperty('top', '0px', 'important');
                         
                         // 3. 必须干掉 bottom，防止上下拉扯导致高度错乱
                         inputBar.style.setProperty('bottom', 'auto', 'important');
