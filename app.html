@@ -2527,18 +2527,17 @@
         /* 输入栏展开状态 */
         #console-input-bar.console-expanded {
             position: fixed !important;
-            top: 0 !important;            /* 🌟 核心1：只挂靠顶部 */
             left: 0 !important;
             right: 0 !important;
-            height: 100vh !important;     /* 🌟 核心2：CSS先给个默认全屏，弹起键盘后的高度交由JS精准接管 */
             z-index: 10002 !important;
             background: var(--card-bg) !important;
             border-radius: 0 !important;                 
-            transition: height 0.45s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.45s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            /* 🌟 核心修改1：删除了 top, bottom, height 的硬编码，全权交给底层 JS 引擎动态接管 */
+            transition: height 0.35s cubic-bezier(0.25, 1, 0.5, 1), top 0.35s cubic-bezier(0.25, 1, 0.5, 1), border-radius 0.35s ease !important;
             flex-direction: column !important;
             padding-bottom: 0 !important;
             padding-top: env(safe-area-inset-top) !important; 
-            will-change: height, top;     /* 🌟 新增 top 优化性能 */
+            will-change: height, top;
             transform: translateZ(0);
         }
         #console-input-bar.console-expanded .console-expand-header {
@@ -5911,25 +5910,33 @@ ${recentChat}
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            // 🎯 新增：恢复上一次所在的 Tab，如果没有则默认 Chat
+            // 🎯 现有的代码保留...
             const savedTab = sessionStorage.getItem('CURRENT_MAIN_TAB') || 'chat';
             switchTab(savedTab);
-            
             initGlobalPullRefresh();
+
             // ==========================================
             // 🌟 终极修复：控制台全屏编辑器键盘防遮挡/防顶飞引擎
             // ==========================================
             const inputBar = document.getElementById('console-input-bar');
             if (inputBar && window.visualViewport) {
-                // 精确同步当前可见的屏幕真实尺寸和偏移量
+                
                 const syncEditorViewport = () => {
                     if (inputBar.classList.contains('console-expanded')) {
-                        inputBar.style.height = window.visualViewport.height + 'px';
-                        inputBar.style.top = window.visualViewport.offsetTop + 'px'; // 抵消系统强行顶起的高度
+                        // 🌟 魔法核心：必须使用 setProperty 和 important，以绝对压制任何 CSS 规则！
+                        
+                        // 1. 获取真实视口的高度（剔除键盘后的绝对安全高度）
+                        inputBar.style.setProperty('height', window.visualViewport.height + 'px', 'important');
+                        
+                        // 2. 获取浏览器为了光标可见而强行推上去的偏移量，把它加回来，让抽屉死死咬住屏幕最顶部
+                        inputBar.style.setProperty('top', window.visualViewport.offsetTop + 'px', 'important');
+                        
+                        // 3. 必须干掉 bottom，防止上下拉扯导致高度错乱
+                        inputBar.style.setProperty('bottom', 'auto', 'important');
                     }
                 };
                 
-                // 监听键盘弹起、收起以及页面的微小滚动
+                // 键盘弹起、收起及页面被系统强行滑动时的高频同步
                 window.visualViewport.addEventListener('resize', syncEditorViewport);
                 window.visualViewport.addEventListener('scroll', syncEditorViewport);
                 
@@ -5938,21 +5945,23 @@ ${recentChat}
                     mutations.forEach((mutation) => {
                         if (mutation.attributeName === 'class') {
                             if (inputBar.classList.contains('console-expanded')) {
+                                // 刚展开时立即计算一次真实视口
                                 syncEditorViewport();
                                 
-                                // 🌟 魔法细节：等待 0.45s 的抽屉展开动画播完后，强行关闭 CSS 过渡。
-                                // 这样一旦键盘弹起，窗口的缩放是 0 延迟绝对跟手的，不会出现因为动画导致的残影卡顿。
+                                // 等待 0.35s 的 CSS 展开动画播完后，强行关闭元素的过渡效果
+                                // 这样一旦之后键盘弹起，窗口的缩放是 0 延迟绝对跟手的！
                                 setTimeout(() => {
                                     if (inputBar.classList.contains('console-expanded')) {
-                                        inputBar.style.transition = 'none';
+                                        inputBar.style.setProperty('transition', 'none', 'important');
                                         syncEditorViewport();
                                     }
-                                }, 450);
+                                }, 350);
                             } else {
-                                // 🌟 收起为底部输入框时，清空JS强加的所有内联样式，恢复 CSS 默认控制
-                                inputBar.style.transition = '';
-                                inputBar.style.height = '';
-                                inputBar.style.top = '';
+                                // 收起为底部输入框时，彻底清空 JS 强加的所有内联样式，完美恢复底层 CSS 的原始控制权
+                                inputBar.style.removeProperty('top');
+                                inputBar.style.removeProperty('bottom');
+                                inputBar.style.removeProperty('height');
+                                inputBar.style.removeProperty('transition');
                             }
                         }
                     });
