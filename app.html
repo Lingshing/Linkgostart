@@ -832,6 +832,7 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            transition: padding-bottom 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
         
         /* 消息气泡 */
@@ -8527,20 +8528,25 @@ ${chatContent}
             }
         }
 
+        // --- 切换扩展功能面板 ---
         function toggleChatExtensions() {
             chatExtensionsPanelOpen = !chatExtensionsPanelOpen;
             const panel = document.getElementById('chat-extensions-panel');
+            const msgContainer = document.getElementById('chat-messages-container');
             
             if (chatExtensionsPanelOpen) {
                 panel.classList.add('show');
+                // 假设展开后面板高度为 300px（与CSS中 max-height: 300px 一致）
+                if (msgContainer) {
+                    msgContainer.style.paddingBottom = '300px';
+                    msgContainer.style.transition = 'padding-bottom 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                }
             } else {
                 panel.classList.remove('show');
+                if (msgContainer) {
+                    msgContainer.style.paddingBottom = '10px'; // 恢复原有的 10px padding
+                }
             }
-
-            // 强制滚动到底部，消息区域会被“顶上去”
-            requestAnimationFrame(() => {
-                scrollToBottom(true);
-            });
         }
 
         document.addEventListener('click', function(e) {
