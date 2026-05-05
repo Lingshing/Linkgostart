@@ -2535,9 +2535,7 @@
             transition: background 0.2s;
             flex-shrink: 0;
         }
-        .console-close-btn:active {
-            background: rgba(128, 128, 128, 0.25);
-        }
+        
         .console-close-btn i {
             font-size: 20px;
             color: var(--icon-color);
@@ -2845,7 +2843,7 @@
         <div id="console-input-bar" style="background: var(--card-bg); border-top: 0.5px solid var(--border); display: flex; flex-direction: column; padding-bottom: var(--safe-bottom);">
             <!-- 新增头部栏，默认隐藏 -->
             <div class="console-expand-header" id="console-expand-header">
-                <div class="console-close-btn" onclick="setTimeout(() => closeConsoleExpandDrawer(), 100)">
+                <div class="console-close-btn" onclick="closeConsoleExpandDrawer()">
                     <i class="fa-solid fa-circle-chevron-down"></i>
                 </div>
                 <span>全屏代码编辑器</span>
@@ -15799,16 +15797,15 @@ ${chatContent}
             const inputBar = document.getElementById('console-input-bar');
             if (!inputBar) return;
 
-            // 确保展开类还在，先不移除
-            // 强制应用向下滑出动画
+            // 强制应用向下滑出动画，用 important 覆盖 .console-expanded 的强制 translateY(0)
             inputBar.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
-            inputBar.style.transform = 'translateY(100%)';
+            inputBar.style.setProperty('transform', 'translateY(100%)', 'important');
 
             const onTransitionEnd = () => {
                 // 动画结束后移除展开类，并彻底清理所有内联样式残留
                 inputBar.classList.remove('console-expanded');
                 inputBar.style.transition = '';
-                inputBar.style.transform = '';
+                inputBar.style.transform = '';          // 移除内联 transform（包括 important）
                 inputBar.style.height = '';
                 inputBar.style.removeProperty('height');
                 delete inputBar.dataset.kbShifted;
@@ -15818,7 +15815,7 @@ ${chatContent}
 
             inputBar.addEventListener('transitionend', onTransitionEnd);
 
-            // 兜底：如果 transitionend 没触发（极少情况），300ms 后强制清理
+            // 兜底：如果 transitionend 没触发，400ms 后强制清理
             setTimeout(() => {
                 if (inputBar.classList.contains('console-expanded')) {
                     inputBar.classList.remove('console-expanded');
@@ -16043,16 +16040,13 @@ ${chatContent}
             btn.style.transform = 'scale(0.9)';
             btn.style.background = '#34C759';
             btn.querySelector('i').style.color = '#fff';
-            // 延迟 100ms 执行
+            run();
             setTimeout(() => {
-                run();
-                setTimeout(() => {
-                    btn.style.transform = '';
-                    btn.style.background = 'rgba(52, 199, 89, 0.15)';
-                    btn.querySelector('i').style.color = '#34C759';
-                    input.blur();
-                }, 200);
-            }, 100);
+                btn.style.transform = '';
+                btn.style.background = 'rgba(52, 199, 89, 0.15)';
+                btn.querySelector('i').style.color = '#34C759';
+                input.blur();
+            }, 200);
         }, { passive: false });
         
         input.addEventListener('keydown', (e) => {
