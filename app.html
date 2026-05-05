@@ -2527,11 +2527,10 @@
         /* 输入栏展开状态 */
         #console-input-bar.console-expanded {
             position: fixed !important;
-            top: 0 !important;            /* ✨ 新增：将顶部死死钉在屏幕最上方 */
-            bottom: 0 !important;         /* 保持底部固定在可视区域最下方 */
+            top: 0 !important;            /* 🌟 核心1：只挂靠顶部 */
             left: 0 !important;
             right: 0 !important;
-            height: 100% !important;      /* ✨ 修改：将 100vh 改为 100%，让它根据 top 和 bottom 自动动态伸缩 */
+            height: 100vh !important;     /* 🌟 核心2：CSS先给个默认全屏，弹起键盘后的高度交由JS精准接管 */
             z-index: 10002 !important;
             background: var(--card-bg) !important;
             border-radius: 0 !important;                 
@@ -2539,7 +2538,7 @@
             flex-direction: column !important;
             padding-bottom: 0 !important;
             padding-top: env(safe-area-inset-top) !important; 
-            will-change: height;
+            will-change: height, top;     /* 🌟 新增 top 优化性能 */
             transform: translateZ(0);
         }
         #console-input-bar.console-expanded .console-expand-header {
@@ -5917,6 +5916,49 @@ ${recentChat}
             switchTab(savedTab);
             
             initGlobalPullRefresh();
+            // ==========================================
+            // 🌟 终极修复：控制台全屏编辑器键盘防遮挡/防顶飞引擎
+            // ==========================================
+            const inputBar = document.getElementById('console-input-bar');
+            if (inputBar && window.visualViewport) {
+                // 精确同步当前可见的屏幕真实尺寸和偏移量
+                const syncEditorViewport = () => {
+                    if (inputBar.classList.contains('console-expanded')) {
+                        inputBar.style.height = window.visualViewport.height + 'px';
+                        inputBar.style.top = window.visualViewport.offsetTop + 'px'; // 抵消系统强行顶起的高度
+                    }
+                };
+                
+                // 监听键盘弹起、收起以及页面的微小滚动
+                window.visualViewport.addEventListener('resize', syncEditorViewport);
+                window.visualViewport.addEventListener('scroll', syncEditorViewport);
+                
+                // 监听抽屉的展开/收起状态
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.attributeName === 'class') {
+                            if (inputBar.classList.contains('console-expanded')) {
+                                syncEditorViewport();
+                                
+                                // 🌟 魔法细节：等待 0.45s 的抽屉展开动画播完后，强行关闭 CSS 过渡。
+                                // 这样一旦键盘弹起，窗口的缩放是 0 延迟绝对跟手的，不会出现因为动画导致的残影卡顿。
+                                setTimeout(() => {
+                                    if (inputBar.classList.contains('console-expanded')) {
+                                        inputBar.style.transition = 'none';
+                                        syncEditorViewport();
+                                    }
+                                }, 450);
+                            } else {
+                                // 🌟 收起为底部输入框时，清空JS强加的所有内联样式，恢复 CSS 默认控制
+                                inputBar.style.transition = '';
+                                inputBar.style.height = '';
+                                inputBar.style.top = '';
+                            }
+                        }
+                    });
+                });
+                observer.observe(inputBar, { attributes: true });
+            }
         });
         
         // ==========================================
