@@ -8531,33 +8531,42 @@ ${chatContent}
         function toggleChatExtensions() {
             chatExtensionsPanelOpen = !chatExtensionsPanelOpen;
             const panel = document.getElementById('chat-extensions-panel');
-            const container = document.getElementById('chat-messages-container'); // 消息滚动容器
+            const container = document.getElementById('chat-messages-container');
 
-            // 记录当前滚动状态，判断用户是否在底部
+            // 判断用户当前是否在底部（距离底部20px以内就算在底部）
             const wasAtBottom = container && container.scrollTop + container.clientHeight >= container.scrollHeight - 20;
 
             if (chatExtensionsPanelOpen) {
+                // 展开面板
                 panel.classList.add('show');
-            } else {
-                panel.classList.remove('show');
-            }
-
-            // 让面板的 max-height 过渡动画完成后再调整滚动位置
-            const transitionMs = 350; // 需与 CSS 中 #chat-extensions-panel 的 transition 时长一致
-            setTimeout(() => {
-                if (wasAtBottom || chatExtensionsPanelOpen) {
-                    // 如果用户在底部（或刚打开面板），平滑滚到底部
-                    container?.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-                } else {
-                    // 如果用户在看历史消息，补偿高度差，保持当前可见区域不动
-                    // （此时消息容器高度已自动减小，需向下滚动相应的差值）
-                    // 这里用 requestAnimationFrame 获取最新高度
-                    // 补偿量 = 面板高度变化量，但收起时面板高度消失，需向上滚回
-                    // 简单处理：不做补偿，忽略微小跳动即可（原生应用也如此）
+                
+                // 🎯 核心修改：面板展开的同时立刻同步上滚，不再等350ms
+                if (wasAtBottom && container) {
+                    // 先瞬间跳到底部
+                    container.scrollTop = container.scrollHeight;
+                    // 在面板展开动画期间（约400ms），持续把滚动位置钉在底部
+                    const startTime = Date.now();
+                    function keepAtBottom() {
+                        if (Date.now() - startTime < 400) {
+                            container.scrollTop = container.scrollHeight;
+                            requestAnimationFrame(keepAtBottom);
+                        }
+                    }
+                    requestAnimationFrame(keepAtBottom);
                 }
-            }, transitionMs);
+            } else {
+                // 收起面板
+                panel.classList.remove('show');
+                
+                // 收起后，如果之前在底部，把消息容器滚到底
+                if (wasAtBottom && container) {
+                    setTimeout(() => {
+                        container.scrollTop = container.scrollHeight;
+                    }, 50);
+                }
+            }
         }
-        
+
         document.addEventListener('click', function(e) {
             // 只在面板处于打开状态时才处理
             if (!chatExtensionsPanelOpen) return;
