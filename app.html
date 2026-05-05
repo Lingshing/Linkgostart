@@ -2635,6 +2635,15 @@
             -webkit-appearance: none;
             margin: 0;
         }
+        /* ── 面板展开时，消息容器自动同步上移 ── */
+        #chat-input-bar.extensions-open #chat-extensions-panel {
+            max-height: 300px;
+            opacity: 1;
+        }
+        #chat-input-bar.extensions-open ~ #chat-messages-container {
+            transform: translateY(-300px);
+            transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
@@ -8530,40 +8539,31 @@ ${chatContent}
         // --- 切换扩展功能面板 ---
         function toggleChatExtensions() {
             chatExtensionsPanelOpen = !chatExtensionsPanelOpen;
-            const panel = document.getElementById('chat-extensions-panel');
+            const inputBar = document.getElementById('chat-input-bar');
             const container = document.getElementById('chat-messages-container');
-            const panelHeight = 300; // 必须与 CSS 中 #chat-extensions-panel.show 的 max-height 一致
 
-            // 1. 面板的显示/隐藏（触发 CSS 动画）
+            // 所有动画交给 CSS class 处理
             if (chatExtensionsPanelOpen) {
-                panel.classList.add('show');
+                inputBar.classList.add('extensions-open');
             } else {
-                panel.classList.remove('show');
+                inputBar.classList.remove('extensions-open');
             }
 
-            // 2. 消息容器同步平移（使用 transform，与面板动画时长、缓动完全一致）
-            container.style.transition = 'transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-            container.style.transform = chatExtensionsPanelOpen
-                ? `translateY(-${panelHeight}px)`
-                : 'translateY(0)';
+            // 面板缩回后，自动滚到底部（可选）
+            if (!chatExtensionsPanelOpen) {
+                const onTransitionEnd = () => {
+                    container.style.scrollBehavior = 'smooth';
+                    container.scrollTop = container.scrollHeight;
+                    container.style.scrollBehavior = '';
+                    container.removeEventListener('transitionend', onTransitionEnd);
+                };
+                container.addEventListener('transitionend', onTransitionEnd);
 
-            // 3. 动画结束后清理内联样式，并确保消息滚动到底部
-            const onTransitionEnd = () => {
-                container.style.transition = '';
-                container.style.transform = '';
-                panel.removeEventListener('transitionend', onTransitionEnd);
-                scrollToBottom(true); // 保证最新消息可见
-            };
-            panel.addEventListener('transitionend', onTransitionEnd);
-
-            // 兜底：万一 transitionend 未触发，400ms 后强制复位
-            setTimeout(() => {
-                if (container.style.transition) {
-                    container.style.transition = '';
-                    container.style.transform = '';
-                    scrollToBottom(true);
-                }
-            }, 400);
+                // 兜底
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                }, 400);
+            }
         }
 
         document.addEventListener('click', function(e) {
