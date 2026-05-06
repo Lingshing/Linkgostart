@@ -2635,6 +2635,254 @@
             -webkit-appearance: none;
             margin: 0;
         }
+        
+        /* ==========================================
+           🌟 世界档案馆 (知识图谱) 专属 UI 样式
+           ========================================== */
+        
+        .archive-glass-morphism {
+            background: color-mix(in srgb, var(--card-bg) 75%, transparent);
+            backdrop-filter: blur(25px) saturate(150%);
+            -webkit-backdrop-filter: blur(25px) saturate(150%);
+            border: 0.5px solid color-mix(in srgb, var(--text-main) 4%, transparent);
+            box-shadow: 0 4px 16px color-mix(in srgb, var(--text-main) 3%, transparent), 
+                        inset 0 1px 1px color-mix(in srgb, var(--card-bg) 50%, transparent);
+        }
+
+        .archive-glass-panel {
+            background: color-mix(in srgb, var(--card-bg) 50%, transparent);
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            border: 0.5px solid color-mix(in srgb, var(--text-main) 3%, transparent);
+            box-shadow: 0 12px 40px color-mix(in srgb, var(--text-main) 4%, transparent), 
+                        inset 0 1px 1px color-mix(in srgb, var(--card-bg) 40%, transparent);
+        }
+
+        /* 搜索框和排序按钮 */
+        .archive-glass-input {
+            width: 100%; padding: 10px 12px 10px 38px; border: none; border-radius: 14px; outline: none;
+            font-size: 15px; color: var(--text-main); transition: all 0.2s; box-sizing: border-box;
+        }
+        .archive-glass-input:focus { box-shadow: 0 0 0 3px var(--accent-light); }
+        .archive-glass-btn {
+            width: 40px; height: 40px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+            color: var(--text-main); flex-shrink: 0; cursor: pointer; transition: all 0.2s;
+        }
+        .archive-glass-btn:active { transform: scale(0.9); background: color-mix(in srgb, var(--text-main) 10%, transparent); }
+
+        /* ✨ 悬浮下拉菜单核心样式 (变身原生 iOS Context Menu) */
+        .archive-category-menu {
+            position: absolute; top: 58px; right: 20px; width: 160px; z-index: 100;
+            background: color-mix(in srgb, var(--card-bg) 75%, transparent);
+            backdrop-filter: blur(35px) saturate(200%); -webkit-backdrop-filter: blur(35px) saturate(200%);
+            border: 1px solid color-mix(in srgb, var(--text-main) 8%, transparent);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+            border-radius: 16px; padding: 6px;
+            display: flex; flex-direction: column; gap: 2px;
+            opacity: 0; transform: scale(0.95); transform-origin: top right; pointer-events: none;
+            transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .archive-category-menu.show { opacity: 1; transform: scale(1); pointer-events: auto; }
+        
+        .cat-menu-item {
+            padding: 10px 14px; border-radius: 10px; font-size: 14px; font-weight: 600;
+            color: var(--text-main); display: flex; justify-content: space-between; align-items: center;
+            transition: 0.2s; cursor: pointer;
+        }
+        .cat-menu-item.active { 
+            background: color-mix(in srgb, var(--text-main) 8%, transparent); 
+            /* ✨ 替换为温暖高级的琥珀金点亮色，抛弃科技蓝 */
+            color: #D47A43; 
+        }
+        .cat-menu-item:active { background: color-mix(in srgb, var(--text-main) 12%, transparent); }
+
+        /* 羽化渐变遮罩 */
+        .archive-scroll-mask { position: fixed; left: 0; right: 0; z-index: 10; pointer-events: none; }
+        .archive-scroll-mask.top {
+            top: 150px; height: 40px; 
+            background: linear-gradient(to bottom, var(--bg-color) 0%, transparent 100%);
+        }
+        .archive-scroll-mask.bottom {
+            bottom: 0; height: 100px;
+            background: linear-gradient(to top, var(--bg-color) 0%, transparent 100%);
+        }
+
+        /* 实体卡片 (包含人物等分类) */
+        .archive-entity-card {
+            margin: 0 20px 20px; border-radius: 24px;
+            overflow: hidden; transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        
+        .archive-entity-header {
+            padding: 20px; display: flex; flex-direction: column; gap: 10px;
+            cursor: pointer; position: relative; transition: background 0.2s;
+        }
+        .archive-entity-header:active { background: color-mix(in srgb, var(--text-main) 4%, transparent); }
+
+        .archive-header-top { display: flex; justify-content: space-between; align-items: center; }
+        .archive-entity-title { font-size: 20px; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px; }
+        
+        .archive-count-badge {
+            background: color-mix(in srgb, var(--text-main) 8%, transparent); 
+            color: var(--text-main); font-size: 12px; font-weight: 600;
+            padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 6px;
+        }
+        
+        .archive-preview-text {
+            font-size: 14px; color: var(--text-sub); line-height: 1.5;
+            display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+            transition: opacity 0.3s ease, max-height 0.3s ease, margin 0.3s ease; 
+            opacity: 1; max-height: 50px;
+        }
+        .archive-entity-card.expanded .archive-preview-text { opacity: 0; max-height: 0; margin-top: -10px; }
+        
+        .archive-entity-body-wrapper { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s cubic-bezier(0.25, 1, 0.5, 1); }
+        .archive-entity-card.expanded .archive-entity-body-wrapper { grid-template-rows: 1fr; }
+        .archive-entity-body { overflow: hidden; }
+        .archive-entity-body-inner { 
+            padding: 0 20px 20px; border-top: 1px solid color-mix(in srgb, var(--text-main) 6%, transparent); 
+            margin-top: -10px; padding-top: 20px;
+        }
+
+        /* 编年史区块卡片 */
+        .archive-timeline-block {
+            margin: 0 20px 20px; border-radius: 24px; padding: 20px 16px 20px 0;
+            display: flex; align-items: stretch;
+        }
+        .archive-timeline-block .timeline-left {
+            width: 70px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+            padding-top: 4px; font-family: "SF Mono", -apple-system, monospace; font-size: 12px; font-weight: 700; color: var(--text-sub);
+        }
+        .archive-timeline-block .timeline-right-container {
+            flex: 1; min-width: 0; border-left: 1px solid color-mix(in srgb, var(--text-main) 10%, transparent);
+            padding-left: 16px; position: relative;
+        }
+        
+        .archive-timeline-row {
+            display: flex; align-items: stretch; padding-bottom: 12px; margin-bottom: 12px; 
+            border-bottom: 1px dashed color-mix(in srgb, var(--text-main) 10%, transparent);
+        }
+        .archive-timeline-row:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+
+        .timeline-item { position: relative; padding-bottom: 24px; }
+        .timeline-item:last-child { padding-bottom: 0; }
+        .timeline-dot {
+            position: absolute; top: 6px; left: -21px; width: 9px; height: 9px; border-radius: 50%;
+            background: var(--text-main); box-shadow: 0 0 0 3px rgba(255,255,255,0.01); opacity: 0.3;
+        }
+        .timeline-text { font-size: 15px; color: var(--text-main); line-height: 1.6; word-wrap: break-word; }
+        .timeline-actions { display: flex; justify-content: flex-end; gap: 14px; margin-top: 8px; }
+        .timeline-actions i { color: var(--text-sub); font-size: 14px; cursor: pointer; transition: transform 0.2s, color 0.2s; padding: 4px; }
+        .timeline-actions i:active { transform: scale(0.9); color: var(--text-main); }
+        
+        /* 魔法棒 */
+        .magic-wand-btn {
+            width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            color: var(--text-main); font-size: 16px;
+            background: color-mix(in srgb, var(--text-main) 5%, transparent);
+            border: 0.5px solid color-mix(in srgb, var(--text-main) 10%, transparent);
+            box-shadow: inset 0 1px 3px color-mix(in srgb, var(--card-bg) 50%, transparent);
+            transition: all 0.2s; cursor: pointer;
+        }
+        .magic-wand-btn:active { transform: scale(0.9); background: color-mix(in srgb, var(--text-main) 15%, transparent); }
+        .archive-item-text { font-size: 15px; color: var(--text-main); line-height: 1.6; }
+
+        /* ============================
+           🌟 档案馆：琉璃星图与星碎 (极度紧凑版)
+           ============================ */
+        .archive-chip-matrix {
+            display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start;
+            gap: 12px; padding: 10px 20px 20px; transition: all 0.4s ease;
+        }
+        
+        /* ✨ 进一步收缩星图背板的高度，消灭留白 */
+        .archive-network-board {
+            width: 100%; height: 270px; /* 从320px暴砍到270px */
+            position: relative; overflow: hidden; margin-top: -5px; margin-bottom: 10px;
+        }
+        
+        .archive-chip-matrix.has-active .archive-glass-chip:not(.active),
+        .archive-network-board.has-active .archive-glass-chip:not(.active) {
+            opacity: 0.3; filter: grayscale(60%); transform: scale(0.92);
+        }
+
+        .archive-glass-chip {
+            border-radius: 100px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            user-select: none; box-sizing: border-box;
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            padding: 10px 18px; 
+        }
+        .archive-glass-chip:active { transform: scale(0.95); }
+        .archive-glass-chip.active { 
+            transform: scale(1.1); 
+            box-shadow: 0 8px 24px color-mix(in srgb, var(--chip-c) 40%, transparent);
+            border-color: var(--chip-c); z-index: 10;
+        }
+
+        .archive-network-board .archive-glass-chip { position: absolute; }
+        .archive-glass-chip .chip-short { display: flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 14px; font-weight: 600; }
+        .archive-glass-chip .chip-count { background: color-mix(in srgb, currentColor 20%, transparent); padding: 1px 6px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+        
+        /* 关系网连线 */
+        .relation-line {
+            position: absolute; height: 1.5px; transform-origin: left center; pointer-events: none;
+            transition: all 0.3s; opacity: 0.4; border-radius: 2px;
+        }
+        .relation-arrow { position: absolute; top: -5px; right: -5px; width: 0; height: 0; border: 6px solid transparent; transform: scaleX(0.8); }
+        .relation-label {
+            position: absolute; padding: 4px 10px; border-radius: 100px;
+            background: color-mix(in srgb, var(--card-bg) 60%, transparent);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            font-size: 12px; font-weight: 600; text-align: center; white-space: nowrap;
+            color: var(--text-sub); border: 0.5px solid var(--border);
+            cursor: default; pointer-events: auto; transition: 0.2s;
+        }
+        .relation-label:hover { color: var(--text-main); border-color: var(--text-main); transform: scale(1.05); }
+
+        /* 独立阅读器 */
+        .pref-detail-reader {
+            margin: 0 20px 40px; border-radius: 20px; max-height: 0; opacity: 0; overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            padding: 0 20px; box-sizing: border-box;
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+        }
+        .pref-detail-reader.show { max-height: 3000px; opacity: 1; padding: 20px; margin-top: 10px; }
+        .chip-detail-item { padding: 14px 0; border-bottom: 0.5px solid color-mix(in srgb, currentColor 15%, transparent); }
+        .chip-detail-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .chip-detail-time { font-size: 11px; opacity: 0.6; margin-top: 10px; text-align: right; }
+        .chip-actions { display: flex; gap: 14px; margin-left: 12px; opacity: 0.7; }
+        .chip-actions i { cursor: pointer; padding: 4px; transition: 0.2s; }
+        .chip-actions i:active { transform: scale(0.9); opacity: 1; }
+
+        /* 莫兰迪色系池 */
+        .chip-theme-blue { --chip-c: #5C92D1; }
+        .chip-theme-green { --chip-c: #65A881; }
+        .chip-theme-sand { --chip-c: #D88E73; }
+        .chip-theme-mauve { --chip-c: #B87A9D; }
+        .chip-theme-rose { --chip-c: #D67A7A; }
+
+        /* 🖤 5分：核心 (抛弃实色，改为高亮透亮琉璃) */
+        .archive-chip-core { 
+            color: var(--chip-c); 
+            background: color-mix(in srgb, var(--chip-c) 25%, transparent); 
+            border: 1px solid color-mix(in srgb, var(--chip-c) 60%, transparent); 
+            box-shadow: 0 4px 15px color-mix(in srgb, var(--chip-c) 25%, transparent); 
+        }
+        
+        .pref-detail-reader.core { 
+            background: color-mix(in srgb, var(--chip-c) 20%, transparent); 
+            border: 1px solid color-mix(in srgb, var(--chip-c) 50%, transparent); 
+            color: var(--text-main); 
+            box-shadow: 0 12px 30px color-mix(in srgb, var(--chip-c) 15%, transparent); 
+        }
+
+        /* 保证星图里的人物连线依然清晰，不受球体变透明的影响 */
+        .relation-line.archive-chip-core { background: var(--chip-c) !important; }
+        .archive-chip-major { color: var(--chip-c); background: color-mix(in srgb, var(--chip-c) 15%, transparent); border: 1px solid color-mix(in srgb, var(--chip-c) 20%, transparent); }
+        .pref-detail-reader.major { background: color-mix(in srgb, var(--chip-c) 15%, transparent); border: 1px solid color-mix(in srgb, var(--chip-c) 30%, transparent); color: var(--text-main); }
+        .archive-chip-minor { color: var(--chip-c); background: transparent; border: 1px dashed color-mix(in srgb, var(--chip-c) 50%, transparent); }
+        .pref-detail-reader.minor { background: color-mix(in srgb, var(--chip-c) 5%, transparent); border: 1px dashed color-mix(in srgb, var(--chip-c) 40%, transparent); color: var(--text-main); }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
@@ -3489,13 +3737,13 @@
                     <i class="fas fa-chevron-right detail-card-arrow"></i>
                 </div>
                 
-                <div class="detail-card-item" onclick="openLongMemoryModal()">
+                <div class="detail-card-item" onclick="openArchivePage()">
                     <div class="detail-card-left">
                         <div class="detail-card-icon">
-                            <i class="fas fa-brain"></i>
+                            <i class="fas fa-book-journal-whills"></i>
                         </div>
                         <div class="detail-card-info">
-                            <div class="detail-card-title">长期记忆</div>
+                            <div class="detail-card-title">档案馆</div>
                         </div>
                     </div>
                     <i class="fas fa-chevron-right detail-card-arrow"></i>
@@ -3593,53 +3841,48 @@
         </div>
     </div>
     
-    <!-- 长期记忆弹窗 -->
-    <div class="config-modal-overlay" id="longMemoryModal" onclick="closeLongMemoryModalByOverlay(event)">
-        <div class="config-modal-content" style="max-width: 90%; width: 400px; max-height: 80vh; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
-            <!-- 头部：标题 + 补全按钮 -->
-            <div class="config-modal-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="width: 32px;"></div>
-                <h3 class="config-modal-title" style="flex: 1; text-align: center;">长期记忆</h3>
-                <i class="fas fa-wand-magic-sparkles clickable" style="color: var(--text-main); opacity: 0.7; font-size: 16px; padding: 8px; transition: opacity 0.2s ease;" onclick="backfillAllMemories()" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'"></i>
-            </div>
-            
-            <div style="padding: 0 20px 12px 20px;">
-                <div style="position: relative;">
-                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-sub); font-size: 14px; z-index: 1; pointer-events: none;"></i>
-                    <input type="text" 
-                           id="long-memory-search" 
-                           placeholder="搜索记忆内容、标签..." 
-                           oninput="filterLongMemory(this.value)"
-                           style="width: 100%; padding: 10px 12px 10px 36px; border: none; border-radius: 10px; outline: none; background: var(--hover-bg); font-size: 15px; color: var(--text-main); transition: all 0.2s; box-sizing: border-box;">
-                </div>
-            </div>
-            
-            <div style="padding: 0 20px 24px 20px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;">
-                <div id="long-memory-tabs" style="display: flex; gap: 8px; white-space: nowrap; padding-bottom: 4px;">
-                    <div class="memory-category-tab active" onclick="selectMemoryCategory('全部')">全部</div>
-                    <div class="memory-category-tab" onclick="selectMemoryCategory('核心')">核心</div>
-                    <div class="memory-category-tab" onclick="selectMemoryCategory('偏好')">偏好</div>
-                    <div class="memory-category-tab" onclick="selectMemoryCategory('事件')">事件</div>
-                    <div class="memory-category-tab" onclick="selectMemoryCategory('人物')">人物</div>
-                </div>
-            </div>
-            
-            <!-- Tag筛选提示 -->
-            <div id="long-memory-tag-filter" style="display: none; padding: 8px 20px; background: var(--accent-light); color: var(--accent); font-size: 13px; border-bottom: 0.5px solid var(--border);">
-                <span id="long-memory-tag-text"></span>
-                <span onclick="clearMemoryTagFilter()" style="margin-left: 12px; cursor: pointer; font-weight: 600;">[清除]</span>
-            </div>
-            
-            <!-- 记忆列表（可滚动区域） -->
-            <div id="long-memory-content" style="flex: 1; overflow-y: auto; padding: 12px 20px; -webkit-overflow-scrolling: touch;">
-                <!-- 长期记忆内容将在这里动态生成 -->
-                <div style="text-align: center; padding: 60px 20px; color: var(--text-sub);">
-                    <i class="fas fa-brain" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
-                    <p style="font-size: 15px; margin-bottom: 8px;">暂无长期记忆</p>
-                    <p style="font-size: 13px; opacity: 0.7;">AI的记忆将保存在这里</p>
-                </div>
+    <!-- 🌟 全新：世界档案馆子页面 -->
+    <div id="sub-archive" class="sub-page-scene" style="z-index: 3001;">
+        <div class="nav-header clean-nav">
+            <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--icon-color);" onclick="closeSubPage('sub-archive')"></i>
+            <span class="nav-title" style="letter-spacing: 1px;">世界档案馆</span>
+            <!-- ✨ 高定银灰流光魔法棒 -->
+            <div class="magic-wand-btn" onclick="backfillAllMemories()">
+                <i class="fas fa-wand-magic-sparkles"></i>
             </div>
         </div>
+        
+        <!-- 搜索栏与排序工具 -->
+        <div style="padding: 10px 20px; display: flex; gap: 8px; align-items: center; position: relative; z-index: 102;">
+            
+            <div style="position: relative; flex: 1;">
+                <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-sub); font-size: 14px; pointer-events: none; z-index: 2;"></i>
+                <input type="text" id="archive-search-input" class="archive-glass-input archive-glass-morphism" placeholder="搜索..." oninput="filterArchive(this.value)">
+            </div>
+            
+            <div class="archive-glass-morphism" onclick="toggleCategoryMenu()" style="height: 40px; padding: 0 14px; border-radius: 14px; display: flex; justify-content: center; align-items: center; font-weight: 700; cursor: pointer; gap: 6px; flex-shrink: 0; font-size: 14px; color: var(--text-main);">
+                <span id="current-cat-text">全部</span>
+                <i class="fas fa-chevron-down" style="font-size: 10px; opacity: 0.5;"></i>
+            </div>
+            
+            <div class="archive-glass-btn archive-glass-morphism" onclick="toggleArchiveSort()">
+                <i id="archive-sort-icon" class="fas fa-sort-amount-down"></i>
+            </div>
+
+            <div id="archive-cat-menu" class="archive-category-menu">
+                <div class="cat-menu-item active" onclick="switchArchiveCategory('全部', '全部')"><span>全部档案</span> <i class="fas fa-layer-group"></i></div>
+                <div class="cat-menu-item" onclick="switchArchiveCategory('人物', '人物')"><span>人物列传</span> <i class="fas fa-user-tie"></i></div>
+                <div class="cat-menu-item" onclick="switchArchiveCategory('世界', '世界')"><span>世界法则</span> <i class="fas fa-globe"></i></div>
+                <div class="cat-menu-item" onclick="switchArchiveCategory('羁绊', '羁绊')"><span>羁绊协议</span> <i class="fas fa-link"></i></div>
+                <div class="cat-menu-item" onclick="switchArchiveCategory('事件', '事件')"><span>编年史纪</span> <i class="fas fa-scroll"></i></div>
+                <div class="cat-menu-item" onclick="switchArchiveCategory('偏好', '偏好')"><span>癖好禁忌</span> <i class="fas fa-heart"></i></div>
+                <div class="cat-menu-item" onclick="switchArchiveCategory('异闻', '异闻')"><span>异闻物录</span> <i class="fas fa-map-location-dot"></i></div>
+            </div>
+        </div>
+
+        <!-- 瀑布流内容区 -->
+        <div id="archive-content" style="flex: 1; overflow-y: auto; padding-top: 20px; padding-bottom: 80px; background: var(--bg-color); -webkit-overflow-scrolling: touch; -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20px, black calc(100% - 40px), transparent 100%); mask-image: linear-gradient(to bottom, transparent 0%, black 20px, black calc(100% - 40px), transparent 100%);">
+            </div>
     </div>
     
     <div id="scene-options" class="sub-page-scene"><div class="nav-header"><span class="nav-title">设置</span><span class="clickable" onclick="hideOptionsWindow()">完成</span></div><div id="options-content"></div></div>
@@ -7496,226 +7739,6 @@ ${chatContent}
             }
         }
         
-        // --- 打开长期记忆弹窗 ---
-        function openLongMemoryModal() {
-            if (!currentChatContactId) return;
-            
-            const modal = document.getElementById('longMemoryModal');
-
-            // 🎯 修复1：打开弹窗时立刻渲染"全部"分类的数据，解决初始空白的 Bug
-            renderLongMemoryContent();
-
-            // 显示弹窗
-            requestAnimationFrame(() => {
-                modal.classList.add('show');
-            });
-        }
-        
-        // --- 关闭长期记忆弹窗 ---
-        function closeLongMemoryModal() {
-            const modal = document.getElementById('longMemoryModal');
-            modal.classList.remove('show');
-            
-            // 清空搜索框
-            const searchInput = document.getElementById('long-memory-search');
-            if (searchInput) {
-                searchInput.value = '';
-            }
-        }
-        
-        // --- 点击弹窗外部关闭长期记忆弹窗 ---
-        function closeLongMemoryModalByOverlay(event) {
-            if (event.target === event.currentTarget) {
-                closeLongMemoryModal();
-            }
-        }
-        
-        // --- 长期记忆相关全局变量 ---
-        let currentMemoryCategory = '全部';
-        let currentMemoryTag = null;
-        
-        // --- 选择记忆分类 ---
-        function selectMemoryCategory(category) {
-            currentMemoryCategory = category;
-            
-            // 更新标签栏激活状态
-            document.querySelectorAll('.memory-category-tab').forEach(tab => {
-                tab.classList.remove('active');
-                if (tab.textContent === category) {
-                    tab.classList.add('active');
-                }
-            });
-            
-            // 渲染长期记忆列表
-            renderLongMemoryContent();
-        }
-        
-        // --- 通过Tag筛选记忆 ---
-        function filterByMemoryTag(tag) {
-            currentMemoryTag = tag;
-            
-            // 显示Tag筛选提示
-            const filterEl = document.getElementById('long-memory-tag-filter');
-            const textEl = document.getElementById('long-memory-tag-text');
-            
-            if (filterEl && textEl) {
-                filterEl.style.display = 'block';
-                textEl.textContent = `标签筛选：#${tag}`;
-            }
-            
-            // 清空搜索框
-            const searchInput = document.getElementById('long-memory-search');
-            if (searchInput) {
-                searchInput.value = '';
-            }
-            
-            // 渲染长期记忆列表
-            renderLongMemoryContent();
-        }
-        
-        // --- 清除Tag筛选 ---
-        function clearMemoryTagFilter() {
-            currentMemoryTag = null;
-            
-            const filterEl = document.getElementById('long-memory-tag-filter');
-            if (filterEl) {
-                filterEl.style.display = 'none';
-            }
-            
-            renderLongMemoryContent();
-        }
-        
-        // --- 筛选长期记忆 ---
-        function filterLongMemory(searchText) {
-            // 直接重新渲染，renderLongMemoryContent会处理搜索
-            renderLongMemoryContent();
-        }
-        
-        // --- 渲染长期记忆内容 ---
-        function renderLongMemoryContent() {
-            const container = document.getElementById('long-memory-content');
-            if (!container || !currentChatContactId) return;
-            
-            const contact = mockContacts.find(c => c.id === currentChatContactId);
-            if (!contact || !contact.longMemories) {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 60px 20px; color: var(--text-sub);">
-                        <i class="fas fa-brain" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
-                        <p style="font-size: 15px; margin-bottom: 8px;">暂无长期记忆</p>
-                        <p style="font-size: 13px; opacity: 0.7;">AI的记忆将保存在这里</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            // 获取搜索关键词
-            const searchInput = document.getElementById('long-memory-search');
-            const searchText = searchInput ? searchInput.value.trim().toLowerCase() : '';
-            
-            // 过滤记忆
-            let filteredMemories = contact.longMemories.filter(m => {
-                // 1. 分类过滤
-                if (currentMemoryCategory !== '全部' && m.category !== currentMemoryCategory) {
-                    return false;
-                }
-                
-                // 2. Tag过滤
-                if (currentMemoryTag) {
-                    if (!m.keywords || !m.keywords.includes(currentMemoryTag)) {
-                        return false;
-                    }
-                }
-                
-                // 3. 搜索词过滤
-                if (searchText) {
-                    const contentMatch = m.content.toLowerCase().includes(searchText);
-                    const tagMatch = m.keywords && m.keywords.some(k => k.toLowerCase().includes(searchText));
-                    if (!contentMatch && !tagMatch) {
-                        return false;
-                    }
-                }
-                
-                return true;
-            });
-            
-            // 如果没有匹配的记忆
-            if (filteredMemories.length === 0) {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 60px 20px; color: var(--text-sub);">
-                        <i class="fas fa-search" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
-                        <p style="font-size: 15px; margin-bottom: 8px;">没有找到匹配的记忆</p>
-                        <p style="font-size: 13px; opacity: 0.7;">尝试其他分类或关键词</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            // 渲染记忆卡片（最新的在最上面）
-            container.innerHTML = '';
-            
-            filteredMemories.reverse().forEach((memory) => {
-                const score = memory.score || 3;
-            
-                // 🎯 修复：适配全新的 1-5 星档案评分机制
-                let borderColor = '#8e8e93'; // 默认灰
-                if (score >= 5 || memory.category === '情报') borderColor = '#ff4d4f'; // 红色
-                else if (score === 4 || memory.category === '羁绊') borderColor = '#FF9F0A'; // 橙色/羁绊色
-                else if (score === 3 || memory.category === '事件') borderColor = '#52c41a'; // 绿色
-                else borderColor = '#1890ff'; // 偏好等
-                
-                const card = document.createElement('div');
-                card.className = 'memory-card';
-                card.style.borderLeftColor = borderColor;
-                
-                // 时间或轮数显示
-                const timeDisplay = memory.roundRange 
-                    ? `<span class="memory-round-badge">${memory.roundRange}</span>`
-                    : `<span class="memory-round-badge">${memory.date}</span>`;
-                
-                // 标签HTML
-                let tagsHtml = '';
-                if (Array.isArray(memory.keywords)) {
-                    tagsHtml = memory.keywords.map(k => 
-                        `<span class="memory-tag" onclick="filterByMemoryTag('${k}')">#${k}</span>`
-                    ).join(' ');
-                }
-                
-                card.innerHTML = `
-                    <div class="memory-card-header">
-                        <div>
-                            ${timeDisplay}
-                            <span class="memory-category-badge" style="background: ${borderColor}20; color: ${borderColor};">${memory.category}</span>
-                            <span>评分:${score}</span>
-                        </div>
-                        <span class="memory-delete-btn" onclick="deleteMemoryItem('${memory.id}')">×</span>
-                    </div>
-                    <div class="memory-content">${escapeHtml(memory.content)}</div>
-                    ${tagsHtml ? `<div class="memory-tags">${tagsHtml}</div>` : ''}
-                `;
-                
-                container.appendChild(card);
-            });
-            
-            // 滚动到顶部（显示最新记忆）
-            container.scrollTop = 0;
-        }
-        
-        // --- 删除记忆项 ---
-        function deleteMemoryItem(memoryId) {
-            if (!currentChatContactId) return;
-            const contact = mockContacts.find(c => c.id === currentChatContactId);
-            if (!contact || !contact.longMemories) return;
-
-            if (!confirm('确定要删除这条记忆吗？')) return;
-
-            // 🎯 真正删除记忆并保存 (修复：统一转为文本格式进行比对)
-            contact.longMemories = contact.longMemories.filter(m => String(m.id) !== String(memoryId));
-            saveToLocal();
-            
-            // 🎯 强制立即刷新UI和统计数据，解决删除不消失的问题
-            renderLongMemoryContent();
-            updateMemoryStats();
-        }
         
         // --- 清空对话记忆 ---
         function clearShortMemory() {
@@ -16159,6 +16182,579 @@ ${chatContent}
             // 保存当前单价到本地存储
             localStorage.setItem('LINQGO_TOKEN_PRICES', JSON.stringify({ input: inputPrice, output: outputPrice }));
         }
+
+        // ==========================================
+        // 🌟 世界档案馆核心引擎 (高定紧凑向心版 + 独立控制器)
+        // ==========================================
+        
+        let currentArchiveCategory = '全部';
+        let expandedArchiveCards = new Set(); 
+        let archiveSortDesc = true;           
+
+        // --- 🌟 独立出来的星图/偏好视窗控制器 (绝不嵌套) ---
+        window.togglePrefReader = function(chipId) {
+            const matrix = document.getElementById('pref-matrix');
+            const reader = document.getElementById('pref-detail-reader');
+            const chipEl = document.getElementById(chipId);
+            if (!matrix || !reader || !chipEl) return;
+
+            if (chipEl.classList.contains('active')) {
+                chipEl.classList.remove('active');
+                matrix.classList.remove('has-active');
+                reader.classList.remove('show');
+                return;
+            }
+
+            matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+            chipEl.classList.add('active');
+            matrix.classList.add('has-active');
+
+            const data = window.currentPrefGroups[chipId];
+            let readerClass = `pref-detail-reader ${data.themeClass} `;
+            readerClass += data.score >= 5 ? 'core' : (data.score === 4 ? 'major' : 'minor');
+            reader.className = readerClass;
+            
+            reader.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding-bottom: 12px;">
+                    <div style="font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px;">
+                        ${data.iconHtml} <span>${escapeHtml(data.keyword)}</span>
+                    </div>
+                    <i class="fas fa-times" onclick="window.togglePrefReader('${chipId}')" style="opacity:0.6; font-size:18px; cursor:pointer;"></i>
+                </div>
+                <div>${data.detailsHtml}</div>
+            `;
+            reader.classList.add('show');
+            setTimeout(() => { reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 300);
+        };
+
+        window.toggleBioReader = function(chipId) {
+            const matrix = document.getElementById('bio-board'); 
+            const reader = document.getElementById('bio-detail-reader');
+            const chipEl = document.getElementById(chipId);
+            if (!matrix || !reader || !chipEl) return;
+
+            if (chipEl.classList.contains('active')) {
+                chipEl.classList.remove('active');
+                matrix.classList.remove('has-active'); 
+                reader.classList.remove('show');
+                return;
+            }
+
+            matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+            chipEl.classList.add('active');
+            matrix.classList.add('has-active'); 
+
+            const data = window.currentBioGroups[chipId];
+            let readerClass = `pref-detail-reader ${data.themeClass} `;
+            readerClass += data.score >= 5 ? 'core' : (data.score === 4 ? 'major' : 'minor');
+            reader.className = readerClass;
+            
+            reader.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding-bottom: 12px;">
+                    <div style="font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px;">
+                        ${data.iconHtml} <span>${escapeHtml(data.characterName)}</span>
+                    </div>
+                    <i class="fas fa-times" onclick="window.toggleBioReader('${chipId}')" style="opacity:0.6; font-size:18px; cursor:pointer;"></i>
+                </div>
+                <div>${data.detailsHtml}</div>
+            `;
+            reader.classList.add('show');
+            setTimeout(() => { reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 300);
+        };
+
+        // --- 控制器结束 ---
+
+        function openArchivePage() {
+            if (!currentChatContactId) return;
+            const searchInput = document.getElementById('archive-search-input');
+            if (searchInput) searchInput.value = '';
+            
+            currentArchiveCategory = '全部';
+            document.getElementById('current-cat-text').innerText = '全部';
+            document.querySelectorAll('.cat-menu-item').forEach((el, index) => {
+                el.classList.toggle('active', index === 0);
+            });
+
+            expandedArchiveCards.clear();
+            renderArchiveContent();
+            openSubPage('sub-archive');
+        }
+
+        // ✨ 悬浮菜单开关
+        function toggleCategoryMenu() {
+            document.getElementById('archive-cat-menu').classList.toggle('show');
+        }
+
+        // ✨ 切换分类
+        function switchArchiveCategory(categoryName, shortName) {
+            currentArchiveCategory = categoryName;
+            document.getElementById('current-cat-text').innerText = shortName;
+            
+            document.querySelectorAll('.cat-menu-item').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.textContent.includes(shortName)) tab.classList.add('active');
+            });
+            
+            document.getElementById('archive-cat-menu').classList.remove('show');
+            const searchInput = document.getElementById('archive-search-input');
+            renderArchiveContent(searchInput ? searchInput.value : '');
+        }
+
+        function toggleArchiveSort() {
+            archiveSortDesc = !archiveSortDesc;
+            const icon = document.getElementById('archive-sort-icon');
+            if (icon) icon.className = archiveSortDesc ? 'fas fa-sort-amount-down' : 'fas fa-sort-amount-up';
+            const searchInput = document.getElementById('archive-search-input');
+            renderArchiveContent(searchInput ? searchInput.value : '');
+        }
+
+        function filterArchive(val) { renderArchiveContent(val); }
+
+        function toggleArchiveCard(headerEl) {
+            const card = headerEl.parentElement;
+            const title = headerEl.querySelector('.archive-entity-title').textContent.trim();
+            card.classList.toggle('expanded');
+            if (card.classList.contains('expanded')) expandedArchiveCards.add(title);
+            else expandedArchiveCards.delete(title);
+        }
+
+        function deleteArchiveItem(memoryId) {
+            if (!currentChatContactId) return;
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            if (!contact || !contact.longMemories) return;
+            if (!confirm('确定要彻底删除这条档案吗？')) return;
+
+            contact.longMemories = contact.longMemories.filter(m => String(m.id) !== String(memoryId));
+            saveToLocal();
+            const searchInput = document.getElementById('archive-search-input');
+            renderArchiveContent(searchInput ? searchInput.value : '');
+            updateMemoryStats();
+        }
+
+        function inplaceEditArchiveItem(memoryId) {
+            if (!currentChatContactId) return;
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            if (!contact || !contact.longMemories) return;
+            
+            const memIndex = contact.longMemories.findIndex(m => String(m.id) === String(memoryId));
+            if (memIndex === -1) return;
+
+            const textDiv = document.getElementById(`archive-text-${memoryId}`);
+            if (!textDiv) return;
+
+            const originalContent = contact.longMemories[memIndex].content;
+            const exactHeight = textDiv.getBoundingClientRect().height;
+
+            const textarea = document.createElement('textarea');
+            textarea.value = originalContent;
+            textarea.style.cssText = `
+                width: 100% !important; min-height: ${Math.max(exactHeight + 10, 50)}px !important; 
+                resize: vertical; font-family: inherit; font-size: 15px; line-height: 1.6; 
+                padding: 8px 12px !important; box-sizing: border-box; display: block; 
+                border: 1px solid var(--accent) !important; border-radius: 8px;
+                box-shadow: 0 0 0 3px var(--accent-light) !important; outline: none !important;
+                background: var(--input-bg); color: var(--text-main); margin-top: 4px;
+            `;
+            
+            textDiv.replaceWith(textarea);
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+            setTimeout(() => {
+                const rect = textarea.getBoundingClientRect();
+                const vvHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                if (rect.bottom > vvHeight) {
+                    const container = document.getElementById('archive-content');
+                    container.scrollBy({ top: rect.bottom - vvHeight + 20, behavior: 'smooth' });
+                }
+            }, 300);
+
+            const saveEdit = () => {
+                const newContent = textarea.value.trim();
+                if (newContent === '') {
+                    if (confirm('内容为空，是否直接删除该条档案？')) contact.longMemories.splice(memIndex, 1);
+                    else { textarea.replaceWith(textDiv); return; }
+                } else contact.longMemories[memIndex].content = newContent;
+                
+                saveToLocal();
+                const searchInput = document.getElementById('archive-search-input');
+                renderArchiveContent(searchInput ? searchInput.value : '');
+                updateMemoryStats();
+            };
+
+            textarea.onblur = () => { setTimeout(saveEdit, 150); };
+            textarea.onkeydown = (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); saveEdit(); }
+                if (e.key === 'Escape') { e.preventDefault(); textarea.replaceWith(textDiv); }
+            };
+        }
+
+        function generateInnerTimelineItemHtml(item, searchText) {
+            let displayContent = escapeHtml(item.content);
+            if (searchText) {
+                const regex = new RegExp(`(${searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                displayContent = displayContent.replace(regex, '<span style="background-color: rgba(255, 214, 10, 0.4); color: inherit; border-radius: 2px;">$1</span>');
+            }
+            return `
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-text" id="archive-text-${item.id}">${displayContent}</div>
+                    <div class="timeline-actions">
+                        <i class="fas fa-pencil-alt" onclick="event.stopPropagation(); inplaceEditArchiveItem('${item.id}')"></i>
+                        <i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteArchiveItem('${item.id}')"></i>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderArchiveContent(searchText = '') {
+            const container = document.getElementById('archive-content');
+            if (!container || !currentChatContactId) return;
+            
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            if (!contact || !contact.longMemories || contact.longMemories.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 80px 20px; color: var(--text-sub);">
+                        <i class="fas fa-book-journal-whills" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
+                        <p style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 8px;">档案馆空空如也</p>
+                        <p style="font-size: 13px; opacity: 0.7;">AI 正在默默记录你们的世界线...</p>
+                    </div>`;
+                return;
+            }
+
+            searchText = searchText.trim().toLowerCase();
+            const catMap = {
+                '全部': ['全部'], '人物': ['人物', '情报', '核心', '角色'], '世界': ['世界观', '设定', '法则', '背景'],
+                '羁绊': ['羁绊', '情感', '关系', '承诺'], '事件': ['事件', '剧情', '编年史'],
+                '偏好': ['偏好', '习惯', '性格', '禁忌', '喜好', '爱好', '厌恶', '雷区'], '异闻': ['异闻', '物品', '地点', '道具']
+            };
+
+            let validMemories = contact.longMemories.filter(m => {
+                let matchCat = true;
+                if (currentArchiveCategory !== '全部') {
+                    const allowedKeywords = catMap[currentArchiveCategory] || [];
+                    matchCat = allowedKeywords.some(kw => (m.category || '').includes(kw));
+                    if(!matchCat && currentArchiveCategory === '人物' && m.category === '核心') matchCat = true;
+                }
+                let matchText = true;
+                if (searchText) {
+                    matchText = m.content.toLowerCase().includes(searchText) || 
+                                (m.keywords && m.keywords.join(',').toLowerCase().includes(searchText)) ||
+                                (m.category || '').toLowerCase().includes(searchText);
+                }
+                return matchCat && matchText;
+            });
+
+            if (validMemories.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 80px 20px; color: var(--text-sub);">
+                        <i class="fas fa-ghost" style="font-size: 40px; opacity: 0.2; margin-bottom: 16px;"></i>
+                        <p style="font-size: 15px;">该分类下未找到档案</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+
+            const sortByTime = (a, b) => {
+                const getStart = (r) => { 
+                    if(!r) return 0;
+                    const match = r.match(/第?(\d+)-/); 
+                    return match ? parseInt(match[1]) : 0; 
+                };
+                const startA = getStart(a.roundRange);
+                const startB = getStart(b.roundRange);
+                const diff = startA !== startB ? startA - startB : (a.id || 0) - (b.id || 0);
+                return archiveSortDesc ? -diff : diff;
+            };
+
+            // 偏好矩阵渲染
+            if (currentArchiveCategory === '偏好') {
+                window.currentPrefGroups = {}; 
+                let contentHtml = `<div class="archive-chip-matrix" id="pref-matrix">`;
+                
+                const prefGroups = {};
+                validMemories.forEach(m => {
+                    let keyword = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '日常偏好';
+                    if (!prefGroups[keyword]) prefGroups[keyword] = { items: [], maxScore: 0 };
+                    prefGroups[keyword].items.push(m);
+                    if ((m.score || 0) > prefGroups[keyword].maxScore) prefGroups[keyword].maxScore = m.score || 0;
+                });
+                
+                const sortedGroups = Object.entries(prefGroups).sort((a, b) => b[1].maxScore - a[1].maxScore);
+                const themeClasses = ['chip-theme-blue', 'chip-theme-green', 'chip-theme-sand', 'chip-theme-mauve', 'chip-theme-rose'];
+
+                sortedGroups.forEach(([keyword, group], index) => {
+                    let hash = 0; for(let i = 0; i < keyword.length; i++) hash += keyword.charCodeAt(i);
+                    const themeClass = themeClasses[hash % themeClasses.length];
+
+                    let chipClass = `archive-glass-chip ${themeClass} `;
+                    let iconHtml = '';
+                    const score = group.maxScore;
+                    
+                    if (score >= 5) { chipClass += 'archive-chip-core'; iconHtml = '<i class="fas fa-exclamation-circle" style="font-size: 0.9em; opacity: 0.9;"></i>'; } 
+                    else if (score === 4) { chipClass += 'archive-chip-major'; iconHtml = '<i class="fas fa-star" style="font-size: 0.85em; opacity: 0.8;"></i>'; } 
+                    else { chipClass += 'archive-chip-minor'; iconHtml = '<i class="fas fa-tag" style="font-size: 0.85em; opacity: 0.6;"></i>'; }
+                    
+                    const sortedItems = group.items.sort((a, b) => {
+                        const getStart = (r) => { if(!r) return 0; const match = r.match(/第?(\d+)-/); return match ? parseInt(match[1]) : 0; };
+                        return archiveSortDesc ? getStart(b.roundRange) - getStart(a.roundRange) : getStart(a.roundRange) - getStart(b.roundRange);
+                    });
+
+                    let detailsHtml = '';
+                    sortedItems.forEach(item => {
+                        detailsHtml += `
+                            <div class="chip-detail-item">
+                                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                    <div class="archive-item-text" style="flex:1;" id="archive-text-${item.id}">${escapeHtml(item.content)}</div>
+                                    <div class="chip-actions">
+                                        <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
+                                        <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
+                                    </div>
+                                </div>
+                                <div class="chip-detail-time">记录于 ${escapeHtml(item.roundRange || '初期设定')}</div>
+                            </div>
+                        `;
+                    });
+
+                    const chipId = `pref-chip-${index}`;
+                    window.currentPrefGroups[chipId] = { keyword: keyword, detailsHtml: detailsHtml, themeClass: themeClass, score: score, iconHtml: iconHtml };
+                    let countHtml = group.items.length > 1 ? `<span class="chip-count">${group.items.length}</span>` : '';
+
+                    contentHtml += `<div class="${chipClass}" id="${chipId}" onclick="window.togglePrefReader('${chipId}')"><div class="chip-short">${iconHtml} <span>${escapeHtml(keyword)}</span> ${countHtml}</div></div>`;
+                });
+                
+                contentHtml += `</div><div id="pref-detail-reader" class="pref-detail-reader"></div>`;
+                container.innerHTML = contentHtml;
+                return;
+            }
+
+            // 全部/编年史渲染
+            if (currentArchiveCategory === '全部' || currentArchiveCategory === '事件') {
+                validMemories.sort(sortByTime);
+                const groupedByTime = new Map();
+                validMemories.forEach(item => {
+                    let sourceText = item.roundRange || item.date || '初始设定';
+                    sourceText = sourceText.replace('第', '').replace('轮', '').trim();
+                    if (!groupedByTime.has(sourceText)) groupedByTime.set(sourceText, []);
+                    groupedByTime.get(sourceText).push(item);
+                });
+
+                let html = '';
+                for (const [timeSource, items] of groupedByTime.entries()) {
+                    let innerItemsHtml = items.map(item => generateInnerTimelineItemHtml(item, searchText)).join('');
+                    html += `
+                        <div class="archive-timeline-block archive-glass-panel">
+                            <div class="timeline-left"><i class="fa-regular fa-clock" style="margin-bottom: 4px; opacity: 0.5;"></i>${escapeHtml(timeSource)}</div>
+                            <div class="timeline-right-container">${innerItemsHtml}</div>
+                        </div>`;
+                }
+                container.innerHTML = html;
+                return;
+            }
+
+            // ✨ 人物星图 (高定强向心力算法，杜绝滑动)
+            if (currentArchiveCategory === '人物') {
+                window.currentBioGroups = {}; 
+                let contentHtml = `<div class="archive-network-board" id="bio-board">`;
+                
+                const bioGroups = {};
+                validMemories.forEach(m => {
+                    let characterName = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '佚名';
+                    if (!bioGroups[characterName]) bioGroups[characterName] = { items: [], maxScore: 0 };
+                    bioGroups[characterName].items.push(m);
+                    if ((m.score || 0) > bioGroups[characterName].maxScore) bioGroups[characterName].maxScore = m.score || 0;
+                });
+                
+                const sortedGroups = Object.entries(bioGroups).sort((a, b) => b[1].maxScore - a[1].maxScore);
+                const themeClasses = ['chip-theme-mauve', 'chip-theme-blue', 'chip-theme-green', 'chip-theme-sand', 'chip-theme-rose'];
+     
+                // 🌟 高度压缩引力场布局：极其紧凑，消除空气墙
+                const boardWidth = window.innerWidth > 0 ? window.innerWidth - 40 : 335;
+                const boardHeight = 270; 
+                const cx = boardWidth / 2;
+                const cy = boardHeight / 2 - 15; // 中心点上移 15px
+
+                const layoutOffsets = [
+                    { dx: -65, dy: 10 },   // 0: 左侧主C
+                    { dx: 65,  dy: -10 },  // 1: 右侧主C
+                    { dx: 0,   dy: -75 },  // 2: 正上
+                    { dx: 0,   dy: 85 },   // 3: 正下
+                    { dx: -100,dy: -50 },  // 4: 左上
+                    { dx: 100, dy: 50 },   // 5: 右下
+                    { dx: -105,dy: 65 },   // 6: 左下
+                    { dx: 105, dy: -45 },  // 7: 右上
+                ];
+
+                let renderedCount = 0;
+                const nodeCenters = []; 
+
+                sortedGroups.forEach(([characterName, group]) => {
+                    let hash = 0; for(let i = 0; i < characterName.length; i++) hash += characterName.charCodeAt(i);
+                    const themeClass = themeClasses[hash % themeClasses.length];
+
+                    // 从预设引力场获取位置，如果超出了就简单螺旋往外排
+                    const offset = layoutOffsets[renderedCount % layoutOffsets.length];
+                    const pos = { x: cx + offset.dx - 40, y: cy + offset.dy - 20 }; // 减去估算的球体半宽高
+
+                    nodeCenters.push({ name: characterName, cx: pos.x + 40, cy: pos.y + 20, themeClass: themeClass });
+
+                    let chipClass = `archive-glass-chip ${themeClass} `;
+                    let iconHtml = '';
+                    const score = group.maxScore;
+                    
+                    if (score >= 5) { chipClass += 'archive-chip-core'; iconHtml = '<i class="fas fa-layer-group" style="font-size: 0.9em; opacity: 0.9;"></i>'; } 
+                    else if (score === 4) { chipClass += 'archive-chip-major'; iconHtml = '<i class="fas fa-id-card" style="font-size: 0.85em; opacity: 0.8;"></i>'; } 
+                    else { chipClass += 'archive-chip-minor'; iconHtml = '<i class="fas fa-signature" style="font-size: 0.85em; opacity: 0.6;"></i>'; }
+                    
+                    // ✨ 按照时间排序
+                    const sortedItems = group.items.sort((a, b) => {
+                        const getStart = (r) => { if(!r) return 0; const match = r.match(/第?(\d+)-/); return match ? parseInt(match[1]) : 0; };
+                        return archiveSortDesc ? getStart(b.roundRange) - getStart(a.roundRange) : getStart(a.roundRange) - getStart(b.roundRange);
+                    });
+
+                    // ✨ 完美复用“偏好”的阅读器 UI：平铺文字，右下角标注时间
+                    let detailsHtml = '';
+                    sortedItems.forEach(item => {
+                        detailsHtml += `
+                            <div class="chip-detail-item">
+                                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                    <div class="archive-item-text" style="flex:1;" id="archive-text-${item.id}">${escapeHtml(item.content)}</div>
+                                    <div class="chip-actions">
+                                        <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
+                                        <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
+                                    </div>
+                                </div>
+                                <div class="chip-detail-time">记录于 ${escapeHtml(item.roundRange || '初期设定')}</div>
+                            </div>
+                        `;
+                    });
+
+                    const chipId = `bio-chip-${renderedCount}`;
+                    window.currentBioGroups[chipId] = { characterName: characterName, detailsHtml: detailsHtml, themeClass: themeClass, score: score, iconHtml: iconHtml };
+                    let countHtml = group.items.length > 1 ? `<span class="chip-count">${group.items.length}</span>` : '';
+
+                    contentHtml += `<div class="${chipClass}" id="${chipId}" style="top:${pos.y}px; left:${pos.x}px;" onclick="window.toggleBioReader('${chipId}')"><div class="chip-short">${iconHtml} <span>${escapeHtml(characterName)}</span> ${countHtml}</div></div>`;
+                    renderedCount++;
+                });
+
+                // 智能连线
+                if (nodeCenters.length >= 2) {
+                    const nodeA = nodeCenters[0]; const nodeB = nodeCenters[1];
+                    const dx = nodeB.cx - nodeA.cx; const dy = nodeB.cy - nodeA.cy;
+                    const length = Math.sqrt(dx * dx + dy * dy) - 75; 
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                    const startX = nodeA.cx + 35 * Math.cos(angle * Math.PI / 180);
+                    const startY = nodeA.cy + 35 * Math.sin(angle * Math.PI / 180);
+
+                    contentHtml += `<div class="relation-line ${nodeA.themeClass} archive-chip-core" style="width:${length}px; top:${startY}px; left:${startX}px; transform: rotate(${angle}deg);"><div class="relation-arrow" style="border-left-color: var(--chip-c);"></div></div>`;
+                    const midX = (nodeA.cx + nodeB.cx) / 2 - 30; const midY = (nodeA.cy + nodeB.cy) / 2 - 12;
+                    contentHtml += `<div class="relation-label" style="top:${midY}px; left:${midX}px;">核心交集</div>`;
+                }
+                
+                contentHtml += `</div><div id="bio-detail-reader" class="pref-detail-reader"></div>`;
+                container.innerHTML = contentHtml;
+                return;
+            }
+
+            // 其他实体卡片...
+            const entityGroups = {};
+            validMemories.forEach(m => {
+                let entityName = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '综合备忘录';
+                if (!entityGroups[entityName]) entityGroups[entityName] = { items: [] };
+                entityGroups[entityName].items.push(m);
+            });
+
+            const sortedEntities = Object.entries(entityGroups).sort((a, b) => {
+                const maxIdA = Math.max(...a[1].items.map(i => i.id || 0));
+                const maxIdB = Math.max(...b[1].items.map(i => i.id || 0));
+                return archiveSortDesc ? maxIdB - maxIdA : maxIdA - maxIdB; 
+            });
+
+            for (const [entityName, group] of sortedEntities) {
+                group.items.sort(sortByTime);
+                const groupedByTime = new Map();
+                group.items.forEach(item => {
+                    let sourceText = item.roundRange || item.date || '设定';
+                    sourceText = sourceText.replace('第', '').replace('轮', '').trim();
+                    if (!groupedByTime.has(sourceText)) groupedByTime.set(sourceText, []);
+                    groupedByTime.get(sourceText).push(item);
+                });
+
+                let itemsHtml = '';
+                for (const [timeSource, items] of groupedByTime.entries()) {
+                    let innerItemsHtml = items.map(item => generateInnerTimelineItemHtml(item, searchText)).join('');
+                    itemsHtml += `<div class="archive-timeline-row"><div class="timeline-left" style="padding-right: 20px; font-size: 11px;">${escapeHtml(timeSource)}</div><div class="timeline-right-container" style="padding-left: 12px;">${innerItemsHtml}</div></div>`;
+                }
+
+                const latestItem = group.items.reduce((prev, current) => (prev.id > current.id) ? prev : current);
+                const previewText = escapeHtml(latestItem.content);
+                const recordCount = group.items.length;
+                const isExpanded = searchText !== '' || expandedArchiveCards.has(entityName) || sortedEntities.length <= 2;
+                
+                const cardHtml = `
+                    <div class="archive-entity-card archive-glass-panel ${isExpanded ? 'expanded' : ''}">
+                        <div class="archive-entity-header" onclick="toggleArchiveCard(this)">
+                            <div class="archive-header-top"><div class="archive-entity-title">${escapeHtml(entityName)}</div><div class="archive-count-badge"><i class="fas fa-layer-group"></i> ${recordCount} 条</div></div>
+                            <div class="archive-preview-text">${previewText}</div>
+                        </div>
+                        <div class="archive-entity-body-wrapper"><div class="archive-entity-body"><div class="archive-entity-body-inner">${itemsHtml}</div></div></div>
+                    </div>`;
+                container.insertAdjacentHTML('beforeend', cardHtml);
+            }
+        }
+
+        // ==========================================
+        // 🌟 全局触控雷达：实现“点击空白处自动收起”
+        // ==========================================
+        document.addEventListener('click', (event) => {
+            // -----------------------------------------
+            // 1. 处理【悬浮分类菜单】的自动收起
+            // -----------------------------------------
+            const catMenu = document.getElementById('archive-cat-menu');
+            // 智能识别触发下拉的那个胶囊按钮
+            const catTrigger = event.target.closest('[onclick="toggleCategoryMenu()"]'); 
+            
+            if (catMenu && catMenu.classList.contains('show')) {
+                // 如果点击的区域不在菜单内部，也不在触发按钮上，就果断收起菜单！
+                if (!catMenu.contains(event.target) && !catTrigger) {
+                    catMenu.classList.remove('show');
+                }
+            }
+
+            // -----------------------------------------
+            // 2. 处理【偏好小球】与【人物星图】的自动收起
+            // -----------------------------------------
+            // 判断点击是不是发生在“阅读面板”内部或者“琉璃小球”身上
+            const isClickInsideReader = event.target.closest('.pref-detail-reader');
+            const isClickOnChip = event.target.closest('.archive-glass-chip');
+            
+            // 如果点的既不是阅读面板，也不是任何小球（也就是点在了虚空背景上）
+            if (!isClickInsideReader && !isClickOnChip) {
+                
+                // 清理偏好矩阵
+                const prefReader = document.getElementById('pref-detail-reader');
+                const prefMatrix = document.getElementById('pref-matrix');
+                if (prefReader && prefReader.classList.contains('show')) {
+                    prefReader.classList.remove('show');
+                    if (prefMatrix) {
+                        prefMatrix.classList.remove('has-active');
+                        prefMatrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+                    }
+                }
+                
+                // 清理人物星图
+                const bioReader = document.getElementById('bio-detail-reader');
+                const bioBoard = document.getElementById('bio-board');
+                if (bioReader && bioReader.classList.contains('show')) {
+                    bioReader.classList.remove('show');
+                    if (bioBoard) {
+                        bioBoard.classList.remove('has-active');
+                        bioBoard.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+                    }
+                }
+            }
+        });
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
