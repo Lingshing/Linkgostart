@@ -5998,18 +5998,19 @@
         // ==========================================
         // 🌟 终极使命：全知史官与动态图谱更新引擎
         // ==========================================
-        const SYSTEM_ARCHIVE_PROMPT = `【终极使命：世界观记录者与动态图谱更新引擎】
-        你是一个运行在系统后台的【全知史官】。你将接收到【已有的旧档案】与【带有轮数的新对话记录】。
-        你的核心任务是：对比旧档案与新对话，发现事件的延续、状态的改变、或全新的人事物，并严格以 JSON 格式输出。
+        const SYSTEM_ARCHIVE_PROMPT = `【终极使命：世界观记录者与绝对客观事实提取器】
+        你是一个运行在系统后台的【绝对客观全知史官】。你将接收到【带有轮数的新对话记录】。
+        你的核心任务是：极其精准地提取事件、设定和羁绊变化，严格以 JSON 格式输出。
 
-        【状态更新法则（解决跨区块割裂）】
-        1. 延续与合并：如果新对话中发生了某事件的后续，必须将它们合并为一条，并标注跨越的轮数。
-        2. 状态覆写：如果角色的身份、生理状态发生转变，必须覆写旧设定。
-        3. 动态关系嗅探：密切关注角色间的情感，并在 relations 中输出转变原因。
+        【最高禁令：零脑补与零臆想原则】（！！！极其重要！！！）
+        1. 严禁联想与推测：用户说什么就是什么，绝对不允许自行添加任何前因后果！
+        （例如：用户说“我演了男主”，你只能记录“演了男主角”。绝不能脑补“因为考上了电影学院”或“拿着剧本假装偶遇”！）
+        2. 严禁主观加工：绝不能为了增加故事性去补充浪漫细节。只有对话里明确、确实发生的事，才能被记录！
+        3. 如违背上述“零脑补”原则进行虚构，将导致系统严重崩溃！
 
-        【强制排版：精准引用原则】（极其重要！）
+        【强制排版：精准引用原则】
         1. 严禁使用“第1-10轮发生了某事”这种模糊起手。
-        2. memories 的 content 必须具体到动作，并强制在句子末尾附带来源标记。
+        2. memories 的 content 必须具体到动作，并在末尾强制附带来源标记。
         3. 必须输出类似格式："content": "慕辞去海边玩，还玩了水上飞人 (记录于第8-9轮)"
 
         【严格输出 JSON 格式】
@@ -6020,7 +6021,7 @@
             "category": "分类名", // 仅限：人物、世界、羁绊、事件、偏好、异闻
             "keywords": ["实体名"], // 必须且只能是1个核心专有名词
             "worldTime": "绝对时间", 
-            "content": "具体的设定或事件... (记录于第X-Y轮)", 
+            "content": "完全客观事实的描述... (记录于第X-Y轮)", 
             "score": 4, // 1-5分
             "roundRange": "11-20" // 该事件贯穿的具体轮数范围
             }
@@ -6029,7 +6030,7 @@
             {
             "source": "人物A", "target": "人物B",
             "label": "关系名", // 极简，如：宿敌、暗恋
-            "detail": "简述发生转变的原因或具体事件细节" 
+            "detail": "客观简述关系变化，不可添加脑补细节" 
             }
         ]
         }`;
@@ -6319,34 +6320,42 @@
                 return;
             }
 
-            // 1. 根据当前聊天记录，切分出所有存在的“轮数区块”
-            const chunks = [];
-            let start = 1;
-            while (start <= userMessagesCount) {
-                let end = start + interval - 1;
-                chunks.push({ start, end });
-                start += interval;
-            }
-
-            // 2. 检查哪些区间是已经总结过的
-            const existingRanges = [];
+            // 1. 扫描旧记忆，精确提取出已经生成过的所有独立区间
+            const existingRangesMap = new Map();
             if (contact.longMemories) {
                 contact.longMemories.forEach(m => {
                     if (m.roundRange) {
                         const match = String(m.roundRange).match(/第?(\d+)-(\d+)轮?/);
-                        if (match) existingRanges.push({ start: parseInt(match[1]), end: parseInt(match[2]) });
+                        if (match) {
+                            const s = parseInt(match[1]);
+                            const e = parseInt(match[2]);
+                            existingRangesMap.set(`${s}-${e}`, { start: s, end: e });
+                        }
                     }
                 });
             }
-            chunks.forEach(c => {
-                const midPoint = (c.start + c.end) / 2;
-                c.isCovered = existingRanges.some(r => midPoint >= r.start && midPoint <= r.end);
+            const existingRanges = Array.from(existingRangesMap.values()).sort((a, b) => a.start - b.start);
+
+            // 2. 构建混合区块队列 (已生成的旧档案绝对保持原状)
+            const chunks = [];
+            existingRanges.forEach(r => {
+                chunks.push({ start: r.start, end: r.end, isCovered: true });
             });
+
+            // 计算剩下的缺失部分，按新步长排列
+            let lastEnd = existingRanges.length > 0 ? Math.max(...existingRanges.map(r => r.end)) : 0;
+            let currentStart = lastEnd + 1;
+            while (currentStart <= userMessagesCount) {
+                let currentEnd = currentStart + interval - 1;
+                if (currentEnd > userMessagesCount) currentEnd = userMessagesCount; // 保证不超出总轮数
+                chunks.push({ start: currentStart, end: currentEnd, isCovered: false });
+                currentStart = currentEnd + 1;
+            }
+            chunks.sort((a, b) => a.start - b.start);
 
             // 3. 构建 iOS 风格的原生底部浮层 (Bottom Sheet / Modal)
             let modal = document.getElementById('round-selector-modal');
             if (modal) modal.remove();
-
             let html = `
             <div class="config-modal-overlay show" id="round-selector-modal" style="z-index: 5000;">
                 <div class="config-modal-content" style="max-height: 80vh; display:flex; flex-direction:column; width: 90%; max-width: 400px; padding: 0;">
@@ -6355,18 +6364,17 @@
                         <i class="fas fa-times" style="color: var(--text-sub); font-size: 18px; cursor: pointer;" onclick="document.getElementById('round-selector-modal').remove()"></i>
                     </div>
                     <div class="config-modal-body" style="padding: 20px; overflow-y: auto; flex: 1; background: var(--bg-color);">
-                        <p style="font-size: 13px; color: var(--text-sub); margin-top: 0; margin-bottom: 15px; line-height: 1.5;">当前共 ${userMessagesCount} 轮对话。勾选需要提取的区间（勾选已生成的区间将会覆写旧档案）：</p>
+                        <p style="font-size: 13px; color: var(--text-sub); margin-top: 0; margin-bottom: 15px; line-height: 1.5;">当前共 ${userMessagesCount} 轮对话。勾选需要提取的区间：</p>
                         <div style="display:flex; flex-direction:column; gap:10px;">
             `;
-            
-            // 生成每一个选项卡
+
+            // 4. 渲染区间选项卡（加入柔和莫兰迪红 #D67A7A 的删除按钮）
             chunks.forEach((c) => {
-                // 已生成的显示绿色并带删除按钮，缺失的显示香槟金
                 const isCoveredStr = c.isCovered 
-                    ? `<span style="color:#34C759; font-size:12px; margin-left: 8px;">(已生成)</span>
-                    <i class="fa-solid fa-trash-can" onclick="event.stopPropagation(); event.preventDefault(); deleteArchiveBlock(${c.start}, ${c.end})" style="color:#ff3b30; margin-left:12px; font-size: 14px; padding: 4px;"></i>` 
-                    : `<span style="color:#F7E7CE; font-size:12px; margin-left: 8px; font-weight:bold; text-shadow: 0 0 5px rgba(247,231,206,0.3);">(缺失)</span>`;
-                
+                    ? `<span style="color:var(--text-sub); font-size:12px; margin-left: 8px;">(已生成)</span>
+                    <i class="fa-solid fa-trash-can" onclick="event.stopPropagation(); event.preventDefault(); deleteArchiveBlock(${c.start}, ${c.end})" style="color: #D67A7A; margin-left:12px; font-size: 14px; padding: 4px;" title="销毁此段旧档案"></i>` 
+                    : '<span style="color:var(--accent); font-size:12px; margin-left: 8px;">(缺失)</span>';
+                    
                 html += `
                 <label style="display:flex; align-items:center; justify-content:space-between; padding: 14px 16px; background: var(--card-bg); border-radius: 12px; border: 0.5px solid var(--border); cursor: pointer; transition: background 0.2s;">
                     <span style="font-size:15px; font-weight:600; color: var(--text-main); display:flex; align-items:center;">
@@ -6390,17 +6398,23 @@
             document.body.insertAdjacentHTML('beforeend', html);
         }
 
-        // --- 自由修史：删除特定区间的旧档案 ---
+        // --- 自由修史：销毁特定区间的旧档案 ---
         window.deleteArchiveBlock = function(start, end) {
-            if(!confirm(`确定要销毁第 ${start}-${end} 轮的历史档案吗？销毁后可重新生成。`)) return;
+            if(!confirm(`确定要销毁 第 ${start}-${end} 轮 的历史档案吗？销毁后可作为【缺失】重新生成。`)) return;
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             if (!contact || !contact.longMemories) return;
             
-            // 过滤掉范围完全匹配的档案
-            contact.longMemories = contact.longMemories.filter(m => m.roundRange !== `${start}-${end}`);
+            // 找出范围内所有的档案并精准抹杀
+            contact.longMemories = contact.longMemories.filter(m => {
+                if (!m.roundRange) return true;
+                const match = String(m.roundRange).match(/第?(\d+)-(\d+)轮?/);
+                if (match && parseInt(match[1]) === start && parseInt(match[2]) === end) {
+                    return false; // 命中目标区间，删掉！
+                }
+                return true;
+            });
             saveToLocal();
-            
-            // 销毁旧弹窗，重新呼出新弹窗实现无缝刷新
+            // 原地销毁弹窗并秒刷新
             const modal = document.getElementById('round-selector-modal');
             if(modal) modal.remove();
             backfillAllMemories(); 
@@ -16319,54 +16333,91 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             
             const memIndex = contact.longMemories.findIndex(m => String(m.id) === String(memoryId));
             if (memIndex === -1) return;
-
+            
             const textDiv = document.getElementById(`archive-text-${memoryId}`);
             if (!textDiv) return;
-
+            
             const originalContent = contact.longMemories[memIndex].content;
+            const originalScore = contact.longMemories[memIndex].score || 4; // 默认4分
+            
+            // 1. 创建大容器
+            const container = document.createElement('div');
+            container.style.width = '100%';
+            
+            // 2. 创建重要性评分下拉菜单
+            const scoreSelect = document.createElement('select');
+            scoreSelect.style.cssText = `
+                display: block; margin-top: 4px; margin-bottom: 8px; padding: 4px 8px;
+                border-radius: 6px; border: 1px solid var(--accent); background: var(--input-bg);
+                color: var(--text-main); font-size: 13px; font-weight: 600; outline: none;
+            `;
+            const scoreOptions = [
+                { val: 5, label: "5 分 (世界法则/终极设定)" },
+                { val: 4, label: "4 分 (核心事件/重要羁绊)" },
+                { val: 3, label: "3 分 (普通事件/偏好癖好)" },
+                { val: 2, label: "2 分 (细枝末节/异闻)" },
+                { val: 1, label: "1 分 (微小碎片)" }
+            ];
+            scoreOptions.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.val;
+                option.text = opt.label;
+                if (opt.val == originalScore) option.selected = true;
+                scoreSelect.appendChild(option);
+            });
+            
+            // 3. 创建文本框
             const exactHeight = textDiv.getBoundingClientRect().height;
-
             const textarea = document.createElement('textarea');
             textarea.value = originalContent;
             textarea.style.cssText = `
-                width: 100% !important; min-height: ${Math.max(exactHeight + 10, 50)}px !important; 
-                resize: vertical; font-family: inherit; font-size: 15px; line-height: 1.6; 
-                padding: 8px 12px !important; box-sizing: border-box; display: block; 
+                width: 100% !important; 
+                min-height: ${Math.max(exactHeight + 10, 50)}px !important;
+                resize: vertical; font-family: inherit; font-size: 15px; line-height: 1.6;
+                padding: 8px 12px !important; box-sizing: border-box; display: block;
                 border: 1px solid var(--accent) !important; border-radius: 8px;
                 box-shadow: 0 0 0 3px var(--accent-light) !important; outline: none !important;
-                background: var(--input-bg); color: var(--text-main); margin-top: 4px;
+                background: var(--input-bg); color: var(--text-main);
             `;
             
-            textDiv.replaceWith(textarea);
+            container.appendChild(textarea);
+            container.appendChild(scoreSelect);
+            textDiv.replaceWith(container);
+            
             textarea.focus();
             textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-
-            setTimeout(() => {
-                const rect = textarea.getBoundingClientRect();
-                const vvHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-                if (rect.bottom > vvHeight) {
-                    const container = document.getElementById('archive-content');
-                    container.scrollBy({ top: rect.bottom - vvHeight + 20, behavior: 'smooth' });
-                }
-            }, 300);
-
+            
             const saveEdit = () => {
                 const newContent = textarea.value.trim();
+                const newScore = parseInt(scoreSelect.value, 10);
+                
                 if (newContent === '') {
                     if (confirm('内容为空，是否直接删除该条档案？')) contact.longMemories.splice(memIndex, 1);
-                    else { textarea.replaceWith(textDiv); return; }
-                } else contact.longMemories[memIndex].content = newContent;
-                
+                    else { container.replaceWith(textDiv); return; }
+                } else {
+                    contact.longMemories[memIndex].content = newContent;
+                    contact.longMemories[memIndex].score = newScore;
+                }
                 saveToLocal();
                 const searchInput = document.getElementById('archive-search-input');
                 renderArchiveContent(searchInput ? searchInput.value : '');
                 updateMemoryStats();
             };
-
-            textarea.onblur = () => { setTimeout(saveEdit, 150); };
+            
+            // 延时失焦判定，防止点下拉菜单时触发保存
+            const handleBlur = () => {
+                setTimeout(() => {
+                    if (document.activeElement !== scoreSelect && document.activeElement !== textarea) {
+                        saveEdit();
+                    }
+                }, 150);
+            };
+            textarea.onblur = handleBlur;
+            scoreSelect.onblur = handleBlur;
+            
             textarea.onkeydown = (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); saveEdit(); }
-                if (e.key === 'Escape') { e.preventDefault(); textarea.replaceWith(textDiv); }
+                if (e.key === 'Escape') { e.preventDefault(); container.replaceWith(textDiv); }
             };
         }
 
