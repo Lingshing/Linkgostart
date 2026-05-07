@@ -11,6 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="Linkgo">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     
     <style>
         /* --- 全局重置 --- */
@@ -2801,24 +2802,16 @@
             position: relative; overflow: hidden; margin-top: -5px; margin-bottom: 10px;
         }
         
-        .archive-chip-matrix.has-active .archive-glass-chip:not(.active),
-        .archive-network-board.has-active .archive-glass-chip:not(.active) {
+        /* 1. 普通流式网格（偏好等）变暗且变小 */
+        .archive-chip-matrix.has-active .archive-glass-chip:not(.active) {
             opacity: 0.3; filter: grayscale(60%); transform: scale(0.92);
         }
 
-        .archive-glass-chip {
-            border-radius: 100px; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-            user-select: none; box-sizing: border-box;
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            padding: 10px 18px; 
+        /* 2. 4D星图（人物等）变暗且变小，核心修复：必须带着 translate(-50%, -50%) 保持居中！ */
+        .archive-network-board.has-active .archive-glass-chip:not(.active) {
+            opacity: 0.3; filter: grayscale(60%); transform: translate(-50%, -50%) scale(0.92);
         }
-        .archive-glass-chip:active { transform: scale(0.95); }
-        .archive-glass-chip.active { 
-            transform: scale(1.1); 
-            box-shadow: 0 8px 24px color-mix(in srgb, var(--chip-c) 40%, transparent);
-            border-color: var(--chip-c); z-index: 10;
-        }
+
 
         .archive-network-board .archive-glass-chip { position: absolute; }
         .archive-glass-chip .chip-short { display: flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 14px; font-weight: 600; }
@@ -2842,12 +2835,21 @@
 
         /* 独立阅读器 */
         .pref-detail-reader {
-            margin: 0 20px 40px; border-radius: 20px; max-height: 0; opacity: 0; overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            margin: 0 20px; border-radius: 20px; max-height: 0; opacity: 0; overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease, margin 0.4s ease, padding 0.4s ease;
             padding: 0 20px; box-sizing: border-box;
-            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            transform: translateZ(0);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
         }
-        .pref-detail-reader.show { max-height: 3000px; opacity: 1; padding: 20px; margin-top: 10px; }
+        
+        .pref-detail-reader.show { 
+            max-height: 3000px; 
+            opacity: 1; 
+            padding: 20px; 
+            margin-top: 10px; 
+            margin-bottom: 40px;
+        }
         .chip-detail-item { padding: 14px 0; border-bottom: 0.5px solid color-mix(in srgb, currentColor 15%, transparent); }
         .chip-detail-item:last-child { border-bottom: none; padding-bottom: 0; }
         .chip-detail-time { font-size: 11px; opacity: 0.6; margin-top: 10px; text-align: right; }
@@ -2883,6 +2885,75 @@
         .pref-detail-reader.major { background: color-mix(in srgb, var(--chip-c) 15%, transparent); border: 1px solid color-mix(in srgb, var(--chip-c) 30%, transparent); color: var(--text-main); }
         .archive-chip-minor { color: var(--chip-c); background: transparent; border: 1px dashed color-mix(in srgb, var(--chip-c) 50%, transparent); }
         .pref-detail-reader.minor { background: color-mix(in srgb, var(--chip-c) 5%, transparent); border: 1px dashed color-mix(in srgb, var(--chip-c) 40%, transparent); color: var(--text-main); }
+        /* 自由修史弹窗的香槟金复选框 */
+        .round-chunk-cb { accent-color: #D47A43 !important; }
+
+        /* ✨ 自由修史弹窗的香槟金复选框 & 缺失文字 */
+        .round-chunk-cb { accent-color: #D47A43 !important; }
+        .chunk-missing-text { color: #D47A43 !important; font-size: 12px; margin-left: 8px; }
+
+        /* ✨ 4D 星图引擎专属样式 */
+        .archive-network-board {
+            width: 100%; height: 380px; /* 略微加高，给小球足够的呼吸空间 */
+            position: relative; margin-bottom: 20px;
+        }
+        .archive-network-board svg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;
+        }
+        .archive-network-board .link { stroke-linecap: round; transition: opacity 0.5s; }
+        .archive-network-board #html-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none;
+        }
+        
+        /* 恢复偏好小球正常的流式网格排版 */
+        .archive-glass-chip {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 10px 18px; border-radius: 100px;
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            pointer-events: auto; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .archive-glass-chip:active { transform: scale(0.95); }
+        .archive-glass-chip.active { transform: scale(1.1); z-index: 10; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+
+        /* 专门为 4D 星图里的小球加回绝对定位，绝不污染偏好页面 */
+        .archive-network-board .archive-glass-chip {
+            position: absolute; transform: translate(-50%, -50%); 
+        }
+        .archive-network-board .archive-glass-chip:active { transform: translate(-50%, -50%) scale(0.95); }
+        .archive-network-board .archive-glass-chip.active { transform: translate(-50%, -50%) scale(1.1); }
+
+        .relation-label {
+            position: absolute; transform: translate(-50%, -50%);
+            padding: 4px 12px; border-radius: 20px;
+            background: color-mix(in srgb, var(--card-bg) 80%, transparent);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            color: var(--text-sub); font-size: 12px; font-weight: 600;
+            pointer-events: auto; cursor: pointer; transition: 0.3s;
+            white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .relation-label:hover, .relation-label:active {
+            color: #D47A43; border-color: #D47A43;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        /* ✨ 羁绊演化史 - 详情弹窗 */
+        .relation-history-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -40%);
+            width: 85%; max-width: 340px; background: color-mix(in srgb, var(--card-bg) 85%, transparent);
+            backdrop-filter: blur(30px) saturate(150%); -webkit-backdrop-filter: blur(30px) saturate(150%);
+            border: 1px solid var(--border); border-radius: 24px;
+            padding: 20px; z-index: 10000; opacity: 0; pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2); max-height: 70vh; display: flex; flex-direction: column;
+        }
+        .relation-history-modal.show { opacity: 1; transform: translate(-50%, -50%); pointer-events: auto; }
+        .relation-modal-header { text-align: center; font-size: 18px; font-weight: 800; color: var(--text-main); margin-bottom: 15px; border-bottom: 0.5px solid var(--border); padding-bottom: 15px; }
+        .relation-history-list { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+        .history-node { background: var(--bg-color); padding: 12px; border-radius: 12px; border: 0.5px solid var(--border); }
+        .history-node-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .history-label { background: #D47A43; color: #fff; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+        .history-time { font-size: 11px; color: var(--text-sub); }
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
@@ -3881,8 +3952,11 @@
         </div>
 
         <!-- 瀑布流内容区 -->
-        <div id="archive-content" style="flex: 1; overflow-y: auto; padding-top: 20px; padding-bottom: 80px; background: var(--bg-color); -webkit-overflow-scrolling: touch; -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20px, black calc(100% - 40px), transparent 100%); mask-image: linear-gradient(to bottom, transparent 0%, black 20px, black calc(100% - 40px), transparent 100%);">
-            </div>
+        <div class="archive-scroll-mask top"></div>
+        <div class="archive-scroll-mask bottom"></div>
+
+        <div id="archive-content" style="flex: 1; overflow-y: auto; padding-top: 20px; padding-bottom: 80px; background: var(--bg-color); -webkit-overflow-scrolling: touch; transform: translateZ(0); will-change: transform;">
+        </div>
     </div>
     
     <div id="scene-options" class="sub-page-scene"><div class="nav-header"><span class="nav-title">设置</span><span class="clickable" onclick="hideOptionsWindow()">完成</span></div><div id="options-content"></div></div>
@@ -4468,15 +4542,15 @@
                 console.log('最终API URL:', apiUrl);
                 
                 // 使用Cloudflare Worker代理
-                const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
+                const response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + config.key,
-                        'X-Target-API': apiUrl
+                        'Content-Type': 'application/json'
                     },
 
                     body: JSON.stringify({
+                        customEndpoint: apiUrl,
+                        customApiKey: config.key,
                         model: config.model || 'gpt-3.5-turbo',
                         messages: messages,
                         stream: PARAM_CONFIG.stream,
@@ -4759,13 +4833,13 @@
                 
                 if (isIOSNative) {
                     const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
-                        url: 'https://api.ginkgo-yinxing.workers.dev/',
+                        url: 'https://linkgo-api.ginkgo-yinxing.workers.dev/',
                         headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${config.key}`,
-                            'X-Target-API': apiUrl
+                            'Content-Type': 'application/json'
                         },
                         data: {
+                            customEndpoint: apiUrl,
+                            customApiKey: config.key,
                             model: config.model || 'gpt-3.5-turbo',
                             messages: messages,
                             stream: PARAM_CONFIG.stream, 
@@ -4825,15 +4899,15 @@
                         };
                     }
                 } else {
-                    response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
+                    response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
                         method: 'POST',
                         signal: window.currentChatController.signal,
                         headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${config.key}`,
-                            'X-Target-API': apiUrl
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
+                            customEndpoint: apiUrl,
+                            customApiKey: config.key,
                             model: config.model || 'gpt-3.5-turbo',
                             messages: messages,
                             stream: PARAM_CONFIG.stream,
@@ -5922,230 +5996,172 @@
         }
         
         // ==========================================
-        // 长期记忆生成逻辑
+        // 🌟 终极使命：全知史官与动态图谱更新引擎
         // ==========================================
-        
-        // --- 自动生成长期记忆（日记功能）---
+        const SYSTEM_ARCHIVE_PROMPT = `【终极使命：世界观记录者与动态图谱更新引擎】
+        你是一个运行在系统后台的【全知史官】。你将接收到【已有的旧档案】与【带有轮数的新对话记录】。
+        你的核心任务是：对比旧档案与新对话，发现事件的延续、状态的改变、或全新的人事物，并严格以 JSON 格式输出。
+
+        【状态更新法则（解决跨区块割裂）】
+        1. 延续与合并：如果新对话中发生了某事件的后续，必须将它们合并为一条，并标注跨越的轮数。
+        2. 状态覆写：如果角色的身份、生理状态发生转变，必须覆写旧设定。
+        3. 动态关系嗅探：密切关注角色间的情感，并在 relations 中输出转变原因。
+
+        【强制排版：精准引用原则】（极其重要！）
+        1. 严禁使用“第1-10轮发生了某事”这种模糊起手。
+        2. memories 的 content 必须具体到动作，并强制在句子末尾附带来源标记。
+        3. 必须输出类似格式："content": "慕辞去海边玩，还玩了水上飞人 (记录于第8-9轮)"
+
+        【严格输出 JSON 格式】
+        请仅输出合法 JSON，不要包裹 markdown 代码块，格式如下：
+        {
+        "memories": [
+            {
+            "category": "分类名", // 仅限：人物、世界、羁绊、事件、偏好、异闻
+            "keywords": ["实体名"], // 必须且只能是1个核心专有名词
+            "worldTime": "绝对时间", 
+            "content": "具体的设定或事件... (记录于第X-Y轮)", 
+            "score": 4, // 1-5分
+            "roundRange": "11-20" // 该事件贯穿的具体轮数范围
+            }
+        ],
+        "relations": [
+            {
+            "source": "人物A", "target": "人物B",
+            "label": "关系名", // 极简，如：宿敌、暗恋
+            "detail": "简述发生转变的原因或具体事件细节" 
+            }
+        ]
+        }`;
+
+        // --- 自动生成长期记忆（日常后台静默触发版）---
         async function simulateMemorySummary(contact) {
             console.log("🧠 尝试触发长期记忆生成逻辑...");
-            
-            // 1. 动态读取频率设置
             const interval = GENERAL_CONFIG.memory.diaryInterval || 10;
             const conversation = getConversation(contact.id);
             const userMessagesCount = conversation.filter(m => m.role === 'user').length;
             
-            console.log(`📊 当前用户消息数: ${userMessagesCount}, 触发频率: ${interval}, 余数: ${userMessagesCount % interval}`);
-            
-            // 2. 智能计算：寻找上一次总结到了第几轮
             let lastSummarizedRound = 0;
             if (contact.longMemories && contact.longMemories.length > 0) {
                 contact.longMemories.forEach(m => {
                     if (m.roundRange) {
-                        const match = m.roundRange.match(/第?\d+-(\d+)轮?/);
-                        if (match && match[1]) {
-                            const endNum = parseInt(match[1]);
-                            if (endNum > lastSummarizedRound) {
-                                lastSummarizedRound = endNum;
-                            }
+                        const match = String(m.roundRange).match(/第?(\d+)-(\d+)轮?/);
+                        if (match && match[2]) {
+                            const endNum = parseInt(match[2]);
+                            if (endNum > lastSummarizedRound) lastSummarizedRound = endNum;
                         }
                     }
                 });
             }
-
+            
             const nextTriggerRound = lastSummarizedRound + interval;
-            console.log(`📊 上次总结到: ${lastSummarizedRound}轮, 下次目标: ${nextTriggerRound}轮`);
-
-            // 3. 触发检查 (只要当前轮数达到或超过目标轮数，就触发)
-            if (userMessagesCount === 0 || userMessagesCount < nextTriggerRound) {
-                console.log(`⏸️ 还没到第${nextTriggerRound}轮，跳过生成`);
-                return;
-            }
+            if (userMessagesCount === 0 || userMessagesCount < nextTriggerRound) return;
             
-            console.log(`📝 达到触发条件，开始生成记忆...`);
-            
-            // 4. 准备素材 (精准截取上次结束到目标轮数的对话)
             const startRound = lastSummarizedRound + 1;
-            const endRound = nextTriggerRound; // 严格以设定的区间结尾，不超取
+            const endRound = nextTriggerRound;
             
             const blockMessages = [];
             let userCount = 0;
             let isInBlock = false;
-            
             for (const msg of conversation) {
                 if (msg.role === 'user') {
                     userCount++;
                     if (userCount === startRound) isInBlock = true;
                 }
-                if (isInBlock) {
-                    blockMessages.push(msg);
-                }
-                // 如果已经超过了当前区间的结束轮数，就停止收集
+                if (isInBlock) blockMessages.push(msg);
                 if (userCount > endRound) {
-                    blockMessages.pop(); // 移除多余的下一轮用户消息
+                    blockMessages.pop();
                     break;
                 }
             }
             
-            const recentChat = blockMessages.map(m => 
-                `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`
-            ).join('\n');
+            // ✨ 给发给史官的每一句话都打上绝对的物理轮数印记
+            const recentChat = blockMessages.map((m, i) => `[第${startRound + i}轮] ${m.role === 'user' ? '用户' : 'AI'}：${m.content}`).join('\n');
+            const allExistingMemories = contact.longMemories ? contact.longMemories.map(m => m.content).join('\n') : "暂无记忆";
             
-            // 构建"已有记忆库"字符串，用于防重
-            const allExistingMemories = contact.longMemories 
-                ? contact.longMemories.map(m => m.content).join('\n')
-                : "暂无记忆";
-            
-            // 4. 🎯 修复：获取长期记忆API配置 (带降级机制)
             const memoryConfig = OTHER_API_CONFIGS.memory;
             let apiConfig = null;
-            
-            if (memoryConfig && memoryConfig.configId) {
-                apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === memoryConfig.configId);
-            }
-            if (!apiConfig) {
-                apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
-            }
-            
-            if (!apiConfig) {
-                console.log('⚠️ 没有任何可用的 API 配置，跳过生成');
-                return;
-            }
+            if (memoryConfig && memoryConfig.configId) apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === memoryConfig.configId);
+            if (!apiConfig) apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
+            if (!apiConfig) return;
             const modelToUse = (memoryConfig && memoryConfig.model) ? memoryConfig.model : apiConfig.model;
-            
-            // 5. 提示词构造
+
             const summaryMessages = [
-                {
-                    role: "system",
-                    content: `【终极使命：世界观记录者与小说大纲作者】
-                    你不再是一个死板的AI客服或数据分析师！你现在是这部沉浸式小说（修真、ABO、武侠、现代等世界观）的【世界观记录者】与【羁绊记录员】。
-                    你的任务是从流水账对话中，提取出带有温度、细节、动作和人物张力的【剧情设定档案】。
-
-                    【绝对禁止的词汇与风格】
-                    ❌ 严禁出现公文体：禁止使用“综合考虑策略”、“制定相关计划”、“扮演关键作用”、“进行了互动”、“产生事件”等机器人词汇。
-                    ❌ 严禁高度概括与抽象：不能把“鲫鱼汤、猪蹄”写成“营养品”，不能把“买手镯未买耳环”写成“购买首饰”。
-
-                    【必须遵守的5大黄金法则】
-                    1. 专有名词绝对敏感（一字不差）：只要对话中出现了特定的名字（如宝宝起名星澜）、功法、门派（如无情派）、丹药（如安胎丸）、食物（如猪蹄花生汤）、信物、地点等，必须原词保留，绝不允许用代词或上位概念替换。
-                    2. 动作与细节绑定主语：每一条档案必须像写小说大纲一样，包含明确的施动者和承受者，以及生动的细节。
-                        - ✅ 正确示例：“林深给师弟挑选了上好种水的翡翠手镯，且敏锐地识破了店家的次货；因为注意到师弟没有耳洞，所以没有买耳坠。”
-                        - ✅ 正确示例：“怀上二胎两个月时，林深尤其偏爱肉食，尤其是红烧肉、猪蹄花生汤等菜品。”
-                    3. 动态角色档案与隐藏身份捕捉：时刻关注对话中揭示的新身份或新设定（如：“原来林深是无情派大弟子”），并将其作为情报记录。必须明确界定AI扮演的角色（如师兄/林深）和用户扮演的角色（如师弟/User）。
-                    4. 羁绊与承诺的追踪：两人之间达成的约定、许下的承诺、未来的安排，必须被郑重记录（如：“两人在咨询郎中后，决定同时使用吐纳法门和安胎丸，让师弟安心养胎”）。
-                    5. NSFW与亲密情节的【柔化保真】（绝不跳过！）：
-                        - 亲密行为是角色情感的重大里程碑，必须被记录。
-                        - 若涉及世界观专属设定（如ABO的标记、永久标记、发情期、易感期、具体信息素气味；修真界的双修、灵力交融），必须原词保留客观记录。
-                        - 描写需使用唯美、缱绻的文学笔法隐晦处理，但必须写明结果。
-                        - ✅ 示例：“久别重逢的夜晚，林深再难克制情意，两人互诉衷肠、共赴巫山。在浓烈的信息素交融中，林深完成了永久标记，两人身心彻底结合。”
-
-                    【标准输出格式】
-                    严格按照以下格式输出，每条一行：
-                    [分类]|评分|标签|所属区间|内容
-
-                    【字段说明】
-                    - 分类：[情报]（身份/世界观设定）、[羁绊]（亲密互动/承诺）、[事件]（具体经历）、[偏好]（饮食/习惯/忌讳）
-                    - 评分：务必严格按照 1-5 分制评估！(低于3分的无营养废话不要提取)
-                    - 5分：核心身份设定 / 永久标记 / 姓名 / 重大转折
-                    - 4分：重要承诺 / 亲密突破 / 专属配方与功法
-                    - 3分：具体的生活事件细节 / 明确的偏好
-                    - 标签：最多3个，用逗号分隔，必须包含核心专有名词（如：星澜,起名）
-                    - 所属区间：必须从给出的区块范围中原样复制（如 第31-60轮）
-                    - 内容：必须按照【黄金法则】使用小说语言撰写。`
-                },
-                {
-                    role: "user",
-                    content: `【已有记忆库（如果已有完全相同的事件，请勿重复记录；但如果是新的细节或进展，请记录补充）】
-${allExistingMemories}
-
-【需要提取的各区块对话记录】
-${recentChat}
-
-请以大纲作者的视角，提炼出这段对话中带有烟火气、保留特定名词和情感张力的长期档案（如果没有新信息则跳过不写）`
+                { role: "system", content: SYSTEM_ARCHIVE_PROMPT },
+                { 
+                    role: "user", 
+                    content: `【已有记忆库】(若有完全相同的事件请勿重复记录；若是新细节请补充)\n${allExistingMemories}\n\n【需要提取的对话区块：第${startRound}-${endRound}轮】\n${recentChat}\n\n请严格以大纲作者的视角，按要求返回 JSON。` 
                 }
             ];
-            
+
             try {
                 let apiUrl = getStandardApiUrl(apiConfig.url, '/chat/completions');
-                
-                const randomTemp = 0.1 + Math.random() * 0.3; 
-                
-                const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
+                const response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiConfig.key}`, // 修复了之前的报错 Bug
-                        'X-Target-API': apiUrl
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         model: modelToUse,
                         messages: summaryMessages,
-                        temperature: randomTemp,
-                        max_tokens: 500
+                        temperature: 0.1,
+                        max_tokens: 2000
                     })
                 });
-                
+
                 if (response.ok) {
                     const data = await response.json();
-                    let aiContent = "";
-                    
-                    if (data.choices && data.choices[0]?.message?.content) {
-                        aiContent = data.choices[0].message.content;
-                    } else if (data.result) {
-                        aiContent = data.result;
-                    }
-                    
-                    if (aiContent) {
-                        console.log("📥 AI 返回的日记:", aiContent);
-                        const lines = aiContent.split('\n');
-                        if (!contact.longMemories) contact.longMemories = [];
-                        
+                    let jsonStr = data.choices && data.choices[0] ? data.choices[0].message.content : data.result;
+                    jsonStr = jsonStr.replace(/```json/gi, '').replace(/```/g, '').trim();
+                    const result = JSON.parse(jsonStr);
+
+                    let addedCount = 0;
+                    const isRealityMode = document.getElementById('reality-mode-switch')?.classList.contains('active');
+                    let realDateStr = null;
+                    if (isRealityMode) {
                         const now = new Date();
-                        const dateStr = `${now.getMonth()+1}月${now.getDate()}日`;
-                        
-                        // 记录准确的接力轮数范围
-                        const roundRangeStr = `第${startRound}-${endRound}轮`;
-                        
-                        let addedCount = 0;
-                        
-                        lines.forEach(line => {
-                            const cleanLine = line.trim();
-                            if (!cleanLine) return;
-                            if (cleanLine.includes("提取") || cleanLine.startsWith("好的") || cleanLine.includes("日记")) return;
+                        realDateStr = `${now.getMonth()+1}月${now.getDate()}日`;
+                    }
+
+                    if (result.memories) {
+                        result.memories.forEach(m => {
+                            m.id = 'mem_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                            if (!m.roundRange) m.roundRange = `${startRound}-${endRound}`;
+                            if (isRealityMode && !m.worldTime) m.date = realDateStr;
+                            contact.longMemories.push(m);
+                            addedCount++;
+                        });
+                    }
+
+                    // 存储羁绊关系！
+                    if (result.relations) {
+                        if (!contact.relations) contact.relations = [];
+                        result.relations.forEach(r => {
+                            const existingRelIndex = contact.relations.findIndex(ex => 
+                                (ex.source === r.source && ex.target === r.target) || 
+                                (ex.source === r.target && ex.target === r.source)
+                            );
                             
-                            const parts = cleanLine.split('|');
-                            if (parts.length >= 4) {
-                                const content = parts[3].trim();
-                                
-                                // JS层二次去重
-                                const isDuplicate = contact.longMemories.some(m => 
-                                    m.content === content || 
-                                    (content.length > 5 && m.content.includes(content)) ||
-                                    (m.content.length > 5 && content.includes(m.content))
-                                );
-                                
-                                if (!isDuplicate) {
-                                    contact.longMemories.push({
-                                        id: Date.now() + Math.random(),
-                                        date: dateStr,
-                                        roundRange: roundRangeStr,
-                                        category: parts[0].trim().replace(/[\[\]]/g, ''),
-                                        score: parseInt(parts[1].trim()) || 5,
-                                        keywords: parts[2].split(/[,，]/).map(k=>k.trim()),
-                                        content: content,
-                                        type: 'structured'
-                                    });
-                                    addedCount++;
-                                }
+                            const timeMark = r.updatedAt || (isRealityMode ? realDateStr : `第 ${startRound}-${endRound} 轮`);
+                            
+                            if (existingRelIndex !== -1) {
+                                const existingRel = contact.relations[existingRelIndex];
+                                if (!existingRel.history) existingRel.history = [{ label: existingRel.label, time: '往昔', detail: existingRel.detail || '初始状态' }];
+                                existingRel.label = r.label;
+                                existingRel.detail = r.detail || '关系产生了新的转变。';
+                                existingRel.updatedAt = timeMark;
+                                existingRel.history.push({ label: r.label, time: timeMark, detail: existingRel.detail });
+                            } else {
+                                r.history = [{ label: r.label, time: timeMark, detail: r.detail || '建立了初始羁绊。' }];
+                                r.updatedAt = timeMark;
+                                contact.relations.push(r);
                             }
                         });
-                        
-                        if (addedCount > 0) {
-                            saveToLocal();
-                            console.log(`✅ 成功写入 ${addedCount} 条新日记`);
-                        }
                     }
+                    if (addedCount > 0) saveToLocal();
                 }
             } catch (e) {
-                console.error("生成日记失败:", e);
+                console.error("生成长期记忆失败:", e);
             }
         }
         
@@ -6282,94 +6298,155 @@ ${recentChat}
         
         
         // ==========================================
-        // 长期记忆补全功能
+        // 🌟 长期记忆修史功能 (多选勾选补全版)
         // ==========================================
-        
-        // --- 一键补全所有缺失的记忆 ---
-        async function backfillAllMemories() {
+
+        // --- 点击魔法棒：呼出自由修史面板 ---
+        function backfillAllMemories() {
             if (!currentChatContactId) {
                 alert('❌ 请先打开一个聊天窗口');
                 return;
             }
-            
             const contact = mockContacts.find(c => c.id === currentChatContactId);
-            if (!contact) {
-                alert('❌ 联系人不存在');
-                return;
-            }
-            
-            if (!contact.longMemories) contact.longMemories = [];
+            if (!contact) return;
             
             const interval = GENERAL_CONFIG.memory.diaryInterval || 10;
             const conversation = getConversation(contact.id);
             const userMessagesCount = conversation.filter(m => m.role === 'user').length;
             
-            console.log('🔍 [补全检查] 开始检测:', {
-                角色: contact.name,
-                用户消息数: userMessagesCount,
-                补全频率: interval,
-                现有记忆数: contact.longMemories.length
-            });
-            
-           // 新增智能接力逻辑：检测所有历史缺失区块，而不仅仅是向后追加
-            const existingRanges = [];
-            if (contact.longMemories && contact.longMemories.length > 0) {
-                contact.longMemories.forEach(m => {
-                    if (m.roundRange) {
-                        // 提取类似 "第1-30轮" 中的起始和结束轮数
-                        const match = m.roundRange.match(/第?(\d+)-(\d+)轮?/);
-                        if (match && match[1] && match[2]) {
-                            existingRanges.push({
-                                start: parseInt(match[1]),
-                                end: parseInt(match[2])
-                            });
-                        }
-                    }
-                });
-            }
-
-            const missingBlocks = [];
-            let blockIndex = 1;
-            
-            // 从第1轮开始，按照 interval (比如30轮) 切分所有完整区块，直到当前总轮数
-            let expectedStart = 1;
-            while (expectedStart + interval - 1 <= userMessagesCount) {
-                const expectedEnd = expectedStart + interval - 1;
-                
-                // 检查该区块是否已被现有记忆覆盖（通过判断该区块的中心点是否在已总结范围内）
-                const midPoint = (expectedStart + expectedEnd) / 2;
-                const isCovered = existingRanges.some(r => midPoint >= r.start && midPoint <= r.end);
-                
-                if (!isCovered) {
-                    missingBlocks.push({ startRound: expectedStart, endRound: expectedEnd, blockIndex });
-                    console.log(`📊 [检测区块${blockIndex}] 发现缺失并准备补全: 第${expectedStart}-${expectedEnd}轮`);
-                }
-                
-                expectedStart += interval;
-                blockIndex++;
-            }
-            
-            console.log('📋 [检测完成] 结果:', {
-                缺失区块: missingBlocks.length,
-                详情: missingBlocks
-            });
-            
-            // 检查是否有缺失
-            if (missingBlocks.length === 0) {
-                alert('✅ 记忆完整！\n\n所有区块都已生成，无需补全。');
+            if (userMessagesCount === 0) {
+                alert("暂无用户对话记录，无法修史！");
                 return;
             }
 
-            // 🪄 动效：显示顶部进度条
-            const progressBar = document.getElementById('backfill-progress-bar');
-            if (progressBar) {
-                progressBar.style.opacity = '1'; // 🎯 修复：清除上次残留的隐身状态
-                progressBar.classList.add('active');
-                progressBar.style.transition = 'transform 1.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease';
-                progressBar.style.transform = 'scaleX(0.05)';
+            // 1. 根据当前聊天记录，切分出所有存在的“轮数区块”
+            const chunks = [];
+            let start = 1;
+            while (start <= userMessagesCount) {
+                let end = start + interval - 1;
+                chunks.push({ start, end });
+                start += interval;
             }
 
-            // 🎯 修复：检查API配置
+            // 2. 检查哪些区间是已经总结过的
+            const existingRanges = [];
+            if (contact.longMemories) {
+                contact.longMemories.forEach(m => {
+                    if (m.roundRange) {
+                        const match = String(m.roundRange).match(/第?(\d+)-(\d+)轮?/);
+                        if (match) existingRanges.push({ start: parseInt(match[1]), end: parseInt(match[2]) });
+                    }
+                });
+            }
+            chunks.forEach(c => {
+                const midPoint = (c.start + c.end) / 2;
+                c.isCovered = existingRanges.some(r => midPoint >= r.start && midPoint <= r.end);
+            });
+
+            // 3. 构建 iOS 风格的原生底部浮层 (Bottom Sheet / Modal)
+            let modal = document.getElementById('round-selector-modal');
+            if (modal) modal.remove();
+
+            let html = `
+            <div class="config-modal-overlay show" id="round-selector-modal" style="z-index: 5000;">
+                <div class="config-modal-content" style="max-height: 80vh; display:flex; flex-direction:column; width: 90%; max-width: 400px; padding: 0;">
+                    <div class="config-modal-header" style="padding: 16px 20px; border-bottom: 0.5px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <h3 class="config-modal-title" style="font-size: 17px; margin: 0;">自由修史区间</h3>
+                        <i class="fas fa-times" style="color: var(--text-sub); font-size: 18px; cursor: pointer;" onclick="document.getElementById('round-selector-modal').remove()"></i>
+                    </div>
+                    <div class="config-modal-body" style="padding: 20px; overflow-y: auto; flex: 1; background: var(--bg-color);">
+                        <p style="font-size: 13px; color: var(--text-sub); margin-top: 0; margin-bottom: 15px; line-height: 1.5;">当前共 ${userMessagesCount} 轮对话。勾选需要提取的区间（勾选已生成的区间将会覆写旧档案）：</p>
+                        <div style="display:flex; flex-direction:column; gap:10px;">
+            `;
+            
+            // 生成每一个选项卡
+            chunks.forEach((c) => {
+                // 已生成的显示绿色并带删除按钮，缺失的显示香槟金
+                const isCoveredStr = c.isCovered 
+                    ? `<span style="color:#34C759; font-size:12px; margin-left: 8px;">(已生成)</span>
+                    <i class="fa-solid fa-trash-can" onclick="event.stopPropagation(); event.preventDefault(); deleteArchiveBlock(${c.start}, ${c.end})" style="color:#ff3b30; margin-left:12px; font-size: 14px; padding: 4px;"></i>` 
+                    : `<span style="color:#F7E7CE; font-size:12px; margin-left: 8px; font-weight:bold; text-shadow: 0 0 5px rgba(247,231,206,0.3);">(缺失)</span>`;
+                
+                html += `
+                <label style="display:flex; align-items:center; justify-content:space-between; padding: 14px 16px; background: var(--card-bg); border-radius: 12px; border: 0.5px solid var(--border); cursor: pointer; transition: background 0.2s;">
+                    <span style="font-size:15px; font-weight:600; color: var(--text-main); display:flex; align-items:center;">
+                        第 ${c.start}-${c.end} 轮 ${isCoveredStr}
+                    </span>
+                    <input type="checkbox" class="round-chunk-cb" value="${c.start}-${c.end}" ${!c.isCovered ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--accent);">
+                </label>
+                `;
+            });
+
+            html += `
+                        </div>
+                    </div>
+                    <div class="config-modal-footer" style="padding: 16px 20px; display:flex; gap:12px; background: var(--card-bg); border-top: 0.5px solid var(--border);">
+                        <button onclick="executeBackfillSelected()" style="flex:1; padding:14px; border-radius:12px; border:none; background:var(--text-main); color:var(--card-bg); font-weight:600; font-size: 16px; cursor: pointer;">开始融合记忆</button>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
+        // --- 自由修史：删除特定区间的旧档案 ---
+        window.deleteArchiveBlock = function(start, end) {
+            if(!confirm(`确定要销毁第 ${start}-${end} 轮的历史档案吗？销毁后可重新生成。`)) return;
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            if (!contact || !contact.longMemories) return;
+            
+            // 过滤掉范围完全匹配的档案
+            contact.longMemories = contact.longMemories.filter(m => m.roundRange !== `${start}-${end}`);
+            saveToLocal();
+            
+            // 销毁旧弹窗，重新呼出新弹窗实现无缝刷新
+            const modal = document.getElementById('round-selector-modal');
+            if(modal) modal.remove();
+            backfillAllMemories(); 
+        };
+        // --- 执行勾选片段的合并且发送 API ---
+        window.executeBackfillSelected = async function() {
+            // 找出所有被打钩的复选框
+            const checkboxes = document.querySelectorAll('.round-chunk-cb:checked');
+            const selectedBlocks = Array.from(checkboxes).map(cb => {
+                const [start, end] = cb.value.split('-').map(Number);
+                return { startRound: start, endRound: end };
+            });
+
+            if (selectedBlocks.length === 0) {
+                alert("请至少选择一个区间！");
+                return;
+            }
+
+            // 销毁弹窗
+            document.getElementById('round-selector-modal').remove();
+
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            if (!contact) return;
+
+            // 清理即将重写的区块的旧记忆（防止数据重复）
+            if (contact.longMemories) {
+                selectedBlocks.forEach(b => {
+                    contact.longMemories = contact.longMemories.filter(m => {
+                        if (!m.roundRange) return true;
+                        const match = String(m.roundRange).match(/第?(\d+)-(\d+)轮?/);
+                        if (!match) return true;
+                        const mStart = parseInt(match[1]);
+                        const mEnd = parseInt(match[2]);
+                        const mid = (mStart + mEnd) / 2;
+                        // 如果旧记忆的中心点落在我们即将重写的区间内，直接删掉旧的
+                        if (mid >= b.startRound && mid <= b.endRound) {
+                            return false;
+                        }
+                        return true;
+                    });
+                });
+            } else {
+                contact.longMemories = [];
+            }
+
+            // 获取 API 权限
             const memoryConfig = OTHER_API_CONFIGS.memory;
             let apiConfig = null;
             if (memoryConfig && memoryConfig.configId) {
@@ -6379,201 +6456,158 @@ ${recentChat}
                 apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
             }
             if (!apiConfig) {
-                alert('❌ 没有可用的API配置\n\n请先在"我"→"API配置"中配置聊天或记忆API');
-                if (progressBar) {
-                    progressBar.style.opacity = '0';
-                    setTimeout(() => progressBar.classList.remove('active'), 300);
-                }
+                alert('❌ 没有可用的 API 配置');
                 return;
             }
 
-            // 确认开始合并补全
-            if (!confirm(`🔍 检测到 ${missingBlocks.length} 个缺失的记忆区块\n\n缺失轮数：\n${missingBlocks.map(b => `第${b.startRound}-${b.endRound}轮`).join('\n')}\n\n是否合并为一次请求开始补全？`)) {
-                if (progressBar) {
-                    progressBar.style.opacity = '0';
-                    setTimeout(() => progressBar.classList.remove('active'), 300);
-                }
-                return;
-            }
+            // 精准把勾选的区块抽离出来，合并在一起发给大模型
+            const conversation = getConversation(contact.id);
+            let allMissingChats = "";
             
-            try {
-                // 1. 收集所有缺失区块的对话内容
-                const conversation = getConversation(contact.id);
-                let allMissingChats = "";
-                const expectedRanges = [];
-                
-                missingBlocks.forEach(block => {
-                    const blockMessages = [];
-                    let userCount = 0;
-                    let isInBlock = false;
-                    
-                    for (const msg of conversation) {
-                        if (msg.role === 'user') {
-                            userCount++;
-                            if (userCount === block.startRound) isInBlock = true;
-                        }
-                        if (isInBlock) blockMessages.push(msg);
-                        if (userCount > block.endRound) {
-                            blockMessages.pop();
-                            break;
-                        }
+            selectedBlocks.forEach(block => {
+                const blockMessages = [];
+                let userCount = 0;
+                let isInBlock = false;
+                for (const msg of conversation) {
+                    if (msg.role === 'user') {
+                        userCount++;
+                        if (userCount === block.startRound) isInBlock = true;
                     }
-                    
-                    if (blockMessages.length > 0) {
-                        const chatContent = blockMessages.map(m => 
-                            `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`
-                        ).join('\n');
-                        allMissingChats += `\n\n【第${block.startRound}-${block.endRound}轮】\n${chatContent}`;
-                        expectedRanges.push(`第${block.startRound}-${block.endRound}轮`);
+                    if (isInBlock) blockMessages.push(msg);
+                    if (userCount > block.endRound) {
+                        blockMessages.pop();
+                        break;
                     }
-                });
+                }
+                if (blockMessages.length > 0) {
+                    // ✨ 给发给史官的每一句话都打上绝对的物理轮数印记
+                    const chatContent = blockMessages.map((m, i) => `[第${block.startRound + i}轮] ${m.role === 'user' ? '用户' : 'AI'}：${m.content}`).join('\n');
+                    allMissingChats += `\n\n【需要提取的对话区块：第${block.startRound}-${block.endRound}轮】\n${chatContent}`;
+                }
+            });
 
+            const allExistingMemories = contact.longMemories.length > 0 ? contact.longMemories.map(m => m.content).join('\n') : "暂无记忆";
+
+            const summaryMessages = [
+                { role: "system", content: SYSTEM_ARCHIVE_PROMPT }, // 🌟 这里直接复用了顶部的大脑！
+                { 
+                    role: "user", 
+                    content: `【已有记忆库】(请勿重复记录已有事件；若是新细节请补充)\n${allExistingMemories}\n${allMissingChats}\n\n请严格以大纲作者的视角，按格式要求返回 JSON。` 
+                }
+            ];
+
+            try {
+                const modelToUse = (memoryConfig && memoryConfig.model) ? memoryConfig.model : apiConfig.model;
+                let apiUrl = getStandardApiUrl(apiConfig.url, '/chat/completions');
+                
+                addLogToConsole('info', 'ARCHIVE', `正在提取 ${selectedBlocks.length} 个区块的档案...`);
+                
+                // 呼出顶部进度条
+                const progressBar = document.getElementById('backfill-progress-bar');
                 if (progressBar) {
-                    progressBar.style.transform = `scaleX(0.5)`; // 发送请求前，进度条到一半
+                    progressBar.style.opacity = '1';
+                    progressBar.classList.add('active');
+                    progressBar.style.transition = 'transform 1.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease';
+                    progressBar.style.transform = 'scaleX(0.5)';
                 }
 
-                // 2. 构建已有记忆库（去重用）
-                const allExistingMemories = contact.longMemories 
-                    ? contact.longMemories.map(m => m.content).join('\n')
-                    : "暂无记忆";
-
-                // 3. 构建合并版 Prompt，要求AI直接返回带【所属区间】的数据
-                const summaryMessages = [
-                    {
-                        role: "system",
-                        content: `【绝对规则 - 你的身份】
-你是无情的档案记录员，负责从多段对话记录中提取关键实体档案。
-不要写小作文，不要写流水账日记，只提取具体的客观事实、偏好和重要事件。必须保留特定名词。
-
-【标准输出格式】
-[分类]|评分|标签|所属区间|内容
-
-【正确示例】
-[人物]|4|X同学,大学|第31-60轮|X同学是用户的大学同学，曾经帮用户告白过。
-[偏好]|3|食物,香蕉|第61-90轮|用户表示自己非常喜欢吃香蕉。
-
-【去重与忽略规则】
-1. 查看下方【已有记忆库】，已经记录过的类似事件，绝对不要重复记录！
-2. 废话、日常问候、没有信息量的话直接忽略，不予输出！
-
-【字段说明】
-- 分类：[核心]、[偏好]、[事件]、[人物]
-- 评分：务必严格按照 1-5 分制评估！(低于3分的日常对话不要提取)
-  - 5分：核心设定 / 性格 / 终极目标
-  - 4分：重要人物关系 / 深刻的情感转折
-  - 3分：长期偏好 / 明确发生的事件与细节
-- 标签：最多3个，用逗号分隔，必须包含核心名词
-- 所属区间：必须从给出的区块范围中原样复制（如 第31-60轮）`
-                    },
-                    {
-                        role: "user",
-                        content: `【已有记忆库（禁止重复记录这些）】
-${allExistingMemories}
-
-【需要提取的各区块对话记录】${allMissingChats}
-
-请以 **${contact.name}** 的第一人称视角，分别提取上述 ${expectedRanges.length} 个区间的记忆档案（如果没有新信息则跳过）：`
-                    }
-                ];
-
-                let apiUrl = getStandardApiUrl(apiConfig.url, '/chat/completions');
-                const modelToUse = (memoryConfig && memoryConfig.model) ? memoryConfig.model : apiConfig.model;
-                
-                console.log("🚀 [合并补全] 发起一次性请求，包含区块:", expectedRanges);
-                
-                const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
+                const response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiConfig.key}`,
-                        'X-Target-API': apiUrl
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         model: modelToUse,
                         messages: summaryMessages,
-                        temperature: 0.1,
-                        max_tokens: 1500 // 合并提取需要更多 tokens
+                        temperature: 0.1, // 降低发散度，像机器一样精准记录
+                        max_tokens: 3000
                     })
                 });
 
-                if (response.ok) {
-                    const data = await response.json();
-                    let aiContent = "";
-                    if (data.choices && data.choices[0]?.message?.content) {
-                        aiContent = data.choices[0].message.content;
-                    } else if (data.result) {
-                        aiContent = data.result;
-                    }
+                if (!response.ok) throw new Error(`API 报错: ${response.status}`);
+                const data = await response.json();
+                
+                // JSON 安全脱壳术
+                let jsonStr = data.choices && data.choices[0] ? data.choices[0].message.content : data.result;
+                jsonStr = jsonStr.replace(/```json/gi, '').replace(/```/g, '').trim();
+                const result = JSON.parse(jsonStr);
 
-                    if (aiContent) {
-                        console.log("📥 [合并补全] AI返回的档案:", aiContent);
-                        const lines = aiContent.split('\n');
-                        const now = new Date();
-                        const dateStr = `${now.getMonth()+1}月${now.getDate()}日`;
-                        let addedCount = 0;
-
-                        lines.forEach(line => {
-                            const cleanLine = line.trim();
-                            if (!cleanLine) return;
-                            if (cleanLine.includes("提取") || cleanLine.startsWith("好的") || cleanLine.includes("日记")) return;
-                            
-                            const parts = cleanLine.split('|');
-                            if (parts.length >= 5) {
-                                const content = parts[4].trim();
-                                const rangeStr = parts[3].trim(); // 提取到的所属区间
-                                
-                                // 基础去重检查
-                                const isDuplicate = contact.longMemories.some(m => 
-                                    m.content === content || 
-                                    (content.length > 5 && m.content.includes(content)) ||
-                                    (m.content.length > 5 && content.includes(m.content))
-                                );
-                                
-                                if (!isDuplicate) {
-                                    contact.longMemories.push({
-                                        id: Date.now() + Math.random(),
-                                        date: dateStr,
-                                        roundRange: rangeStr,
-                                        category: parts[0].trim().replace(/[\[\]]/g, ''),
-                                        score: parseInt(parts[1].trim()) || 5,
-                                        keywords: parts[2].split(/[,，]/).map(k=>k.trim()),
-                                        content: content,
-                                        type: 'structured'
-                                    });
-                                    addedCount++;
-                                }
-                            }
-                        });
-
-                        // 🎯 核心需求2：排序！补全后将所有记忆按起始轮数升序排列
-                        if (contact.longMemories && contact.longMemories.length > 0) {
-                            contact.longMemories.sort((a, b) => {
-                                const getStart = (range) => {
-                                    if (!range) return 0;
-                                    const match = range.match(/第?(\d+)-/);
-                                    return match ? parseInt(match[1], 10) : 0;
-                                };
-                                return getStart(a.roundRange) - getStart(b.roundRange);
-                            });
-                        }
-
-                        if (addedCount > 0) saveToLocal();
-                        
-                        if (progressBar) progressBar.style.transform = `scaleX(1)`;
-                        
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        
-                        renderLongMemoryContent(); 
-                        updateMemoryStats();
-                        alert(`✅ 批量补全完成！\n\n成功生成了 ${addedCount} 条记忆档案，\n并已按轮数顺序重新排列。`);
-                    }
-                } else {
-                    alert(`❌ 补全失败 (HTTP ${response.status})`);
+                let addedCount = 0;
+                // 🌟 剥离现实时间！只有开启现实感知时，才调用当前现实时间
+                const isRealityMode = document.getElementById('reality-mode-switch')?.classList.contains('active');
+                let realDateStr = null;
+                if (isRealityMode) {
+                    const now = new Date();
+                    realDateStr = `${now.getMonth()+1}月${now.getDate()}日`;
                 }
+
+                // 注入新记忆
+                if (result.memories && Array.isArray(result.memories)) {
+                    result.memories.forEach(m => {
+                        m.id = 'mem_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                        if (!m.roundRange) m.roundRange = `${selectedBlocks[0].startRound}-${selectedBlocks[selectedBlocks.length-1].endRound}`;
+                        // 彻底抛弃强制现实时间。优先用AI提取的 worldTime
+                        if (isRealityMode && !m.worldTime) m.date = realDateStr;
+                        contact.longMemories.push(m);
+                        addedCount++;
+                    });
+                }
+
+                // 注入人物关系星图连线数据！
+                if (result.relations && Array.isArray(result.relations)) {
+                    if (!contact.relations) contact.relations = [];
+                    result.relations.forEach(r => {
+                        const existingRelIndex = contact.relations.findIndex(ex => 
+                            (ex.source === r.source && ex.target === r.target) || 
+                            (ex.source === r.target && ex.target === r.source)
+                        );
+                        
+                        // 羁绊的时间戳使用世界时间或轮数
+                        const timeMark = r.updatedAt || (isRealityMode ? realDateStr : `第 ${selectedBlocks[0].startRound}-${selectedBlocks[selectedBlocks.length-1].endRound} 轮`); 
+
+                        if (existingRelIndex !== -1) {
+                            const existingRel = contact.relations[existingRelIndex];
+                            if (!existingRel.history) existingRel.history = [{ label: existingRel.label, time: '往昔', detail: existingRel.detail || '初始状态' }];
+                            existingRel.label = r.label;
+                            existingRel.detail = r.detail || '关系产生了新的转变。';
+                            existingRel.updatedAt = timeMark;
+                            existingRel.history.push({ label: r.label, time: timeMark, detail: existingRel.detail });
+                        } else {
+                            r.history = [{ label: r.label, time: timeMark, detail: r.detail || '建立了初始羁绊。' }];
+                            r.updatedAt = timeMark;
+                            contact.relations.push(r);
+                        }
+                    });
+                }
+
+                // 时间轴重排
+                if (contact.longMemories && contact.longMemories.length > 0) {
+                    contact.longMemories.sort((a, b) => {
+                        const getStart = (range) => {
+                            if (!range) return 0;
+                            const match = String(range).match(/第?(\d+)-/);
+                            return match ? parseInt(match[1], 10) : 0;
+                        };
+                        return getStart(a.roundRange) - getStart(b.roundRange);
+                    });
+                }
+
+                saveToLocal();
+                
+                if (progressBar) progressBar.style.transform = `scaleX(1)`;
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                const searchInput = document.getElementById('archive-search-input');
+                renderArchiveContent(searchInput ? searchInput.value : '');
+                updateMemoryStats();
+                
+                alert(`✅ 记忆融合完成！\n\n成功萃取了 ${addedCount} 条设定档案，及 ${result.relations ? result.relations.length : 0} 组人物羁绊。`);
+
             } catch (error) {
-                console.error("批量补全出错:", error);
-                alert(`❌ 补全出错: ${error.message}`);
+                console.error("提取出错:", error);
+                alert(`❌ 提取出错: ${error.message}\n请检查控制台获取详细信息。`);
             } finally {
+                const progressBar = document.getElementById('backfill-progress-bar');
                 if (progressBar) {
                     progressBar.style.transition = 'opacity 0.5s ease, transform 0.3s ease';
                     progressBar.style.opacity = '0';
@@ -6582,198 +6616,6 @@ ${allExistingMemories}
                         progressBar.style.transform = 'scaleX(0)';
                     }, 500);
                 }
-            }
-        }
-        
-        // --- 为指定区块生成记忆 ---
-        async function generateMemoryForBlock(contact, startRound, endRound, interval) {
-            console.log(`📝 正在补全第${startRound}-${endRound}轮的记忆...`);
-            
-            // 找出这个区块的对话（通过计数用户消息）
-            const conversation = getConversation(contact.id);
-            const blockMessages = [];
-            let userCount = 0;
-            let isInBlock = false;
-            
-            for (const msg of conversation) {
-                if (msg.role === 'user') {
-                    userCount++;
-                    if (userCount === startRound) {
-                        isInBlock = true;
-                    }
-                }
-                
-                if (isInBlock) {
-                    blockMessages.push(msg);
-                }
-                
-                // 修复：让AI完整记录这一轮的回复，而不是在用户发话后立刻截断
-                if (userCount > endRound) {
-                    blockMessages.pop(); // 移除多余的下一轮用户消息
-                    break;
-                }
-            }
-            
-            if (blockMessages.length === 0) {
-                console.log(`⚠️ 未找到第${startRound}-${endRound}轮的对话记录`);
-                return 0;
-            }
-            
-            console.log(`📊 找到${blockMessages.length}条消息用于生成记忆`);
-            
-            // 准备对话内容
-            const chatContent = blockMessages.map(m => 
-                `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`
-            ).join('\n');
-            
-            // 构建已有记忆库
-            const allExistingMemories = contact.longMemories 
-                ? contact.longMemories.map(m => m.content).join('\n')
-                : "暂无记忆";
-            
-            // 🎯 修复：获取API配置（支持自动降级）
-            const memoryConfig = OTHER_API_CONFIGS.memory;
-            let apiConfig = null;
-            
-            if (memoryConfig && memoryConfig.configId) {
-                apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === memoryConfig.configId);
-            }
-            if (!apiConfig) {
-                apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
-            }
-            
-            if (!apiConfig) {
-                console.error('⚠️ 没有任何可用的 API 配置');
-                return 0;
-            }
-            const modelToUse = (memoryConfig && memoryConfig.model) ? memoryConfig.model : apiConfig.model;
-            
-            // 构建提示词
-            const summaryMessages = [
-                {
-                    role: "system",
-                    content: `【绝对规则 - 你的身份】
-你是无情的档案记录员，负责从对话中提取关键实体档案。
-不要写小作文，不要写流水账日记，只提取具体的客观事实、偏好和重要事件。必须保留特定名词（如海豚、香蕉、特定地点）。
-
-【标准输出格式】
-[分类]|评分|标签|内容
-
-【正确示例】
-[人物]|4|X同学,大学|X同学是用户的大学同学，曾经帮用户告白过。
-[偏好]|3|食物,香蕉|用户表示自己非常喜欢吃香蕉。
-[事件]|3|海洋馆,泡面|上次约会去了海洋馆，一边看着海豚一边吃泡面，感觉很香。
-[核心]|5|设定,目标|用户目前的终极目标是考上研究生。
-
-【去重与忽略规则】
-1. 查看下方【已有记忆库】，已经记录过的类似事件，绝对不要重复记录！
-2. 废话、日常问候、没有信息量的话直接忽略，不予输出！
-
-【字段说明】
-- 分类：[核心]、[偏好]、[事件]、[人物]
-- 评分：务必严格按照 1-5 分制评估！(低于3分的日常对话不要提取)
-  - 5分：核心设定 / 性格 / 终极目标
-  - 4分：重要人物关系 / 深刻的情感转折
-  - 3分：长期偏好 / 明确发生的事件与细节
-- 标签：最多3个，用逗号分隔，必须包含核心名词`
-                },
-                {
-                    role: "user",
-                    content: `【已有记忆库（禁止重复记录这些）】
-${allExistingMemories}
-
-【第${startRound}-${endRound}轮的对话记录】
-${chatContent}
-
-请以 **${contact.name}** 的第一人称视角，写下新的日记（如果没有新信息则什么都不用写）：`
-                }
-            ];
-            
-            try {
-                let apiUrl = getStandardApiUrl(apiConfig.url, '/chat/completions');
-                
-                const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiConfig.key}`,
-                        'X-Target-API': apiUrl
-                    },
-                    body: JSON.stringify({
-                        model: modelToUse,
-                        messages: summaryMessages,
-                        temperature: 0.1,
-                        max_tokens: 500
-                    })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    let aiContent = "";
-                    
-                    if (data.choices && data.choices[0]?.message?.content) {
-                        aiContent = data.choices[0].message.content;
-                    } else if (data.result) {
-                        aiContent = data.result;
-                    }
-                    
-                    if (aiContent) {
-                        console.log(`📥 AI返回第${startRound}-${endRound}轮的日记:`, aiContent);
-                        const lines = aiContent.split('\n');
-                        if (!contact.longMemories) contact.longMemories = [];
-                        
-                        const now = new Date();
-                        const dateStr = `${now.getMonth()+1}月${now.getDate()}日`;
-                        const roundRangeStr = `第${startRound}-${endRound}轮`;
-                        
-                        let addedCount = 0;
-                        
-                        lines.forEach(line => {
-                            const cleanLine = line.trim();
-                            if (!cleanLine) return;
-                            if (cleanLine.includes("提取") || cleanLine.startsWith("好的") || cleanLine.includes("日记")) return;
-                            
-                            const parts = cleanLine.split('|');
-                            if (parts.length >= 4) {
-                                const content = parts[3].trim();
-                                
-                                // 去重检查
-                                const isDuplicate = contact.longMemories.some(m => 
-                                    m.content === content || 
-                                    (content.length > 5 && m.content.includes(content)) ||
-                                    (m.content.length > 5 && content.includes(m.content))
-                                );
-                                
-                                if (!isDuplicate) {
-                                    contact.longMemories.push({
-                                        id: Date.now() + Math.random(),
-                                        date: dateStr,
-                                        roundRange: roundRangeStr,
-                                        category: parts[0].trim().replace(/[\[\]]/g, ''),
-                                        score: parseInt(parts[1].trim()) || 5,
-                                        keywords: parts[2].split(/[,，]/).map(k=>k.trim()),
-                                        content: content,
-                                        type: 'structured'
-                                    });
-                                    addedCount++;
-                                }
-                            }
-                        });
-                        
-                        if (addedCount > 0) {
-                            saveToLocal();
-                            console.log(`✅ 成功补全第${startRound}-${endRound}轮，写入 ${addedCount} 条记忆`);
-                            return addedCount;
-                        }
-                        return 0;
-                    }
-                } else {
-                    console.error(`补全第${startRound}-${endRound}轮失败: ${response.status}`);
-                    return 0;
-                }
-            } catch (e) {
-                console.error(`补全第${startRound}-${endRound}轮出错:`, e);
-                return 0;
             }
         }
 
@@ -6930,6 +6772,13 @@ ${chatContent}
         function getSystemPromptWithMode(contact) {
             // 1. 获取角色自带的基础设定
             let finalPrompt = contact.prompt || '';
+            
+            // ⏳ 绝对时间引擎注入点 (剥夺AI的相对计算权)
+            const now = new Date();
+            // 提前写好，未来可随时把 now 替换成你定义的 WorldTime
+            const absoluteTimeStr = `\n\n【系统最高指令 - 绝对时间线】当前绝对时间为：${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}。你严禁自行推算“三天后”、“几个月后”等相对时间！所有设定与记忆反馈必须以当前这个时刻为绝对基准。`;
+            finalPrompt += absoluteTimeStr;
+            
             // 🎯 现实感知注入点
             if (contact.realityMode) {
                 const now = new Date();
@@ -9186,21 +9035,35 @@ ${chatContent}
             const conversation = getConversation(currentChatContactId);
             const messages = [];
 
-            // --- 修复2：RAG 长期记忆注入 ---
+            // --- 修复2：RAG 长期记忆注入 (连接 Cloudflare 向量大脑) ---
             let injectedMemoryText = "";
-            if (contact.longMemories && contact.longMemories.length > 0) {
-                const queryKeywords = extractKeywords(message);
-                const coreMemories = contact.longMemories.filter(m => (m.score || 0) >= 5);
-                const contextualMemories = contact.longMemories.filter(m => {
-                    if ((m.score || 0) >= 5) return false;
-                    if (!m.keywords) return false;
-                    const keywords = Array.isArray(m.keywords) ? m.keywords : [m.keywords];
-                    return keywords.some(kw => message.includes(kw)) || m.content.includes(message);
+            
+            try {
+                // 1. 去你的 Cloudflare 呼叫潜意识碎片
+                const ragResponse = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'query_memory',
+                        text: userMessage 
+                    })
                 });
-                const relevantMemories = [...coreMemories, ...contextualMemories.slice(0, 5)];
-                if (relevantMemories.length > 0) {
-                    injectedMemoryText = "\n\n【系统提示：与当前对话相关的历史档案】\n" + relevantMemories.map(m => `[${m.category || '记录'}] ${m.content}`).join('\n');
+                const ragData = await ragResponse.json();
+                
+                if (ragData.matches && ragData.matches.length > 0) {
+                    // 2. 过滤掉分数太低（不相关）的碎片，并提取文本
+                    const relevantMemories = ragData.matches
+                        .filter(m => m.score > 0.3) // 过滤低相关性
+                        .map(m => m.metadata.text);
+                    
+                    if (relevantMemories.length > 0) {
+                        injectedMemoryText = "\n\n【系统提示：潜意识唤醒的深度记忆】\n" + 
+                                            relevantMemories.map(text => `· ${text}`).join('\n');
+                        console.log('🌟 RAG成功唤醒记忆:', relevantMemories);
+                    }
                 }
+            } catch (e) {
+                console.error("RAG 唤醒失败，暂不注入:", e);
             }
 
             // --- 🧠 注入长期记忆到排版规则中 ---
@@ -9293,7 +9156,44 @@ ${chatContent}
             messages.push(...mergedChat);
             // ---------- 【引擎结束】 ----------
       
-            
+            // ==========================================
+            // 🧠 图谱记忆唤醒引擎 (Graph RAG Injection)
+            // ==========================================
+            let memoryPrompt = "【系统最高指令：当前世界观与潜意识状态】\n";
+            let hasMemory = false;
+
+            // 1. 注入动态人物羁绊图谱
+            if (contact.relations && contact.relations.length > 0) {
+                memoryPrompt += "=> 当前核心人物羁绊网络：\n";
+                contact.relations.forEach(r => {
+                    memoryPrompt += `- ${r.source} 与 ${r.target} 当前关系为：[${r.label}] (${r.detail || '暂无明细'})\n`;
+                });
+                hasMemory = true;
+            }
+
+            // 2. 注入高价值核心事件与偏好 (只注入 4分及5分 的核心设定)
+            if (contact.longMemories && contact.longMemories.length > 0) {
+                // 如果是没有打过分的旧数据(undefined)，我们默认它是核心设定；如果有打分，则必须大于等于4分
+const coreMemories = contact.longMemories.filter(m => m.score === undefined || m.score >= 4);
+                if (coreMemories.length > 0) {
+                    memoryPrompt += "\n=> 世界观核心事实与事件设定：\n";
+                    coreMemories.forEach(m => {
+                        let timeStr = m.worldTime ? `(${m.worldTime}) ` : '';
+                        memoryPrompt += `- ${timeStr}${m.content}\n`;
+                    });
+                    hasMemory = true;
+                }
+            }
+
+            // 3. 悄悄把这层潜意识，塞进 messages 数组的最开头
+            if (hasMemory) {
+                if (messages.length > 0 && messages[0].role === 'system') {
+                    messages[0].content = memoryPrompt + "\n\n" + messages[0].content;
+                } else {
+                    messages.unshift({ role: 'system', content: memoryPrompt });
+                }
+            }
+            // ==========================================
             
             try {
                 let apiUrl = getStandardApiUrl(config.url, '/chat/completions');
@@ -9307,13 +9207,13 @@ ${chatContent}
                 if (isIOSNative) {
                     // 原生层请求：无视 WKWebView 浏览器休眠，强行在系统后台完成请求！
                     const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
-                        url: 'https://api.ginkgo-yinxing.workers.dev/',
+                        url: 'https://linkgo-api.ginkgo-yinxing.workers.dev/',
                         headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${config.key}`,
-                            'X-Target-API': apiUrl
+                            'Content-Type': 'application/json'
                         },
                         data: {
+                            customEndpoint: apiUrl,
+                            customApiKey: config.key,
                             model: config.model || 'gpt-3.5-turbo',
                             messages: messages,
                             stream: false, // ⚠️ 核心魔法：原生请求必须关闭流式打字机，后台才能安稳接收到最后的一长串完整数据
@@ -9351,15 +9251,15 @@ ${chatContent}
                     }
                 } else {
                     // 如果是用电脑浏览器测试，继续使用原版 fetch
-                    response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
+                    response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
                         method: 'POST',
                         signal: window.currentChatController.signal,
                         headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${config.key}`,
-                            'X-Target-API': apiUrl
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
+                            customEndpoint: apiUrl,
+                            customApiKey: config.key,
                             model: config.model || 'gpt-3.5-turbo',
                             messages: messages,
                             stream: PARAM_CONFIG.stream,
@@ -9897,7 +9797,7 @@ ${chatContent}
 
             try {
                 const response = await fetch(getStandardApiUrl(url, '/models'), {
-                    headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' }
                 });
                 if (!response.ok) throw new Error(`状态码: ${response.status}`);
                 const data = await response.json();
@@ -10925,12 +10825,10 @@ ${chatContent}
                 console.log('Models URL:', modelsUrl);
                 
                 // 🌟 核心修复：把请求发给安全的 Worker 桥梁
-                const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
+                const response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${config.key}`,
-                        'Content-Type': 'application/json',
-                        'X-Target-API': modelsUrl  // 👈 把原本的真实 HTTP 网址当成通行证塞在这里！
+                        'Content-Type': 'application/json'
                     }
                 });
                 
@@ -14289,12 +14187,10 @@ ${chatContent}
                 let apiUrl = getStandardApiUrl(apiConfig.url, '/chat/completions');
                 const modelToUse = (discoverConfig && discoverConfig.model) ? discoverConfig.model : apiConfig.model;
                 
-                const response = await fetch('https://api.ginkgo-yinxing.workers.dev/', {
+                const response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiConfig.key}`,
-                        'X-Target-API': apiUrl
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         model: modelToUse,
@@ -16191,7 +16087,49 @@ ${chatContent}
         let expandedArchiveCards = new Set(); 
         let archiveSortDesc = true;           
 
-        // --- 🌟 独立出来的星图/偏好视窗控制器 (绝不嵌套) ---
+        function smoothScrollToElement(element, duration = 400, heightLoss = 0) {
+            if (!element) return;
+            const container = document.getElementById('archive-content');
+            if (!container) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                return;
+            }
+
+            const elementTop = element.getBoundingClientRect().top;
+            const containerTop = container.getBoundingClientRect().top;
+            let target = container.scrollTop + elementTop - containerTop;
+
+            // 🌟 核心魔法：预测未来的最大滚动极限，防止高度抽空后被浏览器强制回弹
+            if (heightLoss > 0) {
+                const currentMaxScroll = container.scrollHeight - container.clientHeight;
+                const futureMaxScroll = Math.max(0, currentMaxScroll - heightLoss);
+                target = Math.min(target, futureMaxScroll); // 将目标位置死死锁在安全范围内
+            }
+
+            const start = container.scrollTop;
+            const distance = target - start;
+
+            if (Math.abs(distance) < 5) return;
+            
+            let startTime = null;
+            function animation(currentTime) {
+                if (!startTime) startTime = currentTime;
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                const ease = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+                container.scrollTop = start + distance * ease;
+                
+                if (elapsed < duration) {
+                    requestAnimationFrame(animation);
+                } else {
+                    container.scrollTop = target;
+                }
+            }
+            requestAnimationFrame(animation);
+        }
+
+        // --- 🌟 独立出来的星图/偏好视窗控制器 (节奏同步完美版) ---
         window.togglePrefReader = function(chipId) {
             const matrix = document.getElementById('pref-matrix');
             const reader = document.getElementById('pref-detail-reader');
@@ -16201,10 +16139,30 @@ ${chatContent}
             if (chipEl.classList.contains('active')) {
                 chipEl.classList.remove('active');
                 matrix.classList.remove('has-active');
-                reader.classList.remove('show');
+                
+                // 1. 精确测量即将抽走的物理高度
+                const styles = window.getComputedStyle(reader);
+                const heightLoss = reader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
+                
+                reader.style.opacity = '0';
+                // 2. 将丢失的高度传给引擎，锁定安全滚动目标
+                smoothScrollToElement(matrix, 400, heightLoss);
+                
+                setTimeout(() => {
+                    if (!matrix.classList.contains('has-active')) {
+                        // 3. 剥离 CSS 过渡动画，瞬间物理塌陷，杜绝 0.4s 的拖影干扰
+                        reader.style.transition = 'none'; 
+                        reader.classList.remove('show');
+                        requestAnimationFrame(() => {
+                            reader.style.opacity = ''; 
+                            reader.style.transition = ''; // 恢复样式以备下次打开
+                        });
+                    }
+                }, 400);
                 return;
             }
 
+            reader.style.cssText = '';
             matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
             chipEl.classList.add('active');
             matrix.classList.add('has-active');
@@ -16223,7 +16181,10 @@ ${chatContent}
                 </div>
                 <div>${data.detailsHtml}</div>
             `;
+            
+            // 打开逻辑
             reader.classList.add('show');
+            // ✨ 打开时因为要撑开高度，必须等待 300ms 动画完成再滚动（保留原有的好手感）
             setTimeout(() => { reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 300);
         };
 
@@ -16235,11 +16196,28 @@ ${chatContent}
 
             if (chipEl.classList.contains('active')) {
                 chipEl.classList.remove('active');
-                matrix.classList.remove('has-active'); 
-                reader.classList.remove('show');
+                matrix.classList.remove('has-active');
+                
+                const styles = window.getComputedStyle(reader);
+                const heightLoss = reader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
+                
+                reader.style.opacity = '0';
+                smoothScrollToElement(matrix, 400, heightLoss);
+                
+                setTimeout(() => {
+                    if (!matrix.classList.contains('has-active')) {
+                        reader.style.transition = 'none';
+                        reader.classList.remove('show');
+                        requestAnimationFrame(() => {
+                            reader.style.opacity = '';
+                            reader.style.transition = '';
+                        });
+                    }
+                }, 400);
                 return;
             }
 
+            reader.style.cssText = '';
             matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
             chipEl.classList.add('active');
             matrix.classList.add('has-active'); 
@@ -16258,7 +16236,10 @@ ${chatContent}
                 </div>
                 <div>${data.detailsHtml}</div>
             `;
+            
+            // 打开逻辑
             reader.classList.add('show');
+            // ✨ 同样，打开时保留 300ms 等待
             setTimeout(() => { reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 300);
         };
 
@@ -16503,6 +16484,10 @@ ${chatContent}
 
                     let detailsHtml = '';
                     sortedItems.forEach(item => {
+                        // ✨ 数据清洗：强制剔除旧数据自带的第/轮字眼，重新标准装潢
+                        let cleanRange = String(item.roundRange || '初期设定').replace(/第|轮/g, '').trim();
+                        let timeText = cleanRange === '初期设定' ? '初期设定' : `第 ${cleanRange} 轮`;
+                        
                         detailsHtml += `
                             <div class="chip-detail-item">
                                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -16512,7 +16497,7 @@ ${chatContent}
                                         <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
                                     </div>
                                 </div>
-                                <div class="chip-detail-time">记录于 ${escapeHtml(item.roundRange || '初期设定')}</div>
+                                <div class="chip-detail-time">记录于 ${escapeHtml(timeText)}</div>
                             </div>
                         `;
                     });
@@ -16553,10 +16538,26 @@ ${chatContent}
                 return;
             }
 
-            // ✨ 人物星图 (高定强向心力算法，杜绝滑动)
+            // ==========================================
+            // 🌟 核心修改：如果是“人物”，直接渲染 D3 高定星图 (支持羁绊演化史)
+            // ==========================================
             if (currentArchiveCategory === '人物') {
                 window.currentBioGroups = {}; 
-                let contentHtml = `<div class="archive-network-board" id="bio-board">`;
+                
+                // 渲染星图容器和弹窗骨架
+                let contentHtml = `
+                    <div class="archive-network-board" id="bio-board">
+                        <svg id="links-layer"></svg>
+                        <div id="html-layer"></div>
+                    </div>
+                    <div id="bio-detail-reader" class="pref-detail-reader"></div>
+                    
+                    <div class="modal-overlay" id="relation-modal-overlay" onclick="closeRelationModal()"></div>
+                    <div class="relation-history-modal" id="relation-history-modal">
+                        <div class="relation-modal-header" id="relation-modal-title">人物A ↔ 人物B</div>
+                        <div class="relation-history-list" id="relation-history-list"></div>
+                    </div>
+                `;
                 
                 const bioGroups = {};
                 validMemories.forEach(m => {
@@ -16566,94 +16567,141 @@ ${chatContent}
                     if ((m.score || 0) > bioGroups[characterName].maxScore) bioGroups[characterName].maxScore = m.score || 0;
                 });
                 
-                const sortedGroups = Object.entries(bioGroups).sort((a, b) => b[1].maxScore - a[1].maxScore);
                 const themeClasses = ['chip-theme-mauve', 'chip-theme-blue', 'chip-theme-green', 'chip-theme-sand', 'chip-theme-rose'];
-     
-                // 🌟 高度压缩引力场布局：极其紧凑，消除空气墙
-                const boardWidth = window.innerWidth > 0 ? window.innerWidth - 40 : 335;
-                const boardHeight = 270; 
-                const cx = boardWidth / 2;
-                const cy = boardHeight / 2 - 15; // 中心点上移 15px
-
-                const layoutOffsets = [
-                    { dx: -65, dy: 10 },   // 0: 左侧主C
-                    { dx: 65,  dy: -10 },  // 1: 右侧主C
-                    { dx: 0,   dy: -75 },  // 2: 正上
-                    { dx: 0,   dy: 85 },   // 3: 正下
-                    { dx: -100,dy: -50 },  // 4: 左上
-                    { dx: 100, dy: 50 },   // 5: 右下
-                    { dx: -105,dy: 65 },   // 6: 左下
-                    { dx: 105, dy: -45 },  // 7: 右上
-                ];
+                const nodesData = [];
 
                 let renderedCount = 0;
-                const nodeCenters = []; 
-
-                sortedGroups.forEach(([characterName, group]) => {
+                for (const [characterName, group] of Object.entries(bioGroups)) {
                     let hash = 0; for(let i = 0; i < characterName.length; i++) hash += characterName.charCodeAt(i);
                     const themeClass = themeClasses[hash % themeClasses.length];
 
-                    // 从预设引力场获取位置，如果超出了就简单螺旋往外排
-                    const offset = layoutOffsets[renderedCount % layoutOffsets.length];
-                    const pos = { x: cx + offset.dx - 40, y: cy + offset.dy - 20 }; // 减去估算的球体半宽高
-
-                    nodeCenters.push({ name: characterName, cx: pos.x + 40, cy: pos.y + 20, themeClass: themeClass });
-
                     let chipClass = `archive-glass-chip ${themeClass} `;
                     let iconHtml = '';
-                    const score = group.maxScore;
+                    if (group.maxScore >= 5) { chipClass += 'archive-chip-core'; iconHtml = '<i class="fas fa-layer-group" style="margin-right:6px; opacity: 0.9;"></i>'; } 
+                    else if (group.maxScore === 4) { chipClass += 'archive-chip-major'; iconHtml = '<i class="fas fa-id-card" style="margin-right:6px; opacity: 0.8;"></i>'; } 
+                    else { chipClass += 'archive-chip-minor'; iconHtml = '<i class="fas fa-signature" style="margin-right:6px; opacity: 0.6;"></i>'; }
                     
-                    if (score >= 5) { chipClass += 'archive-chip-core'; iconHtml = '<i class="fas fa-layer-group" style="font-size: 0.9em; opacity: 0.9;"></i>'; } 
-                    else if (score === 4) { chipClass += 'archive-chip-major'; iconHtml = '<i class="fas fa-id-card" style="font-size: 0.85em; opacity: 0.8;"></i>'; } 
-                    else { chipClass += 'archive-chip-minor'; iconHtml = '<i class="fas fa-signature" style="font-size: 0.85em; opacity: 0.6;"></i>'; }
-                    
-                    // ✨ 按照时间排序
-                    const sortedItems = group.items.sort((a, b) => {
-                        const getStart = (r) => { if(!r) return 0; const match = r.match(/第?(\d+)-/); return match ? parseInt(match[1]) : 0; };
-                        return archiveSortDesc ? getStart(b.roundRange) - getStart(a.roundRange) : getStart(a.roundRange) - getStart(b.roundRange);
+                    // 拼接下方阅读器内容
+                    const groupedByTime = new Map();
+                    group.items.forEach(item => {
+                        let sourceText = item.worldTime || item.date || '日常纪元';
+                        if (!groupedByTime.has(sourceText)) groupedByTime.set(sourceText, []);
+                        groupedByTime.get(sourceText).push(item);
                     });
 
-                    // ✨ 完美复用“偏好”的阅读器 UI：平铺文字，右下角标注时间
                     let detailsHtml = '';
-                    sortedItems.forEach(item => {
-                        detailsHtml += `
-                            <div class="chip-detail-item">
-                                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                    <div class="archive-item-text" style="flex:1;" id="archive-text-${item.id}">${escapeHtml(item.content)}</div>
-                                    <div class="chip-actions">
-                                        <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
-                                        <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
-                                    </div>
+                    for (const [timeSource, items] of groupedByTime.entries()) {
+                        let innerItemsHtml = items.map(item => {
+                            // ✨ 数据清洗：同样清洗人物页面的轮数遗留
+                            let cleanRange = String(item.roundRange || '初期设定').replace(/第|轮/g, '').trim();
+                            let timeText = cleanRange === '初期设定' ? '初期设定' : `第 ${cleanRange} 轮`;
+                            
+                            return `
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom: 8px;">
+                                <div class="archive-item-text" style="flex:1;">${escapeHtml(item.content)}</div>
+                                <div class="chip-actions">
+                                    <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
+                                    <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
                                 </div>
-                                <div class="chip-detail-time">记录于 ${escapeHtml(item.roundRange || '初期设定')}</div>
+                            </div>
+                            <div style="font-size:11px; color:var(--text-sub); text-align:right; margin-bottom:8px;">记录于 ${escapeHtml(timeText)}</div>
+                        `}).join('');
+                        
+                        detailsHtml += `
+                            <div style="display: flex; align-items: stretch; padding-top: 14px; border-top: 0.5px dashed color-mix(in srgb, currentColor 15%, transparent); margin-top: 10px;">
+                                <div class="timeline-left" style="width:65px; padding-right: 14px; color: currentColor; font-weight:700; opacity:0.8; font-size:12px; word-wrap: break-word;">${escapeHtml(timeSource)}</div>
+                                <div class="timeline-right-container" style="flex:1; border-left:1px solid color-mix(in srgb, currentColor 10%, transparent); padding-left: 12px;">${innerItemsHtml}</div>
                             </div>
                         `;
-                    });
+                    }
 
                     const chipId = `bio-chip-${renderedCount}`;
-                    window.currentBioGroups[chipId] = { characterName: characterName, detailsHtml: detailsHtml, themeClass: themeClass, score: score, iconHtml: iconHtml };
+                    window.currentBioGroups[chipId] = { characterName: characterName, detailsHtml: detailsHtml, themeClass: themeClass, score: group.maxScore, iconHtml: iconHtml };
                     let countHtml = group.items.length > 1 ? `<span class="chip-count">${group.items.length}</span>` : '';
 
-                    contentHtml += `<div class="${chipClass}" id="${chipId}" style="top:${pos.y}px; left:${pos.x}px;" onclick="window.toggleBioReader('${chipId}')"><div class="chip-short">${iconHtml} <span>${escapeHtml(characterName)}</span> ${countHtml}</div></div>`;
+                    // 收集节点数据供 D3 计算
+                    nodesData.push({ id: characterName, chipId: chipId, html: `<div class="chip-short">${iconHtml} <span>${escapeHtml(characterName)}</span> ${countHtml}</div>`, className: chipClass });
                     renderedCount++;
-                });
-
-                // 智能连线
-                if (nodeCenters.length >= 2) {
-                    const nodeA = nodeCenters[0]; const nodeB = nodeCenters[1];
-                    const dx = nodeB.cx - nodeA.cx; const dy = nodeB.cy - nodeA.cy;
-                    const length = Math.sqrt(dx * dx + dy * dy) - 75; 
-                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-                    const startX = nodeA.cx + 35 * Math.cos(angle * Math.PI / 180);
-                    const startY = nodeA.cy + 35 * Math.sin(angle * Math.PI / 180);
-
-                    contentHtml += `<div class="relation-line ${nodeA.themeClass} archive-chip-core" style="width:${length}px; top:${startY}px; left:${startX}px; transform: rotate(${angle}deg);"><div class="relation-arrow" style="border-left-color: var(--chip-c);"></div></div>`;
-                    const midX = (nodeA.cx + nodeB.cx) / 2 - 30; const midY = (nodeA.cy + nodeB.cy) / 2 - 12;
-                    contentHtml += `<div class="relation-label" style="top:${midY}px; left:${midX}px;">核心交集</div>`;
                 }
-                
-                contentHtml += `</div><div id="bio-detail-reader" class="pref-detail-reader"></div>`;
+
                 container.innerHTML = contentHtml;
+
+                // ==========================================
+                // 🚀 D3.js 暗箱预演算引力场 (绝不抖动，绝不出界)
+                // ==========================================
+                setTimeout(() => {
+                    const board = document.getElementById('bio-board');
+                    if (!board) return;
+                    const width = board.clientWidth;
+                    const height = board.clientHeight;
+                    
+                    // 读取真实的连线数据 (联系前端与后台大脑)
+                    let linksData = [];
+                    if (contact.relations && contact.relations.length > 0) {
+                        linksData = contact.relations.map(r => {
+                            const sourceNode = nodesData.find(n => n.id === r.source);
+                            const targetNode = nodesData.find(n => n.id === r.target);
+                            if (sourceNode && targetNode) {
+                                return { source: sourceNode, target: targetNode, label: r.label, history: r.history || [] };
+                            }
+                            return null;
+                        }).filter(l => l !== null);
+                    }
+
+                    // 1. 设置暗箱力学模型 (紧凑不越界版)
+                    const simulation = d3.forceSimulation(nodesData)
+                        .force("link", d3.forceLink(linksData).id(d => d.id).distance(100)) // 缩短连线基准长度，让关系更紧凑
+                        .force("charge", d3.forceManyBody().strength(-300)) // 极大地削弱斥力炸弹效应，防止小球飞出边界
+                        .force("center", d3.forceCenter(width / 2, height / 2))
+                        .force("collide", d3.forceCollide().radius(45).iterations(3)) // 精准防重叠检测
+                        .force("x", d3.forceX(width / 2).strength(0.05)) // 增加温柔的向心力，把球往中间吸
+                        .force("y", d3.forceY(height / 2).strength(0.05))
+                        .stop();
+
+                    // 瞬间运算 300 帧找稳态
+                    for (let i = 0; i < 300; i++) {
+                        simulation.tick();
+                        // 🌟 在运算过程中强制框定边界，防止撞在墙上被压扁
+                        nodesData.forEach(d => {
+                            d.x = Math.max(45, Math.min(width - 45, d.x));
+                            d.y = Math.max(30, Math.min(height - 30, d.y));
+                        });
+                    }
+
+                    // 2. 渲染静态 HTML 节点
+                    const htmlLayer = d3.select("#html-layer");
+                    htmlLayer.selectAll(".archive-glass-chip").data(nodesData).enter().append("div")
+                        .attr("class", d => d.className)
+                        .attr("id", d => d.chipId)
+                        .html(d => d.html)
+                        .style("left", d => `${width / 2}px`).style("top", d => `${height / 2}px`) // 初始在中心
+                        .on("click", (event, d) => window.toggleBioReader(d.chipId))
+                        .transition().duration(800).ease(d3.easeCubicOut) // 丝滑散开！
+                        .style("left", d => `${d.x}px`).style("top", d => `${d.y}px`);
+
+                    // 3. 渲染 SVG 连线
+                    const svg = d3.select("#links-layer");
+                    svg.selectAll(".link").data(linksData).enter().append("line")
+                        .attr("class", "link")
+                        .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
+                        .style("stroke", "rgba(255,255,255,0.2)").style("stroke-width", "1.5px")
+                        .style("opacity", 0).transition().delay(600).duration(600).style("opacity", 1); // 散开后浮现
+
+                    // 4. 渲染悬浮标签 (点击展示演化史)
+                    htmlLayer.selectAll(".relation-label").data(linksData).enter().append("div")
+                        .attr("class", "relation-label")
+                        .text(d => d.label)
+                        .style("left", d => `${(d.source.x + d.target.x) / 2}px`)
+                        .style("top", d => `${(d.source.y + d.target.y) / 2}px`)
+                        .on("click", (event, d) => {
+                            event.stopPropagation();
+                            showRelationHistory(d);
+                        })
+                        .style("opacity", 0).transition().delay(800).duration(500).style("opacity", 1);
+
+                }, 50); // 给 DOM 渲染留一点时间拿 width
+                
                 return;
             }
 
@@ -16704,6 +16752,39 @@ ${chatContent}
             }
         }
 
+        // --- 羁绊演化史弹窗控制器 ---
+        window.showRelationHistory = function(data) {
+            document.getElementById('relation-modal-title').innerHTML = `${escapeHtml(data.source.id)} <span style="color:#D47A43;">↔</span> ${escapeHtml(data.target.id)}`;
+            
+            let listHtml = '';
+            if (data.history && data.history.length > 0) {
+                // 倒序排列，最新的在最上面
+                const reversedHistory = [...data.history].reverse();
+                reversedHistory.forEach(h => {
+                    listHtml += `
+                        <div class="history-node">
+                            <div class="history-node-top">
+                                <span class="history-label">${escapeHtml(h.label)}</span>
+                                <span class="history-time">${escapeHtml(h.time)}</span>
+                            </div>
+                            <div style="font-size:13px; color:var(--text-sub); line-height:1.5;">${escapeHtml(h.detail || '未记录详细事件')}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                listHtml = `<div style="text-align:center; padding:20px; color:var(--text-sub); font-size:13px;">暂无历史变迁记录，当前为初始状态。</div>`;
+            }
+
+            document.getElementById('relation-history-list').innerHTML = listHtml;
+            document.getElementById('relation-modal-overlay').classList.add('show');
+            document.getElementById('relation-history-modal').classList.add('show');
+        };
+
+        window.closeRelationModal = function() {
+            document.getElementById('relation-modal-overlay').classList.remove('show');
+            document.getElementById('relation-history-modal').classList.remove('show');
+        };
+
         // ==========================================
         // 🌟 全局触控雷达：实现“点击空白处自动收起”
         // ==========================================
@@ -16731,30 +16812,121 @@ ${chatContent}
             
             // 如果点的既不是阅读面板，也不是任何小球（也就是点在了虚空背景上）
             if (!isClickInsideReader && !isClickOnChip) {
-                
-                // 清理偏好矩阵
+                // 偏好矩阵
                 const prefReader = document.getElementById('pref-detail-reader');
                 const prefMatrix = document.getElementById('pref-matrix');
+
                 if (prefReader && prefReader.classList.contains('show')) {
-                    prefReader.classList.remove('show');
-                    if (prefMatrix) {
-                        prefMatrix.classList.remove('has-active');
-                        prefMatrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
-                    }
+                    prefMatrix.classList.remove('has-active');
+                    prefMatrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+                    
+                    const styles = window.getComputedStyle(prefReader);
+                    const heightLoss = prefReader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
+                    
+                    prefReader.style.opacity = '0';
+                    smoothScrollToElement(prefMatrix, 400, heightLoss); 
+                    
+                    setTimeout(() => {
+                        if (!prefMatrix.classList.contains('has-active')) {
+                            prefReader.style.transition = 'none';
+                            prefReader.classList.remove('show');
+                            requestAnimationFrame(() => {
+                                prefReader.style.opacity = '';
+                                prefReader.style.transition = '';
+                            });
+                        }
+                    }, 400);
                 }
-                
-                // 清理人物星图
+
+                // 人物星图
                 const bioReader = document.getElementById('bio-detail-reader');
                 const bioBoard = document.getElementById('bio-board');
+
                 if (bioReader && bioReader.classList.contains('show')) {
-                    bioReader.classList.remove('show');
-                    if (bioBoard) {
-                        bioBoard.classList.remove('has-active');
-                        bioBoard.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
-                    }
+                    bioBoard.classList.remove('has-active');
+                    bioBoard.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+                    
+                    const styles = window.getComputedStyle(bioReader);
+                    const heightLoss = bioReader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
+                    
+                    bioReader.style.opacity = '0';
+                    smoothScrollToElement(bioBoard, 400, heightLoss);
+                    
+                    setTimeout(() => {
+                        if (!bioBoard.classList.contains('has-active')) {
+                            bioReader.style.transition = 'none';
+                            bioReader.classList.remove('show');
+                            requestAnimationFrame(() => {
+                                bioReader.style.opacity = '';
+                                bioReader.style.transition = '';
+                            });
+                        }
+                    }, 400);
                 }
             }
         });
+
+        // ==========================================
+        // 🚀 终极工具：高维洗礼 (同步本地记忆到云端向量库)
+        // ==========================================
+        window.syncMemoriesToCloud = async function() {
+            // 自动寻找当前正在聊天的角色数据
+            const contact = mockContacts.find(c => c.id === currentChatContactId); 
+            
+            if (!contact || !contact.longMemories || contact.longMemories.length === 0) {
+                addLogToConsole('error', 'SYNC', '当前角色没有可同步的记忆档案！');
+                return;
+            }
+
+            addLogToConsole('info', 'SYNC', `开始为 ${contact.name} 执行高维洗礼，共 ${contact.longMemories.length} 条记忆...`);
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (let i = 0; i < contact.longMemories.length; i++) {
+                const mem = contact.longMemories[i];
+                try {
+                    // 给每个记忆生成唯一的 ID
+                    const memId = mem.id || `${contact.id}_mem_${Date.now()}_${i}`;
+                    mem.id = memId; 
+
+                    addLogToConsole('info', 'SYNC', `正在上传 (${i+1}/${contact.longMemories.length}): ${mem.content.substring(0, 15)}...`);
+
+                    // 调用云端 insert_memory 接口
+                    const response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'insert_memory',
+                            id: memId,
+                            text: mem.content,
+                            metadata: { 
+                                contactId: contact.id, 
+                                score: mem.score || 0,
+                                worldTime: mem.worldTime || ''
+                            }
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        addLogToConsole('error', 'SYNC', `第 ${i+1} 条上传失败`);
+                    }
+                } catch (e) {
+                    failCount++;
+                    addLogToConsole('error', 'SYNC', `第 ${i+1} 条发生异常: ${e.message}`);
+                }
+            }
+
+            // 🌟 修复点：调用 Linkgo 系统内正确的保存函数
+            saveToLocal(); 
+
+            addLogToConsole('success', 'SYNC', `🎉 高维洗礼完成！成功: ${successCount}, 失败: ${failCount}`);
+            alert(`洗礼完成！成功将 ${successCount} 条记忆上传至云端潜意识海！`);
+        }; // 🌟 修复点：去掉了致命的中文分号
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
