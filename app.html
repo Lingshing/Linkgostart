@@ -6352,51 +6352,148 @@
                 currentStart = currentEnd + 1;
             }
             chunks.sort((a, b) => a.start - b.start);
-
-            // 3. 构建 iOS 风格的原生底部浮层 (Bottom Sheet / Modal)
+        
             let modal = document.getElementById('round-selector-modal');
             if (modal) modal.remove();
+
+            // 🌟 终极护眼玻璃版：超强模糊 + 88% 不透明底色，防透字无死角
             let html = `
-            <div class="config-modal-overlay show" id="round-selector-modal" style="z-index: 5000;">
-                <div class="config-modal-content" style="max-height: 80vh; display:flex; flex-direction:column; width: 90%; max-width: 400px; padding: 0;">
-                    <div class="config-modal-header" style="padding: 16px 20px; border-bottom: 0.5px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                        <h3 class="config-modal-title" style="font-size: 17px; margin: 0;">自由修史区间</h3>
-                        <i class="fas fa-times" style="color: var(--text-sub); font-size: 18px; cursor: pointer;" onclick="document.getElementById('round-selector-modal').remove()"></i>
+            <div class="config-modal-overlay" id="round-selector-modal" style="z-index: 5000; background: rgba(0,0,0,0.25);" onclick="closeRoundSelectorModalByOverlay(event)">
+                
+                <div class="config-modal-content" style="max-height: 70vh; display:flex; flex-direction:column; width: 90%; max-width: 360px; padding: 0; 
+                    background: color-mix(in srgb, var(--card-bg) 88%, transparent); 
+                    backdrop-filter: blur(40px) saturate(180%); 
+                    -webkit-backdrop-filter: blur(40px) saturate(180%);
+                    border: 0.5px solid color-mix(in srgb, var(--text-main) 12%, transparent); 
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.2), inset 0 1px 1px color-mix(in srgb, var(--text-main) 6%, transparent); 
+                    border-radius: 20px; overflow: hidden; color-scheme: light dark;" 
+                    onclick="event.stopPropagation()">
+                    
+                    <div class="config-modal-header" style="padding: 16px 20px 10px; display: flex; justify-content: space-between; align-items: center; background: transparent;">
+                        <h3 style="font-size: 17px; font-weight: 700; margin: 0; color: var(--text-main); letter-spacing: -0.5px; text-shadow: 0 1px 4px color-mix(in srgb, var(--bg-color) 50%, transparent);">自由修史</h3>
+                        <div onclick="closeRoundSelectorModal()" style="width: 28px; height: 28px; border-radius: 50%; background: color-mix(in srgb, var(--text-main) 8%, transparent); display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(10px);">
+                            <i class="fas fa-times" style="color: var(--text-sub); font-size: 13px;"></i>
+                        </div>
                     </div>
-                    <div class="config-modal-body" style="padding: 20px; overflow-y: auto; flex: 1; background: var(--bg-color);">
-                        <p style="font-size: 13px; color: var(--text-sub); margin-top: 0; margin-bottom: 15px; line-height: 1.5;">当前共 ${userMessagesCount} 轮对话。勾选需要提取的区间：</p>
-                        <div style="display:flex; flex-direction:column; gap:10px;">
+
+                    <div class="config-modal-body" style="padding: 0 20px 16px; overflow-y: auto; flex: 1; background: transparent;">
+                        
+                        <div style="background: color-mix(in srgb, var(--text-main) 5%, transparent); border: 0.5px solid color-mix(in srgb, var(--text-main) 5%, transparent); border-radius: 14px; padding: 12px; margin-bottom: 16px;">
+                            <div style="font-size: 11px; font-weight: 700; color: #D47A43; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-magic" style="font-size: 10px;"></i> 手动补录
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="flex: 1; display: flex; align-items: center; background: color-mix(in srgb, var(--bg-color) 40%, transparent); border: 0.5px solid color-mix(in srgb, var(--text-main) 8%, transparent); border-radius: 10px; padding: 0 8px; height: 38px;">
+                                    <input type="number" id="custom-round-start" placeholder="起始" style="width: 100%; border: none; background: transparent; color: var(--text-main); font-size: 13px; outline: none; text-align: center;">
+                                    <span style="color: var(--text-sub); margin: 0 2px;">|</span>
+                                    <input type="number" id="custom-round-end" placeholder="结束" style="width: 100%; border: none; background: transparent; color: var(--text-main); font-size: 13px; outline: none; text-align: center;">
+                                </div>
+                                <button onclick="addCustomRoundBlock()" style="height: 38px; padding: 0 14px; background: rgba(212,122,67, 0.9); backdrop-filter: blur(10px); color: white; border-radius: 10px; border: 0.5px solid rgba(255,255,255,0.2); font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 12px rgba(212,122,67,0.2);">添加</button>
+                            </div>
+                        </div>
+
+                        <div style="padding-left: 4px; margin-bottom: 6px;">
+                            <p style="font-size: 12px; font-weight: 500; color: var(--text-sub); margin: 0;">选择提取区间 <span style="opacity: 0.5; font-weight: 400;">(共 ${userMessagesCount} 轮)</span></p>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column;">
             `;
 
-            // 4. 渲染区间选项卡（加入柔和莫兰迪红 #D67A7A 的删除按钮）
             chunks.forEach((c) => {
-                const isCoveredStr = c.isCovered 
-                    ? `<span style="color:var(--text-sub); font-size:12px; margin-left: 8px;">(已生成)</span>
-                    <i class="fa-solid fa-trash-can" onclick="event.stopPropagation(); event.preventDefault(); deleteArchiveBlock(${c.start}, ${c.end})" style="color: #D67A7A; margin-left:12px; font-size: 14px; padding: 4px;" title="销毁此段旧档案"></i>` 
-                    : '<span style="color:var(--accent); font-size:12px; margin-left: 8px;">(缺失)</span>';
-                    
+                const statusTag = c.isCovered 
+                    ? `<div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 10px; color: var(--text-sub); background: color-mix(in srgb, var(--text-main) 6%, transparent); border: 0.5px solid color-mix(in srgb, var(--text-main) 8%, transparent); padding: 2px 6px; border-radius: 4px;">已存</span>
+                        <i class="fa-solid fa-trash-can" onclick="event.stopPropagation(); deleteArchiveBlock(${c.start}, ${c.end})" style="color: #ff5e5e; font-size: 12px; cursor: pointer; opacity: 0.7;"></i>
+                    </div>` 
+                    : `<span style="font-size: 11px; color: #D47A43; font-weight: 700;">待提取</span>`;
+                
                 html += `
-                <label style="display:flex; align-items:center; justify-content:space-between; padding: 14px 16px; background: var(--card-bg); border-radius: 12px; border: 0.5px solid var(--border); cursor: pointer; transition: background 0.2s;">
-                    <span style="font-size:15px; font-weight:600; color: var(--text-main); display:flex; align-items:center;">
-                        第 ${c.start}-${c.end} 轮 ${isCoveredStr}
-                    </span>
-                    <input type="checkbox" class="round-chunk-cb" value="${c.start}-${c.end}" ${!c.isCovered ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--accent);">
-                </label>
+                    <label style="display:flex; align-items:center; justify-content:space-between; padding: 10px 4px; cursor: pointer; border-bottom: 0.5px solid color-mix(in srgb, var(--text-main) 8%, transparent);">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="position: relative; width: 18px; height: 18px;">
+                                <input type="checkbox" class="round-chunk-cb" value="${c.start}-${c.end}" ${c.isCovered ? '' : 'checked'} 
+                                    style="cursor: pointer; width: 18px; height: 18px; accent-color: #D47A43; margin: 0;">
+                            </div>
+                            <span style="font-size: 14px; font-weight: 500; color: var(--text-main);">第 ${c.start} - ${c.end} 轮</span>
+                        </div>
+                        ${statusTag}
+                    </label>
                 `;
             });
 
             html += `
                         </div>
                     </div>
-                    <div class="config-modal-footer" style="padding: 16px 20px; display:flex; gap:12px; background: var(--card-bg); border-top: 0.5px solid var(--border);">
-                        <button onclick="executeBackfillSelected()" style="flex:1; padding:14px; border-radius:12px; border:none; background:var(--text-main); color:var(--card-bg); font-weight:600; font-size: 16px; cursor: pointer;">开始融合记忆</button>
+                    
+                    <div style="padding: 16px 20px; background: transparent; display: flex; gap: 12px;">
+                        <button onclick="executeBackfillSelected()" style="flex: 1; background: color-mix(in srgb, var(--text-main) 90%, transparent); color: var(--card-bg); height: 44px; border-radius: 12px; border: 0.5px solid color-mix(in srgb, var(--card-bg) 20%, transparent); font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.3s; box-shadow: 0 6px 16px rgba(0,0,0,0.15);" 
+                                onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform='scale(1)'">
+                            开始提取档案
+                        </button>
                     </div>
                 </div>
             </div>
+            <style>
+                #round-selector-modal .config-modal-content {
+                    transform: translateY(20px) scale(0.95);
+                    opacity: 0;
+                    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+                #round-selector-modal.show .config-modal-content {
+                    transform: translateY(0) scale(1);
+                    opacity: 1;
+                }
+                .config-modal-body::-webkit-scrollbar { width: 4px; }
+                .config-modal-body::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-main) 15%, transparent); border-radius: 10px; }
+            </style>
             `;
-
             document.body.insertAdjacentHTML('beforeend', html);
+            
+            setTimeout(() => {
+                const newModal = document.getElementById('round-selector-modal');
+                if (newModal) newModal.classList.add('show');
+            }, 10);
         }
+
+        // 🌟 全局关闭修史面板函数（带退出动画）
+        window.closeRoundSelectorModal = function() {
+            const modal = document.getElementById('round-selector-modal');
+            if (modal) {
+                modal.classList.remove('show');
+                setTimeout(() => modal.remove(), 300);
+            }
+        };
+
+        window.closeRoundSelectorModalByOverlay = function(event) {
+            if (event.target === event.currentTarget) {
+                closeRoundSelectorModal();
+            }
+        };
+
+        window.addCustomRoundBlock = function() {
+            const start = parseInt(document.getElementById('custom-round-start').value);
+            const end = parseInt(document.getElementById('custom-round-end').value);
+            if (isNaN(start) || isNaN(end) || start <= 0 || end < start) {
+                alert('请输入有效的轮数区间');
+                return;
+            }
+            // 检查是否已存在
+            const allCheckboxes = document.querySelectorAll('.round-chunk-cb');
+            for (const cb of allCheckboxes) {
+                    if (cb.value === `${start}-${end}`) {
+                    alert('该区间已存在');
+                    return;
+                }
+            }
+            const list = document.querySelector('#round-selector-modal .config-modal-body div[style*="flex-direction:column"]');
+            if (!list) return;
+            const label = document.createElement('label');
+            label.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding: 14px 16px; background: var(--card-bg); border-radius: 12px; border: 0.5px solid var(--border); cursor: pointer; transition: background 0.2s;';
+            label.innerHTML = '<span style="font-size:15px; font-weight:600; color: var(--text-main); display:flex; align-items:center;">第 ' + start + '-' + end + ' 轮 <span style="color:var(--accent); font-size:12px; margin-left:8px;">(手动补充)</span></span><input type="checkbox" class="round-chunk-cb" value="' + start + '-' + end + '" checked style="width:20px; height:20px; accent-color: var(--accent);">';
+            list.appendChild(label);
+            document.getElementById('custom-round-start').value = '';
+            document.getElementById('custom-round-end').value = '';
+        };     
 
         // --- 自由修史：销毁特定区间的旧档案 ---
         window.deleteArchiveBlock = function(start, end) {
@@ -16337,87 +16434,150 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             const textDiv = document.getElementById(`archive-text-${memoryId}`);
             if (!textDiv) return;
             
+            // 1. 记录原始状态
             const originalContent = contact.longMemories[memIndex].content;
-            const originalScore = contact.longMemories[memIndex].score || 4; // 默认4分
+            const originalScore = contact.longMemories[memIndex].score || 4; 
+            const originalDisplay = textDiv.style.display || 'block';
             
-            // 1. 创建大容器
+            // 2. 创建临时包裹容器
             const container = document.createElement('div');
+            container.id = `edit-container-${memoryId}`;
             container.style.width = '100%';
             
-            // 2. 创建重要性评分下拉菜单
-            const scoreSelect = document.createElement('select');
-            scoreSelect.style.cssText = `
-                display: block; margin-top: 4px; margin-bottom: 8px; padding: 4px 8px;
-                border-radius: 6px; border: 1px solid var(--accent); background: var(--input-bg);
-                color: var(--text-main); font-size: 13px; font-weight: 600; outline: none;
-            `;
-            const scoreOptions = [
-                { val: 5, label: "5 分 (世界法则/终极设定)" },
-                { val: 4, label: "4 分 (核心事件/重要羁绊)" },
-                { val: 3, label: "3 分 (普通事件/偏好癖好)" },
-                { val: 2, label: "2 分 (细枝末节/异闻)" },
-                { val: 1, label: "1 分 (微小碎片)" }
-            ];
-            scoreOptions.forEach(opt => {
-                const option = document.createElement('option');
-                option.value = opt.val;
-                option.text = opt.label;
-                if (opt.val == originalScore) option.selected = true;
-                scoreSelect.appendChild(option);
-            });
+            // 🌟 3. 极致无感文本框：获取真实宽高和排版
+            const rect = textDiv.getBoundingClientRect();
+            const computedStyle = window.getComputedStyle(textDiv);
             
-            // 3. 创建文本框
-            const exactHeight = textDiv.getBoundingClientRect().height;
             const textarea = document.createElement('textarea');
             textarea.value = originalContent;
-            textarea.style.cssText = `
-                width: 100% !important; 
-                min-height: ${Math.max(exactHeight + 10, 50)}px !important;
-                resize: vertical; font-family: inherit; font-size: 15px; line-height: 1.6;
-                padding: 8px 12px !important; box-sizing: border-box; display: block;
-                border: 1px solid var(--accent) !important; border-radius: 8px;
-                box-shadow: 0 0 0 3px var(--accent-light) !important; outline: none !important;
-                background: var(--input-bg); color: var(--text-main);
-            `;
             
+            // 完全复刻字号、行高、颜色，同时去掉所有边框和蓝色发光，绝不变形
+            textarea.style.cssText = `
+                width: 100% !important;
+                height: ${rect.height}px !important;
+                font-family: inherit;
+                font-size: ${computedStyle.fontSize};
+                line-height: ${computedStyle.lineHeight};
+                font-weight: ${computedStyle.fontWeight};
+                color: var(--text-main);
+                background: transparent;
+                border: none !important;
+                outline: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                resize: none;
+                overflow: hidden;
+                display: block;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                box-shadow: none !important;
+                -webkit-appearance: none;
+            `;
+
+            // 4. 创建分数选择器
+            const scoreSelect = document.createElement('select');
+            scoreSelect.style.cssText = `
+                display: block;
+                margin: 8px 0;
+                padding: 4px 8px;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+                background: var(--hover-bg);
+                color: var(--text-main);
+                font-size: 12px;
+                outline: none;
+                cursor: pointer;
+            `;
+            const scoreOptions = [
+                {v:5, t:"5 分 (核心)"}, {v:4, t:"4 分 (重要)"}, {v:3, t:"3 分 (普通)"}, {v:2, t:"2 分 (琐碎)"}, {v:1, t:"1 分 (碎片)"}
+            ];
+            scoreOptions.forEach(opt => {
+                const o = document.createElement('option');
+                o.value = opt.v;
+                o.textContent = opt.t;
+                if(opt.v === originalScore) o.selected = true;
+                scoreSelect.appendChild(o);
+            });
+
+            // 5. 插入 DOM：隐藏原 Div，插入编辑容器（安全替换策略）
             container.appendChild(textarea);
             container.appendChild(scoreSelect);
-            textDiv.replaceWith(container);
+            textDiv.style.display = 'none'; 
+            textDiv.parentNode.insertBefore(container, textDiv.nextSibling);
             
+            // 6. 聚焦并定位光标
             textarea.focus();
             textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-            
-            const saveEdit = () => {
-                const newContent = textarea.value.trim();
-                const newScore = parseInt(scoreSelect.value, 10);
+
+            // 自动动态撑高
+            const autoSize = () => {
+                textarea.style.height = 'auto';
+                textarea.style.height = textarea.scrollHeight + 'px';
+            };
+            textarea.addEventListener('input', autoSize);
+            autoSize();
+
+            // 🌟 7. 核心修复：全局点按监听（防误触退出）
+            const handleOutsideClick = (e) => {
+                // 如果点击的区域既不是这个容器，且容器还在DOM里，就执行保存
+                if (container.parentNode && !container.contains(e.target)) {
+                    finishEdit();
+                }
+            };
+
+            const finishEdit = () => {
+                // 移除全局监听
+                document.removeEventListener('mousedown', handleOutsideClick);
+                document.removeEventListener('touchstart', handleOutsideClick);
                 
-                if (newContent === '') {
-                    if (confirm('内容为空，是否直接删除该条档案？')) contact.longMemories.splice(memIndex, 1);
-                    else { container.replaceWith(textDiv); return; }
+                const newContent = textarea.value.trim();
+                const newScore = parseInt(scoreSelect.value);
+
+                if (newContent === "") {
+                    if (confirm('内容为空，要删除这条档案吗？')) {
+                        contact.longMemories.splice(memIndex, 1);
+                        saveToLocal();
+                        const searchInput = document.getElementById('archive-search-input');
+                        renderArchiveContent(searchInput ? searchInput.value : '');
+                    } else {
+                        // 取消删除，还原
+                        container.remove();
+                        textDiv.style.display = originalDisplay;
+                    }
                 } else {
+                    // 更新数据
                     contact.longMemories[memIndex].content = newContent;
                     contact.longMemories[memIndex].score = newScore;
-                }
-                saveToLocal();
-                const searchInput = document.getElementById('archive-search-input');
-                renderArchiveContent(searchInput ? searchInput.value : '');
-                updateMemoryStats();
-            };
-            
-            // 延时失焦判定，防止点下拉菜单时触发保存
-            const handleBlur = () => {
-                setTimeout(() => {
-                    if (document.activeElement !== scoreSelect && document.activeElement !== textarea) {
-                        saveEdit();
+                    saveToLocal();
+                    
+                    // 更新原 Div 的文字并重新显示
+                    textDiv.innerText = newContent;
+                    container.remove();
+                    textDiv.style.display = originalDisplay;
+                    
+                    if(typeof addLogToConsole === 'function') {
+                        addLogToConsole('success', 'EDIT', '档案已更新');
                     }
-                }, 150);
+                }
             };
-            textarea.onblur = handleBlur;
-            scoreSelect.onblur = handleBlur;
-            
+
+            // 延迟挂载，防止被当前的“编辑小铅笔”点击事件误触发
+            setTimeout(() => {
+                document.addEventListener('mousedown', handleOutsideClick);
+                document.addEventListener('touchstart', handleOutsideClick, {passive: true});
+            }, 150);
+
+            // 快捷键支持
             textarea.onkeydown = (e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); saveEdit(); }
-                if (e.key === 'Escape') { e.preventDefault(); container.replaceWith(textDiv); }
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    finishEdit();
+                }
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    textarea.value = originalContent; // 还原文本
+                    finishEdit();
+                }
             };
         }
 
@@ -16649,7 +16809,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                             
                             return `
                             <div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom: 8px;">
-                                <div class="archive-item-text" style="flex:1;">${escapeHtml(item.content)}</div>
+                                <div class="archive-item-text" id="archive-text-${item.id}" style="flex:1;">${escapeHtml(item.content)}</div>
                                 <div class="chip-actions">
                                     <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
                                     <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
@@ -16704,7 +16864,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                         .force("link", d3.forceLink(linksData).id(d => d.id).distance(100)) // 缩短连线基准长度，让关系更紧凑
                         .force("charge", d3.forceManyBody().strength(-300)) // 极大地削弱斥力炸弹效应，防止小球飞出边界
                         .force("center", d3.forceCenter(width / 2, height / 2))
-                        .force("collide", d3.forceCollide().radius(45).iterations(3)) // 精准防重叠检测
+                        // 🌟 修复：防止名字长的球互相叠在一起
+.force("collide", d3.forceCollide().radius(d => 25 + d.id.length * 8).iterations(3))
                         .force("x", d3.forceX(width / 2).strength(0.05)) // 增加温柔的向心力，把球往中间吸
                         .force("y", d3.forceY(height / 2).strength(0.05))
                         .stop();
@@ -16712,10 +16873,13 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     // 瞬间运算 300 帧找稳态
                     for (let i = 0; i < 300; i++) {
                         simulation.tick();
-                        // 🌟 在运算过程中强制框定边界，防止撞在墙上被压扁
+                        // 🌟 核心修复：根据每个角色的名字长度动态估算胶囊宽度，智能计算属于它的安全护城河
                         nodesData.forEach(d => {
-                            d.x = Math.max(45, Math.min(width - 45, d.x));
-                            d.y = Math.max(30, Math.min(height - 30, d.y));
+                            const estWidth = 40 + (d.id.length * 15); // 估算字符占宽 (基础边距40 + 每个字约15px)
+                            const padX = estWidth / 2 + 10;           // 半宽加上10px缓冲
+                            
+                            d.x = Math.max(padX, Math.min(width - padX, d.x));
+                            d.y = Math.max(35, Math.min(height - 35, d.y)); // 上下留白
                         });
                     }
 
