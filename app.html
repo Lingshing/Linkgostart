@@ -3758,8 +3758,7 @@
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; overflow: hidden;">
                 <span class="nav-title" id="chat-title" style="font-size: 15px; line-height: 1.2;">聊天中</span>
                 <div class="chronos-capsule" onclick="toggleChronosPanel()">
-                    <i class="fa-solid fa-clock" style="font-size: 10px;"></i>
-                    <span id="chronos-display-text" style="font-size: 10px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">等待系统同步...</span>
+                    <span id="chronos-display-text" style="font-size: 10px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">...</span>
                 </div>
             </div>
             
@@ -17301,7 +17300,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             
             // 拼接格式，例如：星历1年 · 5月8日 14:30
             const textStr = `${era} · ${month}月${day}日 ${time}`;
-            document.getElementById('chronos-display-text').textContent = textStr || '等待系统同步...';
+            document.getElementById('chronos-display-text').textContent = textStr || '...';
         }
 
         function resetChronos() {
@@ -17310,7 +17309,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             document.getElementById('chronos-input-day').value = '1';
             document.getElementById('chronos-input-time').value = '08:00';
             syncChronosToDisplay();
-            document.getElementById('chronos-display-text').textContent = '等待系统同步...';
+            document.getElementById('chronos-display-text').textContent = '...';
             // 如果需要关闭面板，再加： document.getElementById('chronos-dial-panel').classList.remove('show');
         }
 
