@@ -6199,7 +6199,9 @@
 
         【真名优先级与实体合并】
         1. 临时代称：遇到有具体特征但未提及名字的角色，暂用特征作为代称（例如："刀疤脸杀手"）。
-        2. 真名揭晓：一旦后续对话中揭晓了该角色的真名，必须新增一条“人物”记忆，并使用 following 字段通知系统进行旧档案覆盖：\`"previousName": "之前的代称"\`。
+        2. 真名揭晓（强制）：一旦后续对话中出现了某个代称角色的真名，你必须立刻输出一条 category 为“人物”的记忆，且必须包含 previousName 字段，值为此前的代称。 
+           示例：{"category":"人物","keywords":["慕辞"],"previousName":"上将之子","content":"慕辞，真名揭晓，原为上将之子，现为帝国军事学院学员。","score":5,"isMilestone":true,"roundRange":"6-6"}
+           警告：如果不提供 previousName，系统将无法合并档案，导致数据混乱！每次真名出现都必须执行。  
         3. 此后该角色的所有相关记录必须使用真名，不再使用旧代称。
 
         【人物优先原则】⭐️
@@ -6861,28 +6863,30 @@
             const conversation = getConversation(contact.id);
             let allMissingChats = "";
             
-            selectedBlocks.forEach(block => {
-                const blockMessages = [];
-                let userCount = 0;
-                let isInBlock = false;
-                for (const msg of conversation) {
-                    if (msg.role === 'user') {
-                        userCount++;
-                        if (userCount === block.startRound) isInBlock = true;
-                    }
-                    if (isInBlock) blockMessages.push(msg);
-                    if (userCount > block.endRound) {
-                        blockMessages.pop();
-                        break;
-                    }
+            // 1. 先将整个对话分组为轮次（每次用户消息开启一轮，包含后续AI消息）
+            const rounds = [];
+            let currentRound = [];
+            conversation.forEach(msg => {
+                if (msg.role === 'user' && currentRound.length > 0) {
+                    rounds.push([...currentRound]);
+                    currentRound = [];
                 }
-                if (blockMessages.length > 0) {
-                    // ✨ 给发给史官的每一句话都打上绝对的物理轮数印记
-                    let roundCount2 = block.startRound;
-                    const chatContent = blockMessages.map((m) => {
+                currentRound.push(msg);
+            });
+            if (currentRound.length > 0) rounds.push(currentRound);
+            // rounds 下标0对应第1轮
+
+            let allMissingChats = "";
+            selectedBlocks.forEach(block => {
+                const startIdx = block.startRound - 1;
+                const endIdx = block.endRound - 1;
+                if (startIdx >= 0 && endIdx < rounds.length) {
+                    const blockMessages = rounds.slice(startIdx, endIdx + 1).flat();
+                    let roundLabel = block.startRound;
+                    const chatContent = blockMessages.map(m => {
                         if (m.role === 'user') {
-                            const line = `[第${roundCount2}轮] 用户：${m.content}`;
-                            roundCount2++;
+                            const line = `[第${roundLabel}轮] 用户：${m.content}`;
+                            roundLabel++;
                             return line;
                         } else {
                             return `AI：${m.content}`;
@@ -6903,7 +6907,7 @@
                 { role: "system", content: dynamicPrompt }, 
                 { 
                     role: "user", 
-                    content: `【已有记忆库】(请勿重复记录已有事件；若是新细节请补充)\n${allExistingMemories}\n${allMissingChats}\n\n请严格以大纲作者的视角，按格式要求返回 JSON。` 
+                    content: `请根据以下对话区块提取档案和关系变化，不要参考其他记忆。请勿重复记录已有事件；若是新细节请补充。\n${allMissingChats}\n\n请严格以大纲作者的视角，按格式要求返回 JSON。` 
                 }
             ];
 
@@ -16931,6 +16935,18 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
         }
 
         function renderArchiveContent(searchText = '') {
+            function formatRoundRange(rawRange) {
+                if (!rawRange) return '初期设定';
+                let cleaned = String(rawRange).replace(/第|轮/g, '').trim();
+                if (cleaned === '初期设定' || cleaned === '') return '初期设定';
+                if (cleaned.includes('-')) {
+                    const parts = cleaned.split('-');
+                    if (parts.length === 2 && parts[0].trim() === parts[1].trim()) {
+                        cleaned = parts[0].trim();
+                    }
+                }
+                return `第 ${cleaned} 轮`;
+            }
             const container = document.getElementById('archive-content');
             if (!container || !currentChatContactId) return;
             
@@ -17041,10 +17057,6 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
 
                     let detailsHtml = '';
                     sortedItems.forEach(item => {
-                        // ✨ 数据清洗：强制剔除旧数据自带的第/轮字眼，重新标准装潢
-                        let cleanRange = String(item.roundRange || '初期设定').replace(/第|轮/g, '').trim();
-                        let timeText = cleanRange === '初期设定' ? '初期设定' : `第 ${cleanRange} 轮`;
-                        
                         detailsHtml += `
                             <div class="chip-detail-item">
                                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -17158,10 +17170,6 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     let detailsHtml = '';
                     for (const [timeSource, items] of groupedByTime.entries()) {
                         let innerItemsHtml = items.map(item => {
-                            // ✨ 数据清洗：同样清洗人物页面的轮数遗留
-                            let cleanRange = String(item.roundRange || '初期设定').replace(/第|轮/g, '').trim();
-                            let timeText = cleanRange === '初期设定' ? '初期设定' : `第 ${cleanRange} 轮`;
-                            
                             return `
                             <div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom: 8px;">
                                 <div class="archive-item-text" id="archive-text-${item.id}" style="flex:1;">${escapeHtml(item.content)}</div>
