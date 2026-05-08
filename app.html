@@ -6876,7 +6876,7 @@
             if (currentRound.length > 0) rounds.push(currentRound);
             // rounds 下标0对应第1轮
 
-            let allMissingChats = "";
+            allMissingChats = "";
             selectedBlocks.forEach(block => {
                 const startIdx = block.startRound - 1;
                 const endIdx = block.endRound - 1;
@@ -17066,7 +17066,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                                         <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
                                     </div>
                                 </div>
-                                <div class="chip-detail-time">记录于 ${escapeHtml(timeText)}</div>
+                                <div class="chip-detail-time">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>
                             </div>
                         `;
                     });
@@ -17172,13 +17172,13 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                         let innerItemsHtml = items.map(item => {
                             return `
                             <div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom: 8px;">
-                                <div class="archive-item-text" id="archive-text-${item.id}" style="flex:1;">${escapeHtml(item.content)}</div>
+                                <div class="archive-item-text" id="archive-text-${item.id}" style="flex:1;">${escapeHtml(formatRoundRange(item.roundRange))}</div>
                                 <div class="chip-actions">
                                     <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
                                     <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
                                 </div>
                             </div>
-                            <div style="font-size:11px; color:var(--text-sub); text-align:right; margin-bottom:8px;">记录于 ${escapeHtml(timeText)}</div>
+                            <div style="font-size:11px; color:var(--text-sub); text-align:right; margin-bottom:8px;">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>
                         `}).join('');
                         
                         detailsHtml += `
