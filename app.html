@@ -3569,7 +3569,7 @@
                     </div>
                 </div>
             </div>
-            
+        
             <!-- 操作按钮 - 横向网格布局 -->
             <div style="margin: 0 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
                 <!-- 导出 -->
@@ -4090,6 +4090,10 @@
                 <i id="archive-sort-icon" class="fas fa-sort-amount-down"></i>
             </div>
 
+            <div class="archive-glass-btn archive-glass-morphism" id="bio-reset-btn" onclick="resetBioLayout()" title="重置人物位置" style="display: none;">
+                <i class="fas fa-arrow-rotate-right"></i>
+            </div>
+            
             <div id="archive-cat-menu" class="archive-category-menu">
                 <div class="cat-menu-item" onclick="switchArchiveCategory('全部', '全部')"><span>全部档案</span> <i class="fas fa-layer-group"></i></div>
                 <div class="cat-menu-item" onclick="switchArchiveCategory('人物', '人物')"><span>人物列传</span> <i class="fas fa-user-tie"></i></div>
@@ -6549,7 +6553,7 @@
                                 resetPull(tabPage, globalIndicator);
                             }).catch(() => resetPull(tabPage, globalIndicator));
                         } else {
-                            setTimeout(() => location.reload(), 800);
+                            repairAppCache();
                         }
                     } else {
                         resetPull(tabPage, globalIndicator);
@@ -16724,6 +16728,12 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             
             document.getElementById('archive-cat-menu').classList.remove('show');
             const searchInput = document.getElementById('archive-search-input');
+            
+            // 显示/隐藏人物重置按钮
+            const resetBtn = document.getElementById('bio-reset-btn');
+            if (resetBtn) {
+                resetBtn.style.display = (categoryName === '人物') ? 'flex' : 'none';
+            }
             renderArchiveContent(searchInput ? searchInput.value : '');
         }
 
@@ -16916,6 +16926,83 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             };
         }
 
+        function enableDragOnChips(nodesData, linksData, boardWidth, boardHeight) {
+            const chips = document.querySelectorAll('#bio-board .archive-glass-chip');
+            const svg = document.getElementById('links-layer');
+            const labels = document.querySelectorAll('#bio-board .relation-label');
+
+            chips.forEach(chip => {
+                chip.addEventListener('touchstart', onDragStart, { passive: false });
+                chip.addEventListener('mousedown', onDragStart);
+            });
+
+            function onDragStart(e) {
+                e.preventDefault();
+                const chipEl = e.currentTarget;
+                const chipId = chipEl.id;
+                const node = nodesData.find(n => n.chipId === chipId);
+                if (!node) return;
+
+                chipEl.style.transition = 'none';
+                chipEl.style.zIndex = '20';
+
+                const startX = e.touches ? e.touches[0].clientX : e.clientX;
+                const startY = e.touches ? e.touches[0].clientY : e.clientY;
+                const startLeft = node.x;
+                const startTop = node.y;
+
+                function onMove(e) {
+                    e.preventDefault();
+                    const currentX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const currentY = e.touches ? e.touches[0].clientY : e.clientY;
+                    let newX = startLeft + (currentX - startX);
+                    let newY = startTop + (currentY - startY);
+                    newX = Math.max(20, Math.min(boardWidth - 20, newX));
+                    newY = Math.max(20, Math.min(boardHeight - 20, newY));
+                    node.x = newX;
+                    node.y = newY;
+                    chipEl.style.left = newX + 'px';
+                    chipEl.style.top = newY + 'px';
+                    updateLinksAndLabels();
+                }
+
+                function onUp() {
+                    document.removeEventListener('touchmove', onMove);
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('touchend', onUp);
+                    document.removeEventListener('mouseup', onUp);
+                    chipEl.style.transition = '';
+                    chipEl.style.zIndex = '';
+                    if (currentChatContactId) saveNodePositions(currentChatContactId, nodesData);
+                }
+
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('touchend', onUp);
+                document.addEventListener('mouseup', onUp);
+            }
+
+            function updateLinksAndLabels() {
+                const lines = svg.querySelectorAll('.link');
+                lines.forEach((line, i) => {
+                    const link = linksData[i];
+                    if (link) {
+                        line.setAttribute('x1', link.source.x);
+                        line.setAttribute('y1', link.source.y);
+                        line.setAttribute('x2', link.target.x);
+                        line.setAttribute('y2', link.target.y);
+                    }
+                });
+                labels.forEach((label, i) => {
+                    const link = linksData[i];
+                    if (link) {
+                        label.style.left = ((link.source.x + link.target.x) / 2) + 'px';
+                        label.style.top = ((link.source.y + link.target.y) / 2) + 'px';
+                    }
+                });
+            }
+        }
+
         function generateInnerTimelineItemHtml(item, searchText) {
             let displayContent = escapeHtml(item.content);
             if (searchText) {
@@ -16932,6 +17019,90 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     </div>
                 </div>
             `;
+        }
+
+        function getSavedNodePositions(contactId) {
+            try {
+                const saved = localStorage.getItem(`bio_nodes_${contactId}`);
+                return saved ? JSON.parse(saved) : null;
+            } catch(e) { return null; }
+        }
+
+        function saveNodePositions(contactId, nodesData) {
+            const pos = {};
+            nodesData.forEach(n => {
+                if (n.x != null && n.y != null) pos[n.id] = { x: n.x, y: n.y };
+            });
+            localStorage.setItem(`bio_nodes_${contactId}`, JSON.stringify(pos));
+        }
+
+        function resetBioLayout() {
+            if (!currentChatContactId) return;
+            localStorage.removeItem(`bio_nodes_${currentChatContactId}`);
+            const searchInput = document.getElementById('archive-search-input');
+            renderArchiveContent(searchInput ? searchInput.value : '');
+        }
+
+        function renderNodesAndLinks(nodesData, linksData, width, height, runSimulation) {
+            if (runSimulation) {
+                // 1. 设置暗箱力学模型
+                const simulation = d3.forceSimulation(nodesData)
+                    .force("link", d3.forceLink(linksData).id(d => d.id).distance(100))
+                    .force("charge", d3.forceManyBody().strength(-300))
+                    .force("center", d3.forceCenter(width / 2, height / 2))
+                    .force("collide", d3.forceCollide().radius(d => 25 + d.id.length * 8).iterations(3))
+                    .force("x", d3.forceX(width / 2).strength(0.05))
+                    .force("y", d3.forceY(height / 2).strength(0.05))
+                    .stop();
+
+                for (let i = 0; i < 300; i++) {
+                    simulation.tick();
+                    nodesData.forEach(d => {
+                        const estWidth = 40 + (d.id.length * 15);
+                        const padX = estWidth / 2 + 10;
+                        d.x = Math.max(padX, Math.min(width - padX, d.x));
+                        d.y = Math.max(35, Math.min(height - 35, d.y));
+                    });
+                }
+            }
+
+            // 保存位置
+            if (currentChatContactId) saveNodePositions(currentChatContactId, nodesData);
+
+            // 2. 渲染静态 HTML 节点
+            const htmlLayer = d3.select("#html-layer");
+            htmlLayer.selectAll(".archive-glass-chip").data(nodesData).enter().append("div")
+                .attr("class", d => d.className)
+                .attr("id", d => d.chipId)
+                .html(d => d.html)
+                .style("left", d => `${width / 2}px`).style("top", d => `${height / 2}px`)
+                .on("click", (event, d) => window.toggleBioReader(d.chipId))
+                .transition().duration(800).ease(d3.easeCubicOut)
+                .style("left", d => `${d.x}px`).style("top", d => `${d.y}px`);
+
+            // 3. 渲染 SVG 连线
+            const svg = d3.select("#links-layer");
+            svg.selectAll(".link").data(linksData).enter().append("line")
+                .attr("class", "link")
+                .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
+                .style("stroke", "rgba(255,255,255,0.2)").style("stroke-width", "1.5px")
+                .style("opacity", 0).transition().delay(600).duration(600).style("opacity", 1);
+
+            // 4. 渲染悬浮标签
+            htmlLayer.selectAll(".relation-label").data(linksData).enter().append("div")
+                .attr("class", "relation-label")
+                .text(d => d.label)
+                .style("left", d => `${(d.source.x + d.target.x) / 2}px`)
+                .style("top", d => `${(d.source.y + d.target.y) / 2}px`)
+                .on("click", (event, d) => {
+                    event.stopPropagation();
+                    showRelationHistory(d);
+                })
+                .style("opacity", 0).transition().delay(800).duration(500).style("opacity", 1);
+            
+            // 5. 启用拖拽
+            enableDragOnChips(nodesData, linksData, width, height);
         }
 
         function renderArchiveContent(searchText = '') {
@@ -17208,8 +17379,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     if (!board) return;
                     const width = board.clientWidth;
                     const height = board.clientHeight;
-                    
-                    // 读取真实的连线数据 (联系前端与后台大脑)
+
+                    // 读取真实的连线数据
                     let linksData = [];
                     if (contact.relations && contact.relations.length > 0) {
                         linksData = contact.relations.map(r => {
@@ -17222,63 +17393,18 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                         }).filter(l => l !== null);
                     }
 
-                    // 1. 设置暗箱力学模型 (紧凑不越界版)
-                    const simulation = d3.forceSimulation(nodesData)
-                        .force("link", d3.forceLink(linksData).id(d => d.id).distance(100)) // 缩短连线基准长度，让关系更紧凑
-                        .force("charge", d3.forceManyBody().strength(-300)) // 极大地削弱斥力炸弹效应，防止小球飞出边界
-                        .force("center", d3.forceCenter(width / 2, height / 2))
-                        // 🌟 修复：防止名字长的球互相叠在一起
-.force("collide", d3.forceCollide().radius(d => 25 + d.id.length * 8).iterations(3))
-                        .force("x", d3.forceX(width / 2).strength(0.05)) // 增加温柔的向心力，把球往中间吸
-                        .force("y", d3.forceY(height / 2).strength(0.05))
-                        .stop();
-
-                    // 瞬间运算 300 帧找稳态
-                    for (let i = 0; i < 300; i++) {
-                        simulation.tick();
-                        // 🌟 核心修复：根据每个角色的名字长度动态估算胶囊宽度，智能计算属于它的安全护城河
-                        nodesData.forEach(d => {
-                            const estWidth = 40 + (d.id.length * 15); // 估算字符占宽 (基础边距40 + 每个字约15px)
-                            const padX = estWidth / 2 + 10;           // 半宽加上10px缓冲
-                            
-                            d.x = Math.max(padX, Math.min(width - padX, d.x));
-                            d.y = Math.max(35, Math.min(height - 35, d.y)); // 上下留白
+                    const savedPos = getSavedNodePositions(contact.id);
+                    if (savedPos) {
+                        nodesData.forEach(n => {
+                            if (savedPos[n.id]) {
+                                n.x = savedPos[n.id].x;
+                                n.y = savedPos[n.id].y;
+                            }
                         });
                     }
 
-                    // 2. 渲染静态 HTML 节点
-                    const htmlLayer = d3.select("#html-layer");
-                    htmlLayer.selectAll(".archive-glass-chip").data(nodesData).enter().append("div")
-                        .attr("class", d => d.className)
-                        .attr("id", d => d.chipId)
-                        .html(d => d.html)
-                        .style("left", d => `${width / 2}px`).style("top", d => `${height / 2}px`) // 初始在中心
-                        .on("click", (event, d) => window.toggleBioReader(d.chipId))
-                        .transition().duration(800).ease(d3.easeCubicOut) // 丝滑散开！
-                        .style("left", d => `${d.x}px`).style("top", d => `${d.y}px`);
-
-                    // 3. 渲染 SVG 连线
-                    const svg = d3.select("#links-layer");
-                    svg.selectAll(".link").data(linksData).enter().append("line")
-                        .attr("class", "link")
-                        .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
-                        .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
-                        .style("stroke", "rgba(255,255,255,0.2)").style("stroke-width", "1.5px")
-                        .style("opacity", 0).transition().delay(600).duration(600).style("opacity", 1); // 散开后浮现
-
-                    // 4. 渲染悬浮标签 (点击展示演化史)
-                    htmlLayer.selectAll(".relation-label").data(linksData).enter().append("div")
-                        .attr("class", "relation-label")
-                        .text(d => d.label)
-                        .style("left", d => `${(d.source.x + d.target.x) / 2}px`)
-                        .style("top", d => `${(d.source.y + d.target.y) / 2}px`)
-                        .on("click", (event, d) => {
-                            event.stopPropagation();
-                            showRelationHistory(d);
-                        })
-                        .style("opacity", 0).transition().delay(800).duration(500).style("opacity", 1);
-
-                }, 50); // 给 DOM 渲染留一点时间拿 width
+                    renderNodesAndLinks(nodesData, linksData, width, height, savedPos === null);
+                }, 50);
                 
                 return;
             }
@@ -17579,6 +17705,23 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 }
             }
         });
+
+        window.repairAppCache = function() {
+            // 1. 清掉 Service Worker 缓存（如果有）
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    for (let name of names) caches.delete(name);
+                });
+            }
+            
+            // 2. 温和提示
+            showToast('🧹 缓存已清理，即将刷新页面');
+            
+            // 3. 硬刷新，强制重新拉取最新 HTML/JS/CSS
+            setTimeout(() => {
+                window.location.reload(true);
+            }, 800);
+        };
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
