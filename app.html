@@ -17172,7 +17172,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                         let innerItemsHtml = items.map(item => {
                             return `
                             <div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom: 8px;">
-                                <div class="archive-item-text" id="archive-text-${item.id}" style="flex:1;">${escapeHtml(formatRoundRange(item.roundRange))}</div>
+                                <div class="archive-item-text" id="archive-text-${item.id}" style="flex:1;">${escapeHtml(item.content)}</div>
                                 <div class="chip-actions">
                                     <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
                                     <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
