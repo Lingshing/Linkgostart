@@ -17291,7 +17291,12 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 let contentHtml = `<div class="archive-chip-matrix${searchText ? ' archive-search-mode' : ''}" id="pref-matrix">`;
                 
                 const prefGroups = {};
-                // ... 同原来，构建 prefGroups ...
+                validMemories.forEach(m => {
+                    let keyword = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '日常偏好';
+                    if (!prefGroups[keyword]) prefGroups[keyword] = { items: [], maxScore: 0 };
+                    prefGroups[keyword].items.push(m);
+                    if ((m.score || 0) > prefGroups[keyword].maxScore) prefGroups[keyword].maxScore = m.score || 0;
+                });
                 
                 const sortedGroups = Object.entries(prefGroups).sort((a, b) => b[1].maxScore - a[1].maxScore);
                 const themeClasses = ['chip-theme-blue', 'chip-theme-green', 'chip-theme-sand', 'chip-theme-mauve', 'chip-theme-rose'];
@@ -17512,16 +17517,22 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     }
 
                     const savedPos = getSavedNodePositions(contact.id);
+                    let runSim = savedPos === null;  // 原本是否有模拟的标志
                     if (savedPos) {
                         nodesData.forEach(n => {
                             if (savedPos[n.id]) {
                                 n.x = savedPos[n.id].x;
                                 n.y = savedPos[n.id].y;
+                            } else {
+                                // 没有保存位置的节点，给一个临时默认位置（画布中心随机散布）
+                                n.x = width / 2 + (Math.random() - 0.5) * 100;
+                                n.y = height / 2 + (Math.random() - 0.5) * 100;
+                                runSim = true;   // 标记需要运行模拟，以便重新计算稳定布局
                             }
                         });
                     }
-
-                    renderNodesAndLinks(nodesData, linksData, width, height, savedPos === null);
+                    // 只要 runSim 被设为 true，就会运行力导向模拟并保存新布局
+                    renderNodesAndLinks(nodesData, linksData, width, height, runSim);
                 }, 50);
                 
                 return;
