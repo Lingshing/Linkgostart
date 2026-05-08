@@ -16811,10 +16811,13 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             // 渲染内容
             renderArchiveContent(currentVal);
             
-            // 恢复焦点和光标
+            // 恢复焦点和光标，并保持滚动位置
             if (searchInput) {
+                const archiveContent = document.getElementById('archive-content');
+                const scrollTop = archiveContent ? archiveContent.scrollTop : 0;
                 searchInput.focus({ preventScroll: true });
                 searchInput.setSelectionRange(cursorPos, cursorPos);
+                if (archiveContent) archiveContent.scrollTop = scrollTop;
             }
         }
 
@@ -16838,11 +16841,15 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             const input = document.getElementById('archive-search-input');
             if (!input) return;
             const cursorPos = input.selectionStart;
+            // 保存内容区滚动位置
+            const archiveContent = document.getElementById('archive-content');
+            const scrollTop = archiveContent ? archiveContent.scrollTop : 0;
             renderArchiveContent(val);
             input.focus({ preventScroll: true });
             input.setSelectionRange(cursorPos, cursorPos);
+            // 恢复滚动位置，防止聚焦导致的跳动
+            if (archiveContent) archiveContent.scrollTop = scrollTop;
         }
-
         function toggleArchiveCard(headerEl) {
             const card = headerEl.parentElement;
             const title = headerEl.querySelector('.archive-entity-title').textContent.trim();
@@ -17277,20 +17284,9 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             }
             const container = document.getElementById('archive-content');
 
-            // 增量更新逻辑（放在 container 变量初始化后、各分类渲染前）
-            const lastCategory = container.dataset.lastCategory || '';
-            const lastSearch = container.dataset.lastSearch || '';
-            if (lastCategory === currentArchiveCategory && lastSearch !== (searchText || '')) {
-                container.dataset.lastSearch = searchText || '';
-                if (currentArchiveCategory === '人物') {
-                    updateBioSearchHighlight(searchText);
-                } else if (currentArchiveCategory === '偏好') {
-                    updatePrefSearchHighlight(searchText);
-                }
-                return;
-            }
             container.dataset.lastCategory = currentArchiveCategory;
             container.dataset.lastSearch = searchText || '';
+            // 注意：移除了增量更新逻辑，现在每次搜索词变化都会完整重绘，确保高亮和内容正确
 
             // 如果不是首次渲染，且只是搜索词变化，就增量更新
             if (container.dataset.lastCategory === currentArchiveCategory && (container.dataset.lastSearch || '') !== (searchText || '')) {
