@@ -6148,40 +6148,75 @@
         // ==========================================
         // 🌟 终极使命：全知史官与动态图谱更新引擎
         // ==========================================
-        const SYSTEM_ARCHIVE_PROMPT = `【终极使命：世界观记录者与绝对客观事实提取器】
-        你是一个运行在系统后台的【绝对客观全知史官】。你将接收到【带有轮数的新对话记录】。
-        你的核心任务是：极其精准地提取事件、设定和羁绊变化，严格以 JSON 格式输出。
+        const SYSTEM_ARCHIVE_PROMPT = `【终极使命：群像世界观记录者与绝对客观事实提取器】
+        当前分析对话中，AI 扮演角色：【{{AI_NAME}}】。
+        角色初始设定：【{{AI_PERSONA}}】。
 
-        【最高禁令：零脑补与零臆想原则】（！！！极其重要！！！）
-        1. 严禁联想与推测：用户说什么就是什么，绝对不允许自行添加任何前因后果！
-        （例如：用户说“我演了男主”，你只能记录“演了男主角”。绝不能脑补“因为考上了电影学院”或“拿着剧本假装偶遇”！）
-        2. 严禁主观加工：绝不能为了增加故事性去补充浪漫细节。只有对话里明确、确实发生的事，才能被记录！
-        3. 如违背上述“零脑补”原则进行虚构，将导致系统严重崩溃！
+        你是一个运行在系统后台的【绝对客观全知史官】。你的核心任务是：在多人物、第三人称的复杂群像演绎中，精准提取人物、事件、设定和羁绊变化，严格以 JSON 格式输出。
 
-        【强制排版：精准引用原则】
-        1. 严禁使用“第1-10轮发生了某事”这种模糊起手。
-        2. memories 的 content 必须具体到动作，并在末尾强制附带来源标记。
-        3. 绝对不要在 content 里附带任何“(记录于xx轮)”或类似来源标注！
-        4. 轮次信息只能填写在 roundRange 字段里，例如 "roundRange": "8-9"。
+        【最高禁令：零脑补与极简原则】
+        1. 严禁联想：只记录明确发生的动作和事实。
+        2. 50字限制：单条 memory 的 content 严禁超过 50 个汉字。
+        3. 拆分逻辑：若一个事件或设定很复杂，必须拆分为多条独立的 memory，每条只讲一个极简事实。
+
+        【人物优先原则】⭐️
+        - 对话中每出现一个新人物，必须提取为独立的"人物"类记忆。
+        - 人物记忆必须包含：名字（如果没有就用特征描述）、性别（男/女/未知），如果世界观有 ABO 设定，必须注明是 Alpha/Beta/Omega。
+        - 即使只在对话中短暂提及，也要将其姓名、基本身份存入档案，不得遗漏。
+
+        【多视点与实体演变原则】（🌟真名覆盖核心法则）
+        1. 视点解绑：对话中存在第三人称描写。遇到“你”时，明确指向【{{AI_NAME}}】。遇到其他名字，直接作为独立实体记录，绝不预设谁是“主角”。
+        2. 临时代称：遇到有具体特征但未提及名字的角色，暂用特征作实体名（例如：“喂猫的男生”）。
+        3. 真名最高优先级（实体合并）：一旦后续对话中揭晓了某人的真名，【真名】拥有绝对的、最高的优先级。
+        - 首次揭晓真名时，你必须在 JSON 记忆对象中新增一个字段 \`"previousName": "之前的代称"\`，通知系统进行旧档案覆盖！
+        - 此后该角色的所有 keywords 必须全部使用真名，绝不再使用旧代称。
+        4. 初始设定：最初轮数中，必须将【{{AI_NAME}}】的初始设定提取存入档案。
+
+        【羁绊关系（Relations）更新原则】
+        1. 关系是动态的：如果在当前记录中，A 和 B 的关系发生了实质性转变（如：从同学变为恋人），你必须输出最新的关系状态。
+        2. detail 字段必须包含演变简述：例如 \`从同学转变为恋人（在海边合宿告白）\`。
+
+        【记忆分级制度（Score 1-5 打分指南）】
+        - 5分：核心角色的生死、真名揭晓、确立恋爱/宿敌等颠覆性关系改变、世界观崩塌。
+        - 4分：人物的具体身份背景、明确的阵营归属、重大剧情转折。
+        - 3分：人物的具体偏好（如喜欢吃什么、穿什么）、日常支线事件结果。
+        - 1-2分：琐碎细节、过场动作。
 
         【严格输出 JSON 格式】
-        请仅输出合法 JSON，不要包裹 markdown 代码块，格式如下：
+        请仅输出合法 JSON，绝不要包裹 markdown 代码块，格式严格如下：
         {
         "memories": [
             {
-            "category": "分类名", // 仅限：人物、世界、羁绊、事件、偏好、异闻
-            "keywords": ["实体名"], // 必须且只能是1个核心专有名词
-            "worldTime": "绝对时间", 
-            "content": "完全客观事实的描述... (记录于第X-Y轮)", 
-            "score": 4, // 1-5分
-            "roundRange": "11-20" // 该事件贯穿的具体轮数范围
+            "category": "人物",
+            "keywords": ["慕辞"], 
+            "previousName": "喂猫的男生", // 🌟极其重要：仅在首次揭晓真名时输出，告诉系统把旧档案里的"喂猫的男生"全替换为"慕辞"
+            "worldTime": "", 
+            "content": "慕辞，夏以昼的同学。他就是之前喂猫的男生。", 
+            "score": 5, // 揭晓真名属于5分核心事件
+            "roundRange": "4-6" 
+            },
+            {
+            "category": "人物",
+            "keywords": ["慕辞"],
+            "worldTime": "", 
+            "content": "慕辞是夏以昼的同学，体能优异，目前就读于帝国军事学院。", 
+            "score": 4, 
+            "roundRange": "4-6" 
+            },
+            {
+            "category": "事件",
+            "keywords": ["慕辞", "夏以昼"],
+            "worldTime": "", 
+            "content": "在海边合宿时，慕辞被夏以昼告白。", 
+            "score": 5, 
+            "roundRange": "7-8" 
             }
         ],
         "relations": [
             {
-            "source": "人物A", "target": "人物B",
-            "label": "关系名", // 极简，如：宿敌、暗恋
-            "detail": "客观简述关系变化，不可添加脑补细节" 
+            "source": "慕辞", "target": "夏以昼",
+            "label": "恋人", 
+            "detail": "在海边合宿时，夏以昼告白" 
             }
         ]
         }`;
@@ -6289,6 +6324,28 @@
                             m.id = 'mem_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
                             if (!m.roundRange) m.roundRange = `${startRound}-${endRound}`;
                             if (isRealityMode && !m.worldTime) m.date = realDateStr;
+                            
+                            // 🌟 实体合并引擎：真名覆盖旧代号
+                            if (m.previousName && m.keywords && m.keywords.length > 0) {
+                                let oldAlias = m.previousName;
+                                let realName = m.keywords[0];
+                                addLogToConsole('info', 'ARCHIVE', `触发实体合并：[${oldAlias}] 真名揭晓为 [${realName}]`);
+                                if (contact.longMemories) {
+                                    contact.longMemories.forEach(oldMem => {
+                                        if (oldMem.keywords && oldMem.keywords.includes(oldAlias)) {
+                                            oldMem.keywords = oldMem.keywords.map(k => k === oldAlias ? realName : k);
+                                            oldMem.content = oldMem.content.replace(new RegExp(oldAlias, 'g'), realName);
+                                        }
+                                    });
+                                }
+                                if (contact.relations) {
+                                    contact.relations.forEach(r => {
+                                        if (r.source === oldAlias) r.source = realName;
+                                        if (r.target === oldAlias) r.target = realName;
+                                    });
+                                }
+                            }
+                            
                             contact.longMemories.push(m);
                             addedCount++;
                         });
@@ -6828,9 +6885,30 @@
                 if (result.memories && Array.isArray(result.memories)) {
                     result.memories.forEach(m => {
                         m.id = 'mem_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-                        if (!m.roundRange) m.roundRange = `${selectedBlocks[0].startRound}-${selectedBlocks[selectedBlocks.length-1].endRound}`;
-                        // 彻底抛弃强制现实时间。优先用AI提取的 worldTime
+                        if (!m.roundRange) m.roundRange = `${startRound}-${endRound}`;
                         if (isRealityMode && !m.worldTime) m.date = realDateStr;
+                        
+                        // 🌟 实体合并引擎：真名覆盖旧代号
+                        if (m.previousName && m.keywords && m.keywords.length > 0) {
+                            let oldAlias = m.previousName;
+                            let realName = m.keywords[0];
+                            addLogToConsole('info', 'ARCHIVE', `触发实体合并：[${oldAlias}] 真名揭晓为 [${realName}]`);
+                            if (contact.longMemories) {
+                                contact.longMemories.forEach(oldMem => {
+                                    if (oldMem.keywords && oldMem.keywords.includes(oldAlias)) {
+                                        oldMem.keywords = oldMem.keywords.map(k => k === oldAlias ? realName : k);
+                                        oldMem.content = oldMem.content.replace(new RegExp(oldAlias, 'g'), realName);
+                                    }
+                                });
+                            }
+                            if (contact.relations) {
+                                contact.relations.forEach(r => {
+                                    if (r.source === oldAlias) r.source = realName;
+                                    if (r.target === oldAlias) r.target = realName;
+                                });
+                            }
+                        }
+                        
                         contact.longMemories.push(m);
                         addedCount++;
                     });
@@ -16828,15 +16906,21 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             container.innerHTML = '';
 
             const sortByTime = (a, b) => {
-                const getStart = (r) => { 
-                    if(!r) return 0;
-                    const match = r.match(/第?(\d+)-/); 
-                    return match ? parseInt(match[1]) : 0; 
+                const parseRange = (rangeStr) => {
+                    if (!rangeStr) return [0, 0];
+                    // 去掉 "第" 和 "轮" 等字样，拆分 "-"
+                    const clean = rangeStr.replace(/第|轮/g, '').trim().split('-');
+                    const start = parseInt(clean[0]) || 0;
+                    const end = clean[1] ? parseInt(clean[1]) : start; // 单轮数如 "5" 视为 "5-5"
+                    return [start, end];
                 };
-                const startA = getStart(a.roundRange);
-                const startB = getStart(b.roundRange);
-                const diff = startA !== startB ? startA - startB : (a.id || 0) - (b.id || 0);
-                return archiveSortDesc ? -diff : diff;
+                const [startA, endA] = parseRange(a.roundRange);
+                const [startB, endB] = parseRange(b.roundRange);
+                
+                // 先按起始数字排序，起始相同时按结束数字排序，再按 id 排序保稳定
+                if (startA !== startB) return archiveSortDesc ? startB - startA : startA - startB;
+                if (endA !== endB) return archiveSortDesc ? endB - endA : endA - endB;
+                return archiveSortDesc ? (b.id || 0) - (a.id || 0) : (a.id || 0) - (b.id || 0);
             };
 
             // 偏好矩阵渲染
