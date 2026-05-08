@@ -16810,14 +16810,9 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             
             // 渲染内容
             renderArchiveContent(currentVal);
-            
-            // 恢复焦点和光标，并保持滚动位置
-            if (searchInput) {
-                const archiveContent = document.getElementById('archive-content');
-                const scrollTop = archiveContent ? archiveContent.scrollTop : 0;
-                searchInput.focus({ preventScroll: true });
-                searchInput.setSelectionRange(cursorPos, cursorPos);
-                if (archiveContent) archiveContent.scrollTop = scrollTop;
+            // 如果输入框内有内容，保持光标位置记忆（下次点击搜索框时自然出现）
+            if (searchInput && searchInput.value) {
+                // 可以不用任何操作，或仅记录光标位置，但无需 focus
             }
         }
 
@@ -16840,14 +16835,14 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
         function filterArchive(val) {
             const input = document.getElementById('archive-search-input');
             if (!input) return;
-            const cursorPos = input.selectionStart;
-            // 保存内容区滚动位置
+
+            // 保存当前内容区的滚动位置（避免渲染后跳动）
             const archiveContent = document.getElementById('archive-content');
             const scrollTop = archiveContent ? archiveContent.scrollTop : 0;
+
             renderArchiveContent(val);
-            input.focus({ preventScroll: true });
-            input.setSelectionRange(cursorPos, cursorPos);
-            // 恢复滚动位置，防止聚焦导致的跳动
+
+            // 恢复内容区滚动位置
             if (archiveContent) archiveContent.scrollTop = scrollTop;
         }
         function toggleArchiveCard(headerEl) {
@@ -17175,7 +17170,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     .force("y", d3.forceY(height / 2).strength(0.05))
                     .stop();
 
-                for (let i = 0; i < 300; i++) {
+                for (let i = 0; i < 120; i++) {
                     simulation.tick();
                     nodesData.forEach(d => {
                         const estWidth = 40 + (d.id.length * 15);
@@ -17191,25 +17186,32 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
 
             // 2. 渲染静态 HTML 节点
             const htmlLayer = d3.select("#html-layer");
-            htmlLayer.selectAll(".archive-glass-chip").data(nodesData).enter().append("div")
+            let nodes = htmlLayer.selectAll(".archive-glass-chip")
+                .data(nodesData).enter().append("div")
                 .attr("class", d => d.className)
                 .attr("id", d => d.chipId)
                 .html(d => d.html)
-                .style("left", d => `${width / 2}px`).style("top", d => `${height / 2}px`)
-                .on("click", (event, d) => window.toggleBioReader(d.chipId))
-                .transition().duration(800).ease(d3.easeCubicOut)
-                .style("left", d => `${d.x}px`).style("top", d => `${d.y}px`);
+                .on("click", (event, d) => window.toggleBioReader(d.chipId));
 
-            // 3. 渲染 SVG 连线
+            if (runSimulation) {
+                nodes.style("left", `${width / 2}px`).style("top", `${height / 2}px`)
+                    .transition().duration(800).ease(d3.easeCubicOut)
+                    .style("left", d => `${d.x}px`)
+                    .style("top", d => `${d.y}px`);
+            } else {
+                nodes.style("left", d => `${d.x}px`).style("top", d => `${d.y}px`);
+            }
+
+            // 3. 渲染 SVG 连线 —— 直接显示，不加动画延迟
             const svg = d3.select("#links-layer");
             svg.selectAll(".link").data(linksData).enter().append("line")
                 .attr("class", "link")
                 .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
                 .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
                 .style("stroke", "rgba(255,255,255,0.2)").style("stroke-width", "1.5px")
-                .style("opacity", 0).transition().delay(600).duration(600).style("opacity", 1);
+                .style("opacity", 1);   // 去掉 transition 和 delay
 
-            // 4. 渲染悬浮标签
+            // 4. 渲染悬浮标签 —— 直接显示
             htmlLayer.selectAll(".relation-label").data(linksData).enter().append("div")
                 .attr("class", "relation-label")
                 .text(d => d.label)
@@ -17219,7 +17221,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     event.stopPropagation();
                     showRelationHistory(d);
                 })
-                .style("opacity", 0).transition().delay(800).duration(500).style("opacity", 1);
+                .style("opacity", 1);   // 去掉 transition 和 delay
             
             // 5. 启用拖拽
             enableDragOnChips(nodesData, linksData, width, height);
@@ -17238,7 +17240,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 // 匹配人名，或者任意记忆的内容
                 let isMatch = !searchText ||
                             characterName.toLowerCase().includes(searchText) ||
-                            (data.items && data.items.some(item => item.content.toLowerCase().includes(searchText)));
+                            (data.items && data.items.some(item => item.content.toLowerCase().includes(searchText)))
                 chip.classList.remove('search-highlight', 'search-dim');
                 if (searchText) {
                     chip.classList.add(isMatch ? 'search-highlight' : 'search-dim');
@@ -17260,7 +17262,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 // 匹配偏好名，或者任意记忆的内容
                 let isMatch = !searchText ||
                             keyword.toLowerCase().includes(searchText) ||
-                            (data.items && data.items.some(item => item.content.toLowerCase().includes(searchText)));
+                            (data.items && data.items.some(item => item.content.toLowerCase().includes(searchText)))
                 chip.classList.remove('search-highlight', 'search-dim');
                 if (searchText) {
                     chip.classList.add(isMatch ? 'search-highlight' : 'search-dim');
@@ -17282,23 +17284,70 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 }
                 return `第 ${cleaned} 轮`;
             }
+            
             const container = document.getElementById('archive-content');
 
-            container.dataset.lastCategory = currentArchiveCategory;
-            container.dataset.lastSearch = searchText || '';
-            // 注意：移除了增量更新逻辑，现在每次搜索词变化都会完整重绘，确保高亮和内容正确
+            const lastCategory = container.dataset.lastCategory || '';
+            const lastSearch = container.dataset.lastSearch || '';
 
-            // 如果不是首次渲染，且只是搜索词变化，就增量更新
-            if (container.dataset.lastCategory === currentArchiveCategory && (container.dataset.lastSearch || '') !== (searchText || '')) {
+            // 只要分类不变、搜索词改变，就只更新高亮和详情文字，不重建整个视图
+            if (lastCategory === currentArchiveCategory && lastSearch !== searchText && searchText !== '') {
                 container.dataset.lastSearch = searchText;
-                if (currentArchiveCategory === '人物') {
-                    updateBioSearchHighlight(searchText);
-                } else if (currentArchiveCategory === '偏好') {
+                if (currentArchiveCategory === '偏好') {
                     updatePrefSearchHighlight(searchText);
+                    // 重新生成偏好小球的详情 HTML，让文字也高亮
+                    for (const [chipId, group] of Object.entries(window.currentPrefGroups)) {
+                        group.detailsHtml = '';
+                        group.items.forEach(item => {
+                            const highlightedContent = highlightSearchTerm(item.content, searchText);
+                            group.detailsHtml += `
+                                <div class="chip-detail-item">
+                                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                        <div class="archive-item-text" style="flex:1;">${highlightedContent}</div>
+                                        <div class="chip-actions">
+                                            <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
+                                            <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
+                                        </div>
+                                    </div>
+                                    <div class="chip-detail-time">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>
+                                </div>
+                            `;
+                        });
+                    }
+                } else if (currentArchiveCategory === '人物') {
+                    updateBioSearchHighlight(searchText);
+                    // 重新生成人物小球的详情 HTML
+                    for (const [chipId, group] of Object.entries(window.currentBioGroups)) {
+                        const groupedByTime = new Map();
+                        group.items.forEach(item => {
+                            let timeSource = item.worldTime || item.date || '日常纪元';
+                            if (!groupedByTime.has(timeSource)) groupedByTime.set(timeSource, []);
+                            groupedByTime.get(timeSource).push(item);
+                        });
+                        group.detailsHtml = '';
+                        for (const [timeSource, items] of groupedByTime.entries()) {
+                            group.detailsHtml += `<div style="display: flex; align-items: stretch; padding-top: 14px; border-top: 0.5px dashed color-mix(in srgb, currentColor 15%, transparent); margin-top: 10px;">
+                                <div class="timeline-left" style="width:65px; padding-right: 14px; color: currentColor; font-weight:700; opacity:0.8; font-size:12px; word-wrap: break-word;">${escapeHtml(timeSource)}</div>
+                                <div class="timeline-right-container" style="flex:1; border-left:1px solid color-mix(in srgb, currentColor 10%, transparent); padding-left: 12px;">`;
+                            items.forEach(item => {
+                                const highlightedContent = highlightSearchTerm(item.content, searchText);
+                                group.detailsHtml += `<div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom: 8px;">
+                                    <div class="archive-item-text" style="flex:1;">${highlightedContent}</div>
+                                    <div class="chip-actions">
+                                        <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
+                                        <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
+                                    </div>
+                                </div>
+                                <div style="font-size:11px; color:var(--text-sub); text-align:right; margin-bottom:8px;">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>`;
+                            });
+                            group.detailsHtml += `</div></div>`;
+                        }
+                    }
                 }
-                return; // 直接返回，不再重建整个内容
+                return;
             }
-            // 记录这次渲染的分类和搜索词
+
+            // 否则：记录这次渲染的分类和搜索词，继续完整重绘
             container.dataset.lastCategory = currentArchiveCategory;
             container.dataset.lastSearch = searchText;
 
@@ -17467,6 +17516,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 
                 contentHtml += `</div><div id="pref-detail-reader" class="pref-detail-reader"></div>`;
                 container.innerHTML = contentHtml;
+                if (searchText) updatePrefSearchHighlight(searchText);
                 // 防止页面意外滚动
                 window.scrollTo(0, 0);
                 return;
@@ -17650,6 +17700,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     }
                     // 只要 runSim 被设为 true，就会运行力导向模拟并保存新布局
                     renderNodesAndLinks(nodesData, linksData, width, height, runSim);
+                    if (searchText) updateBioSearchHighlight(searchText);
                 }, 50);
                 
                 return;
