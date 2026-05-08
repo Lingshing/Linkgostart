@@ -16653,12 +16653,14 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             const chipEl = document.getElementById(chipId);
             if (!matrix || !reader || !chipEl) return;
 
+            // --- 关闭阅读器 ---
             if (chipEl.classList.contains('active')) {
                 chipEl.classList.remove('active');
                 matrix.classList.remove('has-active');
                 
-                 reader.style.marginTop = '';
-                 
+                // 清除打开时设置的动态负 margin，恢复到原始文档流位置
+                reader.style.marginTop = '';
+                
                 const styles = window.getComputedStyle(reader);
                 const heightLoss = reader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
                 
@@ -16678,48 +16680,15 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 return;
             }
 
-            // 打开逻辑
-            reader.style.cssText = '';  // 清除之前可能的内联样式
-            matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
-            chipEl.classList.add('active');
-            matrix.classList.add('has-active');
-
-            // 🌟 新增：让阅读器紧贴最下方的小球
-            const board = document.getElementById('bio-board');
-            if (board) {
-                const boardRect = board.getBoundingClientRect();
-                const chips = board.querySelectorAll('.archive-glass-chip');
-                let maxBottom = 0;
-                chips.forEach(chip => {
-                    const rect = chip.getBoundingClientRect();
-                    const bottom = rect.bottom - boardRect.top;  // 相对于 board 顶部的底部距离
-                    if (bottom > maxBottom) maxBottom = bottom;
-                });
-                // 原本阅读器在 board 下方，正常流会有一个自然的间距（可能是 margin 等）
-                // 这里直接设置 margin-top 为负值，让阅读器向上移动
-                // 计算时需要留出一点间隙（比如 16px）
-                const desiredTop = maxBottom + 16;               // 最底小球下方 16px
-                const naturalTop = boardRect.height;             // 阅读器原本应该在 board 底部
-                const offset = naturalTop - desiredTop;          // 需要向上平移的距离
-                reader.style.marginTop = `-${offset}px`;
-            }
-
-            reader.classList.add('show');
-            // 原来的 scrollIntoView 可以保留，但为了避免跳得太远，可以调整一下
-            setTimeout(() => {
-                reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }, 300);
-
-            reader.style.cssText = '';
-            matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
-            chipEl.classList.add('active');
-            matrix.classList.add('has-active'); 
-
+            // --- 打开阅读器 ---
+            // 1. 获取数据
             const data = window.currentBioGroups[chipId];
+            if (!data) return;
+
+            // 2. 设置阅读器内容和样式
             let readerClass = `pref-detail-reader ${data.themeClass} `;
             readerClass += data.score >= 5 ? 'core' : (data.score === 4 ? 'major' : 'minor');
             reader.className = readerClass;
-            
             reader.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding-bottom: 12px;">
                     <div style="font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px;">
@@ -16729,11 +16698,39 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 </div>
                 <div>${data.detailsHtml}</div>
             `;
-            
-            // 打开逻辑
+
+            // 3. 高亮小球，并标记星图为激活状态（让其他小球半透明）
+            matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+            chipEl.classList.add('active');
+            matrix.classList.add('has-active');
+
+            // 4. 动态计算阅读器应该出现的理想位置（最下方小球的正下方 16px）
+            const board = document.getElementById('bio-board');
+            if (board) {
+                const boardRect = board.getBoundingClientRect();
+                const chips = board.querySelectorAll('.archive-glass-chip');
+                let maxBottom = 0;
+                chips.forEach(chip => {
+                    const rect = chip.getBoundingClientRect();
+                    const bottom = rect.bottom - boardRect.top;   // 相对于 board 顶部的距离
+                    if (bottom > maxBottom) maxBottom = bottom;
+                });
+                
+                const desiredTop = maxBottom + 16;                // 最底小球下方留 16px
+                const naturalTop = boardRect.height;              // 阅读器原本在 board 底部
+                const offset = naturalTop - desiredTop;           // 需要向上平移的距离
+                
+                // 5. 用负 margin-top 精确提升阅读器
+                reader.style.marginTop = `-${offset}px`;
+            }
+
+            // 6. 显示阅读器（CSS 过渡动画开始）
             reader.classList.add('show');
-            // ✨ 同样，打开时保留 300ms 等待
-            setTimeout(() => { reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 300);
+            
+            // 7. 打开后稍微延迟再滚动，让动画自然完成
+            setTimeout(() => {
+                reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 300);
         };
 
         // --- 控制器结束 ---
