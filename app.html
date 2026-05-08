@@ -16796,14 +16796,26 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             });
             
             document.getElementById('archive-cat-menu').classList.remove('show');
+            
+            // 提前获取搜索框
             const searchInput = document.getElementById('archive-search-input');
+            const currentVal = searchInput ? searchInput.value : '';
+            const cursorPos = searchInput ? searchInput.selectionStart : 0;
             
             // 显示/隐藏人物重置按钮
             const resetBtn = document.getElementById('bio-reset-btn');
             if (resetBtn) {
                 resetBtn.style.display = (categoryName === '人物') ? 'flex' : 'none';
             }
-            renderArchiveContent(searchInput ? searchInput.value : '');
+            
+            // 渲染内容
+            renderArchiveContent(currentVal);
+            
+            // 恢复焦点和光标
+            if (searchInput) {
+                searchInput.focus({ preventScroll: true });
+                searchInput.setSelectionRange(cursorPos, cursorPos);
+            }
         }
 
         function toggleArchiveSort() {
@@ -16824,10 +16836,11 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
 
         function filterArchive(val) {
             const input = document.getElementById('archive-search-input');
-            const start = input.selectionStart;   // 记录当前光标位置
+            if (!input) return;
+            const cursorPos = input.selectionStart;
             renderArchiveContent(val);
-            input.focus();                        // 重新获取焦点
-            input.setSelectionRange(start, start); // 恢复光标
+            input.focus({ preventScroll: true });
+            input.setSelectionRange(cursorPos, cursorPos);
         }
 
         function toggleArchiveCard(headerEl) {
@@ -17205,6 +17218,51 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             enableDragOnChips(nodesData, linksData, width, height);
         }
 
+        // 仅更新人物星图中每个球的搜索高亮类
+        function updateBioSearchHighlight(searchText) {
+            const board = document.getElementById('bio-board');
+            if (!board) return;
+            const chips = board.querySelectorAll('.archive-glass-chip');
+            chips.forEach(chip => {
+                const chipId = chip.id; // 如 "bio-chip-0"
+                const data = window.currentBioGroups[chipId];
+                if (!data) return;
+                const characterName = data.characterName;
+                let isMatch = !searchText ||
+                            characterName.toLowerCase().includes(searchText) ||
+                            (data.items && data.items.some(item => item.content.toLowerCase().includes(searchText)));
+                // 移除旧的搜索类
+                chip.classList.remove('search-highlight', 'search-dim');
+                if (searchText) {
+                    chip.classList.add(isMatch ? 'search-highlight' : 'search-dim');
+                }
+            });
+            // 同时更新星图容器的搜索模式类
+            board.classList.toggle('archive-search-mode', !!searchText);
+        }
+
+        // 仅更新偏好矩阵中每个球的搜索高亮类
+        function updatePrefSearchHighlight(searchText) {
+            const matrix = document.getElementById('pref-matrix');
+            if (!matrix) return;
+            const chips = matrix.querySelectorAll('.archive-glass-chip');
+            chips.forEach(chip => {
+                const chipId = chip.id;
+                const data = window.currentPrefGroups[chipId];
+                if (!data) return;
+                const keyword = data.keyword;
+                let isMatch = !searchText ||
+                            keyword.toLowerCase().includes(searchText) ||
+                            (data.items && data.items.some(item => item.content.toLowerCase().includes(searchText)));
+                chip.classList.remove('search-highlight', 'search-dim');
+                if (searchText) {
+                    chip.classList.add(isMatch ? 'search-highlight' : 'search-dim');
+                }
+            });
+            // 更新矩阵容器的搜索模式类
+            matrix.classList.toggle('archive-search-mode', !!searchText);
+        }
+
         function renderArchiveContent(searchText = '') {
             function formatRoundRange(rawRange) {
                 if (!rawRange) return '初期设定';
@@ -17219,6 +17277,21 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 return `第 ${cleaned} 轮`;
             }
             const container = document.getElementById('archive-content');
+
+            // 如果不是首次渲染，且只是搜索词变化，就增量更新
+            if (container.dataset.lastCategory === currentArchiveCategory && (container.dataset.lastSearch || '') !== (searchText || '')) {
+                container.dataset.lastSearch = searchText;
+                if (currentArchiveCategory === '人物') {
+                    updateBioSearchHighlight(searchText);
+                } else if (currentArchiveCategory === '偏好') {
+                    updatePrefSearchHighlight(searchText);
+                }
+                return; // 直接返回，不再重建整个内容
+            }
+            // 记录这次渲染的分类和搜索词
+            container.dataset.lastCategory = currentArchiveCategory;
+            container.dataset.lastSearch = searchText;
+
             if (!container || !currentChatContactId) return;
             
             const contact = mockContacts.find(c => c.id === currentChatContactId);
