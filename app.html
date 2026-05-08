@@ -17218,30 +17218,29 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             enableDragOnChips(nodesData, linksData, width, height);
         }
 
-        // 仅更新人物星图中每个球的搜索高亮类
+        // 更新人物星图中的搜索高亮（现在会检查记忆内容）
         function updateBioSearchHighlight(searchText) {
             const board = document.getElementById('bio-board');
             if (!board) return;
             const chips = board.querySelectorAll('.archive-glass-chip');
             chips.forEach(chip => {
-                const chipId = chip.id; // 如 "bio-chip-0"
+                const chipId = chip.id;
                 const data = window.currentBioGroups[chipId];
                 if (!data) return;
                 const characterName = data.characterName;
+                // 匹配人名，或者任意记忆的内容
                 let isMatch = !searchText ||
                             characterName.toLowerCase().includes(searchText) ||
                             (data.items && data.items.some(item => item.content.toLowerCase().includes(searchText)));
-                // 移除旧的搜索类
                 chip.classList.remove('search-highlight', 'search-dim');
                 if (searchText) {
                     chip.classList.add(isMatch ? 'search-highlight' : 'search-dim');
                 }
             });
-            // 同时更新星图容器的搜索模式类
             board.classList.toggle('archive-search-mode', !!searchText);
         }
 
-        // 仅更新偏好矩阵中每个球的搜索高亮类
+        // 更新偏好矩阵中的搜索高亮（现在会检查记忆内容）
         function updatePrefSearchHighlight(searchText) {
             const matrix = document.getElementById('pref-matrix');
             if (!matrix) return;
@@ -17251,6 +17250,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 const data = window.currentPrefGroups[chipId];
                 if (!data) return;
                 const keyword = data.keyword;
+                // 匹配偏好名，或者任意记忆的内容
                 let isMatch = !searchText ||
                             keyword.toLowerCase().includes(searchText) ||
                             (data.items && data.items.some(item => item.content.toLowerCase().includes(searchText)));
@@ -17259,7 +17259,6 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     chip.classList.add(isMatch ? 'search-highlight' : 'search-dim');
                 }
             });
-            // 更新矩阵容器的搜索模式类
             matrix.classList.toggle('archive-search-mode', !!searchText);
         }
 
@@ -17277,6 +17276,21 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 return `第 ${cleaned} 轮`;
             }
             const container = document.getElementById('archive-content');
+
+            // 增量更新逻辑（放在 container 变量初始化后、各分类渲染前）
+            const lastCategory = container.dataset.lastCategory || '';
+            const lastSearch = container.dataset.lastSearch || '';
+            if (lastCategory === currentArchiveCategory && lastSearch !== (searchText || '')) {
+                container.dataset.lastSearch = searchText || '';
+                if (currentArchiveCategory === '人物') {
+                    updateBioSearchHighlight(searchText);
+                } else if (currentArchiveCategory === '偏好') {
+                    updatePrefSearchHighlight(searchText);
+                }
+                return;
+            }
+            container.dataset.lastCategory = currentArchiveCategory;
+            container.dataset.lastSearch = searchText || '';
 
             // 如果不是首次渲染，且只是搜索词变化，就增量更新
             if (container.dataset.lastCategory === currentArchiveCategory && (container.dataset.lastSearch || '') !== (searchText || '')) {
@@ -17443,8 +17457,9 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                         keyword: keyword, 
                         detailsHtml: detailsHtml, 
                         themeClass: themeClass, 
-                        score: group.maxScore,
-                        iconHtml: iconHtml 
+                        score: group.maxScore, 
+                        iconHtml: iconHtml,
+                        items: group.items   // ← 新增：把该偏好的所有记忆列表存起来
                     };
 
                     let countHtml = group.items.length > 1 ? `<span class="chip-count">${group.items.length}</span>` : '';
@@ -17456,6 +17471,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 
                 contentHtml += `</div><div id="pref-detail-reader" class="pref-detail-reader"></div>`;
                 container.innerHTML = contentHtml;
+                // 防止页面意外滚动
+                window.scrollTo(0, 0);
                 return;
             }
 
@@ -17583,7 +17600,14 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     }
 
                     const chipId = `bio-chip-${renderedCount}`;
-                    window.currentBioGroups[chipId] = { characterName: characterName, detailsHtml: detailsHtml, themeClass: themeClass, score: group.maxScore, iconHtml: iconHtml };
+                    window.currentBioGroups[chipId] = { 
+                        characterName: characterName, 
+                        detailsHtml: detailsHtml, 
+                        themeClass: themeClass, 
+                        score: group.maxScore, 
+                        iconHtml: iconHtml,
+                        items: group.items   // ← 新增：把该人物的所有记忆列表存起来
+                    };
                     let countHtml = group.items.length > 1 ? `<span class="chip-count">${group.items.length}</span>` : '';
 
                     nodesData.push({ id: characterName, chipId: chipId, html: `<div class="chip-short"><span>${escapeHtml(characterName)}</span> ${countHtml}</div>`, className: chipClass });
