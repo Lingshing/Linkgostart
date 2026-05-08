@@ -2756,8 +2756,8 @@
         
         .archive-glass-morphism {
             background: color-mix(in srgb, var(--card-bg) 75%, transparent);
-            backdrop-filter: blur(25px) saturate(150%);
-            -webkit-backdrop-filter: blur(25px) saturate(150%);
+            /* backdrop-filter: blur(25px) saturate(150%); */
+            /* -webkit-backdrop-filter: blur(25px) saturate(150%); */
             border: 0.5px solid color-mix(in srgb, var(--text-main) 4%, transparent);
             box-shadow: 0 4px 16px color-mix(in srgb, var(--text-main) 3%, transparent), 
                         inset 0 1px 1px color-mix(in srgb, var(--card-bg) 50%, transparent);
@@ -2767,8 +2767,8 @@
             /* 🌟 降低背景浓度至 45%，让它更透 */
             background: color-mix(in srgb, var(--card-bg) 45%, transparent);
             /* 🌟 提高饱和度和模糊度，磨砂感更高级 */
-            backdrop-filter: blur(35px) saturate(200%);
-            -webkit-backdrop-filter: blur(35px) saturate(200%);
+            /* backdrop-filter: blur(35px) saturate(200%); */
+             /* -webkit-backdrop-filter: blur(35px) saturate(200%); */
             /* 🌟 增加边缘极细的高光线，光感爆棚 */
             border: 0.5px solid color-mix(in srgb, var(--text-main) 12%, transparent);
             box-shadow: 0 15px 35px rgba(0,0,0,0.05), 
@@ -2778,8 +2778,15 @@
 
         /* 搜索框和排序按钮 */
         .archive-glass-input {
-            width: 100%; padding: 10px 12px 10px 38px; border: none; border-radius: 14px; outline: none;
-            font-size: 15px; color: var(--text-main); transition: all 0.2s; box-sizing: border-box;
+            width: 100%;
+            padding: 10px 12px 10px 38px;
+            border: none;
+            border-radius: 14px;
+            outline: none;
+            font-size: 15px;
+            color: var(--text-main);
+            transition: box-shadow 0.2s;
+            box-sizing: border-box;
         }
         .archive-glass-input:focus { box-shadow: 0 0 0 3px var(--accent-light); }
         .archive-glass-btn {
@@ -15840,6 +15847,32 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     // 保存键盘高度，供 openConsoleFullEditor 使用
                     window.lastKbHeight = kbHeight;
                     const activeEl = document.activeElement;
+                    if (activeEl && activeEl.id === 'archive-search-input') {
+                        const archiveContent = document.getElementById('archive-content');
+                        if (archiveContent) {
+                            // 临时移除硬件加速，避免 iOS 滚动计算错乱
+                            archiveContent.style.transform = '';
+                            const lockScroll = archiveContent.scrollTop;
+                            // 多重锁定滚动位置
+                            archiveContent.scrollTop = lockScroll;
+                            requestAnimationFrame(() => {
+                                archiveContent.scrollTop = lockScroll;
+                                requestAnimationFrame(() => {
+                                    archiveContent.scrollTop = lockScroll;
+                                    // ✨ 键盘已稳定弹出，现在做一次快速重聚焦修正光标
+                                    activeEl.blur();
+                                    activeEl.focus();
+                                });
+                            });
+                            // 键盘收起时恢复硬件加速
+                            const restoreTransform = () => {
+                                archiveContent.style.transform = 'translateZ(0)';
+                                document.removeEventListener('keyboardWillHide', restoreTransform);
+                            };
+                            document.addEventListener('keyboardWillHide', restoreTransform, { once: true });
+                        }
+                        return;
+                    }
                     if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) return;
 
                     const activePage = document.querySelector('.sub-page-scene.show') || document.querySelector('.tab-page.active');
