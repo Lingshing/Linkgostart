@@ -16822,7 +16822,13 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             return escapedText.replace(regex, '<span class="search-highlight-text">$1</span>');
         }
 
-        function filterArchive(val) { renderArchiveContent(val); }
+        function filterArchive(val) {
+            const input = document.getElementById('archive-search-input');
+            const start = input.selectionStart;   // 记录当前光标位置
+            renderArchiveContent(val);
+            input.focus();                        // 重新获取焦点
+            input.setSelectionRange(start, start); // 恢复光标
+        }
 
         function toggleArchiveCard(headerEl) {
             const card = headerEl.parentElement;
@@ -16842,6 +16848,9 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             saveToLocal();
             const searchInput = document.getElementById('archive-search-input');
             renderArchiveContent(searchInput ? searchInput.value : '');
+            if (searchInput) {
+                searchInput.focus();
+            }
             updateMemoryStats();
         }
 
@@ -17291,7 +17300,12 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 let contentHtml = `<div class="archive-chip-matrix${searchText ? ' archive-search-mode' : ''}" id="pref-matrix">`;
                 
                 const prefGroups = {};
-                validMemories.forEach(m => {
+                contact.longMemories.forEach(m => {
+                    // 只保留偏好分类
+                    const allowedKeywords = catMap['偏好'] || [];
+                    const matchCat = allowedKeywords.some(kw => (m.category || '').includes(kw));
+                    if (!matchCat) return;
+                    
                     let keyword = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '日常偏好';
                     if (!prefGroups[keyword]) prefGroups[keyword] = { items: [], maxScore: 0 };
                     prefGroups[keyword].items.push(m);
@@ -17425,8 +17439,18 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     </div>
                 `;
 
+                // 只用分类过滤，不过滤搜索词
                 const bioGroups = {};
-                validMemories.forEach(m => {
+                contact.longMemories.forEach(m => {
+                    // 分类匹配（只处理当前分类下的记忆）
+                    const allowedKeywords = catMap[currentArchiveCategory] || [];
+                    const matchCat = allowedKeywords.some(kw => (m.category || '').includes(kw));
+                    // 事件分类特殊处理（保持不变）
+                    if (!matchCat && currentArchiveCategory === '事件') {
+                        const isMilestone = m.isMilestone === true || m.isMilestone === 'true';
+                        if (!isMilestone) return; // 不显示
+                    } else if (!matchCat) return;
+                    
                     let characterName = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '佚名';
                     if (!bioGroups[characterName]) bioGroups[characterName] = { items: [], maxScore: 0 };
                     bioGroups[characterName].items.push(m);
