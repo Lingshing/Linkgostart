@@ -2979,6 +2979,33 @@
         .chip-actions i { cursor: pointer; padding: 4px; transition: 0.2s; }
         .chip-actions i:active { transform: scale(0.9); opacity: 1; }
 
+        /* --- 搜索模式：高亮与变暗 --- */
+        .archive-search-mode .archive-glass-chip.search-dim {
+            opacity: 0.3;
+            filter: grayscale(60%);
+            transform: scale(0.92);
+        }
+        .archive-search-mode .archive-glass-chip.search-highlight {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px var(--accent);
+            z-index: 5;
+        }
+        /* 星图里的小球需要带上 translate(-50%, -50%)，所以这里改写一下 */
+        .archive-search-mode.archive-network-board .archive-glass-chip.search-dim {
+            transform: translate(-50%, -50%) scale(0.92);
+        }
+        .archive-search-mode.archive-network-board .archive-glass-chip.search-highlight {
+            transform: translate(-50%, -50%) scale(1.05);
+            box-shadow: 0 0 15px var(--accent);
+        }
+        /* 详情面板中搜索词高亮 */
+        .search-highlight-text {
+            background-color: #FFD60A;
+            color: #000;
+            border-radius: 3px;
+            padding: 0 2px;
+        }
+
         /* 莫兰迪色系池 */
         .chip-theme-blue { --chip-c: #5C92D1; }
         .chip-theme-green { --chip-c: #65A881; }
@@ -16787,6 +16814,14 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             renderArchiveContent(searchInput ? searchInput.value : '');
         }
 
+        function highlightSearchTerm(text, term) {
+            if (!term) return escapeHtml(text);
+            const escapedText = escapeHtml(text);
+            const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${escapedTerm})`, 'gi');
+            return escapedText.replace(regex, '<span class="search-highlight-text">$1</span>');
+        }
+
         function filterArchive(val) { renderArchiveContent(val); }
 
         function toggleArchiveCard(headerEl) {
@@ -17252,15 +17287,11 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             // 偏好矩阵渲染
             if (currentArchiveCategory === '偏好') {
                 window.currentPrefGroups = {}; 
-                let contentHtml = `<div class="archive-chip-matrix" id="pref-matrix">`;
+                // 如果存在搜索词，给矩阵添加搜索模式类
+                let contentHtml = `<div class="archive-chip-matrix${searchText ? ' archive-search-mode' : ''}" id="pref-matrix">`;
                 
                 const prefGroups = {};
-                validMemories.forEach(m => {
-                    let keyword = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '日常偏好';
-                    if (!prefGroups[keyword]) prefGroups[keyword] = { items: [], maxScore: 0 };
-                    prefGroups[keyword].items.push(m);
-                    if ((m.score || 0) > prefGroups[keyword].maxScore) prefGroups[keyword].maxScore = m.score || 0;
-                });
+                // ... 同原来，构建 prefGroups ...
                 
                 const sortedGroups = Object.entries(prefGroups).sort((a, b) => b[1].maxScore - a[1].maxScore);
                 const themeClasses = ['chip-theme-blue', 'chip-theme-green', 'chip-theme-sand', 'chip-theme-mauve', 'chip-theme-rose'];
@@ -17269,9 +17300,13 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     let hash = 0; for(let i = 0; i < keyword.length; i++) hash += keyword.charCodeAt(i);
                     const themeClass = themeClasses[hash % themeClasses.length];
 
-                    // 🌟 根据该偏好组的最高分决定视觉强度
+                    // 判断当前分组是否匹配搜索词
+                    let isMatch = !searchText || 
+                                keyword.toLowerCase().includes(searchText) ||
+                                group.items.some(item => item.content.toLowerCase().includes(searchText));
+
                     let chipClass = `archive-glass-chip ${themeClass} `;
-                    let iconHtml = '';                          // <-- 补充定义
+                    let iconHtml = '';
                     if (group.maxScore >= 5) { 
                         chipClass += 'archive-chip-core'; 
                         iconHtml = '<i class="fas fa-layer-group" style="margin-right:6px; opacity: 0.9;"></i>';
@@ -17283,17 +17318,24 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                         iconHtml = '<i class="fas fa-signature" style="margin-right:6px; opacity: 0.6;"></i>';
                     }
 
+                    // 搜索高亮/变暗类
+                    if (searchText) {
+                        chipClass += isMatch ? ' search-highlight' : ' search-dim';
+                    }
+
                     const sortedItems = group.items.sort((a, b) => {
                         const getStart = (r) => { if(!r) return 0; const match = r.match(/第?(\d+)-/); return match ? parseInt(match[1]) : 0; };
                         return archiveSortDesc ? getStart(b.roundRange) - getStart(a.roundRange) : getStart(a.roundRange) - getStart(b.roundRange);
                     });
 
+                    // 生成详情 HTML，对每个 item 的 content 进行搜索高亮
                     let detailsHtml = '';
                     sortedItems.forEach(item => {
+                        const highlightedContent = highlightSearchTerm(item.content, searchText);
                         detailsHtml += `
                             <div class="chip-detail-item">
                                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                    <div class="archive-item-text" style="flex:1;" id="archive-text-${item.id}">${escapeHtml(item.content)}</div>
+                                    <div class="archive-item-text" style="flex:1;" id="archive-text-${item.id}">${highlightedContent}</div>
                                     <div class="chip-actions">
                                         <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
                                         <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
@@ -17305,18 +17347,16 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     });
 
                     const chipId = `pref-chip-${index}`;
-                    // 🌟 修复：传入正确的值，不再使用 undefined
                     window.currentPrefGroups[chipId] = { 
                         keyword: keyword, 
                         detailsHtml: detailsHtml, 
                         themeClass: themeClass, 
-                        score: group.maxScore,   // 用该组的最高分
-                        iconHtml: iconHtml       // 传入刚刚定义的图标 HTML
+                        score: group.maxScore,
+                        iconHtml: iconHtml 
                     };
 
                     let countHtml = group.items.length > 1 ? `<span class="chip-count">${group.items.length}</span>` : '';
 
-                    // 🌟 小球外观：只显示关键词和数量角标，不加图标（保持你喜爱的简洁风）
                     contentHtml += `<div class="${chipClass}" id="${chipId}" onclick="window.togglePrefReader('${chipId}')">
                         <div class="chip-short"><span>${escapeHtml(keyword)}</span> ${countHtml}</div>
                     </div>`;
@@ -17366,9 +17406,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             if (currentArchiveCategory === '人物') {
                 window.currentBioGroups = {}; 
                 
-                // 渲染星图容器和弹窗骨架
                 let contentHtml = `
-                    <div class="archive-network-board" id="bio-board">
+                    <div class="archive-network-board${searchText ? ' archive-search-mode' : ''}" id="bio-board">
                         <svg id="links-layer"></svg>
                         <div id="html-layer"></div>
                     </div>
@@ -17380,7 +17419,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                         <div class="relation-history-list" id="relation-history-list"></div>
                     </div>
                 `;
-                
+
                 const bioGroups = {};
                 validMemories.forEach(m => {
                     let characterName = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '佚名';
@@ -17388,7 +17427,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     bioGroups[characterName].items.push(m);
                     if ((m.score || 0) > bioGroups[characterName].maxScore) bioGroups[characterName].maxScore = m.score || 0;
                 });
-                
+
                 const themeClasses = ['chip-theme-mauve', 'chip-theme-blue', 'chip-theme-green', 'chip-theme-sand', 'chip-theme-rose'];
                 const nodesData = [];
 
@@ -17397,13 +17436,20 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     let hash = 0; for(let i = 0; i < characterName.length; i++) hash += characterName.charCodeAt(i);
                     const themeClass = themeClasses[hash % themeClasses.length];
 
+                    let isMatch = !searchText || 
+                                characterName.toLowerCase().includes(searchText) ||
+                                group.items.some(item => item.content.toLowerCase().includes(searchText));
+
                     let chipClass = `archive-glass-chip ${themeClass} `;
                     let iconHtml = '';
                     if (group.maxScore >= 5) { chipClass += 'archive-chip-core'; iconHtml = '<i class="fas fa-layer-group" style="margin-right:6px; opacity: 0.9;"></i>'; } 
                     else if (group.maxScore === 4) { chipClass += 'archive-chip-major'; iconHtml = '<i class="fas fa-id-card" style="margin-right:6px; opacity: 0.8;"></i>'; } 
                     else { chipClass += 'archive-chip-minor'; iconHtml = '<i class="fas fa-signature" style="margin-right:6px; opacity: 0.6;"></i>'; }
                     
-                    // 拼接下方阅读器内容
+                    if (searchText) {
+                        chipClass += isMatch ? ' search-highlight' : ' search-dim';
+                    }
+
                     const groupedByTime = new Map();
                     group.items.forEach(item => {
                         let sourceText = item.worldTime || item.date || '日常纪元';
@@ -17414,9 +17460,10 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     let detailsHtml = '';
                     for (const [timeSource, items] of groupedByTime.entries()) {
                         let innerItemsHtml = items.map(item => {
+                            const highlightedContent = highlightSearchTerm(item.content, searchText);
                             return `
                             <div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom: 8px;">
-                                <div class="archive-item-text" id="archive-text-${item.id}" style="flex:1;">${escapeHtml(item.content)}</div>
+                                <div class="archive-item-text" id="archive-text-${item.id}" style="flex:1;">${highlightedContent}</div>
                                 <div class="chip-actions">
                                     <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
                                     <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
@@ -17442,7 +17489,6 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 }
 
                 container.innerHTML = contentHtml;
-
                 // ==========================================
                 // 🚀 D3.js 暗箱预演算引力场 (绝不抖动，绝不出界)
                 // ==========================================
