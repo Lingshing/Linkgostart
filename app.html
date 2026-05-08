@@ -6161,12 +6161,18 @@
 
         【人物优先原则】⭐️
         - 对话中每出现一个新人物，必须提取为独立的"人物"类记忆。
-        - 人物记忆必须包含：名字（如果没有就用特征描述）、性别（男/女/未知），如果世界观有 ABO 设定，必须注明是 Alpha/Beta/Omega。
+        - 人物记忆必须包含：名字（如果没有就用临时代称）、性别（男/女/未知），如果世界观有 ABO 设定，必须注明是 Alpha/Beta/Omega。
         - 即使只在对话中短暂提及，也要将其姓名、基本身份存入档案，不得遗漏。
+
+        【偏好记录原则】⭐️
+        - 偏好的 keywords 必须是具体的行为、习惯、癖好名称，而不是人物名字。
+        - ✅ 正确示例：慕辞喜欢亲密接触 → keywords: ["亲密接触"], content: "慕辞睡醒后喜欢向林深索吻，喜欢林深的信息素和抱抱。"
+        - ❌ 错误示例：慕辞喜欢亲密接触 → keywords: ["慕辞"], content: "慕辞喜欢亲密接触..."
+        - 如果多个人物有相同偏好，它们会被自动归档到同一个偏好小球下。
 
         【多视点与实体演变原则】（🌟真名覆盖核心法则）
         1. 视点解绑：对话中存在第三人称描写。遇到“你”时，明确指向【{{AI_NAME}}】。遇到其他名字，直接作为独立实体记录，绝不预设谁是“主角”。
-        2. 临时代称：遇到有具体特征但未提及名字的角色，暂用特征作实体名（例如：“喂猫的男生”）。
+        2. 临时代称：遇到有具体特征但未提及名字的角色，暂用特征作实体名（例如："喂猫的男生"）。
         3. 真名最高优先级（实体合并）：一旦后续对话中揭晓了某人的真名，【真名】拥有绝对的、最高的优先级。
         - 首次揭晓真名时，你必须在 JSON 记忆对象中新增一个字段 \`"previousName": "之前的代称"\`，通知系统进行旧档案覆盖！
         - 此后该角色的所有 keywords 必须全部使用真名，绝不再使用旧代称。
@@ -6176,11 +6182,15 @@
         1. 关系是动态的：如果在当前记录中，A 和 B 的关系发生了实质性转变（如：从同学变为恋人），你必须输出最新的关系状态。
         2. detail 字段必须包含演变简述：例如 \`从同学转变为恋人（在海边合宿告白）\`。
 
-        【记忆分级制度（Score 1-5 打分指南）】
-        - 5分：核心角色的生死、真名揭晓、确立恋爱/宿敌等颠覆性关系改变、世界观崩塌。
-        - 4分：人物的具体身份背景、明确的阵营归属、重大剧情转折。
-        - 3分：人物的具体偏好（如喜欢吃什么、穿什么）、日常支线事件结果。
+        【记忆分级制度 (Score 1-5 打分指南)】
+        - 5分：人生重大转折（如真名揭晓、关系确立、加入组织、背叛、至亲去世、永久改变人生轨迹的决定等）。此类通常标记为 isMilestone: true。
+        - 4分：身份背景补充、阵营归属说明、重要能力设定等。不构成“转折点”的通常标记为 isMilestone: false。
+        - 3分：具体偏好、日常支线结果、一次性互动。
         - 1-2分：琐碎细节、过场动作。
+
+        【分类原则】
+        - 凡是个人的核心信息（身份、状态、关系）、尤其是具有“时间线里程碑”的事件，优先归类为"人物"
+        - 纯剧情推进、不改变角色核心状态的事才是"事件"
 
         【严格输出 JSON 格式】
         请仅输出合法 JSON，绝不要包裹 markdown 代码块，格式严格如下：
@@ -6189,10 +6199,11 @@
             {
             "category": "人物",
             "keywords": ["慕辞"], 
-            "previousName": "喂猫的男生", // 🌟极其重要：仅在首次揭晓真名时输出，告诉系统把旧档案里的"喂猫的男生"全替换为"慕辞"
+            "previousName": "喂猫的男生",
             "worldTime": "", 
             "content": "慕辞，夏以昼的同学。他就是之前喂猫的男生。", 
-            "score": 5, // 揭晓真名属于5分核心事件
+            "score": 5,
+            "isMilestone": true,
             "roundRange": "4-6" 
             },
             {
@@ -6201,22 +6212,24 @@
             "worldTime": "", 
             "content": "慕辞是夏以昼的同学，体能优异，目前就读于帝国军事学院。", 
             "score": 4, 
+            "isMilestone": false,
             "roundRange": "4-6" 
             },
             {
-            "category": "事件",
-            "keywords": ["慕辞", "夏以昼"],
+            "category": "人物",
+            "keywords": ["林深"],
             "worldTime": "", 
-            "content": "在海边合宿时，慕辞被夏以昼告白。", 
-            "score": 5, 
-            "roundRange": "7-8" 
+            "content": "林深在劝诱下加入了黑帮。", 
+            "score": 5,
+            "isMilestone": true,
+            "roundRange": "25-26" 
             }
         ],
         "relations": [
             {
             "source": "慕辞", "target": "夏以昼",
             "label": "恋人", 
-            "detail": "在海边合宿时，夏以昼告白" 
+            "detail": "在海边合宿时，夏以昼告白，两人从同学变为恋人。" 
             }
         ]
         }`;
@@ -6282,8 +6295,13 @@
             if (!apiConfig) return;
             const modelToUse = (memoryConfig && memoryConfig.model) ? memoryConfig.model : apiConfig.model;
 
+            // 动态替换 AI 当前的身份和设定
+            const dynamicPrompt = SYSTEM_ARCHIVE_PROMPT
+                .replace(/\{\{AI_NAME\}\}/g, contact.name || '未命名角色')
+                .replace(/\{\{AI_PERSONA\}\}/g, contact.prompt || '暂无设定');
+
             const summaryMessages = [
-                { role: "system", content: SYSTEM_ARCHIVE_PROMPT },
+                { role: "system", content: dynamicPrompt },
                 { 
                     role: "user", 
                     content: `【已有记忆库】(若有完全相同的事件请勿重复记录；若是新细节请补充)\n${allExistingMemories}\n\n【需要提取的对话区块：第${startRound}-${endRound}轮】\n${recentChat}\n\n请严格以大纲作者的视角，按要求返回 JSON。` 
@@ -6825,8 +6843,13 @@
 
             const allExistingMemories = contact.longMemories.length > 0 ? contact.longMemories.map(m => m.content).join('\n') : "暂无记忆";
 
+            // 动态替换 AI 当前的身份和设定
+            const dynamicPrompt = SYSTEM_ARCHIVE_PROMPT
+                .replace(/\{\{AI_NAME\}\}/g, contact.name || '未命名角色')
+                .replace(/\{\{AI_PERSONA\}\}/g, contact.prompt || '暂无设定');
+
             const summaryMessages = [
-                { role: "system", content: SYSTEM_ARCHIVE_PROMPT }, // 🌟 这里直接复用了顶部的大脑！
+                { role: "system", content: dynamicPrompt }, 
                 { 
                     role: "user", 
                     content: `【已有记忆库】(请勿重复记录已有事件；若是新细节请补充)\n${allExistingMemories}\n${allMissingChats}\n\n请严格以大纲作者的视角，按格式要求返回 JSON。` 
@@ -16884,6 +16907,11 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     const allowedKeywords = catMap[currentArchiveCategory] || [];
                     matchCat = allowedKeywords.some(kw => (m.category || '').includes(kw));
                     if(!matchCat && currentArchiveCategory === '人物' && m.category === '核心') matchCat = true;
+                }
+                if (currentArchiveCategory === '事件') {
+                    // 直接读取 AI 提供的 isMilestone 字段，不再依赖复杂规则
+                    const isMilestone = m.isMilestone === true || m.isMilestone === 'true';
+                    if (isMilestone) matchCat = true;
                 }
                 let matchText = true;
                 if (searchText) {
