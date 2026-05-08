@@ -16994,7 +16994,16 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 const groupedByTime = new Map();
                 validMemories.forEach(item => {
                     let sourceText = item.roundRange || item.date || '初始设定';
+                    // 1. 先统一清理“第”和“轮”字眼
                     sourceText = sourceText.replace('第', '').replace('轮', '').trim();
+
+                    // 2. 智能合并显示：如果起始和结束是同一个数字（如“12-12”），只显示单个数字（如“12”）
+                    if (sourceText.includes('-')) {
+                        const parts = sourceText.split('-');
+                        if (parts.length === 2 && parts[0].trim() === parts[1].trim()) {
+                            sourceText = parts[0].trim(); // 只保留一个数字
+                        }
+                    }
                     if (!groupedByTime.has(sourceText)) groupedByTime.set(sourceText, []);
                     groupedByTime.get(sourceText).push(item);
                 });
@@ -17202,7 +17211,16 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 const groupedByTime = new Map();
                 group.items.forEach(item => {
                     let sourceText = item.roundRange || item.date || '设定';
+                    // 1. 先统一清理“第”和“轮”字眼
                     sourceText = sourceText.replace('第', '').replace('轮', '').trim();
+
+                    // 2. 智能合并显示：如果起始和结束是同一个数字（如“12-12”），只显示单个数字（如“12”）
+                    if (sourceText.includes('-')) {
+                        const parts = sourceText.split('-');
+                        if (parts.length === 2 && parts[0].trim() === parts[1].trim()) {
+                            sourceText = parts[0].trim(); // 只保留一个数字
+                        }
+                    }
                     if (!groupedByTime.has(sourceText)) groupedByTime.set(sourceText, []);
                     groupedByTime.get(sourceText).push(item);
                 });
