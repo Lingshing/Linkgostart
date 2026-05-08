@@ -16707,6 +16707,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             });
 
             expandedArchiveCards.clear();
+            const btn = document.getElementById('bio-reset-btn');
+            if (btn) btn.style.display = 'none';
             renderArchiveContent();
             openSubPage('sub-archive');
         }
@@ -16932,38 +16934,48 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             const labels = document.querySelectorAll('#bio-board .relation-label');
 
             chips.forEach(chip => {
-                chip.addEventListener('touchstart', onDragStart, { passive: false });
+                chip.addEventListener('touchstart', onDragStart, { passive: true });
                 chip.addEventListener('mousedown', onDragStart);
             });
 
             function onDragStart(e) {
-                e.preventDefault();
                 const chipEl = e.currentTarget;
                 const chipId = chipEl.id;
                 const node = nodesData.find(n => n.chipId === chipId);
                 if (!node) return;
 
-                chipEl.style.transition = 'none';
-                chipEl.style.zIndex = '20';
-
                 const startX = e.touches ? e.touches[0].clientX : e.clientX;
                 const startY = e.touches ? e.touches[0].clientY : e.clientY;
                 const startLeft = node.x;
                 const startTop = node.y;
+                let hasMoved = false;
 
                 function onMove(e) {
-                    e.preventDefault();
                     const currentX = e.touches ? e.touches[0].clientX : e.clientX;
                     const currentY = e.touches ? e.touches[0].clientY : e.clientY;
-                    let newX = startLeft + (currentX - startX);
-                    let newY = startTop + (currentY - startY);
-                    newX = Math.max(20, Math.min(boardWidth - 20, newX));
-                    newY = Math.max(20, Math.min(boardHeight - 20, newY));
-                    node.x = newX;
-                    node.y = newY;
-                    chipEl.style.left = newX + 'px';
-                    chipEl.style.top = newY + 'px';
-                    updateLinksAndLabels();
+                    const dx = Math.abs(currentX - startX);
+                    const dy = Math.abs(currentY - startY);
+
+                    if (!hasMoved && (dx > 5 || dy > 5)) {
+                        hasMoved = true;
+                        // 确认是拖拽，才进入拖拽模式
+                        e.preventDefault();
+                        chipEl.style.transition = 'none';
+                        chipEl.style.zIndex = '20';
+                    }
+
+                    if (hasMoved) {
+                        e.preventDefault();
+                        let newX = startLeft + (currentX - startX);
+                        let newY = startTop + (currentY - startY);
+                        newX = Math.max(20, Math.min(boardWidth - 20, newX));
+                        newY = Math.max(20, Math.min(boardHeight - 20, newY));
+                        node.x = newX;
+                        node.y = newY;
+                        chipEl.style.left = newX + 'px';
+                        chipEl.style.top = newY + 'px';
+                        updateLinksAndLabels();
+                    }
                 }
 
                 function onUp() {
@@ -16971,9 +16983,13 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     document.removeEventListener('mousemove', onMove);
                     document.removeEventListener('touchend', onUp);
                     document.removeEventListener('mouseup', onUp);
-                    chipEl.style.transition = '';
-                    chipEl.style.zIndex = '';
-                    if (currentChatContactId) saveNodePositions(currentChatContactId, nodesData);
+
+                    if (hasMoved) {
+                        chipEl.style.transition = '';
+                        chipEl.style.zIndex = '';
+                        if (currentChatContactId) saveNodePositions(currentChatContactId, nodesData);
+                    }
+                    // 如果没有移动过，说明是点击，让浏览器正常触发 click
                 }
 
                 document.addEventListener('touchmove', onMove, { passive: false });
