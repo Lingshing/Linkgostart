@@ -17233,26 +17233,25 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     let hash = 0; for(let i = 0; i < keyword.length; i++) hash += keyword.charCodeAt(i);
                     const themeClass = themeClasses[hash % themeClasses.length];
 
-                    // 根据该偏好组的最高分决定主样式
+                    // 🌟 根据该偏好组的最高分决定视觉强度
                     let chipClass = `archive-glass-chip ${themeClass} `;
-                    let iconHtml = ''; // <-- 修复关键：在这里定义 iconHtml
+                    let iconHtml = '';                          // <-- 补充定义
                     if (group.maxScore >= 5) { 
                         chipClass += 'archive-chip-core'; 
-                        iconHtml = '<i class="fas fa-layer-group" style="margin-right:6px; opacity: 0.9;"></i>'; 
+                        iconHtml = '<i class="fas fa-layer-group" style="margin-right:6px; opacity: 0.9;"></i>';
                     } else if (group.maxScore === 4) { 
                         chipClass += 'archive-chip-major'; 
-                        iconHtml = '<i class="fas fa-id-card" style="margin-right:6px; opacity: 0.8;"></i>'; 
+                        iconHtml = '<i class="fas fa-id-card" style="margin-right:6px; opacity: 0.8;"></i>';
                     } else { 
                         chipClass += 'archive-chip-minor'; 
-                        iconHtml = '<i class="fas fa-signature" style="margin-right:6px; opacity: 0.6;"></i>'; 
+                        iconHtml = '<i class="fas fa-signature" style="margin-right:6px; opacity: 0.6;"></i>';
                     }
-                    
+
                     const sortedItems = group.items.sort((a, b) => {
                         const getStart = (r) => { if(!r) return 0; const match = r.match(/第?(\d+)-/); return match ? parseInt(match[1]) : 0; };
                         return archiveSortDesc ? getStart(b.roundRange) - getStart(a.roundRange) : getStart(a.roundRange) - getStart(b.roundRange);
                     });
 
-                    // 拼接下方阅读器内容
                     let detailsHtml = '';
                     sortedItems.forEach(item => {
                         detailsHtml += `
@@ -17270,19 +17269,21 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     });
 
                     const chipId = `pref-chip-${index}`;
-                    // 修复关键点：这里现在能正确获取 to 外层的 iconHtml 和 score 变量了
+                    // 🌟 修复：传入正确的值，不再使用 undefined
                     window.currentPrefGroups[chipId] = { 
                         keyword: keyword, 
                         detailsHtml: detailsHtml, 
                         themeClass: themeClass, 
-                        score: group.maxScore,       // <-- 修复：使用该组的最高分
-                        iconHtml: iconHtml           // <-- 修复：传入正确的图标 HTML
+                        score: group.maxScore,   // 用该组的最高分
+                        iconHtml: iconHtml       // 传入刚刚定义的图标 HTML
                     };
-                    
-                    let countHtml = group.items.length > 1 ? `<span class="chip-count">${group.items.length}</span>` : '';
-                    let scoreText = group.maxScore >= 4 ? `<span class="chip-count">⭐${group.maxScore}</span>` : '';
 
-                    contentHtml += `<div class="${chipClass}" id="${chipId}" onclick="window.togglePrefReader('${chipId}')"><div class="chip-short">${iconHtml} <span>${escapeHtml(keyword)}</span> ${countHtml}${scoreText}</div></div>`;
+                    let countHtml = group.items.length > 1 ? `<span class="chip-count">${group.items.length}</span>` : '';
+
+                    // 🌟 小球外观：只显示关键词和数量角标，不加图标（保持你喜爱的简洁风）
+                    contentHtml += `<div class="${chipClass}" id="${chipId}" onclick="window.togglePrefReader('${chipId}')">
+                        <div class="chip-short"><span>${escapeHtml(keyword)}</span> ${countHtml}</div>
+                    </div>`;
                 });
                 
                 contentHtml += `</div><div id="pref-detail-reader" class="pref-detail-reader"></div>`;
