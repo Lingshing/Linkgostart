@@ -2931,9 +2931,10 @@
 
 
         .archive-network-board .archive-glass-chip {
-            position: absolute; transform: translate(-50%, -50%);
-            padding: 4px 12px;   /* 原来是 10px 18px，现在收窄 */
-            font-size: 13px;     /* 球内文字稍小一点 */
+            position: absolute;
+            transform: translate(-50%, -50%);
+            padding: 6px 16px;   /* 原来是 10px 18px，稍微缩小一点内边距，让球更紧凑但更大可读 */  
+            font-size: 14px;     /* 原来是 13px，加大 1px */
         }
         .archive-glass-chip .chip-short { display: flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 14px; font-weight: 600; }
         .archive-glass-chip .chip-count { background: color-mix(in srgb, currentColor 20%, transparent); padding: 1px 6px; border-radius: 10px; font-size: 11px; font-weight: 700; }
@@ -16594,6 +16595,9 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 chipEl.classList.remove('active');
                 matrix.classList.remove('has-active');
                 
+                // 🌟 关键修复：清除打开时设置的动态负 margin，恢复到原始文档流位置
+                reader.style.marginTop = '';
+                
                 // 1. 精确测量即将抽走的物理高度
                 const styles = window.getComputedStyle(reader);
                 const heightLoss = reader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
@@ -16610,6 +16614,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                         requestAnimationFrame(() => {
                             reader.style.opacity = ''; 
                             reader.style.transition = ''; // 恢复样式以备下次打开
+                            // marginTop 已在前面清除，不需要重复处理
                         });
                     }
                 }, 400);
@@ -16652,6 +16657,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 chipEl.classList.remove('active');
                 matrix.classList.remove('has-active');
                 
+                 reader.style.marginTop = '';
+                 
                 const styles = window.getComputedStyle(reader);
                 const heightLoss = reader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
                 
@@ -16670,6 +16677,38 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 }, 400);
                 return;
             }
+
+            // 打开逻辑
+            reader.style.cssText = '';  // 清除之前可能的内联样式
+            matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+            chipEl.classList.add('active');
+            matrix.classList.add('has-active');
+
+            // 🌟 新增：让阅读器紧贴最下方的小球
+            const board = document.getElementById('bio-board');
+            if (board) {
+                const boardRect = board.getBoundingClientRect();
+                const chips = board.querySelectorAll('.archive-glass-chip');
+                let maxBottom = 0;
+                chips.forEach(chip => {
+                    const rect = chip.getBoundingClientRect();
+                    const bottom = rect.bottom - boardRect.top;  // 相对于 board 顶部的底部距离
+                    if (bottom > maxBottom) maxBottom = bottom;
+                });
+                // 原本阅读器在 board 下方，正常流会有一个自然的间距（可能是 margin 等）
+                // 这里直接设置 margin-top 为负值，让阅读器向上移动
+                // 计算时需要留出一点间隙（比如 16px）
+                const desiredTop = maxBottom + 16;               // 最底小球下方 16px
+                const naturalTop = boardRect.height;             // 阅读器原本应该在 board 底部
+                const offset = naturalTop - desiredTop;          // 需要向上平移的距离
+                reader.style.marginTop = `-${offset}px`;
+            }
+
+            reader.classList.add('show');
+            // 原来的 scrollIntoView 可以保留，但为了避免跳得太远，可以调整一下
+            setTimeout(() => {
+                reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 300);
 
             reader.style.cssText = '';
             matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
