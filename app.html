@@ -2936,7 +2936,6 @@
             opacity: 0.3; filter: grayscale(60%); transform: translate(-50%, -50%) scale(0.92);
         }
 
-
         .archive-network-board .archive-glass-chip {
             position: absolute;
             transform: translate(-50%, -50%);
@@ -4117,7 +4116,8 @@
             
             <div style="position: relative; flex: 1;">
                 <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-sub); font-size: 14px; pointer-events: none; z-index: 2;"></i>
-                <input type="text" id="archive-search-input" class="archive-glass-input archive-glass-morphism" placeholder="搜索..." oninput="filterArchive(this.value)">
+                <input type="text" id="archive-search-input" class="archive-glass-input archive-glass-morphism" placeholder="" oninput="filterArchive(this.value)" style="padding-right: 32px;">
+                <span onclick="document.getElementById('archive-search-input').value='';filterArchive('');" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-sub); font-size: 18px; cursor: pointer; z-index: 2; line-height: 1;">×</span>
             </div>
             
             <div class="archive-glass-morphism" onclick="toggleCategoryMenu()" style="height: 40px; padding: 0 14px; border-radius: 14px; display: flex; justify-content: center; align-items: center; font-weight: 700; cursor: pointer; gap: 6px; flex-shrink: 0; font-size: 14px; color: var(--text-main);">
@@ -16685,6 +16685,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
             chipEl.classList.add('active');
             matrix.classList.add('has-active');
+            dimRelationLines(true);
 
             const data = window.currentPrefGroups[chipId];
             let readerClass = `pref-detail-reader ${data.themeClass} `;
@@ -16717,6 +16718,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             if (chipEl.classList.contains('active')) {
                 chipEl.classList.remove('active');
                 matrix.classList.remove('has-active');
+                dimRelationLines(false);
                 
                 // 清除打开时设置的动态负 margin，恢复到原始文档流位置
                 reader.style.marginTop = '';
@@ -16763,6 +16765,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
             chipEl.classList.add('active');
             matrix.classList.add('has-active');
+            dimRelationLines(true);  // ← 新增
 
             // 4. 动态计算阅读器应该出现的理想位置（最下方小球的正下方 16px）
             const board = document.getElementById('bio-board');
@@ -17280,6 +17283,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 }
             });
             board.classList.toggle('archive-search-mode', !!searchText);
+             dimRelationLines(!!searchText);
         }
 
         // 更新偏好矩阵中的搜索高亮（现在会检查记忆内容）
@@ -17323,10 +17327,9 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             const lastCategory = container.dataset.lastCategory || '';
             const lastSearch = container.dataset.lastSearch || '';
 
-            // 只要分类不变、搜索词改变，就只更新高亮和详情文字，不重建整个视图
-            if (lastCategory === currentArchiveCategory && lastSearch !== searchText && searchText !== '') {
-                container.dataset.lastSearch = searchText;
-                if (currentArchiveCategory === '偏好') {
+               // 偏好：只做局部高亮刷新
+                if (currentArchiveCategory === '偏好' && lastCategory === currentArchiveCategory && lastSearch !== searchText && searchText !== '') {
+                    container.dataset.lastSearch = searchText;
                     updatePrefSearchHighlight(searchText);
                     // 重新生成偏好小球的详情 HTML，让文字也高亮
                     for (const [chipId, group] of Object.entries(window.currentPrefGroups)) {
@@ -17334,20 +17337,25 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                         group.items.forEach(item => {
                             const highlightedContent = highlightSearchTerm(item.content, searchText);
                             group.detailsHtml += `
-                                <div class="chip-detail-item">
-                                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                        <div class="archive-item-text" style="flex:1;">${highlightedContent}</div>
-                                        <div class="chip-actions">
-                                            <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
-                                            <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
+                                        <div class="chip-detail-item">
+                                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                                <div class="archive-item-text" style="flex:1;">${highlightedContent}</div>
+                                                <div class="chip-actions">
+                                                    <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
+                                                    <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
+                                                </div>
+                                            </div>
+                                            <div class="chip-detail-time">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>
                                         </div>
-                                    </div>
-                                    <div class="chip-detail-time">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>
-                                </div>
-                            `;
+                                    `;
                         });
                     }
-                } else if (currentArchiveCategory === '人物') {
+                    return;
+                }
+
+                // 人物：只做局部高亮刷新
+                if (currentArchiveCategory === '人物' && lastCategory === currentArchiveCategory && lastSearch !== searchText && searchText !== '') {
+                    container.dataset.lastSearch = searchText;
                     updateBioSearchHighlight(searchText);
                     // 重新生成人物小球的详情 HTML
                     for (const [chipId, group] of Object.entries(window.currentBioGroups)) {
@@ -17360,26 +17368,24 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                         group.detailsHtml = '';
                         for (const [timeSource, items] of groupedByTime.entries()) {
                             group.detailsHtml += `<div style="display: flex; align-items: stretch; padding-top: 14px; border-top: 0.5px dashed color-mix(in srgb, currentColor 15%, transparent); margin-top: 10px;">
-                                <div class="timeline-left" style="width:65px; padding-right: 14px; color: currentColor; font-weight:700; opacity:0.8; font-size:12px; word-wrap: break-word;">${escapeHtml(timeSource)}</div>
-                                <div class="timeline-right-container" style="flex:1; border-left:1px solid color-mix(in srgb, currentColor 10%, transparent); padding-left: 12px;">`;
+                                        <div class="timeline-left" style="width:65px; padding-right: 14px; color: currentColor; font-weight:700; opacity:0.8; font-size:12px; word-wrap: break-word;">${escapeHtml(timeSource)}</div>
+                                        <div class="timeline-right-container" style="flex:1; border-left:1px solid color-mix(in srgb, currentColor 10%, transparent); padding-left: 12px;">`;
                             items.forEach(item => {
                                 const highlightedContent = highlightSearchTerm(item.content, searchText);
                                 group.detailsHtml += `<div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom: 8px;">
-                                    <div class="archive-item-text" style="flex:1;">${highlightedContent}</div>
-                                    <div class="chip-actions">
-                                        <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
-                                        <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
-                                    </div>
-                                </div>
-                                <div style="font-size:11px; color:var(--text-sub); text-align:right; margin-bottom:8px;">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>`;
+                                            <div class="archive-item-text" style="flex:1;">${highlightedContent}</div>
+                                            <div class="chip-actions">
+                                                <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
+                                                <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
+                                            </div>
+                                        </div>
+                                        <div style="font-size:11px; color:var(--text-sub); text-align:right; margin-bottom:8px;">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>`;
                             });
                             group.detailsHtml += `</div></div>`;
                         }
                     }
+                    return;
                 }
-                return;
-            }
-
             // 否则：记录这次渲染的分类和搜索词，继续完整重绘
             container.dataset.lastCategory = currentArchiveCategory;
             container.dataset.lastSearch = searchText;
@@ -18052,6 +18058,14 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 window.location.reload(true);
             }, 800);
         };
+
+        function dimRelationLines(dim) {
+            const targetOpacity = dim ? '0.3' : '1';
+            const board = document.getElementById('bio-board');
+            if (!board) return;
+            board.querySelectorAll('.link').forEach(l => l.style.opacity = targetOpacity);
+            board.querySelectorAll('.relation-label').forEach(r => r.style.opacity = targetOpacity);
+        }
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
