@@ -6196,13 +6196,24 @@
 
         你是一个运行在系统后台的【绝对客观全知史官】。你的核心任务是：在多人物、第三人称的复杂群像演绎中，精准提取人物、事件、设定和羁绊变化，严格以 JSON 格式输出。
 
-        【最高禁令：零脑补与自然文风原则】
-        1. 严禁联想：只记录明确发生的动作和事实，用自然流畅但不扁平的语言。
+        【最高禁令：零冗余与增量记录原则】
+        1. 绝对不重复记录：在生成任何记忆前，必须先仔细比对【已有记忆库】。如果某个事实（身份、关系、偏好、能力）已经以相同或高度相似的形式存在于已有记忆库中，绝对不要再次输出！
+        2. 增量更新法则：如果对同一个实体（人物/偏好/设定）有了更详细、更高级或更正面的了解，只输出新增的、不同的部分，并在 keywords 第一位加上“更新：”前缀。
+        - 例如已有记忆库中有“林深，男”，而本段发现他是Alpha且爱吃西瓜 → keywords 应为 ["更新：林深"]，content 中只写“确认林深为Alpha。嗜甜，爱吃西瓜。”，绝不重复“林深，男”。
+        3. 批次内全量差分与时间线切割：
+        a) 通读本段对话，提取所有新出现的、且【已有记忆库】中完全不存在的属性/事件/偏好。
+        b) 将新信息按“属性粒度”拆分：比如“嗜甜”和“体能优异”是两个不同属性，必须分别记录为两条独立记忆，绝对不能合并成一句“XXX，男，嗜甜，体能优异”。
+        c) 如果同一个属性在本段对话中多次出现（例如第2轮和第9轮都出现了“爱吃西瓜”），只保留一条记忆，其 roundRange 标记为首次和末次出现的大致区间（如 “2-9”），content 中只写该项事实，绝不赘述次数。
+        d) 最终每一条输出记忆，都是对旧记忆库的一次“属性补丁”。除该实体在记忆库中完全不存在（即首次被记录）外，一律使用 keywords: ["更新：角色名"] 格式。
+        4. 人物实体的绝对防污染禁令：
+        - 绝对禁止将任何属性、物品、称号、身体部位、性征描述词、组织名称，作为独立的人物实体建档。
+        - 所有关于已知人物的新增信息（包括性器尺寸、特殊印记、身体寄宿物等），都必须通过 “更新：角色名” 附着到其本体人物档案中，category 选择“人物”（身体特征）或“偏好”（习惯性癖）。
+        - 只有对话中首次出现的、具有独立身份的真人，才允许建立新的“人物”记忆。
+        5. 严禁联想：只记录明确发生的动作和事实，用自然流畅但不扁平的语言。
             错误：慕辞和林深去了海边，做了很多事。
             正确：慕辞和林深去了海边约会，他们一起散步、吃了冰淇淋，还在沙滩上玩了飞盘。
-        2. 50字限制：单条 memory 的 content 严禁超过 50 个汉字。
-        3. 拆分逻辑：若一个事件或设定很复杂，必须拆分为多条独立的 memory，每条只讲一个极简事实。
-        4. NSFW 医学级记录：记录亲密行为时，完全抛弃文学性描写。保留体位、癖好、敏感带等核心术语，禁止使用模糊的“亲密交流”“深度交流”等词汇。必须采用临床报告式语言。
+        6. 拆分逻辑：若一个事件或设定很复杂，必须拆分为多条独立的 memory，每条只讲一个极简事实。
+        7. NSFW 医学级记录：记录亲密行为时，完全抛弃文学性描写。保留体位、癖好、敏感带等核心术语，禁止使用模糊的“亲密交流”“深度交流”等词汇。必须采用临床报告式语言。
             错误（文学渲染）：慕辞喘息着从后面紧紧抱住林深……
             正确（临床档案）：慕辞在亲密行为中偏好后背位，对后颈敏感带反应强烈。
 
@@ -6219,6 +6230,11 @@
         - keywords: ["ABO设定"], content: "这是一个ABO世界观，Alpha稀缺且居于统治地位，Omega的成年期需服用抑制剂。" (5分)
         - keywords: ["星历1421年"], content: "故事发生于星历1421年，星球处于高度割据状态，战乱频发。" (4分)
         - keywords: ["黑龙帮"], content: "黑龙帮，盘踞在地下城的大型暴力组织，手段极其残忍。" (3分)
+         - 任何涉及世界基础法则、社会架构、性别分化机制（如 ABO 六性性别、信息素规则、发情期规律）的论述，必须无条件归入“世界”。
+        【世界档案强制记录规则】
+        - 只要对话发生的背景不是默认的“现代普通社会”，就必须提取并生成一条或多条“世界”记忆，记录该世界的核心特征。
+        - 这包括但不限于：ABO、哨兵向导、修仙、星际、古代、魔法、都市异能、末日废土等所有架空或非现实世界观。
+        - 如果对话中明显存在与社会结构、性别机制、特殊法则相关的描述，必须优先归入“世界”，并为该世界观建立至少一条初始档案。
 
         3. 事件 (Event)：纯剧情推进，角色间发生的行为交互、冲突、转折等。
         示例：
@@ -6234,6 +6250,12 @@
         示例：
         - keywords: ["渊冥剑"], content: "渊冥剑，上古神器，剑身漆黑，传闻可斩断灵力连接，目前下落不明。" (4分)
         - keywords: ["灰雾森林"], content: "灰雾森林：位于大陆北部，终年浓雾，民间传说林中住着远古凶兽。" (3分)
+        - 异闻是具备独立存在意义的事物（如一把剑、一片森林、一个咒语），而不是某个已知人物的自然属性。所有关于角色身体特征的新发现，一律使用 “更新：角色名” 归入人物档案，不得创建成异闻条目。
+        
+        【关系称谓的性别/设定适配】
+        - 关系 label 必须严格基于角色的社会性别及世界观设定。在 ABO 世界中，若男性 Omega 生育，应使用“父子”或“父（Omega）”，严禁使用“母子”。
+        - 若关系称谓受特定世界观影响，请在 detail 中补充说明原因，但 label 必须选择最合乎该世界设定的词汇。
+        - 示例：男性 omega 林泽诞下一子，正确的关系为 {"source": "林泽", "target": "林小泽", "label": "父子", "detail": "男性omega林泽所生，父子关系。"}
 
         【群体与个体分离原则】
         - 当一个帮派、组织、势力以群体身份首次出现时，记录一条“世界”记忆。
@@ -6262,9 +6284,37 @@
         1. 视点解绑：对话中存在第三人称描写。遇到“你”时，明确指向【{{AI_NAME}}】。遇到其他名字，直接作为独立实体记录，绝不预设谁是“主角”。
         2. 初始设定：最初轮数中，必须将【{{AI_NAME}}】的初始设定提取存入档案。
 
-        【羁绊关系（Relations）更新原则】
-        1. 关系是动态的：如果在当前记录中，A 和 B 的关系发生了实质性转变（如：从同学变为恋人），你必须输出最新的关系状态。
-        2. detail 字段必须包含演变简述：例如 \`从同学转变为恋人（在海边合宿告白）\`。
+        【羁绊关系（Relations）增量更新原则】
+        1. 关系的动态更新只输出本次修史区间内发生的实质性变化。你必须先将本区间内两人的互动与【已有记忆库中的关系】进行比较。
+        2. 出现以下情况才需要输出 relation：
+        - 两人从未建立过任何关系（记忆库中无此对），本次是首次建立。
+        - 原有的关系标签发生了改变（如“同学”→“恋人”）。
+        - 关系的 detail 有了重要的、过去未被记录的新补充（如新增“共同经历生死”）。
+        3. 如果两人关系在本区间内没有任何变化，或 detail 没有任何新信息，则完全不要输出该 relation。
+        4. 输出时：
+        - 'updatedAt' 必须严格使用... 必须严格使用本次修史的轮次范围（如 “1-15”），禁止写成未来轮次或过期轮次。
+        - 'detail' 字段只描述在本区间内发生的、导致关系变化或新增的事实，严禁把旧历史再写一遍。
+        - 'label' 为更新后的最新关系标签。
+        5. 正确示例：
+        已有关系：source: "林深", target: "慕辞", label: "发小", detail: "从小一起长大"。
+        本次修史范围1-15轮，发现两人其实是同班同学。
+        正确输出：
+        {
+            "source": "林深",
+            "target": "慕辞",
+            "label": "发小",
+            "detail": "关系补充：两人也是同班同学。",
+            "updatedAt": "1-15"
+        }
+        错误输出（会将旧信息再写一次，且 updatedAt 不对）：
+        {
+            "source": "林深",
+            "target": "慕辞",
+            "label": "发小",
+            "detail": "从小一起长大的朋友，同班同学",
+            "updatedAt": "1-153"
+        }
+        6. 绝对禁止输出与已有记忆库中完全相同的 relation（相同的 label 和 detail），否则会造成数据冗余。
 
         【记忆分级制度 (Score 1-5 打分指南)】
         - 5分：人生重大转折（如真名揭晓、关系确立、加入组织、背叛、至亲去世、永久改变人生轨迹的决定等）。此类通常标记为 isMilestone: true。
@@ -6281,54 +6331,73 @@
         {
         "memories": [
             {
-            "category": "人物|世界|事件|偏好|异闻",
-            "keywords": ["关键词1", "关键词2"],
-            "previousName": "旧代称（仅当本次揭晓真名时使用）",
-            "worldTime": "",
-            "content": "极简事实，不超过50字",
+            "category": "人物",
+            "keywords": ["林深"],
+            "content": "林深，男，Alpha。",
             "score": 5,
             "isMilestone": true,
-            "roundRange": "4-6"
+            "roundRange": "2-7"
             },
             {
-            "category": "人物",
-            "keywords": ["慕辞"], 
-            "previousName": "喂猫的男生",
-            "worldTime": "", 
-            "content": "慕辞，夏以昼的同学。他就是之前喂猫的男生。", 
-            "score": 5,
-            "isMilestone": true,
-            "roundRange": "4-6" 
-            },
-            {
-            "category": "人物",
-            "keywords": ["慕辞"],
-            "worldTime": "", 
-            "content": "慕辞是夏以昼的同学，体能优异，目前就读于帝国军事学院。", 
-            "score": 4, 
+            "category": "偏好",
+            "keywords": ["林深"],
+            "content": "嗜甜，特别爱吃西瓜。",
+            "score": 4,
             "isMilestone": false,
-            "roundRange": "4-6" 
+            "roundRange": "7-12"
             },
             {
             "category": "人物",
             "keywords": ["林深"],
-            "worldTime": "", 
-            "content": "林深在劝诱下加入了黑帮。", 
-            "score": 5,
-            "isMilestone": true,
-            "roundRange": "25-26" 
+            "content": "体能优异，在训练中表现突出。",
+            "score": 3,
+            "isMilestone": false,
+            "roundRange": "12-12"
             }
         ],
-        "relations": [
+        "relations": []
+        }
+        错误输出示例（严禁）：
+        - 把多项属性合并成一条扁平文本：“林深，男Alpha，慕辞的同学，体能优异，爱吃西瓜”。
+        - 重复记录相同偏好，比如记录两条关于“爱吃西瓜”的记忆。
+        - 在已有记忆库存在林深基础档案时，又一次输出 keywords 为 ["林深"] 的基础档案。
+
+        已有记忆库包含：林深，男Alpha；嗜甜，爱吃西瓜。等情况时，若本轮发现他喜欢熬夜，应输出：
+        {
+        "memories": [
             {
-            "source": "人物A",
-            "target": "人物B",
-            "label": "恋人|宿敌|师徒|同门等",
-            "detail": "关系转变的具体事件简述。",
-            "updatedAt": "发生轮次或时间标记"
+            "category": "偏好",
+            "keywords": ["更新：林深"],
+            "content": "近期开始喜欢熬夜，常在凌晨两点后入睡。",
+            "score": 3,
+            "isMilestone": false,
+            "roundRange": "15-19"
             }
         ]
-        }`;
+        }
+        【重要示例（请严格模仿）】
+        1. 首次记录，记忆库为空，1-13轮，林深的信息分三次出现：第2轮（男，同学），第7轮（Alpha，爱吃西瓜），第12轮（体能优异，又吃西瓜）。
+        正确输出：
+        {
+            "memories": [
+            {"category": "人物", "keywords": ["林深"], "content": "林深，男，Alpha。", "score": 5, "isMilestone": true, "roundRange": "2-7"},
+            {"category": "偏好", "keywords": ["林深"], "content": "嗜甜，特别爱吃西瓜。", "score": 4, "isMilestone": false, "roundRange": "7-12"},
+            {"category": "人物", "keywords": ["林深"], "content": "体能优异，在训练中表现突出。", "score": 3, "isMilestone": false, "roundRange": "12-12"}
+            ],
+            "relations": []
+        }
+
+        2. 后续修史，已有林深基础档案。第15轮发现他喜欢熬夜，第19轮又提熬夜。
+        正确输出：
+        {
+            "memories": [
+            {"category": "偏好", "keywords": ["更新：林深"], "content": "近期开始喜欢熬夜，常在凌晨两点后入睡。", "score": 3, "isMilestone": false, "roundRange": "15-19"}
+            ]
+        }
+
+        3. 实体防污染：已有慕辞档案，对话提及其性器尺寸。
+        错误输出：{"category": "人物", "keywords": ["慕辞的性器尺寸"], "content": "尺寸为20cm。"} ❌
+        正确输出：{"category": "异闻", "keywords": ["更新：慕辞"], "content": "私密档案：性器尺寸巨大，长度约20cm。"} ✅`;
 
         // --- 自动生成长期记忆（日常后台静默触发版）---
         async function simulateMemorySummary(contact) {
@@ -17803,22 +17872,30 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
 
         // --- 羁绊演化史弹窗控制器 ---
         window.showRelationHistory = function(data) {
-            document.getElementById('relation-modal-title').innerHTML = `${escapeHtml(data.source.id)} <span style="color:#D47A43;">↔</span> ${escapeHtml(data.target.id)}`;
+            const sourceName = data.source?.id || data.source;
+            const targetName = data.target?.id || data.target;
+            
+            document.getElementById('relation-modal-title').innerHTML = 
+                `${escapeHtml(sourceName)} <span style="color:#D47A43;">↔</span> ${escapeHtml(targetName)}`;
             
             let listHtml = '';
             if (data.history && data.history.length > 0) {
                 // 倒序排列，最新的在最上面
                 const reversedHistory = [...data.history].reverse();
-                reversedHistory.forEach(h => {
+                reversedHistory.forEach((h, index) => {
                     listHtml += `
-                        <div class="history-node">
-                            <div class="history-node-top">
-                                <span class="history-label">${escapeHtml(h.label)}</span>
-                                <span class="history-time">${escapeHtml(h.time)}</span>
+                    <div class="history-node">
+                        <div class="history-node-top" style="justify-content: flex-start;">
+                            <span class="history-label">${escapeHtml(h.label)}</span>
+                            <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+                                <i class="fas fa-pencil-alt" onclick="editRelationHistory('${data.source.id}', '${data.target.id}', ${index})" style="cursor: pointer; opacity: 0.6; font-size: 12px;"></i>
+                                <i class="fas fa-trash-alt" onclick="deleteRelationHistory('${data.source.id}', '${data.target.id}', ${index})" style="cursor: pointer; opacity: 0.6; font-size: 12px; color: var(--danger);"></i>
                             </div>
-                            <div style="font-size:13px; color:var(--text-sub); line-height:1.5;">${escapeHtml(h.detail || '未记录详细事件')}</div>
                         </div>
-                    `;
+                        <div style="font-size:13px; color:var(--text-sub); line-height:1.5;">${escapeHtml(h.detail || '未记录详细事件')}</div>
+                        <div style="text-align: right; font-size: 11px; color: var(--text-sub); margin-top: 4px;">${escapeHtml(h.time)}</div>
+                    </div>
+                `;
                 });
             } else {
                 listHtml = `<div style="text-align:center; padding:20px; color:var(--text-sub); font-size:13px;">暂无历史变迁记录，当前为初始状态。</div>`;
@@ -17908,9 +17985,10 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                             requestAnimationFrame(() => {
                                 bioReader.style.opacity = '';
                                 bioReader.style.transition = '';
+                                dimRelationLines(false);
                             });
                         }
-                    }, 400);
+                    });
                 }
             }
         });
@@ -18066,6 +18144,106 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             board.querySelectorAll('.link').forEach(l => l.style.opacity = targetOpacity);
             board.querySelectorAll('.relation-label').forEach(r => r.style.opacity = targetOpacity);
         }
+        
+        function editRelationHistory(source, target, historyIndex) {
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            if (!contact || !contact.relations) return;
+            const rel = contact.relations.find(r => (r.source === source && r.target === target) || (r.source === target && r.target === source));
+            if (!rel || !rel.history || !rel.history[historyIndex]) return;
+            const h = rel.history[historyIndex];
+
+            // 找到弹窗里所有的历史节点
+            const historyNodes = document.querySelectorAll('#relation-history-list .history-node');
+            const targetNode = historyNodes[historyIndex];
+            if (!targetNode) return;
+
+            // 1. 先让标签和详情文字都变成可编辑的
+            const labelSpan = targetNode.querySelector('.history-label');
+            const detailDiv = targetNode.querySelector('div[style*="font-size:13px"]'); // 详情文字
+
+            if (labelSpan) {
+                labelSpan.contentEditable = 'true';
+                labelSpan.focus(); // 光标自动进去
+                // 选中全部文字，方便直接替换
+                const range = document.createRange();
+                range.selectNodeContents(labelSpan);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+            if (detailDiv) {
+                detailDiv.contentEditable = 'true';
+            }
+
+            // 2. 保存函数：当用户点外面的时候，自动保存并恢复不可编辑
+            const finishEdit = () => {
+                // 读取新内容
+                const newLabel = labelSpan ? labelSpan.textContent.trim() : h.label;
+                const newDetail = detailDiv ? detailDiv.textContent.trim() : (h.detail || '');
+
+                // 更新数据
+                if (newLabel) h.label = newLabel;
+                h.detail = newDetail;
+                saveToLocal();
+
+                // 恢复不可编辑状态
+                if (labelSpan) labelSpan.contentEditable = 'false';
+                if (detailDiv) detailDiv.contentEditable = 'false';
+
+                // 移除监听
+                document.removeEventListener('mousedown', handleClickOutside);
+                document.removeEventListener('touchstart', handleClickOutside);
+            };
+
+            // 点弹窗外面自动保存
+            const handleClickOutside = (e) => {
+                if (!targetNode.contains(e.target)) {
+                    finishEdit();
+                }
+            };
+
+            // 稍微延迟再挂载监听，防止本次点击事件本身触发
+            setTimeout(() => {
+                document.addEventListener('mousedown', handleClickOutside);
+                document.addEventListener('touchstart', handleClickOutside, {passive: true});
+            }, 100);
+
+            // 按 Escape 键取消（还原并退出编辑）
+            const handleEsc = (e) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    // 还原文字
+                    if (labelSpan) labelSpan.textContent = h.label;
+                    if (detailDiv) detailDiv.textContent = h.detail || '未记录详细事件';
+                    // 结束编辑
+                    if (labelSpan) labelSpan.contentEditable = 'false';
+                    if (detailDiv) detailDiv.contentEditable = 'false';
+                    document.removeEventListener('keydown', handleEsc);
+                    document.removeEventListener('mousedown', handleClickOutside);
+                    document.removeEventListener('touchstart', handleClickOutside);
+                }
+            };
+            document.addEventListener('keydown', handleEsc);
+        }
+
+        function deleteRelationHistory(source, target, historyIndex) {
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
+            if (!contact || !contact.relations) return;
+            const rel = contact.relations.find(r => (r.source === source && r.target === target) || (r.source === target && r.target === source));
+            if (!rel || !rel.history || !rel.history[historyIndex]) return;
+            if (confirm('确定要删除这段羁绊历史吗？')) {
+                rel.history.splice(historyIndex, 1);
+                if (rel.history.length === 0) {
+                    contact.relations = contact.relations.filter(r => r !== rel);
+                    saveToLocal();
+                    closeRelationModal(); // 直接关掉弹窗
+                } else {
+                    rel.label = rel.history[rel.history.length - 1].label;
+                    saveToLocal();
+                    showRelationHistory(rel); // 还有历史才刷新
+                }
+            }
+        }
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
@@ -18214,13 +18392,49 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
     window.copyLogContent = function(btn, logId) {
         const text = LOG_STORAGE.get(logId);
         if (!text) return;
-        navigator.clipboard.writeText(text).then(() => {
-            const icon = btn.querySelector('i');
-            icon.className = 'fa-solid fa-check'; 
-            icon.style.color = '#34C759';
-            setTimeout(() => { icon.className = 'fa-regular fa-copy'; icon.style.color = ''; }, 2000);
-        });
+
+        // 尝试使用现代 Clipboard API
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(text).then(() => {
+                showCopySuccess(btn);
+            }).catch(() => {
+                fallbackCopyText(text, btn);
+            });
+        } else {
+            fallbackCopyText(text, btn);
+        }
     };
+
+    function showCopySuccess(btn) {
+        const icon = btn.querySelector('i');
+        icon.className = 'fa-solid fa-check';
+        icon.style.color = '#34C759';
+        setTimeout(() => {
+            icon.className = 'fa-regular fa-copy';
+            icon.style.color = '';
+        }, 2000);
+    }
+
+    function fallbackCopyText(text, btn) {
+        // 创建临时 textarea 使用 execCommand
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                showCopySuccess(btn);
+            } else {
+                alert('复制失败，请长按文本手动复制');
+            }
+        } catch (err) {
+            alert('复制失败，请长按文本手动复制');
+        }
+        document.body.removeChild(textarea);
+    }
 
     function addLogToConsole(type, title, detail) {
         const readyMsg = document.getElementById('console-ready-msg');
