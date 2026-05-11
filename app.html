@@ -4448,132 +4448,77 @@
         }
 
         let saveQueue = Promise.resolve();
-        let saveDebounceTimer = null;
-        const SAVE_DEBOUNCE_MS = 1500;
-
+        
         async function saveToLocal() {
-            if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
-            saveDebounceTimer = setTimeout(async () => {
-                saveQueue = saveQueue.then(async () => {
-                    await performSave();
-                }).catch(error => {
-                    console.error('保存队列异常，但队列继续运行:', error);
-                });
-            }, SAVE_DEBOUNCE_MS);
-        }
-
-        async function performSave() {
-            const contactsStr = JSON.stringify(mockContacts);
-            const settings = {
-                apiKey: APP_DATA.apiKey,
-                apiUrl: APP_DATA.apiUrl,
-                currentChatId: APP_DATA.currentChatId,
-                settings: APP_DATA.settings,
-                activityStats: APP_DATA.activityStats
-            };
-            const settingsStr = JSON.stringify(settings);
-
-            const writes = [
-                localforage.setItem('CHAT_CONTACTS', contactsStr),
-                localforage.setItem('APP_SETTINGS', settingsStr)
-            ];
-
-            const validIds = new Set(mockContacts.map(c => c.id));
-            for (const contactId of Object.keys(APP_DATA.conversations)) {
-                const id = Number(contactId);
-                if (!validIds.has(id)) continue;
-                const conv = APP_DATA.conversations[id];
-                if (conv && conv.length > 0) {
-                    writes.push(localforage.setItem(`CONV_${id}`, JSON.stringify(conv)));
-                } else {
-                    writes.push(localforage.removeItem(`CONV_${id}`));
+            // 链式排队，确保每次只有一个事务在执行
+            saveQueue = saveQueue.then(async () => {
+                try {
+                    // 分别写入，缩小每条事务的体积
+                    await localforage.setItem('CHAT_CONTACTS', JSON.stringify(mockContacts));
+                    await localforage.setItem('APP_DATA', JSON.stringify(APP_DATA));
+                } catch(e) {
+                    console.error('保存数据失败：', e);
+                    // 重试一次（事务冲突通常一次重试就能恢复）
+                    try {
+                        await new Promise(r => setTimeout(r, 200));
+                        await localforage.setItem('CHAT_CONTACTS', JSON.stringify(mockContacts));
+                        await localforage.setItem('APP_DATA', JSON.stringify(APP_DATA));
+                    } catch(retryError) {
+                        alert('⚠️ 保存数据失败，请立即手动导出聊天记录！');
+                    }
                 }
-            }
-
-            // 搬家完成后，不再需要旧的 APP_DATA 键（如果还存在）
-            writes.push(localforage.removeItem('APP_DATA').catch(() => {}));
-
-            await Promise.all(writes);
+            });
         }
         
         async function loadFromLocal() {
             try {
-                // ========== 1. 搬家：如果本地依旧保存着旧的 APP_DATA 键，先把它拆分成新格式 ==========
-                const oldAppDataStr = await localforage.getItem('APP_DATA').catch(() => null);
-                if (oldAppDataStr) {
+                // 1. 自动搬家逻辑：把旧数据转移到大仓库
+                const oldContacts = localStorage.getItem('CHAT_CONTACTS');
+                if (oldContacts) {
+                    await localforage.setItem('CHAT_CONTACTS', oldContacts);
+                    localStorage.removeItem('CHAT_CONTACTS');
+                }
+                const oldData = localStorage.getItem('APP_DATA');
+                if (oldData) {
+                    await localforage.setItem('APP_DATA', oldData);
+                    localStorage.removeItem('APP_DATA');
+                    alert("🎉 太棒了！您的聊天记录已成功搬家到大仓库，彻底突破 5MB 限制！");
+                }
+        
+                // 2. 等待所有正在进行的写入操作完成
+                await saveQueue;
+        
+                // 3. 从大仓库读取数据（带重试机制）
+                let contacts, data;
+                
+                try {
+                    contacts = await localforage.getItem('CHAT_CONTACTS');
+                    data = await localforage.getItem('APP_DATA');
+                } catch(readError) {
+                    console.error('首次读取失败，200ms 后重试...', readError);
+                    await new Promise(r => setTimeout(r, 200));
                     try {
-                        const old = JSON.parse(oldAppDataStr);
-
-                        // 迁移联系人
-                        if (old.contacts && Array.isArray(old.contacts)) {
-                            await localforage.setItem('CHAT_CONTACTS', JSON.stringify(old.contacts));
-                        } else if (old.currentChatId) {
-                            // 有些旧版本叫 mockContacts，我们直接从内存里拿，但保险起见先存一份
-                        }
-
-                        // 迁移设置（不含对话）
-                        const settings = {
-                            apiKey: old.apiKey || '',
-                            apiUrl: old.apiUrl || 'https://api.openai.com/v1/chat/completions',
-                            currentChatId: old.currentChatId || null,
-                            settings: old.settings || {},
-                            activityStats: old.activityStats || {}
-                        };
-                        await localforage.setItem('APP_SETTINGS', JSON.stringify(settings));
-
-                        // 迁移对话数组：每个角色的对话拆分为单独的键
-                        if (old.conversations) {
-                            for (const [contactId, conv] of Object.entries(old.conversations)) {
-                                if (Array.isArray(conv) && conv.length > 0) {
-                                    await localforage.setItem(`CONV_${contactId}`, JSON.stringify(conv));
-                                }
-                            }
-                        }
-
-                        // 搬家完成后，删掉这个旧的大键，避免下次重复搬家
-                        await localforage.removeItem('APP_DATA');
-                        alert("🎉 聊天数据已自动升级为防丢结构，以后不会再丢了！");
-                    } catch (e) {
-                        console.error('搬家失败，尝试继续加载', e);
+                        contacts = await localforage.getItem('CHAT_CONTACTS');
+                        data = await localforage.getItem('APP_DATA');
+                    } catch(retryError) {
+                        console.error('重试读取仍然失败', retryError);
+                        alert('⚠️ 读取聊天记录失败，请尝试从备份文件导入恢复数据。');
+                        return;
                     }
                 }
-
-                // ========== 2. 常规加载（与之前的新代码完全一致） ==========
-                const contactsStr = await localforage.getItem('CHAT_CONTACTS');
-                if (contactsStr) {
-                    const parsed = JSON.parse(contactsStr);
+        
+                if (contacts) {
+                    const parsed = JSON.parse(contacts);
                     mockContacts.length = 0;
                     mockContacts.push(...parsed);
                     sortChatListByTime();
                 }
-
-                const settingsStr = await localforage.getItem('APP_SETTINGS');
-                if (settingsStr) {
-                    const parsed = JSON.parse(settingsStr);
-                    APP_DATA.conversations = {}; // 清空，准备重新加载
+                
+                if (data) {
+                    const parsed = JSON.parse(data);
                     Object.assign(APP_DATA, parsed);
                 }
-
-                // 加载每个角色的对话
-                if (mockContacts.length > 0) {
-                    const convKeys = mockContacts.map(c => `CONV_${c.id}`);
-                    const results = await Promise.all(
-                        convKeys.map(key => localforage.getItem(key).catch(() => null))
-                    );
-                    results.forEach((convStr, index) => {
-                        const contactId = mockContacts[index].id;
-                        if (convStr) {
-                            try {
-                                APP_DATA.conversations[contactId] = JSON.parse(convStr);
-                            } catch(e) {
-                                APP_DATA.conversations[contactId] = [];
-                            }
-                        } else {
-                            APP_DATA.conversations[contactId] = [];
-                        }
-                    });
-                }
-
+                
                 if (typeof renderChatList === 'function') {
                     renderChatList();
                 }
@@ -11857,72 +11802,65 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
         }
 
         // 4. 执行分类导出
-        async function executeCategorizedExport() {
-            try {
+        async function executeCategorizedExport() { 
+            await saveQueue; // 等待所有写入完
+             try {
+                // 保存最新内存数据
+                if (typeof saveToLocal === 'function') await saveToLocal();
+                if (typeof saveChatApiConfigs === 'function') saveChatApiConfigs();
+                if (typeof saveOtherApiConfigs === 'function') saveOtherApiConfigs();
+                if (typeof saveGeneralConfig === 'function') saveGeneralConfig();
+
+                // 获取所有被勾选的分类
                 const checkedCategories = Array.from(document.querySelectorAll('.export-item-cb'))
                     .filter(cb => cb.checked)
                     .map(cb => cb.value);
+
                 if (checkedCategories.length === 0) {
                     alert('请至少选择一项要导出的数据！');
                     return;
                 }
 
+                // 整理需要导出的 Key
+                let targetKeys = [];
+                let exportOther = checkedCategories.includes('other');
+                checkedCategories.forEach(category => {
+                    if (EXPORT_DICTIONARY[category]) {
+                        targetKeys = targetKeys.concat(EXPORT_DICTIONARY[category]);
+                    }
+                });
+
+                // 开始提取数据
                 const snapshot = {};
+                
+                // 【第一步】：从普通缓存 (localStorage) 提取配置和轻量数据
+                const allLocalKeys = Object.keys(localStorage);
+                allLocalKeys.forEach(key => {
+                    if (targetKeys.includes(key)) {
+                        snapshot[key] = localStorage.getItem(key);
+                    } else if (exportOther) {
+                        let isKnownKey = false;
+                        for (let cat in EXPORT_DICTIONARY) {
+                            if (EXPORT_DICTIONARY[cat].includes(key)) isKnownKey = true;
+                        }
+                        if (!isKnownKey) {
+                            snapshot[key] = localStorage.getItem(key);
+                        }
+                    }
+                });
 
-                // 聊天数据（直接从内存取）
-                if (checkedCategories.includes('chat')) {
-                    snapshot['CHAT_CONTACTS'] = JSON.stringify(mockContacts);
-                    snapshot['APP_DATA'] = JSON.stringify(APP_DATA);
-                }
-
-                // API 配置
-                if (checkedCategories.includes('api')) {
-                    if (typeof CHAT_API_CONFIGS !== 'undefined') snapshot['CHAT_API_CONFIGS'] = JSON.stringify(CHAT_API_CONFIGS);
-                    if (typeof OTHER_API_CONFIGS !== 'undefined') snapshot['OTHER_API_CONFIGS'] = JSON.stringify(OTHER_API_CONFIGS);
-                    if (typeof PARAM_CONFIG !== 'undefined') snapshot['PARAM_CONFIG'] = JSON.stringify(PARAM_CONFIG);
-                    if (typeof MODEL_PARAMS !== 'undefined') snapshot['MODEL_PARAMS'] = JSON.stringify(MODEL_PARAMS);
-                }
-
-                // 外观
-                if (checkedCategories.includes('ui')) {
-                    snapshot['theme'] = localStorage.getItem('theme') || 'light';
-                    snapshot['themeMode'] = localStorage.getItem('themeMode') || 'auto';
-                    if (typeof AVATAR_CONFIG !== 'undefined') snapshot['AVATAR_CONFIG'] = JSON.stringify(AVATAR_CONFIG);
-                }
-
-                // 通用
-                if (checkedCategories.includes('general')) {
-                    snapshot['GENERAL_CONFIG'] = JSON.stringify(GENERAL_CONFIG || {});
-                    snapshot['PUSH_ENABLED'] = localStorage.getItem('PUSH_ENABLED') || 'false';
-                    snapshot['PUSH_SHOW_CONTENT'] = localStorage.getItem('PUSH_SHOW_CONTENT') || 'true';
-                    snapshot['KEEP_ALIVE_ENABLED'] = localStorage.getItem('KEEP_ALIVE_ENABLED') || 'false';
-                }
-
-                // 预设
-                if (checkedCategories.includes('presets')) {
-                    if (typeof PRESETS !== 'undefined') snapshot['PRESETS'] = JSON.stringify(PRESETS);
-                    if (typeof ADVANCED_PRESET_FILES !== 'undefined') snapshot['ADVANCED_PRESET_FILES'] = JSON.stringify(ADVANCED_PRESET_FILES);
-                }
-
-                // 正则
-                if (checkedCategories.includes('regex')) {
-                    if (typeof REGEX_RULES !== 'undefined') snapshot['REGEX_RULES'] = JSON.stringify(REGEX_RULES);
-                    if (typeof ADVANCED_REGEX_FILES !== 'undefined') snapshot['ADVANCED_REGEX_FILES'] = JSON.stringify(ADVANCED_REGEX_FILES);
-                }
-
-                // 其他
-                if (checkedCategories.includes('other')) {
-                    const knownKeys = new Set([
-                        'CHAT_CONTACTS','APP_DATA','CHAT_API_CONFIGS','OTHER_API_CONFIGS','MODEL_PARAMS','PARAM_CONFIG',
-                        'theme','themeMode','AVATAR_CONFIG','GENERAL_CONFIG','PUSH_ENABLED','PUSH_SHOW_CONTENT','KEEP_ALIVE_ENABLED',
-                        'PRESETS','ADVANCED_PRESET_FILES','REGEX_RULES','ADVANCED_REGEX_FILES','FORUM_POSTS'
-                    ]);
-                    for (let i = 0; i < localStorage.length; i++) {
-                        const key = localStorage.key(i);
-                        if (key && !knownKeys.has(key) && !key.startsWith('LINKGO_') && !key.startsWith('bio_nodes_')) {
-                            try {
-                                snapshot[key] = localStorage.getItem(key);
-                            } catch (e) {}
+                // 【第二步】：从大仓库 (IndexedDB / localforage) 提取聊天记录重度数据
+                const forageKeys = await localforage.keys();
+                for (const key of forageKeys) {
+                    if (targetKeys.includes(key)) {
+                        snapshot[key] = await localforage.getItem(key);
+                    } else if (exportOther) {
+                        let isKnownKey = false;
+                        for (let cat in EXPORT_DICTIONARY) {
+                            if (EXPORT_DICTIONARY[cat].includes(key)) isKnownKey = true;
+                        }
+                        if (!isKnownKey) {
+                            snapshot[key] = await localforage.getItem(key);
                         }
                     }
                 }
@@ -11933,26 +11871,38 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     _time: new Date().toISOString(),
                     data: snapshot
                 };
-                const jsonStr = JSON.stringify(exportData, null, 2);
-                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
                 const dateStr = new Date().toISOString().split('T')[0];
                 const fileName = `linkgo-backup-${dateStr}.json`;
-                const file = new File([blob], fileName, { type: 'application/json' });
 
+                // iOS App 原生分享呼出魔法
+                const file = new File([blob], fileName, { type: 'application/json' });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({ files: [file] });
+                    navigator.share({
+                        files: [file],
+                    }).then(() => {
+                        closeExportSheet();
+                    }).catch(e => {
+                        closeExportSheet();
+                    });
                 } else {
+                    // 兜底方案
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = fileName;
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
                     a.click();
-                    setTimeout(() => URL.revokeObjectURL(url), 2000);
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 2000);
+                    closeExportSheet();
+                    alert('✅ 分类导出成功！');
                 }
-
-                closeExportSheet();
-                alert('✅ 导出成功！');
-            } catch (e) {
+            } catch(e) {
                 console.error(e);
                 alert('❌ 导出失败: ' + e.message);
             }
@@ -12190,10 +12140,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             GENERAL_CONFIG.regexCount = REGEX_RULES.list.length;
             GENERAL_CONFIG.presetCount = PRESETS.list.length;
             
-            const regexEl = document.getElementById('general-regex-count');
-            if (regexEl) regexEl.textContent = GENERAL_CONFIG.regexCount + ' 条';
-            const presetEl = document.getElementById('general-preset-count');
-            if (presetEl) presetEl.textContent = GENERAL_CONFIG.presetCount + ' 个';
+            document.getElementById('general-regex-count').textContent = GENERAL_CONFIG.regexCount + ' 条';
+            document.getElementById('general-preset-count').textContent = GENERAL_CONFIG.presetCount + ' 个';
         }
         
         // 页面加载时初始化通用页面
@@ -18328,7 +18276,6 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 }
             }
         }
-
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
