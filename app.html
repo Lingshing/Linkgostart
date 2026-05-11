@@ -12118,9 +12118,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
         function openGeneralRegexManager() {
             alert('正则规则管理功能开发中...\n\n您可以在这里：\n• 查看所有正则规则\n• 添加/编辑规则\n• 启用/禁用规则');
             
-            // 更新计数（从REGEX_RULES读取）
-            GENERAL_CONFIG.regexCount = REGEX_RULES.list.length;
-            document.getElementById('general-regex-count').textContent = GENERAL_CONFIG.regexCount + ' 条';
+        const el = document.getElementById('general-regex-count');
+            if (el) el.textContent = GENERAL_CONFIG.regexCount + ' 条';
             saveGeneralConfig();
         }
         
@@ -12128,9 +12127,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
         function openGeneralPresetManager() {
             alert('预设库管理功能开发中...\n\n您可以在这里：\n• 查看所有预设\n• 导入/导出预设\n• 应用预设到角色');
             
-            // 更新计数（从PRESETS读取）
-            GENERAL_CONFIG.presetCount = PRESETS.list.length;
-            document.getElementById('general-preset-count').textContent = GENERAL_CONFIG.presetCount + ' 个';
+            const el = document.getElementById('general-preset-count');
+            if (el) el.textContent = GENERAL_CONFIG.presetCount + ' 个';
             saveGeneralConfig();
         }
         
