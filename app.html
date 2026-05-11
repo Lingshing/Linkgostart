@@ -4462,36 +4462,56 @@
             }, SAVE_DEBOUNCE_MS);
         }
 
+        // ---------- 替换原有 performSave ----------
         async function performSave() {
+            // 1. 联系人列表（元数据，较小，可以整体存）
             const contactsStr = JSON.stringify(mockContacts);
-            const appDataStr = JSON.stringify(APP_DATA);
-            
-            for (let attempt = 1; attempt <= 3; attempt++) {
-                try {
-                    await localforage.setItem('CHAT_CONTACTS', contactsStr);
-                    await localforage.setItem('APP_DATA', appDataStr);
-                    return;
-                } catch (e) {
-                    console.error(`保存尝试 ${attempt} 失败:`, e);
-                    if (attempt < 3) {
-                        await new Promise(resolve => setTimeout(resolve, 200 * attempt));
-                    }
+
+            // 2. APP 设置（不含对话数组）
+            const settings = {
+                apiKey: APP_DATA.apiKey,
+                apiUrl: APP_DATA.apiUrl,
+                currentChatId: APP_DATA.currentChatId,
+                settings: APP_DATA.settings,
+                activityStats: APP_DATA.activityStats
+            };
+            const settingsStr = JSON.stringify(settings);
+
+            // 存储任务数组（并行写入，三者互不干扰）
+            const writes = [
+                localforage.setItem('CHAT_CONTACTS', contactsStr),
+                localforage.setItem('APP_SETTINGS', settingsStr)
+            ];
+
+            // 3. 每个角色的对话单独存一个键 CONV_{id}
+            //    只保存那些在 mockContacts 中还有的角色
+            const validIds = new Set(mockContacts.map(c => c.id));
+            for (const contactId of Object.keys(APP_DATA.conversations)) {
+                const id = Number(contactId);
+                // 如果这个角色已经被删除了，我们可以选择跳过不存（等于清理掉）
+                // 如果你希望保留已删除角色的对话备份，可以去掉 validIds 限制，但会增加将来写入压力
+                if (!validIds.has(id)) continue;
+                const conv = APP_DATA.conversations[id];
+                if (conv && conv.length > 0) {
+                    writes.push(
+                        localforage.setItem(`CONV_${id}`, JSON.stringify(conv))
+                    );
+                } else {
+                    // 空对话就删掉这个键，防止残留
+                    writes.push(
+                        localforage.removeItem(`CONV_${id}`)
+                    );
                 }
             }
 
-            // 三次都失败 → 紧急降级到 localStorage
-            try {
-                localStorage.setItem('CHAT_CONTACTS_EMERGENCY', contactsStr);
-                localStorage.setItem('APP_DATA_EMERGENCY', appDataStr);
-                alert('⚠️ 大仓库写入多次失败，已自动切换为紧急备份，请重启应用以恢复正常。');
-            } catch (lsError) {
-                alert('❌ 数据保存严重失败！请立即手动导出聊天记录（重启后尝试从紧急备份恢复）。');
-            }
+            // 等待所有写入完成，如果任何一个失败则整体视为失败
+            await Promise.all(writes);
         }
         
+        // ---------- 替换原有 loadFromLocal ----------
         async function loadFromLocal() {
             try {
-                // 1. 自动搬家逻辑：把旧数据转移到大仓库
+                // 1. 自动搬家逻辑：旧数据格式 -> 新格式
                 const oldContacts = localStorage.getItem('CHAT_CONTACTS');
                 if (oldContacts) {
                     await localforage.setItem('CHAT_CONTACTS', oldContacts);
@@ -4499,61 +4519,75 @@
                 }
                 const oldData = localStorage.getItem('APP_DATA');
                 if (oldData) {
-                    await localforage.setItem('APP_DATA', oldData);
-                    localStorage.removeItem('APP_DATA');
-                    alert("🎉 太棒了！您的聊天记录已成功搬家到大仓库，彻底突破 5MB 限制！");
+                    // 旧 APP_DATA 可能包含 conversations，我们只提取 settings 部分
+                    try {
+                        const old = JSON.parse(oldData);
+                        const settings = {
+                            apiKey: old.apiKey || '',
+                            apiUrl: old.apiUrl || 'https://api.openai.com/v1/chat/completions',
+                            currentChatId: old.currentChatId || null,
+                            settings: old.settings || {},
+                            activityStats: old.activityStats || {}
+                        };
+                        await localforage.setItem('APP_SETTINGS', JSON.stringify(settings));
+                        // 再把旧对话转移为单独的 CONV_ 键
+                        if (old.conversations) {
+                            for (const [id, conv] of Object.entries(old.conversations)) {
+                                if (Array.isArray(conv) && conv.length > 0) {
+                                    await localforage.setItem(`CONV_${id}`, JSON.stringify(conv));
+                                }
+                            }
+                        }
+                        localStorage.removeItem('APP_DATA');
+                    } catch(e) {}
+                    alert("🎉 聊天记录已成功升级为防丢存储结构！");
                 }
-        
-                // 2. 等待所有正在进行的写入操作完成
-                await saveQueue;
 
-                // 检查并恢复紧急备份
-                const emergencyContacts = localStorage.getItem('CHAT_CONTACTS_EMERGENCY');
-                const emergencyData = localStorage.getItem('APP_DATA_EMERGENCY');
-                if (emergencyContacts) {
-                    try {
-                        await localforage.setItem('CHAT_CONTACTS', emergencyContacts);
-                        localStorage.removeItem('CHAT_CONTACTS_EMERGENCY');
-                    } catch(e) {}
-                }
-                if (emergencyData) {
-                    try {
-                        await localforage.setItem('APP_DATA', emergencyData);
-                        localStorage.removeItem('APP_DATA_EMERGENCY');
-                    } catch(e) {}
-                }
-        
-                // 3. 从大仓库读取数据（带重试机制）
-                let contacts, data;
-                
-                try {
-                    contacts = await localforage.getItem('CHAT_CONTACTS');
-                    data = await localforage.getItem('APP_DATA');
-                } catch(readError) {
-                    console.error('首次读取失败，200ms 后重试...', readError);
-                    await new Promise(r => setTimeout(r, 200));
-                    try {
-                        contacts = await localforage.getItem('CHAT_CONTACTS');
-                        data = await localforage.getItem('APP_DATA');
-                    } catch(retryError) {
-                        console.error('重试读取仍然失败', retryError);
-                        alert('⚠️ 读取聊天记录失败，请尝试从备份文件导入恢复数据。');
-                        return;
-                    }
-                }
-        
-                if (contacts) {
-                    const parsed = JSON.parse(contacts);
+                // 清理旧的紧急备份（它们反正也存不进去，直接删掉）
+                localStorage.removeItem('CHAT_CONTACTS_EMERGENCY');
+                localStorage.removeItem('APP_DATA_EMERGENCY');
+
+                await saveQueue; // 等待之前可能未完成的写入
+
+                // 2. 读取联系人
+                const contactsStr = await localforage.getItem('CHAT_CONTACTS');
+                if (contactsStr) {
+                    const parsed = JSON.parse(contactsStr);
                     mockContacts.length = 0;
                     mockContacts.push(...parsed);
                     sortChatListByTime();
                 }
-                
-                if (data) {
-                    const parsed = JSON.parse(data);
+
+                // 3. 读取设置
+                const settingsStr = await localforage.getItem('APP_SETTINGS');
+                if (settingsStr) {
+                    const parsed = JSON.parse(settingsStr);
+                    // 只合并非 conversations 的字段
+                    APP_DATA.conversations = {}; // 先清空
                     Object.assign(APP_DATA, parsed);
                 }
-                
+
+                // 4. 读取每个角色的对话数组（仅读取当前存在的联系人）
+                if (mockContacts.length > 0) {
+                    const convKeys = mockContacts.map(c => `CONV_${c.id}`);
+                    const results = await Promise.all(
+                        convKeys.map(key => localforage.getItem(key).catch(() => null))
+                    );
+                    results.forEach((convStr, index) => {
+                        const contactId = mockContacts[index].id;
+                        if (convStr) {
+                            try {
+                                APP_DATA.conversations[contactId] = JSON.parse(convStr);
+                            } catch(e) {
+                                APP_DATA.conversations[contactId] = [];
+                            }
+                        } else {
+                            APP_DATA.conversations[contactId] = [];
+                        }
+                    });
+                }
+
+                // 5. 同步 UI
                 if (typeof renderChatList === 'function') {
                     renderChatList();
                 }
@@ -4648,9 +4682,10 @@
         
 
         function clearConversation(contactId) {
-            // 清空指定联系人的对话历史
             APP_DATA.conversations[contactId] = [];
-            saveToLocal();
+            // 异步清理存储（不阻塞）
+            localforage.removeItem(`CONV_${contactId}`).catch(() => {});
+            saveToLocal();  // 剩下的联系人元数据等仍然保存
         }
         
         // --- 发送消息到API (代码.html版本) ---
@@ -8625,7 +8660,7 @@
             }
             
             renderChatList();
-            
+            localforage.removeItem(`CONV_${contact.id}`).catch(() => {});
             // 保存到localStorage
             saveToLocal();
         }
@@ -18309,48 +18344,6 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             }
         }
 
-        // 页面关闭或隐藏前立刻执行一次保存（不等待防抖）
-        window.addEventListener('beforeunload', () => {
-            // 取消防抖定时器，直接调用 performSave（同步写入 localStorage 备份）
-            if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
-            // 使用同步的 localStorage 作为最后防线（performSave 里已经有紧急降级）
-            try {
-                localStorage.setItem('CHAT_CONTACTS_EMERGENCY', JSON.stringify(mockContacts));
-                localStorage.setItem('APP_DATA_EMERGENCY', JSON.stringify(APP_DATA));
-            } catch(e) {}
-        });
-
-        // iOS 的 pagehide 也建议加上（更契合 App 内嵌页面）
-        window.addEventListener('pagehide', () => {
-            try {
-                localStorage.setItem('CHAT_CONTACTS_EMERGENCY', JSON.stringify(mockContacts));
-                localStorage.setItem('APP_DATA_EMERGENCY', JSON.stringify(APP_DATA));
-            } catch(e) {}
-        });
-
-        // 页面关闭/隐藏前强制保存到 localStorage（即使可能超 5MB，尽力存一次）
-        function forceEmergencySave() {
-            try {
-                const contactsStr = JSON.stringify(mockContacts);
-                const appDataStr = JSON.stringify(APP_DATA);
-                if (contactsStr.length + appDataStr.length < 5 * 1024 * 1024) {
-                    localStorage.setItem('CHAT_CONTACTS_EMERGENCY', contactsStr);
-                    localStorage.setItem('APP_DATA_EMERGENCY', appDataStr);
-                } else {
-                    // 数据太大，只存轻量版
-                    const slimContacts = mockContacts.map(({ id, name, lastMsg, time }) => ({ id, name, lastMsg, time }));
-                    localStorage.setItem('CHAT_CONTACTS_EMERGENCY', JSON.stringify(slimContacts));
-                    localStorage.setItem('APP_DATA_EMERGENCY', appDataStr);
-                }
-            } catch (e) {
-                console.error('紧急保存失败');
-            }
-        }
-
-        ['beforeunload', 'pagehide'].forEach(evt => window.addEventListener(evt, forceEmergencySave));
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') forceEmergencySave();
-        });
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
