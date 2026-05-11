@@ -4449,7 +4449,7 @@
 
         let saveQueue = Promise.resolve();
         let saveDebounceTimer = null;
-        const SAVE_DEBOUNCE_MS = 300;
+        const SAVE_DEBOUNCE_MS = 1500;
 
         async function saveToLocal() {
             if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
@@ -11837,70 +11837,72 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
         }
 
         // 4. 执行分类导出
-        async function executeCategorizedExport() { 
+        async function executeCategorizedExport() {
             try {
-                await saveQueue;
-            } catch (e) {
-                // 队列可能堵塞，但内存数据仍可导出
-                console.warn('导出前等待保存队列出错，将导出当前内存数据:', e);
-            }
-             try {
-                // 保存最新内存数据
-                if (typeof saveToLocal === 'function') await saveToLocal();
-                if (typeof saveChatApiConfigs === 'function') saveChatApiConfigs();
-                if (typeof saveOtherApiConfigs === 'function') saveOtherApiConfigs();
-                if (typeof saveGeneralConfig === 'function') saveGeneralConfig();
-
-                // 获取所有被勾选的分类
                 const checkedCategories = Array.from(document.querySelectorAll('.export-item-cb'))
                     .filter(cb => cb.checked)
                     .map(cb => cb.value);
-
                 if (checkedCategories.length === 0) {
                     alert('请至少选择一项要导出的数据！');
                     return;
                 }
 
-                // 整理需要导出的 Key
-                let targetKeys = [];
-                let exportOther = checkedCategories.includes('other');
-                checkedCategories.forEach(category => {
-                    if (EXPORT_DICTIONARY[category]) {
-                        targetKeys = targetKeys.concat(EXPORT_DICTIONARY[category]);
-                    }
-                });
-
-                // 开始提取数据
                 const snapshot = {};
-                
-                // 【第一步】：从普通缓存 (localStorage) 提取配置和轻量数据
-                const allLocalKeys = Object.keys(localStorage);
-                allLocalKeys.forEach(key => {
-                    if (targetKeys.includes(key)) {
-                        snapshot[key] = localStorage.getItem(key);
-                    } else if (exportOther) {
-                        let isKnownKey = false;
-                        for (let cat in EXPORT_DICTIONARY) {
-                            if (EXPORT_DICTIONARY[cat].includes(key)) isKnownKey = true;
-                        }
-                        if (!isKnownKey) {
-                            snapshot[key] = localStorage.getItem(key);
-                        }
-                    }
-                });
 
-                // 【第二步】：从大仓库 (IndexedDB / localforage) 提取聊天记录重度数据
-                const forageKeys = await localforage.keys();
-                for (const key of forageKeys) {
-                    if (targetKeys.includes(key)) {
-                        snapshot[key] = await localforage.getItem(key);
-                    } else if (exportOther) {
-                        let isKnownKey = false;
-                        for (let cat in EXPORT_DICTIONARY) {
-                            if (EXPORT_DICTIONARY[cat].includes(key)) isKnownKey = true;
-                        }
-                        if (!isKnownKey) {
-                            snapshot[key] = await localforage.getItem(key);
+                // 聊天数据（直接从内存取）
+                if (checkedCategories.includes('chat')) {
+                    snapshot['CHAT_CONTACTS'] = JSON.stringify(mockContacts);
+                    snapshot['APP_DATA'] = JSON.stringify(APP_DATA);
+                }
+
+                // API 配置
+                if (checkedCategories.includes('api')) {
+                    if (typeof CHAT_API_CONFIGS !== 'undefined') snapshot['CHAT_API_CONFIGS'] = JSON.stringify(CHAT_API_CONFIGS);
+                    if (typeof OTHER_API_CONFIGS !== 'undefined') snapshot['OTHER_API_CONFIGS'] = JSON.stringify(OTHER_API_CONFIGS);
+                    if (typeof PARAM_CONFIG !== 'undefined') snapshot['PARAM_CONFIG'] = JSON.stringify(PARAM_CONFIG);
+                    if (typeof MODEL_PARAMS !== 'undefined') snapshot['MODEL_PARAMS'] = JSON.stringify(MODEL_PARAMS);
+                }
+
+                // 外观
+                if (checkedCategories.includes('ui')) {
+                    snapshot['theme'] = localStorage.getItem('theme') || 'light';
+                    snapshot['themeMode'] = localStorage.getItem('themeMode') || 'auto';
+                    if (typeof AVATAR_CONFIG !== 'undefined') snapshot['AVATAR_CONFIG'] = JSON.stringify(AVATAR_CONFIG);
+                }
+
+                // 通用
+                if (checkedCategories.includes('general')) {
+                    snapshot['GENERAL_CONFIG'] = JSON.stringify(GENERAL_CONFIG || {});
+                    snapshot['PUSH_ENABLED'] = localStorage.getItem('PUSH_ENABLED') || 'false';
+                    snapshot['PUSH_SHOW_CONTENT'] = localStorage.getItem('PUSH_SHOW_CONTENT') || 'true';
+                    snapshot['KEEP_ALIVE_ENABLED'] = localStorage.getItem('KEEP_ALIVE_ENABLED') || 'false';
+                }
+
+                // 预设
+                if (checkedCategories.includes('presets')) {
+                    if (typeof PRESETS !== 'undefined') snapshot['PRESETS'] = JSON.stringify(PRESETS);
+                    if (typeof ADVANCED_PRESET_FILES !== 'undefined') snapshot['ADVANCED_PRESET_FILES'] = JSON.stringify(ADVANCED_PRESET_FILES);
+                }
+
+                // 正则
+                if (checkedCategories.includes('regex')) {
+                    if (typeof REGEX_RULES !== 'undefined') snapshot['REGEX_RULES'] = JSON.stringify(REGEX_RULES);
+                    if (typeof ADVANCED_REGEX_FILES !== 'undefined') snapshot['ADVANCED_REGEX_FILES'] = JSON.stringify(ADVANCED_REGEX_FILES);
+                }
+
+                // 其他
+                if (checkedCategories.includes('other')) {
+                    const knownKeys = new Set([
+                        'CHAT_CONTACTS','APP_DATA','CHAT_API_CONFIGS','OTHER_API_CONFIGS','MODEL_PARAMS','PARAM_CONFIG',
+                        'theme','themeMode','AVATAR_CONFIG','GENERAL_CONFIG','PUSH_ENABLED','PUSH_SHOW_CONTENT','KEEP_ALIVE_ENABLED',
+                        'PRESETS','ADVANCED_PRESET_FILES','REGEX_RULES','ADVANCED_REGEX_FILES','FORUM_POSTS'
+                    ]);
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && !knownKeys.has(key) && !key.startsWith('LINKGO_') && !key.startsWith('bio_nodes_')) {
+                            try {
+                                snapshot[key] = localStorage.getItem(key);
+                            } catch (e) {}
                         }
                     }
                 }
@@ -11911,38 +11913,26 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     _time: new Date().toISOString(),
                     data: snapshot
                 };
-                const dataStr = JSON.stringify(exportData, null, 2);
-                const blob = new Blob([dataStr], { type: 'application/json' });
+                const jsonStr = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
                 const dateStr = new Date().toISOString().split('T')[0];
                 const fileName = `linkgo-backup-${dateStr}.json`;
-
-                // iOS App 原生分享呼出魔法
                 const file = new File([blob], fileName, { type: 'application/json' });
+
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    navigator.share({
-                        files: [file],
-                    }).then(() => {
-                        closeExportSheet();
-                    }).catch(e => {
-                        closeExportSheet();
-                    });
+                    await navigator.share({ files: [file] });
                 } else {
-                    // 兜底方案
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = fileName;
-                    a.style.display = 'none';
-                    document.body.appendChild(a);
                     a.click();
-                    setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    }, 2000);
-                    closeExportSheet();
-                    alert('✅ 分类导出成功！');
+                    setTimeout(() => URL.revokeObjectURL(url), 2000);
                 }
-            } catch(e) {
+
+                closeExportSheet();
+                alert('✅ 导出成功！');
+            } catch (e) {
                 console.error(e);
                 alert('❌ 导出失败: ' + e.message);
             }
@@ -12180,8 +12170,10 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             GENERAL_CONFIG.regexCount = REGEX_RULES.list.length;
             GENERAL_CONFIG.presetCount = PRESETS.list.length;
             
-            document.getElementById('general-regex-count').textContent = GENERAL_CONFIG.regexCount + ' 条';
-            document.getElementById('general-preset-count').textContent = GENERAL_CONFIG.presetCount + ' 个';
+            const regexEl = document.getElementById('general-regex-count');
+            if (regexEl) regexEl.textContent = GENERAL_CONFIG.regexCount + ' 条';
+            const presetEl = document.getElementById('general-preset-count');
+            if (presetEl) presetEl.textContent = GENERAL_CONFIG.presetCount + ' 个';
         }
         
         // 页面加载时初始化通用页面
@@ -18334,6 +18326,30 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 localStorage.setItem('CHAT_CONTACTS_EMERGENCY', JSON.stringify(mockContacts));
                 localStorage.setItem('APP_DATA_EMERGENCY', JSON.stringify(APP_DATA));
             } catch(e) {}
+        });
+
+        // 页面关闭/隐藏前强制保存到 localStorage（即使可能超 5MB，尽力存一次）
+        function forceEmergencySave() {
+            try {
+                const contactsStr = JSON.stringify(mockContacts);
+                const appDataStr = JSON.stringify(APP_DATA);
+                if (contactsStr.length + appDataStr.length < 5 * 1024 * 1024) {
+                    localStorage.setItem('CHAT_CONTACTS_EMERGENCY', contactsStr);
+                    localStorage.setItem('APP_DATA_EMERGENCY', appDataStr);
+                } else {
+                    // 数据太大，只存轻量版
+                    const slimContacts = mockContacts.map(({ id, name, lastMsg, time }) => ({ id, name, lastMsg, time }));
+                    localStorage.setItem('CHAT_CONTACTS_EMERGENCY', JSON.stringify(slimContacts));
+                    localStorage.setItem('APP_DATA_EMERGENCY', appDataStr);
+                }
+            } catch (e) {
+                console.error('紧急保存失败');
+            }
+        }
+
+        ['beforeunload', 'pagehide'].forEach(evt => window.addEventListener(evt, forceEmergencySave));
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') forceEmergencySave();
         });
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
