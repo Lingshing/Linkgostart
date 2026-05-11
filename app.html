@@ -18316,6 +18316,25 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 }
             }
         }
+
+        // 页面关闭或隐藏前立刻执行一次保存（不等待防抖）
+        window.addEventListener('beforeunload', () => {
+            // 取消防抖定时器，直接调用 performSave（同步写入 localStorage 备份）
+            if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+            // 使用同步的 localStorage 作为最后防线（performSave 里已经有紧急降级）
+            try {
+                localStorage.setItem('CHAT_CONTACTS_EMERGENCY', JSON.stringify(mockContacts));
+                localStorage.setItem('APP_DATA_EMERGENCY', JSON.stringify(APP_DATA));
+            } catch(e) {}
+        });
+
+        // iOS 的 pagehide 也建议加上（更契合 App 内嵌页面）
+        window.addEventListener('pagehide', () => {
+            try {
+                localStorage.setItem('CHAT_CONTACTS_EMERGENCY', JSON.stringify(mockContacts));
+                localStorage.setItem('APP_DATA_EMERGENCY', JSON.stringify(APP_DATA));
+            } catch(e) {}
+        });
     </script>
         <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
         <div class="bottom-sheet-content">
