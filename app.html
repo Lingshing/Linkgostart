@@ -4447,13 +4447,27 @@
             return total + 2; // 对话的固定开销
         }
 
+        let saveQueue = Promise.resolve();
+        
         async function saveToLocal() {
-            try {
-                await localforage.setItem('CHAT_CONTACTS', JSON.stringify(mockContacts));
-                await localforage.setItem('APP_DATA', JSON.stringify(APP_DATA));
-            } catch(e) {
-                console.error('保存数据失败:', e);
-            }
+            // 链式排队，确保每次只有一个事务在执行
+            saveQueue = saveQueue.then(async () => {
+                try {
+                    // 分别写入，缩小每条事务的体积
+                    await localforage.setItem('CHAT_CONTACTS', JSON.stringify(mockContacts));
+                    await localforage.setItem('APP_DATA', JSON.stringify(APP_DATA));
+                } catch(e) {
+                    console.error('保存数据失败：', e);
+                    // 重试一次（事务冲突通常一次重试就能恢复）
+                    try {
+                        await new Promise(r => setTimeout(r, 200));
+                        await localforage.setItem('CHAT_CONTACTS', JSON.stringify(mockContacts));
+                        await localforage.setItem('APP_DATA', JSON.stringify(APP_DATA));
+                    } catch(retryError) {
+                        alert('⚠️ 保存数据失败，请立即手动导出聊天记录！');
+                    }
+                }
+            });
         }
         
         async function loadFromLocal() {
@@ -4468,12 +4482,31 @@
                 if (oldData) {
                     await localforage.setItem('APP_DATA', oldData);
                     localStorage.removeItem('APP_DATA');
-                    // 👇 加上这一行弹窗代码
                     alert("🎉 太棒了！您的聊天记录已成功搬家到大仓库，彻底突破 5MB 限制！");
                 }
-
-                // 2. 从大仓库读取数据
-                const contacts = await localforage.getItem('CHAT_CONTACTS');
+        
+                // 2. 等待所有正在进行的写入操作完成
+                await saveQueue;
+        
+                // 3. 从大仓库读取数据（带重试机制）
+                let contacts, data;
+                
+                try {
+                    contacts = await localforage.getItem('CHAT_CONTACTS');
+                    data = await localforage.getItem('APP_DATA');
+                } catch(readError) {
+                    console.error('首次读取失败，200ms 后重试...', readError);
+                    await new Promise(r => setTimeout(r, 200));
+                    try {
+                        contacts = await localforage.getItem('CHAT_CONTACTS');
+                        data = await localforage.getItem('APP_DATA');
+                    } catch(retryError) {
+                        console.error('重试读取仍然失败', retryError);
+                        alert('⚠️ 读取聊天记录失败，请尝试从备份文件导入恢复数据。');
+                        return;
+                    }
+                }
+        
                 if (contacts) {
                     const parsed = JSON.parse(contacts);
                     mockContacts.length = 0;
@@ -4481,7 +4514,6 @@
                     sortChatListByTime();
                 }
                 
-                const data = await localforage.getItem('APP_DATA');
                 if (data) {
                     const parsed = JSON.parse(data);
                     Object.assign(APP_DATA, parsed);
@@ -11771,7 +11803,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
 
         // 4. 执行分类导出
         async function executeCategorizedExport() { 
-            try {
+            await saveQueue; // 等待所有写入完
+             try {
                 // 保存最新内存数据
                 if (typeof saveToLocal === 'function') await saveToLocal();
                 if (typeof saveChatApiConfigs === 'function') saveChatApiConfigs();
