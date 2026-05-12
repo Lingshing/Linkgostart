@@ -19,13 +19,17 @@ jobs:
     - name: 安装依赖
       run: |
         npm init -y
-        # ✨ 安装所需插件（已加入 SQLite 大仓库）
         npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 \
                     @capacitor/app@6 @capawesome/capacitor-background-task@6 @capacitor/local-notifications@6 \
                     @capacitor-community/background-geolocation @capacitor/splash-screen@6 \
                     @capacitor-community/sqlite@6
         mkdir -p www
-        echo "Linkgo" > www/index.html
+        # 下载电容核心 JS 到 www 目录（本地打包）
+        curl -L -o www/capacitor.js https://unpkg.com/@capacitor/core@6/dist/capacitor.js
+        # 下载 SQLite 插件 JS 到 www 目录（本地打包）
+        curl -L -o www/plugin-sqlite.js https://cdn.jsdelivr.net/npm/@capacitor-community/sqlite@6/dist/plugin.js
+        # 如果你的仓库根目录有 app.html，复制进去；否则你可以直接将 app.html 放在仓库中
+        cp app.html www/app.html
 
     - name: 初始化并配置热更新
       run: |
@@ -59,38 +63,32 @@ jobs:
         }
         EOF
 
-    - name: 生成 iOS 工程与【物理切出完美圆角】
+    - name: 生成 iOS 工程与完美圆角图标
       run: |
         npx cap add ios
         npm install @capacitor/assets --save-dev
         mkdir -p assets
         
-        # 1. 转成 png
         sips -s format png linkgo-icon.jpg --out assets/icon.png
         
-        # 2. ✨ 核心修复：强制当前执行脚本的 python3 先装好库，打破 macOS 限制！
         python3 -m pip install Pillow --break-system-packages
         
-        # 3. 开始执行物理锯角手术
         python3 - <<EOF
         from PIL import Image, ImageDraw
         img = Image.open('assets/icon.png').convert("RGBA")
         size = img.size
         mask = Image.new('L', size, 0)
         draw = ImageDraw.Draw(mask)
-        # iOS 完美圆角比例 22.5%
         r = int(size[0] * 0.225)
         draw.rounded_rectangle((0, 0, size[0], size[1]), radius=r, fill=255)
         img.putalpha(mask)
         img.save('assets/icon.png')
         EOF
         
-        # 4. 基于已经切好圆角的图片，生成所有启动图
         npx @capacitor/assets generate --ios
-        
         npx cap sync ios
         
-        # ✨ 权限注入
+        # 权限注入
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" ios/App/App/Info.plist || true
         /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" ios/App/App/Info.plist || true
