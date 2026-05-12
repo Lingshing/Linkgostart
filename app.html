@@ -13,7 +13,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="capacitor.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@capacitor-community/sqlite@6/dist/plugin.js"></script>
+    <script>
+    // 等待 CDN 脚本加载完成
+    window.sqliteReady = false;
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@capacitor-community/sqlite@6/dist/plugin.js" onload="window.sqliteReady=true;if(typeof DB!=='undefined')DB.init()"></script>
     
     <style>
         /* --- 全局重置 --- */
@@ -4334,6 +4338,7 @@
             db: null,
             ready: false,
             async init() {
+                if (!window.sqliteReady) await new Promise(r => { let t = setInterval(() => { if (window.sqliteReady) { clearInterval(t); r(); } }, 50); });
                 if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
                     const sqlitePlugin = window.CapacitorSQLite || window.capacitorSQLite;
                     if (!sqlitePlugin || !sqlitePlugin.CapacitorSQLite) {
