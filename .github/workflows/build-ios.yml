@@ -1,7 +1,7 @@
 name: Build iOS IPA
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   build-ios:
@@ -19,8 +19,11 @@ jobs:
     - name: 安装依赖
       run: |
         npm init -y
-        # ✨ 安装所需插件 (去掉了上面容易引起环境错乱的 pip 命令)
-        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 @capacitor/app@6 @capawesome/capacitor-background-task@6 @capacitor/local-notifications@6 @capacitor-community/background-geolocation @capacitor/splash-screen@6        
+        # ✨ 安装所需插件（已加入 SQLite 大仓库）
+        npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/ios@6 @capacitor/keyboard@6 \
+                    @capacitor/app@6 @capawesome/capacitor-background-task@6 @capacitor/local-notifications@6 \
+                    @capacitor-community/background-geolocation @capacitor/splash-screen@6 \
+                    @capacitor-community/sqlite@6
         mkdir -p www
         echo "Linkgo" > www/index.html
 
@@ -50,7 +53,7 @@ jobs:
               "splashFullScreen": true,
               "splashImmersive": true,
               "iosSplashCornerRadius": 13,
-              "iosSplashImageContentMode": "center" 
+              "iosSplashImageContentMode": "center"
             }
           }
         }
