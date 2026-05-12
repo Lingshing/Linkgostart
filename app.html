@@ -12,6 +12,8 @@
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/Lingshing/Linkgostart/refs/heads/main/linkgo-icon.jpg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="capacitor.js"></script>
+    <script src="capacitor-sqlite.js"></script>
     
     <style>
         /* --- 全局重置 --- */
@@ -4327,6 +4329,112 @@
     </div>
 
     <script>
+        // ========== 统一存储层 (SQLite + IndexedDB 回退) ==========
+        const DB = {
+            db: null,
+            ready: false,
+            async init() {
+                if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
+                    const sqlitePlugin = window.CapacitorSQLite || window.capacitorSQLite;
+                    if (!sqlitePlugin || !sqlitePlugin.CapacitorSQLite) {
+                        console.warn('SQLite 插件未加载，回退 IndexedDB');
+                        this.ready = true;
+                        return;
+                    }
+                    try {
+                        const { CapacitorSQLite, SQLiteConnection } = sqlitePlugin;
+                        this.sqliteConnection = new SQLiteConnection(CapacitorSQLite);
+                        this.db = await this.sqliteConnection.createConnection('linkgo_db', false, 'no-encryption', 1, false);
+                        await this.db.open();
+                        await this.db.execute(`
+                            CREATE TABLE IF NOT EXISTS storage (
+                                key TEXT PRIMARY KEY,
+                                value TEXT
+                            );
+                        `);
+                        console.log('SQLite 数据库已就绪');
+                        await this.migrateFromIndexedDB();
+                        this.ready = true;
+                    } catch(e) {
+                        console.error('SQLite 初始化失败，回退 IndexedDB:', e);
+                        this.db = null;
+                        this.ready = true;
+                    }
+                } else {
+                    this.ready = true;
+                }
+            },
+            async migrateFromIndexedDB() {
+                try {
+                    const keys = await localforage.keys();
+                    let movedCount = 0;
+                    for (const key of keys) {
+                        // 直接读旧仓库
+                        const value = await localforage.getItem(key);
+                        if (value !== null) {
+                            // 存入 SQLite
+                            await this.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+                            movedCount++;
+                        }
+                    }
+                    // 迁移完成后才清空旧仓库（可选，保留一份 as 备份更好，但你的设计是清空）
+                    if (movedCount > 0) {
+                        await localforage.clear();
+                        console.log(`✅ 已成功迁移 ${movedCount} 条数据至 SQLite，旧仓库已清空`);
+                    }
+                } catch(e) {
+                    console.error('迁移失败:', e);
+                }
+            },
+            async setItem(key, value) {
+                if (this.db) {
+                    try {
+                        const valStr = typeof value === 'string' ? value : JSON.stringify(value);
+                        await this.db.execute(`
+                            INSERT INTO storage (key, value) VALUES (?, ?)
+                            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+                        `, [key, valStr]);
+                        return;
+                    } catch(e) {
+                        console.error('SQLite setItem 失败, 回退 localforage:', e);
+                    }
+                }
+                return localforage.setItem(key, value);
+            },
+            async getItem(key) {
+                if (this.db) {
+                    try {
+                        const res = await this.db.query(`SELECT value FROM storage WHERE key = ?`, [key]);
+                        if (res.values && res.values.length > 0) {
+                            return res.values[0].value;  // 注意：这里返回字符串，原代码自行 JSON.parse
+                        }
+                        return null;
+                    } catch(e) {
+                        console.error('SQLite getItem 失败:', e);
+                    }
+                }
+                return localforage.getItem(key);
+            },
+            async removeItem(key) {
+                if (this.db) {
+                    try {
+                        await this.db.execute(`DELETE FROM storage WHERE key = ?`, [key]);
+                        return;
+                    } catch(e) {
+                        console.error('SQLite removeItem 失败:', e);
+                    }
+                }
+                return localforage.removeItem(key);
+            },
+            async clear() {
+                if (this.db) {
+                    await this.db.execute(`DELETE FROM storage`);
+                    return;
+                }
+                return localforage.clear();
+            }
+        };
+
         // ==========================================
         // 🌟 全局统一：高级胶囊通知引擎 (粒子渐变版 - 修复消失生硬)
         // ==========================================
@@ -4475,8 +4583,8 @@
             const settingsStr = JSON.stringify(settings);
         
             const writes = [
-                localforage.setItem('CHAT_CONTACTS', contactsStr),
-                localforage.setItem('APP_SETTINGS', settingsStr)
+                DB.setItem('CHAT_CONTACTS', contactsStr),
+                DB.setItem('APP_SETTINGS', settingsStr)
                 // ❌ 不写 APP_DATA，避免重复
             ];
         
@@ -4486,9 +4594,9 @@
                 if (!validIds.has(id)) continue;
                 const conv = APP_DATA.conversations[id];
                 if (conv && conv.length > 0) {
-                    writes.push(localforage.setItem(`CONV_${id}`, JSON.stringify(conv)));
+                    writes.push(DB.setItem(`CONV_${id}`, JSON.stringify(conv)));
                 } else {
-                    writes.push(localforage.removeItem(`CONV_${id}`));
+                    writes.push(DB.removeItem(`CONV_${id}`));
                 }
             }
         
@@ -4510,23 +4618,23 @@
                 // ========== 1. 自动搬家：旧 localStorage → IndexedDB（原有逻辑保留） ==========
                 const oldContacts = localStorage.getItem('CHAT_CONTACTS');
                 if (oldContacts) {
-                    await localforage.setItem('CHAT_CONTACTS', oldContacts);
+                    await DB.setItem('CHAT_CONTACTS', oldContacts);
                     localStorage.removeItem('CHAT_CONTACTS');
                 }
                 const oldData = localStorage.getItem('APP_DATA');
                 if (oldData) {
-                    await localforage.setItem('APP_DATA', oldData);
+                    await DB.setItem('APP_DATA', oldData);
                     localStorage.removeItem('APP_DATA');
                 }
 
                 // ========== 2. 尝试读取新格式键（拆分后的轻量设置） ==========
-                const settingsStr = await localforage.getItem('APP_SETTINGS');
+                const settingsStr = await DB.getItem('APP_SETTINGS');
                 let hasNewFormat = !!settingsStr; // 如果存在 APP_SETTINGS 则视为新格式
 
                 let contactsStr = null;
                 if (hasNewFormat) {
                     // 新格式加载
-                    contactsStr = await localforage.getItem('CHAT_CONTACTS');
+                    contactsStr = await DB.getItem('CHAT_CONTACTS');
                     if (contactsStr) {
                         const parsed = JSON.parse(contactsStr);
                         mockContacts.length = 0;
@@ -4545,7 +4653,7 @@
                     if (mockContacts.length > 0) {
                         const convKeys = mockContacts.map(c => `CONV_${c.id}`);
                         const results = await Promise.all(
-                            convKeys.map(key => localforage.getItem(key).catch(() => null))
+                            convKeys.map(key => DB.getItem(key).catch(() => null))
                         );
                         results.forEach((convStr, index) => {
                             const contactId = mockContacts[index].id;
@@ -4561,7 +4669,7 @@
                     await saveQueue; // 等待可能未完成的写操作
 
                     // 读取旧键
-                    contactsStr = await localforage.getItem('CHAT_CONTACTS');
+                    contactsStr = await DB.getItem('CHAT_CONTACTS');
                     if (contactsStr) {
                         const parsed = JSON.parse(contactsStr);
                         mockContacts.length = 0;
@@ -4569,7 +4677,7 @@
                         sortChatListByTime();
                     }
 
-                    const appDataStr = await localforage.getItem('APP_DATA');
+                    const appDataStr = await DB.getItem('APP_DATA');
                     if (appDataStr) {
                         const parsed = JSON.parse(appDataStr);
                         Object.assign(APP_DATA, parsed);
@@ -4587,12 +4695,12 @@
                                 settings: APP_DATA.settings,
                                 activityStats: APP_DATA.activityStats
                             };
-                            await localforage.setItem('APP_SETTINGS', JSON.stringify(settings));
+                            await DB.setItem('APP_SETTINGS', JSON.stringify(settings));
                             // 写入每个角色的对话
                             for (const contact of mockContacts) {
                                 const conv = APP_DATA.conversations[contact.id];
                                 if (conv && conv.length > 0) {
-                                    await localforage.setItem(`CONV_${contact.id}`, JSON.stringify(conv));
+                                    await DB.setItem(`CONV_${contact.id}`, JSON.stringify(conv));
                                 }
                             }
                             console.log('✅ 数据已顺利拆分，下次启动将直接使用新格式，旧 APP_DATA 依然保留作为备份');
@@ -4699,7 +4807,7 @@
         function clearConversation(contactId) {
             APP_DATA.conversations[contactId] = [];
             // 异步清理存储（不阻塞）
-            localforage.removeItem(`CONV_${contactId}`).catch(() => {});
+            DB.removeItem(`CONV_${contactId}`).catch(() => {});
             saveToLocal();
         }
         
@@ -8578,7 +8686,7 @@
             // 删除聊天记录
             mockContacts.splice(index, 1);
             // 删除角色时，同时清理对应的对话存储
-            localforage.removeItem(`CONV_${contact.id}`).catch(() => {});
+            DB.removeItem(`CONV_${contact.id}`).catch(() => {});
             // 同时删除对话历史（如果有的话）
             if (APP_DATA.conversations && APP_DATA.conversations[contact.id]) {
                 delete APP_DATA.conversations[contact.id];
@@ -8604,11 +8712,11 @@
             }
         });
 
-        // 页面加载时恢复数据
-        loadFromLocal();
-        
-        // 初始化时调用渲染
-        renderChatList();
+        (async function startApp() {
+            await DB.init();
+            loadFromLocal();
+            renderChatList();
+        })();
         
         // ==========================================
         // 🎯 后台AI回复 - 页面可见性监听
@@ -11848,14 +11956,14 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 const forageKeys = await localforage.keys();
                 for (const key of forageKeys) {
                     if (targetKeys.includes(key)) {
-                        snapshot[key] = await localforage.getItem(key);
+                        snapshot[key] = await DB.getItem(key);
                     } else if (exportOther) {
                         let isKnownKey = false;
                         for (let cat in EXPORT_DICTIONARY) {
                             if (EXPORT_DICTIONARY[cat].includes(key)) isKnownKey = true;
                         }
                         if (!isKnownKey) {
-                            snapshot[key] = await localforage.getItem(key);
+                            snapshot[key] = await DB.getItem(key);
                         }
                     }
                 }
@@ -12072,7 +12180,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     
                     // 🌟 核心修复3：重度数据必须安全回归 IndexedDB，否则将直接撑爆报错！
                     if (key === 'APP_DATA' || key === 'CHAT_CONTACTS') {
-                        await localforage.setItem(key, valStr);
+                        await DB.setItem(key, valStr);
                     } else {
                         localStorage.setItem(key, valStr);
                     }
@@ -14860,10 +14968,10 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             let saved = localStorage.getItem('FORUM_POSTS');
             if (saved) {
                 // 论坛数据搬家
-                await localforage.setItem('FORUM_POSTS', saved);
+                await DB.setItem('FORUM_POSTS', saved);
                 localStorage.removeItem('FORUM_POSTS');
             } else {
-                saved = await localforage.getItem('FORUM_POSTS');
+                saved = await DB.getItem('FORUM_POSTS');
             }
             
             if (saved) {
@@ -14886,7 +14994,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
         }
 
         async function saveForumPosts() {
-            await localforage.setItem('FORUM_POSTS', JSON.stringify(forumPostsData));
+            await DB.setItem('FORUM_POSTS', JSON.stringify(forumPostsData));
         }
 
         // 2. 渲染帖子列表与防遮挡绑定
