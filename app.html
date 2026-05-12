@@ -4463,10 +4463,8 @@
         }
 
         async function performSave() {
-            // 1. 联系人列表（轻量，直接存）
             const contactsStr = JSON.stringify(mockContacts);
-
-            // 2. 设置数据（不含 conversations）
+        
             const settings = {
                 apiKey: APP_DATA.apiKey,
                 apiUrl: APP_DATA.apiUrl,
@@ -4475,16 +4473,13 @@
                 activityStats: APP_DATA.activityStats
             };
             const settingsStr = JSON.stringify(settings);
-
-            // 3. 并行写入所有基础键（含旧键 APP_DATA 作为保险）
+        
             const writes = [
                 localforage.setItem('CHAT_CONTACTS', contactsStr),
-                localforage.setItem('APP_SETTINGS', settingsStr),
-                // 继续保留旧键写入，作为额外备份（以后可以慢慢废弃）
-                localforage.setItem('APP_DATA', JSON.stringify(APP_DATA)).catch(() => {})
+                localforage.setItem('APP_SETTINGS', settingsStr)
+                // ❌ 不写 APP_DATA，避免重复
             ];
-
-            // 4. 每个角色的对话单独存储
+        
             const validIds = new Set(mockContacts.map(c => c.id));
             for (const contactId of Object.keys(APP_DATA.conversations)) {
                 const id = Number(contactId);
@@ -4493,16 +4488,14 @@
                 if (conv && conv.length > 0) {
                     writes.push(localforage.setItem(`CONV_${id}`, JSON.stringify(conv)));
                 } else {
-                    // 对话为空就删除此键，防止占用空间
                     writes.push(localforage.removeItem(`CONV_${id}`));
                 }
             }
-
+        
             try {
                 await Promise.all(writes);
             } catch(e) {
                 console.error('保存数据失败：', e);
-                // 静默重试一次
                 await new Promise(r => setTimeout(r, 200));
                 try {
                     await Promise.all(writes);
