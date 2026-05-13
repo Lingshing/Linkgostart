@@ -13,11 +13,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="capacitor.js"></script>
-    <script>
-    // 等待 CDN 脚本加载完成
-    window.sqliteReady = false;
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/@capacitor-community/sqlite@6/dist/plugin.js" onload="window.sqliteReady=true;if(typeof DB!=='undefined')DB.init()"></script>
+    <script src="plugin-sqlite.js"></script>
     
     <style>
         /* --- 全局重置 --- */
@@ -5018,8 +5014,16 @@
                                 
                                 try {
                                     const json = JSON.parse(data);
-                                    const content = json.choices[0]?.delta?.content;
-                                    
+                                    const delta = json.choices?.[0]?.delta;
+                                    let content = delta?.content || '';
+
+                                    if (!content && delta?.tool_calls) {
+                                        const tc = delta.tool_calls[0];
+                                        if (tc?.function?.arguments) {
+                                            content = tc.function.arguments;
+                                        }
+                                    }
+
                                     if (content) {
                                         fullMessage += content;
                                         if (onChunk) onChunk(content, fullMessage);
@@ -5364,12 +5368,19 @@
                                 if (data === '[DONE]') continue;
                                 try {
                                     const json = JSON.parse(data);
-                                    const content = json.choices[0]?.delta?.content;
+                                    const delta = json.choices?.[0]?.delta;
+                                    let content = delta?.content || '';
+
+                                    if (!content && delta?.tool_calls) {
+                                        const tc = delta.tool_calls[0];
+                                        if (tc?.function?.arguments) {
+                                            content = tc.function.arguments;
+                                        }
+                                    }
+
                                     if (content) {
                                         backgroundAIReply.fullMessage += content;
                                         backgroundAIReply.lastUpdate = Date.now();
-                                        // 🌟 修复：禁止流式接收时疯狂重绘列表界面，防止主线程卡死
-                                        // updateChatListLastMessage(backgroundAIReply.contactId, backgroundAIReply.fullMessage);
                                     }
                                 } catch (e) {
                                     // 遇到无法解析的数据块静默跳过
@@ -9991,7 +10002,16 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                                 if (data === '[DONE]') continue;
                                 try {
                                     const json = JSON.parse(data);
-                                    const content = json.choices[0]?.delta?.content;
+                                    const delta = json.choices?.[0]?.delta;
+                                    let content = delta?.content || '';
+
+                                    if (!content && delta?.tool_calls) {
+                                        const tc = delta.tool_calls[0];
+                                        if (tc?.function?.arguments) {
+                                            content = tc.function.arguments;
+                                        }
+                                    }
+
                                     if (content) {
                                         backgroundAIReply.fullMessage += content;
                                         backgroundAIReply.lastUpdate = Date.now();
