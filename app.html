@@ -5022,8 +5022,13 @@
                                     
                                     if (!content && delta?.tool_calls) {
                                         const tc = delta.tool_calls[0];
+                                        // 如果AI传回了工具的名字，就作为系统提示显示出来
+                                        if (tc?.function?.name) {
+                                            content += `[系统提示：AI调用了工具 ${tc.function.name}]\n`;
+                                        }
+                                        // 拼接可能存在的参数
                                         if (tc?.function?.arguments) {
-                                            content = tc.function.arguments;
+                                            content += tc.function.arguments;
                                         }
                                     }
                                     
@@ -5276,7 +5281,8 @@
                             temperature: PARAM_CONFIG.temperature, // ⚠️ 注意这里和上面的变量名不同
                             max_tokens: PARAM_CONFIG.maxTokens,
                             frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                            presence_penalty: PARAM_CONFIG.presencePenalty
+                            presence_penalty: PARAM_CONFIG.presencePenalty，
+                            tool_choice: "none"          // 新增这一行
                         }
                     });
                     
@@ -5344,7 +5350,8 @@
                             temperature: PARAM_CONFIG.temperature,
                             max_tokens: PARAM_CONFIG.maxTokens,
                             frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                            presence_penalty: PARAM_CONFIG.presencePenalty
+                            presence_penalty: PARAM_CONFIG.presencePenalty,
+                            tool_choice: "none"          // 新增这一行
                         })
                     });
                 }
@@ -5381,8 +5388,13 @@
 
                                     if (!content && delta?.tool_calls) {
                                         const tc = delta.tool_calls[0];
+                                        // 如果AI传回了工具的名字，就作为系统提示显示出来
+                                        if (tc?.function?.name) {
+                                            content += `[系统提示：AI调用了工具 ${tc.function.name}]\n`;
+                                        }
+                                        // 拼接可能存在的参数
                                         if (tc?.function?.arguments) {
-                                            content = tc.function.arguments;
+                                            content += tc.function.arguments;
                                         }
                                     }
 
@@ -9932,7 +9944,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                             temperature: adjustedTemp,
                             max_tokens: PARAM_CONFIG.maxTokens,
                             frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                            presence_penalty: PARAM_CONFIG.presencePenalty
+                            presence_penalty: PARAM_CONFIG.presencePenalty，
+                            tool_choice: "none"
                         }
                     });
                     
@@ -9978,7 +9991,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                             temperature: adjustedTemp,
                             max_tokens: PARAM_CONFIG.maxTokens,
                             frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                            presence_penalty: PARAM_CONFIG.presencePenalty
+                            presence_penalty: PARAM_CONFIG.presencePenalty,
+                            tool_choice: "none"          // 新增这一行
                         })
                     });
                 }
@@ -10017,8 +10031,13 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
 
                                     if (!content && delta?.tool_calls) {
                                         const tc = delta.tool_calls[0];
+                                        // 如果AI传回了工具的名字，就作为系统提示显示出来
+                                        if (tc?.function?.name) {
+                                            content += `[系统提示：AI调用了工具 ${tc.function.name}]\n`;
+                                        }
+                                        // 拼接可能存在的参数
                                         if (tc?.function?.arguments) {
-                                            content = tc.function.arguments;
+                                            content += tc.function.arguments;
                                         }
                                     }
 
