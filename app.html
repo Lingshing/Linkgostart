@@ -13620,8 +13620,7 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 startX = e.touches[0].clientX;
                 startY = e.touches[0].clientY;
                 currentX = 0;
-                isDragging = false; // 默认不处于拖拽状态
-                isScrolling = false; // 默认不处于滚动状态
+                isDragging = false;
                 startTime = Date.now();
 
                 // 重置其他所有滑动项
@@ -13630,49 +13629,45 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                         resetConfigSwipe(item);
                     }
                 });
-            }, { passive: true }); // passive: true 保证初始触摸不卡顿
+            }, { passive: true });
 
             element.addEventListener('touchmove', (e) => {
-                if (isScrolling) return; // 如果已经被判定为上下滚动，直接无视一切左右滑动
-                
+                if (!isDragging) {
+                    const touchX = e.touches[0].clientX;
+                    const touchY = e.touches[0].clientY;
+                    const diffX = Math.abs(touchX - startX);
+                    const diffY = Math.abs(touchY - startY);
+
+                    if (diffX > 8 && diffX > diffY * 1.5) {
+                        isDragging = true;
+                        element.classList.add('swiping');
+                        element.closest('.config-item-wrapper').classList.add('is-active');
+                    } else if (diffY > 8) {
+                        // 确定为竖滑，放弃手势
+                        return;
+                    } else {
+                        return;
+                    }
+                }
+
+                // 已确定为横滑，阻止页面上下滚动
+                e.preventDefault();
+
                 const touchX = e.touches[0].clientX;
-                const touchY = e.touches[0].clientY;
-                let deltaX = touchX - startX;
-                let deltaY = Math.abs(touchY - startY);
-                
-                // ✨ 防误触核心 1：如果上下的移动幅度大于左右，说明用户想往下/上滚动列表
-                if (deltaY > Math.abs(deltaX) && !element.classList.contains('swiping')) {
-                    isScrolling = true;
-                    return;
-                }
-
-                if (Math.abs(deltaX) > 10 && !isScrolling) {
-                    isDragging = true;
-                    element.classList.add('swiping');
-                    // 🌟 只要手指一动，立刻让底下的圆球显形！
-                    element.closest('.config-item-wrapper').classList.add('is-active'); 
-                }
-
-                // 只有被判定为“正在左滑拖拽”时，才接管并阻止系统原本的滚动
-                if (element.classList.contains('swiping')) {
-                    e.preventDefault(); 
-                    // 只允许向左滑动
-                    if (deltaX > 0) deltaX = 0;
-                    currentX = Math.max(deltaX, -110); // 限制最大滑动距离为110px
-                    element.style.transform = `translateX(${currentX}px)`;
-                }
-            }, { passive: false }); // 需要阻止默认行为，这里设为 false
+                const deltaX = touchX - startX;
+                if (deltaX > 0) deltaX = 0;
+                currentX = Math.max(deltaX, -110);
+                element.style.transform = `translateX(${currentX}px)`;
+            }, { passive: false });
 
             element.addEventListener('touchend', (e) => {
-                if (!element.classList.contains('swiping')) return; // 如果根本没触发左滑，直接放行
-                
+                if (!element.classList.contains('swiping')) return;
                 element.classList.remove('swiping');
                 isDragging = false;
-                
+
                 const duration = Date.now() - startTime;
                 const velocity = Math.abs(currentX) / duration;
 
-                // 如果滑动距离超过70px或速度足够快，则展开操作按钮
                 if (Math.abs(currentX) > 70 || velocity > 0.3) {
                     element.style.transform = 'translateX(-110px)';
                 } else {
@@ -15118,55 +15113,52 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 let isScrolling = false;
                 
                 swipeable.addEventListener('touchstart', (e) => {
-                    // 如果点的是别的帖子，先把当前打开的删除按钮收回去
                     if (activeForumSwipeItem && activeForumSwipeItem !== swipeable) {
                         activeForumSwipeItem.style.transform = 'translateX(0)';
                         activeForumSwipeItem = null;
                     }
                     forumSwipeStartX = e.touches[0].clientX;
                     forumSwipeStartY = e.touches[0].clientY;
-                    isScrolling = false;
+                    isForumSwipeDragging = false; // 新增状态变量
                 }, { passive: true });
-                
+
                 swipeable.addEventListener('touchmove', (e) => {
-                    if (isScrolling) return;
-                    
-                    forumSwipeCurrentX = e.touches[0].clientX;
-                    const currentY = e.touches[0].clientY;
-                    let deltaX = forumSwipeCurrentX - forumSwipeStartX;
-                    let deltaY = Math.abs(currentY - forumSwipeStartY);
-                    
-                    // 防误触1：如果上下滑动的幅度大于左右滑动，说明是在浏览翻页，立刻放弃接管
-                    if (deltaY > Math.abs(deltaX) && !swipeable.classList.contains('swiping')) {
-                        isScrolling = true;
-                        return;
+                    if (!isForumSwipeDragging) {
+                        const touchX = e.touches[0].clientX;
+                        const touchY = e.touches[0].clientY;
+                        const diffX = Math.abs(touchX - forumSwipeStartX);
+                        const diffY = Math.abs(touchY - forumSwipeStartY);
+
+                        if (diffX > 8 && diffX > diffY * 1.5) {
+                            isForumSwipeDragging = true;
+                            swipeable.classList.add('swiping');
+                            window.isItemSwiping = true;
+                        } else if (diffY > 8) {
+                            return; // 竖滑放弃
+                        } else {
+                            return;
+                        }
                     }
-                    
-                    // 防误触2：横向移动超过 10px 才算真正的“滑动”，防止点击时手抖触发卡Bug
-                    if (Math.abs(deltaX) > 10) {
-                        window.isItemSwiping = true;
-                        swipeable.classList.add('swiping');
-                    }
-                    
-                    if (swipeable.classList.contains('swiping')) {
-                        e.preventDefault(); // 滑动时阻止屏幕上下滚动
-                        if (deltaX > 0) deltaX = 0; // 禁止向右滑
-                        if (deltaX < -90) deltaX = -90 - ((-deltaX - 90) * 0.2); // 加入阻尼回弹手感
-                        swipeable.style.transform = `translateX(${deltaX}px)`;
-                    }
+
+                    e.preventDefault();
+
+                    const touchX = e.touches[0].clientX;
+                    let deltaX = touchX - forumSwipeStartX;
+                    if (deltaX > 0) deltaX = 0;
+                    if (deltaX < -90) deltaX = -90 - ((-deltaX - 90) * 0.2);
+                    swipeable.style.transform = `translateX(${deltaX}px)`;
                 }, { passive: false });
-                
+
                 swipeable.addEventListener('touchend', (e) => {
-                    if (!swipeable.classList.contains('swiping')) return; // 如果没被判定为滑动，直接退出不管
-                    
+                    if (!swipeable.classList.contains('swiping')) return;
                     swipeable.classList.remove('swiping');
                     window.isItemSwiping = false;
-                    
-                    const deltaX = forumSwipeCurrentX - forumSwipeStartX;
-                    if (deltaX < -35) { // 超过展开阈值，停留在删除状态
+
+                    const deltaX = parseFloat(swipeable.style.transform.replace('translateX(', '').replace('px)', '')) || 0;
+                    if (deltaX < -35) {
                         swipeable.style.transform = 'translateX(-70px)';
                         activeForumSwipeItem = swipeable;
-                    } else { // 没划到底，弹回去
+                    } else {
                         swipeable.style.transform = 'translateX(0)';
                         if (activeForumSwipeItem === swipeable) activeForumSwipeItem = null;
                     }
