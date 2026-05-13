@@ -4269,6 +4269,14 @@
                            placeholder="点击拉取模型列表"
                            onclick="openUnifiedModelSelector('new')">
                 </div>
+                <!-- 在 "选择模型" 输入框下面添加 -->
+                <div class="config-form-group">
+                    <label class="config-form-label">模型列表代理</label>
+                    <div class="config-form-input" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleModalProxySwitch()">
+                        <span style="font-size: 14px; color: var(--text-sub);">通过中转拉取模型，安全性高</span>
+                        <div class="api-param-indicator" id="modal-proxy-switch" style="pointer-events: none;"></div>
+                    </div>
+                </div>
             </div>
             
             <div class="config-form-buttons">
@@ -10337,6 +10345,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                     const newModal = document.getElementById('new-config-modal');
                     document.getElementById('config-form-title').textContent = context === 'other' ? '新建Other API配置' : '新建配置';
                     ['name', 'url', 'key', 'model'].forEach(id => document.getElementById(`new-config-${id}`).value = '');
+                    // ⭐ 新增：重置代理开关为默认开启
+                    setModalProxySwitchState(true);
                     delete newModal.dataset.editingId;
                     newModal.dataset.configType = context;
                     requestAnimationFrame(() => newModal.classList.add('show'));
@@ -10430,6 +10440,27 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             openUnifiedConfigSelector(ctx, window.currentOtherApiType);
         }
 
+        // 切换弹窗内代理开关的 UI 状态（不保存到配置，只切换视觉）
+        let modalProxyTempState = true; // 临时状态，新建时默认 true
+
+        function toggleModalProxySwitch() {
+            modalProxyTempState = !modalProxyTempState;
+            const indicator = document.getElementById('modal-proxy-switch');
+            if (indicator) {
+                if (modalProxyTempState) indicator.classList.add('active');
+                else indicator.classList.remove('active');
+            }
+        }
+
+        // 设置弹窗内的开关状态（用于编辑时加载）
+        function setModalProxySwitchState(state) {
+            modalProxyTempState = state;
+            const indicator = document.getElementById('modal-proxy-switch');
+            if (indicator) {
+                if (modalProxyTempState) indicator.classList.add('active');
+                else indicator.classList.remove('active');
+            }
+        }
         // --- 保存新配置 (修复了交叉覆写 Bug) ---
         function saveNewConfig() {
             const name = document.getElementById('new-config-name').value.trim();
@@ -10451,14 +10482,22 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             if (editingId) {
                 const config = CHAT_API_CONFIGS.list.find(c => c.id === parseInt(editingId));
                 if (config) {
-                    config.name = name; config.url = url; config.key = key; config.model = model;
+                    config.name = name;
+                    config.url = url;
+                    config.key = key;
+                    config.model = model;
+                    config.useProxy = modalProxyTempState;   // ⭐ 保存开关状态
                     if (CHAT_API_CONFIGS.currentId === config.id) CHAT_API_CONFIGS.currentModel = model;
                     alert('配置已更新！');
                 }
             } else {
-                const newConfig = { id: Date.now(), name, url, key, model, createdAt: new Date().toISOString() };
+                const newConfig = {
+                    id: Date.now(),
+                    name, url, key, model,
+                    useProxy: modalProxyTempState,           // ⭐ 保存开关状态
+                    createdAt: new Date().toISOString()
+                };
                 CHAT_API_CONFIGS.list.push(newConfig);
-                // 🎯 修复：如果从 Other API 进来新建，不再野蛮修改主聊天的默认配置
                 if (!isOther) {
                     CHAT_API_CONFIGS.currentId = newConfig.id;
                     CHAT_API_CONFIGS.currentModel = model;
@@ -10466,7 +10505,9 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 alert('配置已保存！');
             }
             
-            saveChatApiConfigs(); updateChatConfigDisplay(); updateOtherConfigDisplay();
+            saveChatApiConfigs();
+            updateChatConfigDisplay();
+            updateOtherConfigDisplay();
             closeNewConfigForm();
         }
 
@@ -10483,6 +10524,8 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 document.getElementById('new-config-url').value = config.url;
                 document.getElementById('new-config-key').value = config.key;
                 document.getElementById('new-config-model').value = config.model;
+                // ⭐ 新增：同步当前配置的代理开关状态
+                setModalProxySwitchState(config.useProxy !== false);
                 const modal = document.getElementById('new-config-modal');
                 modal.dataset.editingId = configId;
                 requestAnimationFrame(() => modal.classList.add('show'));
@@ -11525,12 +11568,6 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             // 恢复弹窗标题
             const title = modal.querySelector('.config-modal-title');
             if (title) title.textContent = '选择配置';
-            
-            // 恢复按钮事件
-            const newBtn = modal.querySelector('.config-new-btn');
-            if (newBtn) {
-                newBtn.onclick = showNewConfigForm;
-            }
         }
         
         // --- 显示新建Other API配置表单 ---
