@@ -4273,7 +4273,7 @@
                 <div class="config-form-group">
                     <label class="config-form-label">模型列表代理</label>
                     <div class="config-form-input" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleModalProxySwitch()">
-                        <span style="font-size: 14px; color: var(--text-main);">通过中转拉取模型，安全性高</span>
+                        <span style="font-size: 14px; color: var(--text-main);">通过中转，安全性高</span>
                         <div class="api-param-indicator" id="modal-proxy-switch" style="pointer-events: none;"></div>
                     </div>
                 </div>
@@ -5270,100 +5270,136 @@
                 
                 let apiUrl = getStandardApiUrl(config.url, '/chat/completions');
                 
-                // --- 🌟 替换开始：重新生成使用原生请求 ---
+                // --- 替换开始：根据 useProxy 决定请求方式
                 let response;
+                const useProxy = config.useProxy !== false;  // 利用配置中的开关
                 const isIOSNative = window.Capacitor && window.Capacitor.isNativePlatform();
-                
-                if (isIOSNative) {
-                    const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
-                        url: 'https://linkgo-api.ginkgo-yinxing.workers.dev/',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        data: {
-                            customEndpoint: apiUrl,
-                            customApiKey: config.key,
-                            model: config.model || 'gpt-3.5-turbo',
-                            messages: messages,
-                            stream: PARAM_CONFIG.stream, 
-                            temperature: PARAM_CONFIG.temperature, // ⚠️ 注意这里和上面的变量名不同
-                            max_tokens: PARAM_CONFIG.maxTokens,
-                            frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                            presence_penalty: PARAM_CONFIG.presencePenalty,
-                            tool_choice: "none"
-                        }
-                    });
-                    
-                    response = {
-                        ok: nativeResponse.status >= 200 && nativeResponse.status < 300,
-                        status: nativeResponse.status,
-                        text: async () => JSON.stringify(nativeResponse.data),
-                        json: async () => nativeResponse.data
-                    };
 
-                    window.lastRawResponse = JSON.stringify(nativeResponse.data); // 强制记录原生通道返回的数据
-                    
-                    if (PARAM_CONFIG.stream) {
-                        response.body = {
-                            getReader: () => {
-                                let done = false;
-                                return {
-                                    read: async () => {
-                                        if (done) return { done: true };
-                                        done = true;
-                                        // --- 智能拆包逻辑开始：解析你抓到的那串数据 ---
-                                        let content = "";
-                                        if (typeof nativeResponse.data === 'string' && nativeResponse.data.includes('data:')) {
-                                            // 如果收到的是你抓到的那种带 data: 的一长串数据
-                                            const lines = nativeResponse.data.split('\n');
-                                            for (const line of lines) {
-                                                const trimmed = line.trim();
-                                                if (trimmed.startsWith('data: ') && !trimmed.includes('[DONE]')) {
-                                                    try {
-                                                        const json = JSON.parse(trimmed.replace('data: ', ''));
-                                                        content += (json.choices?.[0]?.delta?.content || "");
-                                                    } catch (e) {
-                                                        // 忽略格式错误的碎块
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            // 否则走原来的标准格式路径
-                                            content = nativeResponse.data.choices?.[0]?.message?.content || "";
-                                        }
-                                        
-                                        // 如果最后还是没拆出内容，再显示保底文字
-                                        if (!content) content = "（无内容）";
-                                        // --- 智能拆包逻辑结束 ---
-                                        const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
-                                        return { done: false, value: new TextEncoder().encode(mockSse) };
-                                    }
-                                };
+                if (useProxy) {
+                    // 走 Worker 代理
+                    if (isIOSNative) {
+                        const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
+                            url: 'https://linkgo-api.ginkgo-yinxing.workers.dev/',
+                            headers: { 'Content-Type': 'application/json' },
+                            data: {
+                                customEndpoint: apiUrl,
+                                customApiKey: config.key,
+                                model: config.model || 'gpt-3.5-turbo',
+                                messages: messages,
+                                stream: PARAM_CONFIG.stream,
+                                temperature: PARAM_CONFIG.temperature,
+                                max_tokens: PARAM_CONFIG.maxTokens,
+                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                                presence_penalty: PARAM_CONFIG.presencePenalty,
+                                tool_choice: "none"
                             }
+                        });
+                        response = {
+                            ok: nativeResponse.status >= 200 && nativeResponse.status < 300,
+                            status: nativeResponse.status,
+                            text: async () => JSON.stringify(nativeResponse.data),
+                            json: async () => nativeResponse.data
                         };
+                        if (PARAM_CONFIG.stream) {
+                            response.body = {
+                                getReader: () => {
+                                    let done = false;
+                                    return {
+                                        read: async () => {
+                                            if (done) return { done: true };
+                                            done = true;
+                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "";
+                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
+                                            return { done: false, value: new TextEncoder().encode(mockSse) };
+                                        }
+                                    };
+                                }
+                            };
+                        }
+                    } else {
+                        response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
+                            method: 'POST',
+                            signal: window.currentChatController.signal,
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                customEndpoint: apiUrl,
+                                customApiKey: config.key,
+                                model: config.model || 'gpt-3.5-turbo',
+                                messages: messages,
+                                stream: PARAM_CONFIG.stream,
+                                temperature: PARAM_CONFIG.temperature,
+                                max_tokens: PARAM_CONFIG.maxTokens,
+                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                                presence_penalty: PARAM_CONFIG.presencePenalty,
+                                tool_choice: "none"
+                            })
+                        });
                     }
                 } else {
-                    response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
-                        method: 'POST',
-                        signal: window.currentChatController.signal,
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            customEndpoint: apiUrl,
-                            customApiKey: config.key,
-                            model: config.model || 'gpt-3.5-turbo',
-                            messages: messages,
-                            stream: PARAM_CONFIG.stream,
-                            temperature: PARAM_CONFIG.temperature,
-                            max_tokens: PARAM_CONFIG.maxTokens,
-                            frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                            presence_penalty: PARAM_CONFIG.presencePenalty,
-                            tool_choice: "none"          // 新增这一行
-                        })
-                    });
+                    // 直接请求中转站（不走 Worker）
+                    const directUrl = getStandardApiUrl(config.url, '/chat/completions');
+                    if (isIOSNative) {
+                        const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
+                            url: directUrl,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${config.key}`
+                            },
+                            data: {
+                                model: config.model || 'gpt-3.5-turbo',
+                                messages: messages,
+                                stream: false,
+                                temperature: PARAM_CONFIG.temperature,
+                                max_tokens: PARAM_CONFIG.maxTokens,
+                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                                presence_penalty: PARAM_CONFIG.presencePenalty,
+                                tool_choice: "none"
+                            }
+                        });
+                        response = {
+                            ok: nativeResponse.status >= 200 && nativeResponse.status < 300,
+                            status: nativeResponse.status,
+                            text: async () => JSON.stringify(nativeResponse.data),
+                            json: async () => nativeResponse.data
+                        };
+                        if (PARAM_CONFIG.stream) {
+                            response.body = {
+                                getReader: () => {
+                                    let done = false;
+                                    return {
+                                        read: async () => {
+                                            if (done) return { done: true };
+                                            done = true;
+                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "";
+                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
+                                            return { done: false, value: new TextEncoder().encode(mockSse) };
+                                        }
+                                    };
+                                }
+                            };
+                        }
+                    } else {
+                        response = await fetch(directUrl, {
+                            method: 'POST',
+                            signal: window.currentChatController.signal,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${config.key}`
+                            },
+                            body: JSON.stringify({
+                                model: config.model || 'gpt-3.5-turbo',
+                                messages: messages,
+                                stream: PARAM_CONFIG.stream,
+                                temperature: PARAM_CONFIG.temperature,
+                                max_tokens: PARAM_CONFIG.maxTokens,
+                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                                presence_penalty: PARAM_CONFIG.presencePenalty,
+                                tool_choice: "none"
+                            })
+                        });
+                    }
                 }
-                // --- 🌟 替换结束 ---
+                // --- 替换结束（接下来就是 if (!response.ok) ...）
                 
                 if (!response.ok) throw new Error(`API请求失败: ${response.status}`);
                 
@@ -9906,7 +9942,7 @@
             // 2. 注入高价值核心事件与偏好 (只注入 4分及5分 的核心设定)
             if (contact.longMemories && contact.longMemories.length > 0) {
                 // 如果是没有打过分的旧数据(undefined)，我们默认它是核心设定；如果有打分，则必须大于等于4分
-const coreMemories = contact.longMemories.filter(m => m.score === undefined || m.score >= 4);
+                const coreMemories = contact.longMemories.filter(m => m.score === undefined || m.score >= 4);
                 if (coreMemories.length > 0) {
                     memoryPrompt += "\n=> 世界观核心事实与事件设定：\n";
                     coreMemories.forEach(m => {
@@ -9932,79 +9968,135 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
                 const randomOffset = (Math.random() - 0.5) * 0.4; 
                 const adjustedTemp = Math.max(0.1, Math.min(2.0, PARAM_CONFIG.temperature + randomOffset));
                 
-                // --- 🌟 替换开始：使用原生请求引擎防杀后台 ---
+                // --- 根据 useProxy 决定走 Worker 还是直接请求 ---
                 let response;
+                const useProxy = config.useProxy !== false;  // 默认为 true（走 Worker）
                 const isIOSNative = window.Capacitor && window.Capacitor.isNativePlatform();
-                
-                if (isIOSNative) {
-                    // 原生层请求：无视 WKWebView 浏览器休眠，强行在系统后台完成请求！
-                    const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
-                        url: 'https://linkgo-api.ginkgo-yinxing.workers.dev/',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        data: {
-                            customEndpoint: apiUrl,
-                            customApiKey: config.key,
-                            model: config.model || 'gpt-3.5-turbo',
-                            messages: messages,
-                            stream: false, // ⚠️ 核心魔法：原生请求必须关闭流式打字机，后台才能安稳接收到最后的一长串完整数据
-                            temperature: adjustedTemp,
-                            max_tokens: PARAM_CONFIG.maxTokens,
-                            frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                            presence_penalty: PARAM_CONFIG.presencePenalty,
-                            tool_choice: "none"
-                        }
-                    });
-                    
-                    // 伪装成普通的 fetch 返回格式，欺骗下面的代码
-                    response = {
-                        ok: nativeResponse.status >= 200 && nativeResponse.status < 300,
-                        status: nativeResponse.status,
-                        text: async () => JSON.stringify(nativeResponse.data),
-                        json: async () => nativeResponse.data
-                    };
-                    
-                    // 伪装一个流式 reader，让原有的流式处理代码正常运作，不用改下面的代码！
-                    if (PARAM_CONFIG.stream) {
-                        response.body = {
-                            getReader: () => {
-                                let done = false;
-                                return {
-                                    read: async () => {
-                                        if (done) return { done: true };
-                                        done = true;
-                                        const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
-                                        const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
-                                        return { done: false, value: new TextEncoder().encode(mockSse) };
-                                    }
-                                };
+
+                if (useProxy) {
+                    // 走 Worker 代理
+                    if (isIOSNative) {
+                        const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
+                            url: 'https://linkgo-api.ginkgo-yinxing.workers.dev/',
+                            headers: { 'Content-Type': 'application/json' },
+                            data: {
+                                customEndpoint: apiUrl,
+                                customApiKey: config.key,
+                                model: config.model || 'gpt-3.5-turbo',
+                                messages: messages,
+                                stream: false,
+                                temperature: adjustedTemp,
+                                max_tokens: PARAM_CONFIG.maxTokens,
+                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                                presence_penalty: PARAM_CONFIG.presencePenalty,
+                                tool_choice: "none"
                             }
+                        });
+                        response = {
+                            ok: nativeResponse.status >= 200 && nativeResponse.status < 300,
+                            status: nativeResponse.status,
+                            text: async () => JSON.stringify(nativeResponse.data),
+                            json: async () => nativeResponse.data
                         };
+                        if (PARAM_CONFIG.stream) {
+                            response.body = {
+                                getReader: () => {
+                                    let done = false;
+                                    return {
+                                        read: async () => {
+                                            if (done) return { done: true };
+                                            done = true;
+                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
+                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
+                                            return { done: false, value: new TextEncoder().encode(mockSse) };
+                                        }
+                                    };
+                                }
+                            };
+                        }
+                    } else {
+                        response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
+                            method: 'POST',
+                            signal: window.currentChatController.signal,
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                customEndpoint: apiUrl,
+                                customApiKey: config.key,
+                                model: config.model || 'gpt-3.5-turbo',
+                                messages: messages,
+                                stream: PARAM_CONFIG.stream,
+                                temperature: adjustedTemp,
+                                max_tokens: PARAM_CONFIG.maxTokens,
+                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                                presence_penalty: PARAM_CONFIG.presencePenalty,
+                                tool_choice: "none"
+                            })
+                        });
                     }
                 } else {
-                    // 如果是用电脑浏览器测试，继续使用原版 fetch
-                    response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
-                        method: 'POST',
-                        signal: window.currentChatController.signal,
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            customEndpoint: apiUrl,
-                            customApiKey: config.key,
-                            model: config.model || 'gpt-3.5-turbo',
-                            messages: messages,
-                            stream: PARAM_CONFIG.stream,
-                            temperature: adjustedTemp,
-                            max_tokens: PARAM_CONFIG.maxTokens,
-                            frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                            presence_penalty: PARAM_CONFIG.presencePenalty,
-                            tool_choice: "none"          // 新增这一行
-                        })
-                    });
+                    // 直接请求中转站（不走 Worker）
+                    const directUrl = getStandardApiUrl(config.url, '/chat/completions');
+                    if (isIOSNative) {
+                        const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
+                            url: directUrl,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${config.key}`
+                            },
+                            data: {
+                                model: config.model || 'gpt-3.5-turbo',
+                                messages: messages,
+                                stream: false,
+                                temperature: adjustedTemp,
+                                max_tokens: PARAM_CONFIG.maxTokens,
+                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                                presence_penalty: PARAM_CONFIG.presencePenalty,
+                                tool_choice: "none"
+                            }
+                        });
+                        response = {
+                            ok: nativeResponse.status >= 200 && nativeResponse.status < 300,
+                            status: nativeResponse.status,
+                            text: async () => JSON.stringify(nativeResponse.data),
+                            json: async () => nativeResponse.data
+                        };
+                        if (PARAM_CONFIG.stream) {
+                            response.body = {
+                                getReader: () => {
+                                    let done = false;
+                                    return {
+                                        read: async () => {
+                                            if (done) return { done: true };
+                                            done = true;
+                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
+                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
+                                            return { done: false, value: new TextEncoder().encode(mockSse) };
+                                        }
+                                    };
+                                }
+                            };
+                        }
+                    } else {
+                        response = await fetch(directUrl, {
+                            method: 'POST',
+                            signal: window.currentChatController.signal,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${config.key}`
+                            },
+                            body: JSON.stringify({
+                                model: config.model || 'gpt-3.5-turbo',
+                                messages: messages,
+                                stream: PARAM_CONFIG.stream,
+                                temperature: adjustedTemp,
+                                max_tokens: PARAM_CONFIG.maxTokens,
+                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                                presence_penalty: PARAM_CONFIG.presencePenalty,
+                                tool_choice: "none"
+                            })
+                        });
+                    }
                 }
-                // --- 🌟 替换结束 ---
                 
                 if (!response.ok) {
                     let errorText = await response.text().catch(e => '无法读取错误信息');
