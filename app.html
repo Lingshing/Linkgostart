@@ -4273,7 +4273,7 @@
                 <div class="config-form-group">
                     <label class="config-form-label">模型列表代理</label>
                     <div class="config-form-input" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleModalProxySwitch()">
-                        <span style="font-size: 14px; color: var(--text-sub);">通过中转拉取模型，安全性高</span>
+                        <span style="font-size: 14px; color: var(--text-main);">通过中转拉取模型，安全性高</span>
                         <div class="api-param-indicator" id="modal-proxy-switch" style="pointer-events: none;"></div>
                     </div>
                 </div>
@@ -10557,69 +10557,87 @@ const coreMemories = contact.longMemories.filter(m => m.score === undefined || m
             window.currentModelSelectorContext = context;
             window.currentOtherApiType = type;
             let url, key, targetUrl;
+            let useProxy = true;  // 默认走代理
 
             // 1. 根据 context 获取中转站的 URL 和 API Key
             if (context === 'new') {
                 url = document.getElementById('new-config-url').value.trim();
                 key = document.getElementById('new-config-key').value.trim();
                 if (!url || !key) return alert('请先输入API URL和API Key');
+                // 新建配置时默认走 Worker，用户可在保存后修改开关
+                useProxy = true;
             } else if (context === 'main') {
                 if (!CHAT_API_CONFIGS.currentId) return alert('请先选择一个配置');
                 const config = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
                 if (!config) return alert('配置不存在');
                 url = config.url;
                 key = config.key;
+                useProxy = config.useProxy !== false; // 如果未定义则默认为 true
             } else if (context === 'other') {
                 if (!OTHER_API_CONFIGS[type] || !OTHER_API_CONFIGS[type].configId) return alert('请先选择一个配置');
                 const config = CHAT_API_CONFIGS.list.find(c => c.id === OTHER_API_CONFIGS[type].configId);
                 if (!config) return alert('配置不存在');
                 url = config.url;
                 key = config.key;
+                useProxy = config.useProxy !== false;
             }
 
-            // 2. 构造完整的 /models 接口 URL
             targetUrl = getStandardApiUrl(url, '/models');
 
-            // 3. 前端直接 fetch（不经过 Worker）
             const modelInput = document.getElementById('new-config-model');
             const originalPlaceholder = modelInput.placeholder;
             if (context === 'new') modelInput.placeholder = '正在拉取模型...';
 
             try {
-                const response = await fetch(targetUrl, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${key}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                let response;
+                if (useProxy) {
+                    // 走 Worker 代理
+                    response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'list_models',
+                            customEndpoint: targetUrl,
+                            customApiKey: key
+                        })
+                    });
+                } else {
+                    // 直接请求
+                    response = await fetch(targetUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${key}`,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    });
                 }
-                });
 
                 if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const data = await response.json();
                 if (data.data && Array.isArray(data.data)) {
-                availableModels = data.data.map(m => m.id).sort();
-                if (availableModels.length === 0) throw new Error('未找到可用模型');
+                    availableModels = data.data.map(m => m.id).sort();
+                    if (availableModels.length === 0) throw new Error('未找到可用模型');
 
-                document.getElementById('model-search-input').value = '';
-                renderUnifiedModelList(availableModels);
-                requestAnimationFrame(() => {
-                    document.getElementById('model-selector-modal').classList.add('show');
-                    const listContainer = document.getElementById('model-list-container');
-                    if (listContainer) listContainer.scrollTop = 0;
-                });
+                    document.getElementById('model-search-input').value = '';
+                    renderUnifiedModelList(availableModels);
+                    requestAnimationFrame(() => {
+                        document.getElementById('model-selector-modal').classList.add('show');
+                        const listContainer = document.getElementById('model-list-container');
+                        if (listContainer) listContainer.scrollTop = 0;
+                    });
                 } else {
-                throw new Error('返回格式错误（缺少 data.data）');
+                    throw new Error('返回格式错误（缺少 data.data）');
                 }
             } catch (e) {
                 alert('拉取模型失败: ' + e.message);
             } finally {
                 if (context === 'new') modelInput.placeholder = originalPlaceholder;
             }
-            }
+        }
 
         function renderUnifiedModelList(models) {
             const listContainer = document.getElementById('model-list-container');
