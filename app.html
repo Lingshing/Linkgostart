@@ -17525,8 +17525,14 @@
             nameSpan.style.display = 'none';
             nameSpan.parentNode.insertBefore(input, nameSpan.nextSibling);
             input.focus();
-            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
             input.select();
+
+            // 键盘弹起后延迟滚动
+            const onKeyboardShow = () => {
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                window.removeEventListener('keyboardWillShow', onKeyboardShow);
+            };
+            window.addEventListener('keyboardWillShow', onKeyboardShow);
 
             // 输入时实时调整宽度
             input.addEventListener('input', adjustWidth);
@@ -17548,6 +17554,7 @@
                         }
                     });
                     if (contact.relations) {
+                        // 1. 先把所有关系中出现的旧名字改为新名字
                         contact.relations.forEach(rel => {
                             if (rel.source === oldName) rel.source = newName;
                             if (rel.target === oldName) rel.target = newName;
@@ -17557,6 +17564,50 @@
                                 });
                             }
                         });
+
+                        // 2. 合并相同人物对的关系（保留所有历史记录）
+                        const mergedMap = new Map();
+                        for (const rel of contact.relations) {
+                            const key = `${rel.source}|${rel.target}`;
+                            if (mergedMap.has(key)) {
+                                const existing = mergedMap.get(key);
+                                // 如果当前关系有 history 数组，就把它的所有条目合并到 existing.history 中
+                                if (rel.history && rel.history.length) {
+                                    if (!existing.history) existing.history = [];
+                                    existing.history.push(...rel.history);
+                                }
+                                // 如果当前关系本身带有历史（直接存储在 label/detail/updatedAt 中），也当作一条历史记录合并
+                                if (rel.label && rel.detail && rel.updatedAt) {
+                                    if (!existing.history) existing.history = [];
+                                    // 避免重复添加完全相同的历史条目
+                                    const alreadyHas = existing.history.some(h => 
+                                        h.label === rel.label && h.detail === rel.detail && h.time === rel.updatedAt
+                                    );
+                                    if (!alreadyHas) {
+                                        existing.history.push({
+                                            label: rel.label,
+                                            detail: rel.detail,
+                                            time: rel.updatedAt
+                                        });
+                                    }
+                                }
+                                // 保留更新 label 和 detail（取最新的）
+                                existing.label = rel.label || existing.label;
+                                existing.detail = rel.detail || existing.detail;
+                                existing.updatedAt = rel.updatedAt || existing.updatedAt;
+                            } else {
+                                // 确保每条关系都有 history 数组（如果是老数据没有 history，则从自身构造）
+                                if (!rel.history && rel.label && rel.detail && rel.updatedAt) {
+                                    rel.history = [{
+                                        label: rel.label,
+                                        detail: rel.detail,
+                                        time: rel.updatedAt
+                                    }];
+                                }
+                                mergedMap.set(key, rel);
+                            }
+                        }
+                        contact.relations = Array.from(mergedMap.values());
                     }
                     if (updatedCount > 0) {
                         saveToLocal();
@@ -17783,8 +17834,14 @@
             
             // 6. 聚焦并定位光标
             textarea.focus();
-            textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
             textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+            // 键盘弹起后延迟滚动
+            const onKeyboardShow = () => {
+                textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                window.removeEventListener('keyboardWillShow', onKeyboardShow);
+            };
+            window.addEventListener('keyboardWillShow', onKeyboardShow);
 
             // 自动动态撑高
             const autoSize = () => {
