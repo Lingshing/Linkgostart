@@ -6505,12 +6505,13 @@
 
         【最高禁令：全分类与关系零冗余铁则】
         1. 绝对不重复记录：生成任何记忆或关系前，必须先仔细比对【已有记忆库】。若某事实（身份、关系、偏好、能力、世界观、事件、物品）已存在或高度相似，绝对不要再次输出！此禁令对所有分类和 relations 一视同仁。
-        2. 增量更新法则：对同一实体有了更详细/更正确的新了解，只输出新增部分，keywords 必须沿用该实体的主名称（严禁添加“更新：”或其他前缀）。你可以在 content 中自然描述这是新发现，或者可选地增加一个 previousName 字段（当本段对话中出现了该实体的新代称时使用），但不要改变 keywords 的第一个元素。
-            · 例：旧记忆库有"林深，男"，新发现他为Alpha且爱吃西瓜 → keywords: ["林深"]，content: "确认林深为Alpha。嗜甜，爱吃西瓜。"，绝不重复"林深，男"。如果本段中用户用“深哥”称呼他，可同时设置 previousName: "深哥" 供前端合并，但 keywords 仍为 ["林深"]。
+        2. 增量更新法则：对同一实体有了更详细/更正确的新了解，只输出新增部分，并在 keywords 首位加 "更新：" 前缀。
+        - 例：旧记忆库有"林深，男"，新发现他为Alpha且爱吃西瓜 → keywords: ["更新：林深"]，content: "确认林深为Alpha。嗜甜，爱吃西瓜。"，绝不重复"林深，男"。
         3. 批次内差分与时间线切割：
             a) 通读本段对话，提取【已有记忆库】中完全不存在的全新属性/事件/偏好。
             b) 按"属性粒度"拆分：比如嗜甜和体能优异是两种属性，必须分别记录为两条独立记忆，严禁合并。
             c) 同一属性在本段多次出现，只保留一条，其 roundRange 标记为首次和末次的大致区间（如 "2-9"），内容不赘述次数。
+            d) 除实体在记忆库中完全不存在（首次记录）外，一律使用 keywords: ["更新：角色名"] 格式。
         4. 人物实体防污染：严禁将属性、物品、身体部位、组织名等当作独立人物建档。所有已知人物的新增信息，必须用"更新：角色名"附着到本体档案中。仅首次出现的真人方可建立"人物"记忆。
         5. 人物内容格式：category 为"人物"的记忆中，content 内不得再写人名，只写新属性/特征。
             - 正确：旧有"林深，男，慕辞的同学"，新发现他爱吃西瓜 → content: "近期表现出对西瓜的极度偏好。"
@@ -6519,8 +6520,6 @@
         7. 禁止联想：只记录明确发生的事实，语言自然简洁但不过度扁平。
         8. 拆分逻辑：复杂事件/设定须拆成多条 memory，每条只讲一个极简事实。
         9. NSFW 医学级记录：抛弃文学渲染，保留体位、癖好、敏感带等临床术语，禁用"亲密交流"等模糊词。
-
-        【全局去重铁律】任何记忆或关系，如果与已有记忆库中的任何条目在语义上重复（即使轮次、措辞不同），都绝对禁止输出。只有当出现了全新的事实或关系标签变化时，才能新增。这是本系统的最高优先级规则，违反此规则的输出将被视为无效。
 
         【五大分类与示例】
         每一条记忆必须归入人物、世界、事件、偏好、异闻之一。
@@ -6547,42 +6546,18 @@
         【关系称谓适配】
         关系 label 必须基于角色社会性别及世界观。ABO世界中男性Omega生育，只能用"父子"或"父（Omega）"，严禁"母子"。
 
-        【羁绊关系（Relations）增量原则 - 严格去重版】
+        【羁绊关系（Relations）增量原则】
+        1. 先比对已有关系。只有出现以下情况才输出：
+            - 两人首次建立任何关系。
+            - 原有关系标签发生改变。
+            - detail 中出现重要的、未被记录的新事实。
+        2. 若本区间内关系无任何变化，或 detail 无新信息，则完全不要输出该 relation。
+        3. 输出规则：
+            - label 必须极其简洁，控制在 2-5 个汉字内（如夫夫、夫妻、父子、兄弟、宿敌、师徒、上下级、发小）。避免用长句解释。
+            - 'updatedAt' 必须严格使用本次修史的实际轮次范围（例如本次修史是 1-15 轮，则只能写成 "1-15"），禁止写成未来轮次或超过本次区间的轮数。
+            - 'detail' 只描述本区间内导致关系变化的直接事实，严禁把旧历史再写一遍。
+        4. 绝对禁止输出与已有 memory 中完全相同的 relation（相同 label 和 detail）。
 
-        1. 输出条件（必须同时满足以下所有条件）：
-           a) 关系的 label（标签）发生了实质变化（例如从“初识”变为“知己”），或者
-           b) 出现了全新的、足以改变关系性质的事件，且该事件在已有关系记录的 detail 中从未出现过（语义级别）。
-        
-        2. 绝对禁止输出的情况（无论轮次范围如何）：
-           - 已有相同 label 的关系记录，且 detail 描述的实质内容相同（即使措辞略有变化，如“介绍私密社交圈” vs “介绍社交资源”视为相同）。
-           - 已有相同 label 的关系记录，即使轮次范围不同（例如已有 5-14 轮记录，又要在 21-40 轮输出同样的 label 和细节），也严禁重复输出。
-           - 任何语义重复的描述，即使换了几个字。
-        
-        3. 输出格式：
-           - label：2-5 个汉字。
-           - detail：必须控制在 50 字以内，只写本区间内关系发生的**最新、最独特**的变化。如果没有任何新变化，则完全不要输出该 relation。
-           - updatedAt：必须使用关系发生变化的实际轮次范围（例如本次修史是 21-40 轮，但关系改变事件发生在 22-28 轮，则写成 "22-28"）。但请注意：即使 updatedAt 不同，只要 label 和 detail 语义重复，也不允许输出。
-        
-        4. 去重检查流程（AI 必须在输出前执行）：
-           ① 检查已有记忆库中是否存在相同 label 且 detail 意思相同的关系。
-           ② 如果存在，无论 updatedAt 是多少，都跳过本次输出。
-           ③ 如果关系有进展，必须写出与之前 detail 不同的新事实，且新事实不能是对旧事实的换种说法。
-        
-        5. 错误示例（严厉禁止）：
-           已有关系：{"source":"陈应","target":"夏以昼","label":"发小","detail":"从小一起长大的朋友，陈应了解夏以昼的私密偏好，并为他介绍了高端的私密社交圈。","updatedAt":"5-14"}
-           再次输出：{"source":"陈应","target":"夏以昼","label":"发小","detail":"从小一起长大的朋友，关系密切，陈应了解夏以昼的私人偏好并为其介绍社交资源。","updatedAt":"5-12"}
-           → 此为严重错误！两条关系 label 相同，detail 描述的是同一件事（介绍社交圈/资源），只是更换了措辞，轮次略有不同。必须禁止输出第二条！只有在关系标签变化（如变为“挚友”）或出现全新重大事件（如“陈应救了夏以昼的命”）时，才能新增。
-        
-        6. 正确示例：
-           - 首次记录（第 5-14 轮）：{"source":"陈应","target":"夏以昼","label":"发小","detail":"从小一起长大的朋友，陈应了解夏以昼的私密偏好，并为他介绍了高端的私密社交圈。","updatedAt":"5-14"}
-           - 后续（第 21-40 轮）关系无实质变化 → 不输出任何 relation。
-           - 后续（第 50-60 轮）陈应帮助夏以昼度过破产危机 → 输出：{"source":"陈应","target":"夏以昼","label":"挚友","detail":"陈应资助夏以昼度过破产危机，两人关系更紧密。","updatedAt":"50-60"}        
-                
-        【字数限制 - 绝对红线】
-        - 每一条记忆（memory）的 content 字段，不得超过 50 个汉字。
-        - 每一条关系（relation）的 detail 字段，不得超过 50 个汉字。
-        - 超过字数限制的输出将被系统直接丢弃。请务必精炼表达，只保留最核心的事实，删除冗余修饰。
-        
         【记忆分级 (Score 1-5)】
             - 5分：人生重大转折，isMilestone: true。
             - 4分：重要身份/能力补充，isMilestone: false。
@@ -6621,13 +6596,13 @@
         正确输出：
         {
             "memories":[
-            {"category":"偏好","keywords":["林深"],"content":"近期开始喜欢熬夜，常在凌晨两点后入睡。","score":3,"isMilestone":false,"roundRange":"15-19"}
+            {"category":"偏好","keywords":["更新：林深"],"content":"近期开始喜欢熬夜，常在凌晨两点后入睡。","score":3,"isMilestone":false,"roundRange":"15-19"}
             ]
         }
 
         3. 实体防污染：已有慕辞档案，对话提及其性器尺寸。
         错误：{"category":"人物","keywords":["慕辞的性器尺寸"],"content":"尺寸为20cm。"}
-        正确：{"category":"人物","keywords":["慕辞"],"content":"私密档案：性器尺寸巨大，长度约20cm。"}
+        正确：{"category":"人物","keywords":["更新：慕辞"],"content":"私密档案：性器尺寸巨大，长度约20cm。"}
 
         4. 实体代称归一：记忆库已有"慕辞哥哥"，对话出现"慕辞的哥哥"。
         错误输出：keywords:["慕辞的哥哥"]
@@ -6637,14 +6612,7 @@
         - 本次修史 1-15 轮，发现林深与慕辞是发小。
         正确：{"source":"林深","target":"慕辞","label":"发小","detail":"从小一起长大的朋友。","updatedAt":"1-15"}
         错误：updatedAt 写成 "1-153" 或 label 写 "从小一起长大的发小"；label 应只用"发小"二字。
-        
-        6. 错误示例（禁止输出重复关系）：
-       - 已有关系 {"source":"夏以昼","target":"慕辞","label":"初识","detail":"在私密社交活动中因孕期偏好相识，夏以昼照顾微醺的慕辞并送其回家。","updatedAt":"1-15"}
-       - 同一区间再次输出 {"source":"夏以昼","target":"慕辞","label":"相识","detail":"在私密社交活动中因相同孕期偏好标识而相识，夏以昼主动搭讪并照顾微醺的慕辞，开车送他回家。","updatedAt":"1-15"}
-       → 这是严重错误！两者事件几乎相同，不得重复输出。只有当关系标签变化（例如从“初识”变为“恋人”）或出现全新重大事件时才能输出新的 relation。
         `;
-        
-        
 
         
         // --- 自动生成长期记忆（日常后台静默触发版）---
@@ -7040,8 +7008,11 @@
                             </div>
                         </div>
 
-                        <div style="padding-left: 4px; margin-bottom: 6px;">
-                            <p style="font-size: 12px; font-weight: 500; color: var(--text-sub); margin: 0;">选择提取区间 <span style="opacity: 0.5; font-weight: 400;">(共 ${userMessagesCount} 轮)</span></p>
+                        <div style="padding-left: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                            <p style="font-size: 12px; font-weight: 500; color: var(--text-sub); margin: 0;">
+                                <input type="checkbox" id="select-all-rounds" style="margin-right: 8px; transform: translateY(1px); accent-color: #D47A43;"> 选择提取区间 
+                                <span style="opacity: 0.5; font-weight: 400;">(共 ${userMessagesCount} 轮)</span>
+                            </p>
                         </div>
 
                         <div style="display:flex; flex-direction:column;">
@@ -7096,11 +7067,233 @@
             </style>
             `;
             document.body.insertAdjacentHTML('beforeend', html);
-            
-            setTimeout(() => {
-                const newModal = document.getElementById('round-selector-modal');
-                if (newModal) newModal.classList.add('show');
-            }, 10);
+
+            const newModal = document.getElementById('round-selector-modal');
+            if (newModal) {
+                newModal.classList.add('show');
+
+                // 全选复选框绑定
+                const selectAllCheckbox = newModal.querySelector('#select-all-rounds');
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.addEventListener('change', (e) => {
+                        const isChecked = e.target.checked;
+                        const allCbs = newModal.querySelectorAll('.round-chunk-cb');
+                        allCbs.forEach(cb => {
+                            cb.checked = isChecked;
+                            // 触发 change 事件，以便其他逻辑（如已有监听器）同步
+                            cb.dispatchEvent(new Event('change', { bubbles: true }));
+                        });
+                    });
+                }
+                const scrollContainer = newModal.querySelector('.config-modal-body');
+                if (!scrollContainer) return;
+
+                let startY = 0;
+                let startValid = false;
+                let isSelecting = false;
+                let autoScrollRaf = null;
+                let lastClientX = 0, lastClientY = 0;
+                let lastZoneId = null;
+                let lastToggleTime = 0;
+
+                const ENTER_THRESHOLD = 4;           // 移动4px进入选择模式
+                const SCROLL_ZONE = 45;
+                const SCROLL_SPEED = 8;
+                const DEBOUNCE_MS = 30;              // 极短防抖，保证灵敏
+
+                function getZoneElement(x, y) {
+                    const elem = document.elementsFromPoint(x, y);
+                    for (let el of elem) {
+                        const zone = el.closest('label, .config-list-item');
+                        if (zone && zone.querySelector('.round-chunk-cb')) return zone;
+                    }
+                    return null;
+                }
+
+                function isValidStart(x, y) {
+                    const zone = getZoneElement(x, y);
+                    if (!zone) return false;
+                    const cb = zone.querySelector('.round-chunk-cb');
+                    if (!cb) return false;
+                    const zoneRect = zone.getBoundingClientRect();
+                    const cbRect = cb.getBoundingClientRect();
+                    return x >= zoneRect.left && x <= cbRect.right;
+                }
+
+                function toggleZone(zone) {
+                    if (!zone) return false;
+                    const now = Date.now();
+                    if (now - lastToggleTime < DEBOUNCE_MS) return false;
+                    const zoneId = zone;
+                    if (zoneId === lastZoneId) return false;
+                    const cb = zone.querySelector('.round-chunk-cb');
+                    if (!cb) return false;
+                    cb.checked = !cb.checked;
+                    cb.dispatchEvent(new Event('change', { bubbles: true }));
+                    lastZoneId = zoneId;
+                    lastToggleTime = now;
+                    return true;
+                }
+
+                // 获取所有可见区间（在视口内）
+                function getVisibleZones() {
+                    if (!scrollContainer) return [];
+                    const rect = scrollContainer.getBoundingClientRect();
+                    return Array.from(scrollContainer.querySelectorAll('label, .config-list-item'))
+                        .filter(z => z.querySelector('.round-chunk-cb'))
+                        .filter(z => {
+                            const zRect = z.getBoundingClientRect();
+                            return zRect.top < rect.bottom && zRect.bottom > rect.top;
+                        });
+                }
+
+                function getAdjacentZone(currentZone, direction) {
+                    const allZones = Array.from(scrollContainer.querySelectorAll('label, .config-list-item'))
+                        .filter(z => z.querySelector('.round-chunk-cb'));
+                    const index = allZones.indexOf(currentZone);
+                    if (direction === 'up' && index > 0) return allZones[index - 1];
+                    if (direction === 'down' && index < allZones.length - 1) return allZones[index + 1];
+                    return null;
+                }
+
+                function startAutoScroll(direction) {
+                    if (autoScrollRaf) cancelAnimationFrame(autoScrollRaf);
+                    let lastTimestamp = 0;
+                    let lastProcessedZone = null;
+
+                    function step(now) {
+                        if (!isSelecting) {
+                            cancelAnimationFrame(autoScrollRaf);
+                            autoScrollRaf = null;
+                            return;
+                        }
+                        if (!lastTimestamp) lastTimestamp = now;
+                        const delta = now - lastTimestamp;
+                        if (delta >= 16) {
+                            // 执行滚动
+                            if (direction === 'up') {
+                                scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - SCROLL_SPEED);
+                            } else {
+                                scrollContainer.scrollTop = Math.min(scrollContainer.scrollHeight - scrollContainer.clientHeight, scrollContainer.scrollTop + SCROLL_SPEED);
+                            }
+                            lastTimestamp = now;
+
+                            // 优先处理手指下方的区间
+                            const fingerZone = getZoneElement(lastClientX, lastClientY);
+                            if (fingerZone) {
+                                toggleZone(fingerZone);
+                                if (lastProcessedZone === fingerZone) {
+                                    const nextZone = getAdjacentZone(fingerZone, direction);
+                                    if (nextZone) toggleZone(nextZone);
+                                }
+                                lastProcessedZone = fingerZone;
+                            } else {
+                                // 如果手指下方没有区间（例如在边缘空白），则主动处理可见区间中滚动方向上的第一个
+                                const visibleZones = getVisibleZones();
+                                if (visibleZones.length) {
+                                    const targetZone = direction === 'up' ? visibleZones[0] : visibleZones[visibleZones.length - 1];
+                                    if (targetZone) toggleZone(targetZone);
+                                }
+                                lastProcessedZone = null;
+                            }
+
+                            // 额外处理：当滚动到边界时，如果还有未切换的边界区间，再尝试切换一次
+                            const isAtTop = scrollContainer.scrollTop === 0;
+                            const isAtBottom = scrollContainer.scrollTop >= scrollContainer.scrollHeight - scrollContainer.clientHeight;
+                            if (isAtTop || isAtBottom) {
+                                const boundaryZone = direction === 'up' ? getVisibleZones()[0] : getVisibleZones().slice(-1)[0];
+                                if (boundaryZone && boundaryZone !== lastZoneId) toggleZone(boundaryZone);
+                            }
+                        }
+                        autoScrollRaf = requestAnimationFrame(step);
+                    }
+                    autoScrollRaf = requestAnimationFrame(step);
+                }
+
+                function stopAutoScroll() {
+                    if (autoScrollRaf) {
+                        cancelAnimationFrame(autoScrollRaf);
+                        autoScrollRaf = null;
+                    }
+                }
+
+                function onTouchStart(e) {
+                    startY = e.touches[0].clientY;
+                    const touchX = e.touches[0].clientX;
+                    const touchY = e.touches[0].clientY;
+                    startValid = isValidStart(touchX, touchY);
+                    isSelecting = false;
+                    lastZoneId = null;
+                    lastToggleTime = 0;
+                    stopAutoScroll();
+                }
+
+                function onTouchMove(e) {
+                    if (!startValid) return;
+
+                    const currentY = e.touches[0].clientY;
+                    const deltaY = currentY - startY;
+
+                    if (!isSelecting && Math.abs(deltaY) > ENTER_THRESHOLD) {
+                        isSelecting = true;
+                        e.preventDefault();
+                        lastClientX = e.touches[0].clientX;
+                        lastClientY = currentY;
+                        const firstZone = getZoneElement(lastClientX, lastClientY);
+                        if (firstZone) toggleZone(firstZone);
+                        return;
+                    }
+
+                    if (!isSelecting) return;
+
+                    e.preventDefault();
+                    lastClientX = e.touches[0].clientX;
+                    lastClientY = currentY;
+
+                    const rect = scrollContainer.getBoundingClientRect();
+                    const relativeY = lastClientY - rect.top;
+                    const isTopZone = relativeY < SCROLL_ZONE && scrollContainer.scrollTop > 0;
+                    const isBottomZone = relativeY > rect.height - SCROLL_ZONE && scrollContainer.scrollTop < scrollContainer.scrollHeight - rect.height;
+
+                    if (isTopZone) {
+                        startAutoScroll('up');
+                    } else if (isBottomZone) {
+                        startAutoScroll('down');
+                    } else {
+                        stopAutoScroll();
+                    }
+
+                    const zone = getZoneElement(lastClientX, lastClientY);
+                    if (zone) toggleZone(zone);
+                }
+
+                function onTouchEnd(e) {
+                    if (isSelecting) e.preventDefault();
+                    // 结束时，确保最后手指下的区间被切换（如果之前漏掉）
+                    if (isSelecting) {
+                        const finalZone = getZoneElement(lastClientX, lastClientY);
+                        if (finalZone && finalZone !== lastZoneId) toggleZone(finalZone);
+                    }
+                    isSelecting = false;
+                    lastZoneId = null;
+                    stopAutoScroll();
+                }
+
+                scrollContainer.addEventListener('touchstart', onTouchStart, { passive: true });
+                scrollContainer.addEventListener('touchmove', onTouchMove, { passive: false });
+                scrollContainer.addEventListener('touchend', onTouchEnd);
+                scrollContainer.addEventListener('touchcancel', onTouchEnd);
+
+                const originalClose = window.closeRoundSelectorModal;
+                window.closeRoundSelectorModal = function() {
+                    if (originalClose) originalClose();
+                    scrollContainer.removeEventListener('touchstart', onTouchStart);
+                    scrollContainer.removeEventListener('touchmove', onTouchMove);
+                    scrollContainer.removeEventListener('touchend', onTouchEnd);
+                    scrollContainer.removeEventListener('touchcancel', onTouchEnd);
+                    stopAutoScroll();
+                };
+            }
         }
 
         // 🌟 全局关闭修史面板函数（带退出动画）
@@ -7355,8 +7548,7 @@
                 // 注入人物关系星图连线数据！
                 if (result.relations && Array.isArray(result.relations)) {
                     if (!contact.relations) contact.relations = [];
-                    const uniqueRelations = deduplicateRelations(result.relations);
-                    uniqueRelations.forEach(r => {
+                    result.relations.forEach(r => {
                         const existingRelIndex = contact.relations.findIndex(ex => 
                             (ex.source === r.source && ex.target === r.target) || 
                             (ex.source === r.target && ex.target === r.source)
@@ -7417,28 +7609,6 @@
                     }, 500);
                 }
             }
-        }
-
-        function deduplicateRelations(relations) {
-            const map = new Map();
-            for (const rel of relations) {
-                const key = `${rel.source}|${rel.target}`;
-                if (map.has(key)) {
-                    // 如果已存在相同 source-target 的关系，合并 detail（取较短的或合并）
-                    const existing = map.get(key);
-                    if (rel.detail && existing.detail && rel.detail !== existing.detail) {
-                        existing.detail = existing.detail + '；' + rel.detail;
-                        if (existing.detail.length > 50) existing.detail = existing.detail.substring(0, 47) + '...';
-                    }
-                    // 保留 updatedAt 最新的
-                    if (rel.updatedAt && (!existing.updatedAt || rel.updatedAt > existing.updatedAt)) {
-                        existing.updatedAt = rel.updatedAt;
-                    }
-                } else {
-                    map.set(key, { ...rel });
-                }
-            }
-            return Array.from(map.values());
         }
 
         function switchTab(tabName) {
@@ -7648,36 +7818,15 @@
    - 反斜线 \`\\\` 必须放在括号外面，严禁放在括号内！
 
 【人称与身份边界绝对法则（极其重要！）】
-1. 严禁强行分配身份（防NPC错位）：...（保持原有内容不变）
-2. 用户的指令解析：...（保持原有内容不变）
+1. 严禁强行分配身份（防NPC错位）：如果用户的提示词中出现了旁人（如“管家在机场接你”、“郎中在开药”），**绝对不要**默认用户就是这个NPC！你必须把NPC当成客观存在的第三方工具人，对其进行互动，绝对不要称呼其为“你”。
+   - ❌ 错误（错把用户当管家）：(单手推着行李箱走向你)等很久了吧，行李交给你了。
+   - ✅ 正确（把管家当NPC处理）：(一眼看到等在外面的管家，顺势把行李箱推过去)李叔，等很久了吧\\(拿出手机，心里隐隐有些失落)怎么他连条微信都没发来，真没良心...
+   - 除非用户明确在括号内声明 \`(我是管家)\`，否则用户始终是你的核心羁绊对象。
+2. 用户的指令解析：用户发送的 \`()\` 内的内容，是对你或环境的客观描述。例：用户说"(轻笑)" → 这是用户在笑，不是你。
 3. 你的输出视角：
    - 括号内（动作描写）：像电影摄像机一样，进行客观细腻的第三人称体态、环境刻画。
    - 括号外（对话内容）：第一人称口语化表达，可带语气词（唔、啊、哈啊），绝不要加双引号。
-4. NPC发话调度：...（保持原有内容不变）
-
-【代词铁律 - 绝对禁止用“自己”指代“我”】
-在括号内的动作描写中，你必须严格区分“他”（AI 角色）和“我”（用户角色）：
-- ❌ 错误：当你想表达“用户”在动作时，用了“自己”。例如：“(他从卧室走出来的时候，自己正站在玄关系鞋带)” → 这里“自己”本意是“我”（用户），但读起来像“他自己”。
-- ✅ 正确：直接用“我”或“他”明确指代。例如：“(他从卧室走出来的时候，我正站在玄关系鞋带)”
-- ❌ 错误：当你想表达 AI 自己在动作时，也用了“自己”。例如：“(他歪着头趴到自己胸口上)” → 这是“他趴到他的胸口”，矛盾。
-- ✅ 正确：直接省略或使用“他”。例如：“(他歪着头趴在我胸口上)” 或者 “(他歪着头趴到胸口上)”
-
-【核心原则】
-- 在括号动作描写中，严禁使用“自己”这个词。必须用“我”或“他”来明确主语。
-- 如果你想让 AI 角色执行动作，直接用“他”。
-- 如果你想描述用户的动作，直接用“我”。
-- 如果动作的主语承前省略可以清晰，也可以不用代词，但绝不能出现“自己”造成歧义。
-
-【正反示例】
-✅ 正确示范：
-(他从卧室走出来，站在玄关系鞋带，抬头的一瞬间手指停了)  ← 主语承前省略
-(他挑了那件奶白色的薄毛衣，当初在衣服山里见过，但他没选，我记住了)  ← 明确“我”
-(他歪着头趴到我胸口上，下巴抵着胸骨，鼻息打在我喉结上)  ← 明确“我”
-
-❌ 错误示范（绝对禁止）：
-(他从卧室走出来的时候，自己正站在玄关系鞋带)  ← “自己”指代不明
-(又给他挑了一件，但自己记住了)  ← “自己”应改为“我”
-(他歪着头趴到自己胸口上)  ← “自己”应改为“我”
+4. NPC发话调度：若需要NPC开口，格式严格为：\`(动作)NPC名字：对话\`。
 
 【"(描写...)" 指令深度响应机制】
 当用户输入包含 \`(描写...)\` 的指令时（如：(描写你靠在榻上的诱人模样)）：
@@ -8464,47 +8613,50 @@
         // --- 清空长期记忆 ---
         function clearLongMemory() {
             if (!currentChatContactId) return;
-            if (!confirm('确定要清空长期记忆吗？\n\n这将删除AI对这个角色的所有记忆档案和关系图谱，无法恢复！')) return;
+
+            if (!confirm('确定要清空长期记忆吗？\n\n这将删除AI对这个角色的所有记忆，无法恢复！')) {
+                return;
+            }
+
+            // 🎯 修复：真正删除当前角色的长期记忆数据
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             if (contact) {
-                contact.longMemories = [];   // 清空记忆
-                contact.relations = [];      // 🌟 关键：清空关系
+                contact.longMemories = [];
                 saveToLocal();
             }
+            
+            // 🎯 强制刷新UI，保证魔法棒进度被重置
             updateMemoryStats();
-            // 如果你有 renderLongMemoryContent 函数，调用它刷新档案馆
-            if (typeof renderArchiveContent === 'function') {
-                const searchInput = document.getElementById('archive-search-input');
-                renderArchiveContent(searchInput ? searchInput.value : '');
-            }
-            alert('长期记忆与关系图谱已清空！');
+            renderLongMemoryContent();
+            alert('长期记忆已清空！');
         }
         
         // --- 清空所有记忆 ---
         function clearAllMemory() {
             if (!currentChatContactId) return;
-            if (!confirm('确定要清空所有记忆吗？\n\n这将删除：\n• 所有对话历史\n• 所有长期记忆档案\n• 所有关系图谱\n\n此操作不可恢复！')) return;
-            
+
+            if (!confirm('确定要清空所有记忆吗？\n\n这将删除：\n• 所有对话历史\n• 所有长期记忆\n\n此操作不可恢复！')) {
+                return;
+            }
+
             // 清空对话记忆
             clearConversation(currentChatContactId);
             
-            // 清空长期记忆和关系
+            // 🎯 修复：真正删除当前角色的长期记忆数据
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             if (contact) {
                 contact.longMemories = [];
-                contact.relations = [];      // 🌟 关键：清空关系
                 saveToLocal();
             }
             
-            // 刷新界面
+            // 更新聊天界面
             renderChatMessages(currentChatContactId);
             updateChatListLastMessage(currentChatContactId, '');
+            
+            // 🎯 强制刷新UI
             updateMemoryStats();
-            if (typeof renderArchiveContent === 'function') {
-                const searchInput = document.getElementById('archive-search-input');
-                renderArchiveContent(searchInput ? searchInput.value : '');
-            }
-            alert('所有记忆与关系图谱已清空！');
+            renderLongMemoryContent();
+            alert('所有记忆已清空！');
         }
 
         // ==========================================
