@@ -17525,6 +17525,7 @@
             nameSpan.style.display = 'none';
             nameSpan.parentNode.insertBefore(input, nameSpan.nextSibling);
             input.focus();
+            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
             input.select();
 
             // 输入时实时调整宽度
@@ -17782,6 +17783,7 @@
             
             // 6. 聚焦并定位光标
             textarea.focus();
+            textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
             textarea.setSelectionRange(textarea.value.length, textarea.value.length);
 
             // 自动动态撑高
