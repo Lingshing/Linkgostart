@@ -16540,22 +16540,6 @@
                     }
 
                     const archiveSubPage = document.getElementById('sub-archive');
-                    if (archiveSubPage && archiveSubPage.classList.contains('show')) {
-                        const activeInput = document.activeElement;
-                        if (activeInput && (activeInput.tagName === 'INPUT' || activeInput.tagName === 'TEXTAREA')) {
-                            // 取消平移，依靠 scrollIntoView 或已有的平滑滚动
-                            // 只确保 header 样式稳固
-                            const header = archiveSubPage.querySelector('.nav-header');
-                            if (header) {
-                                header.style.zIndex = '100';
-                                header.style.background = 'var(--nav-bg)';
-                                header.style.backdropFilter = 'blur(20px)';
-                            }
-                            // 可选：主动滚动一次（但 inplaceEditArchiveItem 中已做）
-                            setTimeout(() => activeInput.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
-                            return; // 不再执行下面的 setShift
-                        }
-                    }
 
                     if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) return;
 
@@ -17791,7 +17775,7 @@
             const textDiv = document.getElementById(`archive-text-${memoryId}`);
             if (!textDiv) return;
             
-            const scrollContainer = document.getElementById('archive-content');
+            const scrollContainer = document.getElementById('archive-content');  // ✅ 只声明一次
             
             const originalContent = contact.longMemories[memIndex].content;
             const originalScore = contact.longMemories[memIndex].score || 4;
@@ -17801,6 +17785,19 @@
             container.id = `edit-container-${memoryId}`;
             container.style.width = '100%';
             
+            const scrollToShowEditor = () => {
+                const sc = scrollContainer;      // 此时 sc 仍是 HTMLElement | null
+                const ct = container;            // 同上
+                if (!sc || !ct) return;
+                const rect = ct.getBoundingClientRect();
+                const scrollRect = sc.getBoundingClientRect();
+                const targetTop = sc.scrollTop + (rect.top - scrollRect.top) - 80;
+                sc.scrollTo({
+                    top: Math.max(0, targetTop),
+                    behavior: 'smooth'
+                });
+            };
+
             const rect = textDiv.getBoundingClientRect();
             const computedStyle = window.getComputedStyle(textDiv);
             
@@ -17828,6 +17825,10 @@
                 -webkit-appearance: none;
             `;
             
+            textarea.addEventListener('focus', () => {
+                setTimeout(scrollToShowEditor, 100);
+            });
+
             const scoreSelect = document.createElement('select');
             scoreSelect.style.cssText = `
                 display: block;
@@ -17867,35 +17868,12 @@
             
             // 聚焦但不选中
             textarea.focus();
+            if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
+                const onKeyboardShow = () => setTimeout(scrollToShowEditor, 50);
+                window.addEventListener('keyboardWillShow', onKeyboardShow);
+                // 可选：在编辑结束时移除监听，避免内存泄漏（可以存为变量，但非必须）
+            }
             textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-            
-            // ========== 🎯 滚动：让整个编辑容器（textarea+分数）底部可见 ==========
-            const scrollEditContainerToVisible = () => {
-                if (!scrollContainer) return;
-                // 获取编辑容器的边界（相对于视口）
-                const containerRect = container.getBoundingClientRect();
-                const scrollRect = scrollContainer.getBoundingClientRect();
-                
-                // 计算需要滚动的距离：让容器底部对齐到滚动容器底部，并留出一点边距
-                // 但为了露出分数，我们让容器的底部距离滚动容器底部 80px（给键盘预留空间）
-                // 实际上更简单：使用 element.scrollIntoView 并指定 block: 'center'
-                // 但 scrollIntoView 会滚动整个页面，我们需要滚动 scrollContainer
-                const relativeBottom = containerRect.bottom - scrollRect.top + scrollContainer.scrollTop;
-                const targetBottom = scrollContainer.scrollHeight - (scrollRect.height - 200); // 留出200px空间给键盘和顶部
-                let targetScroll = relativeBottom - (scrollRect.height - 200);
-                targetScroll = Math.max(0, targetScroll);
-                targetScroll = Math.min(targetScroll, scrollContainer.scrollHeight - scrollRect.height);
-                
-                // 如果目标滚动值小于当前滚动值很多（即需要向上滚动），且元素已经在底部附近，则不做动画直接跳转
-                if (Math.abs(scrollContainer.scrollTop - targetScroll) < 10) {
-                    scrollContainer.scrollTop = targetScroll;
-                } else {
-                    scrollContainer.scrollTo({
-                        top: targetScroll,
-                        behavior: 'smooth'
-                    });
-                }
-            };
             
             // 方法2：使用 scrollIntoView 针对滚动容器内的元素（更可靠）
             const smoothScrollToElement = (element) => {
@@ -17909,16 +17887,17 @@
                     behavior: 'smooth'
                 });
             };
-            
-            // 延迟执行，确保键盘完全弹出后滚动（最可靠的方式是监听键盘事件）
-            let keyboardVisible = false;
+
+            // 键盘弹出时（监听 keyboardWillShow 或 window resize）
             const onKeyboardShow = () => {
-                if (keyboardVisible) return;
-                keyboardVisible = true;
-                // 滚动整个编辑容器到可视区域
-                setTimeout(() => {
-                }, 50);
+                setTimeout(scrollToShowEditor, 50); // 等待键盘动画
             };
+
+            if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
+                window.addEventListener('keyboardWillShow', onKeyboardShow);
+            } else {
+                window.addEventListener('resize', onKeyboardShow);
+            }
             
             if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Keyboard) {
                 window.addEventListener('keyboardWillShow', onKeyboardShow);
