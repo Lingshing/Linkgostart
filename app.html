@@ -6511,7 +6511,6 @@
             a) 通读本段对话，提取【已有记忆库】中完全不存在的全新属性/事件/偏好。
             b) 按"属性粒度"拆分：比如嗜甜和体能优异是两种属性，必须分别记录为两条独立记忆，严禁合并。
             c) 同一属性在本段多次出现，只保留一条，其 roundRange 标记为首次和末次的大致区间（如 "2-9"），内容不赘述次数。
-            d) 除实体在记忆库中完全不存在（首次记录）外，一律使用 keywords: ["更新：角色名"] 格式。
         4. 人物实体防污染：严禁将属性、物品、身体部位、组织名等当作独立人物建档。所有已知人物的新增信息，必须用"更新：角色名"附着到本体档案中。仅首次出现的真人方可建立"人物"记忆。
         5. 人物内容格式：category 为"人物"的记忆中，content 内不得再写人名，只写新属性/特征。
             - 正确：旧有"林深，男，慕辞的同学"，新发现他爱吃西瓜 → content: "近期表现出对西瓜的极度偏好。"
@@ -8465,50 +8464,47 @@
         // --- 清空长期记忆 ---
         function clearLongMemory() {
             if (!currentChatContactId) return;
-
-            if (!confirm('确定要清空长期记忆吗？\n\n这将删除AI对这个角色的所有记忆，无法恢复！')) {
-                return;
-            }
-
-            // 🎯 修复：真正删除当前角色的长期记忆数据
+            if (!confirm('确定要清空长期记忆吗？\n\n这将删除AI对这个角色的所有记忆档案和关系图谱，无法恢复！')) return;
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             if (contact) {
-                contact.longMemories = [];
+                contact.longMemories = [];   // 清空记忆
+                contact.relations = [];      // 🌟 关键：清空关系
                 saveToLocal();
             }
-            
-            // 🎯 强制刷新UI，保证魔法棒进度被重置
             updateMemoryStats();
-            renderLongMemoryContent();
-            alert('长期记忆已清空！');
+            // 如果你有 renderLongMemoryContent 函数，调用它刷新档案馆
+            if (typeof renderArchiveContent === 'function') {
+                const searchInput = document.getElementById('archive-search-input');
+                renderArchiveContent(searchInput ? searchInput.value : '');
+            }
+            alert('长期记忆与关系图谱已清空！');
         }
         
         // --- 清空所有记忆 ---
         function clearAllMemory() {
             if (!currentChatContactId) return;
-
-            if (!confirm('确定要清空所有记忆吗？\n\n这将删除：\n• 所有对话历史\n• 所有长期记忆\n\n此操作不可恢复！')) {
-                return;
-            }
-
+            if (!confirm('确定要清空所有记忆吗？\n\n这将删除：\n• 所有对话历史\n• 所有长期记忆档案\n• 所有关系图谱\n\n此操作不可恢复！')) return;
+            
             // 清空对话记忆
             clearConversation(currentChatContactId);
             
-            // 🎯 修复：真正删除当前角色的长期记忆数据
+            // 清空长期记忆和关系
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             if (contact) {
                 contact.longMemories = [];
+                contact.relations = [];      // 🌟 关键：清空关系
                 saveToLocal();
             }
             
-            // 更新聊天界面
+            // 刷新界面
             renderChatMessages(currentChatContactId);
             updateChatListLastMessage(currentChatContactId, '');
-            
-            // 🎯 强制刷新UI
             updateMemoryStats();
-            renderLongMemoryContent();
-            alert('所有记忆已清空！');
+            if (typeof renderArchiveContent === 'function') {
+                const searchInput = document.getElementById('archive-search-input');
+                renderArchiveContent(searchInput ? searchInput.value : '');
+            }
+            alert('所有记忆与关系图谱已清空！');
         }
 
         // ==========================================
