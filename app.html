@@ -4114,7 +4114,7 @@
         </div>
         
         <!-- 搜索栏与排序工具 -->
-        <div style="padding: 10px 20px; display: flex; gap: 8px; align-items: center; position: relative; z-index: 102;">
+        <div style="padding: 10px 20px; display: flex; gap: 8px; align-items: center; position: relative; z-index: 10000;">
             
             <div style="position: relative; flex: 1;">
                 <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-sub); font-size: 14px; pointer-events: none; z-index: 2;"></i>
@@ -16512,25 +16512,6 @@
                     // 保存键盘高度，供 openConsoleFullEditor 使用
                     window.lastKbHeight = kbHeight;
                     const activeEl = document.activeElement;
-
-                    // +++++ 新增：档案馆编辑模式特殊处理 +++++
-                    const isArchiveEditing = activeEl && 
-                        document.getElementById('sub-archive').classList.contains('show') &&
-                        activeEl.closest('#archive-content') && 
-                        activeEl.tagName === 'TEXTAREA' &&
-                        activeEl.id !== 'archive-search-input';  // 不是搜索框
-                    if (isArchiveEditing) {
-                        // 只推移内容区，不推移导航栏
-                        const contentArea = document.getElementById('archive-content');
-                        if (contentArea) {
-                            const shiftY = -kbHeight;
-                            contentArea.style.transition = 'transform 0.2s ease-out';
-                            contentArea.style.transform = `translateY(${shiftY}px)`;
-                        }
-                        return;  // 不再执行后续整体推移
-                    }
-                    // +++++++++++++++++++++++++++++++++++++
-
                     if (activeEl && activeEl.id === 'archive-search-input') {
                         const archiveContent = document.getElementById('archive-content');
                         if (archiveContent) {
@@ -16639,13 +16620,6 @@
 
 
                 Keyboard.addListener('keyboardWillHide', () => {
-                    // +++++ 新增：恢复档案馆内容区 +++++
-                    const contentArea = document.getElementById('archive-content');
-                    if (contentArea && contentArea.style.transform) {
-                        contentArea.style.transform = '';
-                        contentArea.style.transition = '';
-                    }
-                    // +++++++++++++++++++++++++++++++
                     window.lastKbHeight = 0;
                     // 恢复展开的控制台高度
                     const consoleBar = document.getElementById('console-input-bar');
@@ -17816,15 +17790,6 @@
             
             const textDiv = document.getElementById(`archive-text-${memoryId}`);
             if (!textDiv) return;
-
-            const archiveHeader = document.querySelector('#sub-archive .nav-header');
-            const originalBg = archiveHeader ? archiveHeader.style.background : '';
-            const originalZIndex = archiveHeader ? archiveHeader.style.zIndex : '';
-            if (archiveHeader) {
-                archiveHeader.style.background = 'var(--card-bg)';
-                archiveHeader.style.backdropFilter = 'none';
-                archiveHeader.style.zIndex = '100';
-            }
             
             const scrollContainer = document.getElementById('archive-content');
             
@@ -17968,11 +17933,6 @@
             
             // ========== 保存编辑 ==========
             const finishEdit = () => {
-                if (archiveHeader) {
-                    archiveHeader.style.background = originalBg;
-                    archiveHeader.style.backdropFilter = '';
-                    archiveHeader.style.zIndex = originalZIndex;
-                }
                 // 清理事件
                 if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Keyboard) {
                     window.removeEventListener('keyboardWillShow', onKeyboardShow);
@@ -18005,11 +17965,6 @@
             };
             
             const cancelEdit = () => {
-                if (archiveHeader) {
-                    archiveHeader.style.background = originalBg;
-                    archiveHeader.style.backdropFilter = '';
-                    archiveHeader.style.zIndex = originalZIndex;
-                }
                 if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Keyboard) {
                     window.removeEventListener('keyboardWillShow', onKeyboardShow);
                 } else {
