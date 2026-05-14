@@ -17786,24 +17786,20 @@
             const textDiv = document.getElementById(`archive-text-${memoryId}`);
             if (!textDiv) return;
             
-            // 获取滚动容器（档案馆的内容容器）
+            // 获取滚动容器（档案馆的 #archive-content）
             const scrollContainer = document.getElementById('archive-content');
             
-            // 保存原始内容
             const originalContent = contact.longMemories[memIndex].content;
             const originalScore = contact.longMemories[memIndex].score || 4;
             const originalDisplay = textDiv.style.display || 'block';
             
-            // 创建临时包裹容器
             const container = document.createElement('div');
             container.id = `edit-container-${memoryId}`;
             container.style.width = '100%';
             
-            // 获取原始文本块的样式
             const rect = textDiv.getBoundingClientRect();
             const computedStyle = window.getComputedStyle(textDiv);
             
-            // 创建 textarea（不自动选中文本，只聚焦）
             const textarea = document.createElement('textarea');
             textarea.value = originalContent;
             textarea.style.cssText = `
@@ -17828,7 +17824,6 @@
                 -webkit-appearance: none;
             `;
             
-            // 分数选择器
             const scoreSelect = document.createElement('select');
             scoreSelect.style.cssText = `
                 display: block;
@@ -17854,7 +17849,6 @@
                 scoreSelect.appendChild(o);
             });
             
-            // 插入 DOM
             container.appendChild(textarea);
             container.appendChild(scoreSelect);
             textDiv.style.display = 'none';
@@ -17868,54 +17862,74 @@
             textarea.addEventListener('input', autoSize);
             autoSize();
             
-            // ========== 🎯 核心滚动逻辑：让输入框底部对齐到键盘上方 ==========
+            // 聚焦但不选中文本（光标放末尾）
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+            
+            // ========== 🎯 核心滚动：让输入框底部对齐到键盘上方 ==========
             const scrollToMakeBottomVisible = () => {
                 if (!scrollContainer) return;
                 
-                // 获取键盘高度（Capacitor 插件提供，或默认 280）
+                // 获取键盘高度（优先 Capacitor 插件提供，否则估算）
                 let keyboardHeight = window.lastKbHeight;
                 if (!keyboardHeight || keyboardHeight <= 0) {
-                    // 降级估算：屏幕高度变化差值
                     if (window.innerHeight < screen.availHeight) {
                         keyboardHeight = screen.availHeight - window.innerHeight - 50;
                     }
                     if (!keyboardHeight || keyboardHeight <= 0) keyboardHeight = 280;
                 }
                 
-                // 获取 textarea 相对于 scrollContainer 的位置
                 const textareaRect = textarea.getBoundingClientRect();
                 const containerRect = scrollContainer.getBoundingClientRect();
                 
-                // textarea 底部相对于容器顶部的距离
+                // textarea 底部相对于容器顶部的距离（包含已滚动的距离）
                 const textareaBottomRelative = textareaRect.bottom - containerRect.top + scrollContainer.scrollTop;
-                
-                // 容器可视区域底部（相对于容器顶部）减去键盘高度，得到键盘顶部的相对位置
+                // 键盘顶部相对于容器顶部的距离
                 const keyboardTopRelative = containerRect.height - keyboardHeight;
                 
-                // 目标：让 textarea 底部距离键盘顶部有 20px 缓冲
+                // 目标：让 textarea 底部距离键盘顶部 20px
                 let targetScroll = textareaBottomRelative - keyboardTopRelative + 20;
-                
-                // 边界限制
                 targetScroll = Math.max(0, targetScroll);
                 targetScroll = Math.min(targetScroll, scrollContainer.scrollHeight - containerRect.height);
                 
-                // 平滑滚动
-                scrollContainer.scrollTo({
-                    top: targetScroll,
-                    behavior: 'smooth'
-                });
+                // 如果目标滚动值与当前值相差太小（<5px），不做动画，直接赋值，避免抖动
+                if (Math.abs(scrollContainer.scrollTop - targetScroll) < 5) {
+                    scrollContainer.scrollTop = targetScroll;
+                } else {
+                    scrollContainer.scrollTo({
+                        top: targetScroll,
+                        behavior: 'smooth'
+                    });
+                }
             };
             
-            // 聚焦但不选中文本（仅将光标置于末尾）
-            textarea.focus();
-            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+            // 方案 A：监听 Capacitor 键盘显示事件（确保键盘完全弹出后滚动）
+            let keyboardHandler = null;
+            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Keyboard) {
+                keyboardHandler = () => {
+                    scrollToMakeBottomVisible();
+                    window.removeEventListener('keyboardWillShow', keyboardHandler);
+                };
+                window.addEventListener('keyboardWillShow', keyboardHandler);
+                // 超时清理，防止内存泄漏
+                setTimeout(() => {
+                    if (keyboardHandler) window.removeEventListener('keyboardWillShow', keyboardHandler);
+                }, 5000);
+            }
             
-            // 延迟执行滚动，等待键盘完全弹出
+            // 方案 B：降级延迟滚动（保证即使键盘事件未触发也能滚动）
             setTimeout(scrollToMakeBottomVisible, 200);
             setTimeout(scrollToMakeBottomVisible, 400);
+            setTimeout(scrollToMakeBottomVisible, 600);
             
-            // ========== 保存与取消 ==========
+            // ========== 保存编辑（失去焦点自动保存） ==========
             const finishEdit = () => {
+                // 清理键盘监听
+                if (keyboardHandler) {
+                    window.removeEventListener('keyboardWillShow', keyboardHandler);
+                    keyboardHandler = null;
+                }
+                
                 const newContent = textarea.value.trim();
                 const newScore = parseInt(scoreSelect.value);
                 
@@ -17943,14 +17957,20 @@
             };
             
             const cancelEdit = () => {
+                if (keyboardHandler) {
+                    window.removeEventListener('keyboardWillShow', keyboardHandler);
+                    keyboardHandler = null;
+                }
                 container.remove();
                 textDiv.style.display = originalDisplay;
             };
             
+            // 失去焦点时保存
             textarea.onblur = () => {
                 setTimeout(finishEdit, 100);
             };
             
+            // 快捷键
             textarea.onkeydown = (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                     e.preventDefault();
@@ -17962,7 +17982,6 @@
                 }
             };
         }
-
         function enableDragOnChips(nodesData, linksData, boardWidth, boardHeight) {
             const chips = document.querySelectorAll('#bio-board .archive-glass-chip');
             const svg = document.getElementById('links-layer');
