@@ -17872,15 +17872,33 @@
             textarea.addEventListener('input', autoSize);
             autoSize();
             
-            // ========== 🎯 核心修复：滚动到可视区域（类似对话记忆弹窗） ==========
-            // 简单但有效的滚动：让 textarea 居中显示
+            // ========== 🎯 核心修复：完全模仿对话记忆弹窗的滚动逻辑 ==========
             if (scrollContainer) {
-                setTimeout(() => {
-                    textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 100);
+                // 聚焦时滚动到可视区域
+                const scrollToTextarea = () => {
+                    // 计算 textarea 相对于滚动容器的位置
+                    const textareaRect = textarea.getBoundingClientRect();
+                    const containerRect = scrollContainer.getBoundingClientRect();
+                    // textarea 顶部相对于容器顶部的偏移
+                    const relativeTop = textareaRect.top - containerRect.top + scrollContainer.scrollTop;
+                    // 目标：让 textarea 显示在容器中间偏上位置（与对话记忆弹窗一致）
+                    const targetTop = relativeTop - (containerRect.height / 3);
+                    scrollContainer.scrollTo({
+                        top: Math.max(0, targetTop),
+                        behavior: 'smooth'
+                    });
+                };
+                
+                // 延迟执行，等待键盘完全弹出
+                textarea.addEventListener('focus', () => {
+                    setTimeout(scrollToTextarea, 100);
+                });
+                
+                // 如果已经聚焦（上面 focus 已调用），立即执行一次
+                setTimeout(scrollToTextarea, 100);
             }
             
-            // ========== 🎯 保存编辑（失去焦点时自动保存） ==========
+            // ========== 保存编辑（失去焦点时自动保存） ==========
             const finishEdit = () => {
                 const newContent = textarea.value.trim();
                 const newScore = parseInt(scoreSelect.value);
@@ -17920,7 +17938,6 @@
             
             // 失去焦点时保存（模仿对话记忆弹窗）
             textarea.onblur = () => {
-                // 延迟 100ms 避免与其他事件冲突（与 editShortMemoryMessage 一致）
                 setTimeout(finishEdit, 100);
             };
             
