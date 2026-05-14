@@ -16534,6 +16534,29 @@
                         }
                         return;
                     }
+
+                    // ========== 新增：档案馆内联编辑（铅笔编辑）时自动滚动，防止键盘遮挡 ==========
+                    const archiveSubPage = document.getElementById('sub-archive');
+                    if (archiveSubPage && archiveSubPage.classList.contains('show')) {
+                        const activeInput = document.activeElement;
+                        if (activeInput && (activeInput.tagName === 'INPUT' || activeInput.tagName === 'TEXTAREA')) {
+                            const scrollContainer = document.getElementById('archive-content');
+                            if (scrollContainer) {
+                                setTimeout(() => {
+                                    const inputRect = activeInput.getBoundingClientRect();
+                                    const containerRect = scrollContainer.getBoundingClientRect();
+                                    const relativeTop = inputRect.top - containerRect.top + scrollContainer.scrollTop;
+                                    const targetTop = relativeTop - (containerRect.height / 2) + (inputRect.height / 2);
+                                    scrollContainer.scrollTo({
+                                        top: Math.max(0, targetTop),
+                                        behavior: 'smooth'
+                                    });
+                                }, 100);
+                            }
+                        }
+                        return;   // 🌟 关键：处理完后立即退出，避免后续代码干扰
+                    }
+
                     if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) return;
 
                     const activePage = document.querySelector('.sub-page-scene.show') || document.querySelector('.tab-page.active');
@@ -16593,6 +16616,8 @@
                         }
                     }, 50); 
                 });
+
+
 
                 Keyboard.addListener('keyboardWillHide', () => {
                     window.lastKbHeight = 0;
