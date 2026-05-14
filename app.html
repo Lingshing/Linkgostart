@@ -17775,7 +17775,6 @@
             updateMemoryStats();
         }
 
-        // 替换原有的 inplaceEditArchiveItem 函数为以下增强版本
         function inplaceEditArchiveItem(memoryId) {
             if (!currentChatContactId) return;
             const contact = mockContacts.find(c => c.id === currentChatContactId);
@@ -17787,12 +17786,12 @@
             const textDiv = document.getElementById(`archive-text-${memoryId}`);
             if (!textDiv) return;
             
-            // 获取滚动容器
+            // 获取滚动容器（档案馆的滚动容器是 #archive-content）
             const scrollContainer = document.getElementById('archive-content');
             
-            // 记录原始状态
+            // 保存原始内容
             const originalContent = contact.longMemories[memIndex].content;
-            const originalScore = contact.longMemories[memIndex].score || 4; 
+            const originalScore = contact.longMemories[memIndex].score || 4;
             const originalDisplay = textDiv.style.display || 'block';
             
             // 创建临时包裹容器
@@ -17800,14 +17799,13 @@
             container.id = `edit-container-${memoryId}`;
             container.style.width = '100%';
             
-            // 极致无感文本框：获取真实宽高和排版
+            // 获取原始文本块的样式，用于 textarea 的初始尺寸
             const rect = textDiv.getBoundingClientRect();
             const computedStyle = window.getComputedStyle(textDiv);
             
+            // 创建 textarea
             const textarea = document.createElement('textarea');
             textarea.value = originalContent;
-            
-            // 完全复刻样式
             textarea.style.cssText = `
                 width: 100% !important;
                 min-height: ${rect.height}px !important;
@@ -17845,95 +17843,28 @@
                 cursor: pointer;
             `;
             const scoreOptions = [
-                {v:5, t:"5 分 (核心)"}, {v:4, t:"4 分 (重要)"}, {v:3, t:"3 分 (普通)"}, 
+                {v:5, t:"5 分 (核心)"}, {v:4, t:"4 分 (重要)"}, {v:3, t:"3 分 (普通)"},
                 {v:2, t:"2 分 (琐碎)"}, {v:1, t:"1 分 (碎片)"}
             ];
             scoreOptions.forEach(opt => {
                 const o = document.createElement('option');
                 o.value = opt.v;
                 o.textContent = opt.t;
-                if(opt.v === originalScore) o.selected = true;
+                if (opt.v === originalScore) o.selected = true;
                 scoreSelect.appendChild(o);
             });
             
             // 插入 DOM
             container.appendChild(textarea);
             container.appendChild(scoreSelect);
-            textDiv.style.display = 'none'; 
+            textDiv.style.display = 'none';
             textDiv.parentNode.insertBefore(container, textDiv.nextSibling);
             
-            // ========== 🎯 核心修复：键盘弹出时的智能滚动 ==========
-            let keyboardScrollHandler = null;
-            
-            const scrollToTextarea = () => {
-                if (!scrollContainer || !textarea) return;
-                
-                // 获取 textarea 相对于滚动容器的位置
-                const textareaRect = textarea.getBoundingClientRect();
-                const containerRect = scrollContainer.getBoundingClientRect();
-                
-                // 计算 textarea 顶部相对于滚动容器顶部的偏移
-                const relativeTop = textareaRect.top - containerRect.top + scrollContainer.scrollTop;
-                // 计算 textarea 底部相对于滚动容器顶部的偏移
-                const relativeBottom = textareaRect.bottom - containerRect.top + scrollContainer.scrollTop;
-                
-                // 获取键盘高度（如果 Capacitor 插件提供了的话）
-                let keyboardHeight = 0;
-                if (window.lastKbHeight) keyboardHeight = window.lastKbHeight;
-                // 备用估算：iOS 键盘常用高度约 260~300，这里取一个安全值
-                if (keyboardHeight === 0 && window.innerHeight < screen.availHeight) {
-                    keyboardHeight = screen.availHeight - window.innerHeight - 50;
-                }
-                if (keyboardHeight <= 0) keyboardHeight = 280; // 默认安全高度
-                
-                // 目标：让 textarea 底部距离键盘顶部有 20px 缓冲
-                const targetBottom = scrollContainer.clientHeight - keyboardHeight - 20;
-                
-                if (relativeBottom > targetBottom) {
-                    // 需要向上滚动
-                    const scrollDelta = relativeBottom - targetBottom;
-                    scrollContainer.scrollTop += scrollDelta;
-                } else if (relativeTop < scrollContainer.scrollTop + 20) {
-                    // 需要向下滚动
-                    scrollContainer.scrollTop = relativeTop - 20;
-                }
-                
-                // 边缘修正，确保不超出范围
-                scrollContainer.scrollTop = Math.max(0, Math.min(scrollContainer.scrollTop, scrollContainer.scrollHeight - scrollContainer.clientHeight));
-            };
-            
-            // 键盘显示时的处理函数
-            const onKeyboardShow = () => {
-                // 延迟执行，等待键盘完全弹出及布局稳定
-                setTimeout(() => {
-                    scrollToTextarea();
-                }, 100);
-                // 再补一次，确保布局完全稳定
-                setTimeout(() => {
-                    scrollToTextarea();
-                }, 300);
-            };
-            
-            // 注册键盘显示事件（Capacitor 插件事件）
-            if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
-                window.addEventListener('keyboardWillShow', onKeyboardShow);
-                keyboardScrollHandler = onKeyboardShow;
-            } else {
-                // 降级：监听窗口 resize 事件（适用于纯 Web 环境）
-                window.addEventListener('resize', onKeyboardShow);
-                keyboardScrollHandler = onKeyboardShow;
-            }
-            
-            // 同时监听输入框的 focus 事件，确保聚焦时也做一次滚动
-            textarea.addEventListener('focus', () => {
-                setTimeout(scrollToTextarea, 50);
-            });
-            
-            // 聚焦并定位光标
+            // 聚焦并选中所有文本
             textarea.focus();
-            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+            textarea.select();
             
-            // 自动动态撑高
+            // 自动撑高
             const autoSize = () => {
                 textarea.style.height = 'auto';
                 textarea.style.height = textarea.scrollHeight + 'px';
@@ -17941,18 +17872,16 @@
             textarea.addEventListener('input', autoSize);
             autoSize();
             
-            // 保存编辑的函数
+            // ========== 🎯 核心修复：滚动到可视区域（类似对话记忆弹窗） ==========
+            // 简单但有效的滚动：让 textarea 居中显示
+            if (scrollContainer) {
+                setTimeout(() => {
+                    textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+            }
+            
+            // ========== 🎯 保存编辑（失去焦点时自动保存） ==========
             const finishEdit = () => {
-                // 移除键盘事件监听
-                if (keyboardScrollHandler) {
-                    if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
-                        window.removeEventListener('keyboardWillShow', keyboardScrollHandler);
-                    } else {
-                        window.removeEventListener('resize', keyboardScrollHandler);
-                    }
-                    keyboardScrollHandler = null;
-                }
-                
                 const newContent = textarea.value.trim();
                 const newScore = parseInt(scoreSelect.value);
                 
@@ -17973,45 +17902,27 @@
                     contact.longMemories[memIndex].score = newScore;
                     saveToLocal();
                     
-                    // 更新原 Div 的文字并重新显示
+                    // 更新原 Div 的文字
                     textDiv.innerText = newContent;
                     container.remove();
                     textDiv.style.display = originalDisplay;
                     
-                    if(typeof addLogToConsole === 'function') {
+                    if (typeof addLogToConsole === 'function') {
                         addLogToConsole('success', 'EDIT', '档案已更新');
                     }
                 }
             };
             
-            // 取消编辑的函数
             const cancelEdit = () => {
-                if (keyboardScrollHandler) {
-                    if (window.Capacitor && window.Capacitor.Plugins.Keyboard) {
-                        window.removeEventListener('keyboardWillShow', keyboardScrollHandler);
-                    } else {
-                        window.removeEventListener('resize', keyboardScrollHandler);
-                    }
-                    keyboardScrollHandler = null;
-                }
                 container.remove();
                 textDiv.style.display = originalDisplay;
             };
             
-            // 全局点击外部保存
-            const handleOutsideClick = (e) => {
-                if (container.parentNode && !container.contains(e.target)) {
-                    finishEdit();
-                    document.removeEventListener('mousedown', handleOutsideClick);
-                    document.removeEventListener('touchstart', handleOutsideClick);
-                }
+            // 失去焦点时保存（模仿对话记忆弹窗）
+            textarea.onblur = () => {
+                // 延迟 100ms 避免与其他事件冲突（与 editShortMemoryMessage 一致）
+                setTimeout(finishEdit, 100);
             };
-            
-            // 延迟挂载外部点击监听，防止被当前点击触发
-            setTimeout(() => {
-                document.addEventListener('mousedown', handleOutsideClick);
-                document.addEventListener('touchstart', handleOutsideClick, {passive: true});
-            }, 150);
             
             // 快捷键支持
             textarea.onkeydown = (e) => {
