@@ -160,7 +160,7 @@
 
         /* 2. 其他子页面顶部（设置、API等） */
         .nav-header {
-            position: sticky; top: 0; z-index: 50; background: var(--nav-bg); backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid var(--border);
+            position: sticky; top: 0; z-index: 100; background: var(--nav-bg); backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid var(--border);
             /* ✨ 新增安全区高度和内边距 */
             height: calc(44px + env(safe-area-inset-top));
             padding: env(safe-area-inset-top) 16px 0 16px;
@@ -16540,7 +16540,7 @@
                         const activeInput = document.activeElement;
                         if (activeInput && (activeInput.tagName === 'INPUT' || activeInput.tagName === 'TEXTAREA')) {
                             // 找到当前正在编辑的容器（父级 .archive-entity-card 或 .archive-timeline-block 或 .pref-detail-reader）
-                            let editContainer = activeInput.closest('.archive-entity-card, .archive-timeline-block, .pref-detail-reader, .chip-detail-item');
+                            let editContainer = activeInput.closest('.chip-detail-item, .timeline-item, .archive-timeline-row');
                             if (!editContainer) editContainer = activeInput.parentElement;
                             
                             // 获取该容器底部相对于视口的位置
@@ -16556,14 +16556,17 @@
                             offsetNeeded = Math.min(offsetNeeded, kbHeight);
                             
                             if (offsetNeeded > 0) {
-                                // 只抬升内容区 #archive-content，不抬升其他元素
                                 const archiveContent = document.getElementById('archive-content');
                                 if (archiveContent && !archiveContent.hasAttribute('data-orig-transform')) {
                                     if (typeof setShift === 'function') setShift(archiveContent, -offsetNeeded);
                                 }
-                                // 确保 header 保持不动且层级更高
+                                // 确保 header 保持不动且层级更高（增加背景不透明保证）
                                 const header = archiveSubPage.querySelector('.nav-header');
-                                if (header) header.style.zIndex = '10';
+                                if (header) {
+                                    header.style.zIndex = '100';
+                                    header.style.background = 'var(--nav-bg)'; // 确保背景不透明
+                                    header.style.backdropFilter = 'blur(20px)';
+                                }
                             }
                             return;
                         }
@@ -16651,8 +16654,11 @@
                     });
                     
                     const archiveHeader = document.querySelector('#sub-archive .nav-header');
-                    if (archiveHeader) archiveHeader.style.zIndex = '';
-                    
+                    if (archiveHeader) {
+                        archiveHeader.style.zIndex = '';
+                        archiveHeader.style.background = '';
+                        archiveHeader.style.backdropFilter = '';
+                    }   
                 });
             }
         });
