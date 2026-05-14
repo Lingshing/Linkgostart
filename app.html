@@ -16535,26 +16535,34 @@
                         return;
                     }
 
-                    // ========== 新增：档案馆内联编辑（铅笔编辑）时自动滚动，防止键盘遮挡 ==========
                     const archiveSubPage = document.getElementById('sub-archive');
                     if (archiveSubPage && archiveSubPage.classList.contains('show')) {
                         const activeInput = document.activeElement;
                         if (activeInput && (activeInput.tagName === 'INPUT' || activeInput.tagName === 'TEXTAREA')) {
-                            const scrollContainer = document.getElementById('archive-content');
-                            if (scrollContainer) {
-                                setTimeout(() => {
-                                    const inputRect = activeInput.getBoundingClientRect();
-                                    const containerRect = scrollContainer.getBoundingClientRect();
-                                    const relativeTop = inputRect.top - containerRect.top + scrollContainer.scrollTop;
-                                    const targetTop = relativeTop - (containerRect.height / 2) + (inputRect.height / 2);
-                                    scrollContainer.scrollTo({
-                                        top: Math.max(0, targetTop),
-                                        behavior: 'smooth'
-                                    });
-                                }, 100);
+                            // 使用抬升而非滚动
+                            const targetPage = document.getElementById('sub-archive');
+                            if (targetPage) {
+                                const sab = (typeof getSafeAreaBottom === 'function') ? getSafeAreaBottom() : 0;
+                                const exactShift = kbHeight - sab;
+                                Array.from(targetPage.children).forEach(child => {
+                                    // 导航栏、内容区本身、遮罩层不抬升
+                                    if (child.classList?.contains('nav-header') || 
+                                        child.id === 'archive-content' || 
+                                        child.classList?.contains('archive-scroll-mask')) {
+                                        return;
+                                    }
+                                    if (typeof setShift === 'function') {
+                                        setShift(child, -exactShift);
+                                    }
+                                });
+                                // 内容区单独抬升，保持编辑区域可见
+                                const archiveContent = document.getElementById('archive-content');
+                                if (archiveContent && !archiveContent.hasAttribute('data-orig-transform')) {
+                                    if (typeof setShift === 'function') setShift(archiveContent, -exactShift);
+                                }
                             }
+                            return;
                         }
-                        return;   // 🌟 关键：处理完后立即退出，避免后续代码干扰
                     }
 
                     if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) return;
@@ -17912,9 +17920,6 @@
                 keyboardVisible = true;
                 // 滚动整个编辑容器到可视区域
                 setTimeout(() => {
-                    smoothScrollToElement(container);
-                    // 再补一次，确保分数选择器也显示出来
-                    setTimeout(() => smoothScrollToElement(container), 100);
                 }, 50);
             };
             
@@ -17927,11 +17932,7 @@
             
             // 同时，聚焦时也尝试滚动一次（如果键盘已经显示）
             textarea.addEventListener('focus', () => {
-                setTimeout(() => smoothScrollToElement(container), 100);
             });
-            
-            // 立即执行一次（防止键盘已弹出）
-            setTimeout(() => smoothScrollToElement(container), 200);
             
             // ========== 保存编辑 ==========
             const finishEdit = () => {
