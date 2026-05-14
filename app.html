@@ -7356,7 +7356,8 @@
                 // 注入人物关系星图连线数据！
                 if (result.relations && Array.isArray(result.relations)) {
                     if (!contact.relations) contact.relations = [];
-                    result.relations.forEach(r => {
+                    const uniqueRelations = deduplicateRelations(result.relations);
+                    uniqueRelations.forEach(r => {
                         const existingRelIndex = contact.relations.findIndex(ex => 
                             (ex.source === r.source && ex.target === r.target) || 
                             (ex.source === r.target && ex.target === r.source)
@@ -7417,6 +7418,28 @@
                     }, 500);
                 }
             }
+        }
+
+        function deduplicateRelations(relations) {
+            const map = new Map();
+            for (const rel of relations) {
+                const key = `${rel.source}|${rel.target}`;
+                if (map.has(key)) {
+                    // 如果已存在相同 source-target 的关系，合并 detail（取较短的或合并）
+                    const existing = map.get(key);
+                    if (rel.detail && existing.detail && rel.detail !== existing.detail) {
+                        existing.detail = existing.detail + '；' + rel.detail;
+                        if (existing.detail.length > 50) existing.detail = existing.detail.substring(0, 47) + '...';
+                    }
+                    // 保留 updatedAt 最新的
+                    if (rel.updatedAt && (!existing.updatedAt || rel.updatedAt > existing.updatedAt)) {
+                        existing.updatedAt = rel.updatedAt;
+                    }
+                } else {
+                    map.set(key, { ...rel });
+                }
+            }
+            return Array.from(map.values());
         }
 
         function switchTab(tabName) {
