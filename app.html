@@ -17774,7 +17774,7 @@
             }
             updateMemoryStats();
         }
-
+     
         function inplaceEditArchiveItem(memoryId) {
             if (!currentChatContactId) return;
             const contact = mockContacts.find(c => c.id === currentChatContactId);
@@ -17786,7 +17786,7 @@
             const textDiv = document.getElementById(`archive-text-${memoryId}`);
             if (!textDiv) return;
             
-            // 获取滚动容器（档案馆的滚动容器是 #archive-content）
+            // 获取滚动容器（档案馆的内容容器）
             const scrollContainer = document.getElementById('archive-content');
             
             // 保存原始内容
@@ -17799,11 +17799,11 @@
             container.id = `edit-container-${memoryId}`;
             container.style.width = '100%';
             
-            // 获取原始文本块的样式，用于 textarea 的初始尺寸
+            // 获取原始文本块的样式
             const rect = textDiv.getBoundingClientRect();
             const computedStyle = window.getComputedStyle(textDiv);
             
-            // 创建 textarea
+            // 创建 textarea（不自动选中文本，只聚焦）
             const textarea = document.createElement('textarea');
             textarea.value = originalContent;
             textarea.style.cssText = `
@@ -17828,7 +17828,7 @@
                 -webkit-appearance: none;
             `;
             
-            // 创建分数选择器
+            // 分数选择器
             const scoreSelect = document.createElement('select');
             scoreSelect.style.cssText = `
                 display: block;
@@ -17860,10 +17860,6 @@
             textDiv.style.display = 'none';
             textDiv.parentNode.insertBefore(container, textDiv.nextSibling);
             
-            // 聚焦并选中所有文本
-            textarea.focus();
-            textarea.select();
-            
             // 自动撑高
             const autoSize = () => {
                 textarea.style.height = 'auto';
@@ -17872,33 +17868,53 @@
             textarea.addEventListener('input', autoSize);
             autoSize();
             
-            // ========== 🎯 核心修复：完全模仿对话记忆弹窗的滚动逻辑 ==========
-            if (scrollContainer) {
-                // 聚焦时滚动到可视区域
-                const scrollToTextarea = () => {
-                    // 计算 textarea 相对于滚动容器的位置
-                    const textareaRect = textarea.getBoundingClientRect();
-                    const containerRect = scrollContainer.getBoundingClientRect();
-                    // textarea 顶部相对于容器顶部的偏移
-                    const relativeTop = textareaRect.top - containerRect.top + scrollContainer.scrollTop;
-                    // 目标：让 textarea 显示在容器中间偏上位置（与对话记忆弹窗一致）
-                    const targetTop = relativeTop - (containerRect.height / 3);
-                    scrollContainer.scrollTo({
-                        top: Math.max(0, targetTop),
-                        behavior: 'smooth'
-                    });
-                };
+            // ========== 🎯 核心滚动逻辑：让输入框底部对齐到键盘上方 ==========
+            const scrollToMakeBottomVisible = () => {
+                if (!scrollContainer) return;
                 
-                // 延迟执行，等待键盘完全弹出
-                textarea.addEventListener('focus', () => {
-                    setTimeout(scrollToTextarea, 100);
+                // 获取键盘高度（Capacitor 插件提供，或默认 280）
+                let keyboardHeight = window.lastKbHeight;
+                if (!keyboardHeight || keyboardHeight <= 0) {
+                    // 降级估算：屏幕高度变化差值
+                    if (window.innerHeight < screen.availHeight) {
+                        keyboardHeight = screen.availHeight - window.innerHeight - 50;
+                    }
+                    if (!keyboardHeight || keyboardHeight <= 0) keyboardHeight = 280;
+                }
+                
+                // 获取 textarea 相对于 scrollContainer 的位置
+                const textareaRect = textarea.getBoundingClientRect();
+                const containerRect = scrollContainer.getBoundingClientRect();
+                
+                // textarea 底部相对于容器顶部的距离
+                const textareaBottomRelative = textareaRect.bottom - containerRect.top + scrollContainer.scrollTop;
+                
+                // 容器可视区域底部（相对于容器顶部）减去键盘高度，得到键盘顶部的相对位置
+                const keyboardTopRelative = containerRect.height - keyboardHeight;
+                
+                // 目标：让 textarea 底部距离键盘顶部有 20px 缓冲
+                let targetScroll = textareaBottomRelative - keyboardTopRelative + 20;
+                
+                // 边界限制
+                targetScroll = Math.max(0, targetScroll);
+                targetScroll = Math.min(targetScroll, scrollContainer.scrollHeight - containerRect.height);
+                
+                // 平滑滚动
+                scrollContainer.scrollTo({
+                    top: targetScroll,
+                    behavior: 'smooth'
                 });
-                
-                // 如果已经聚焦（上面 focus 已调用），立即执行一次
-                setTimeout(scrollToTextarea, 100);
-            }
+            };
             
-            // ========== 保存编辑（失去焦点时自动保存） ==========
+            // 聚焦但不选中文本（仅将光标置于末尾）
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+            
+            // 延迟执行滚动，等待键盘完全弹出
+            setTimeout(scrollToMakeBottomVisible, 200);
+            setTimeout(scrollToMakeBottomVisible, 400);
+            
+            // ========== 保存与取消 ==========
             const finishEdit = () => {
                 const newContent = textarea.value.trim();
                 const newScore = parseInt(scoreSelect.value);
@@ -17910,21 +17926,16 @@
                         const searchInput = document.getElementById('archive-search-input');
                         renderArchiveContent(searchInput ? searchInput.value : '');
                     } else {
-                        // 取消删除，还原
                         container.remove();
                         textDiv.style.display = originalDisplay;
                     }
                 } else {
-                    // 更新数据
                     contact.longMemories[memIndex].content = newContent;
                     contact.longMemories[memIndex].score = newScore;
                     saveToLocal();
-                    
-                    // 更新原 Div 的文字
                     textDiv.innerText = newContent;
                     container.remove();
                     textDiv.style.display = originalDisplay;
-                    
                     if (typeof addLogToConsole === 'function') {
                         addLogToConsole('success', 'EDIT', '档案已更新');
                     }
@@ -17936,12 +17947,10 @@
                 textDiv.style.display = originalDisplay;
             };
             
-            // 失去焦点时保存（模仿对话记忆弹窗）
             textarea.onblur = () => {
                 setTimeout(finishEdit, 100);
             };
             
-            // 快捷键支持
             textarea.onkeydown = (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                     e.preventDefault();
