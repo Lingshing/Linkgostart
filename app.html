@@ -8659,19 +8659,12 @@
             }, 0);
         }
         
-        // --- 关闭对话记忆弹窗 ---
         function closeShortMemoryModal() {
             currentShortMemorySearchTerm = '';
             const searchInput = document.getElementById('short-memory-search');
             if (searchInput) searchInput.value = '';
             const modal = document.getElementById('shortMemoryModal');
             modal.classList.remove('show');
-            
-            // 清空搜索框
-            const searchInput = document.getElementById('short-memory-search');
-            if (searchInput) {
-                searchInput.value = '';
-            }
         }
         
         // --- 点击弹窗外部关闭对话记忆弹窗 ---
