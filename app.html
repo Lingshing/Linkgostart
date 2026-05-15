@@ -16543,25 +16543,36 @@
                     if (archiveSubPage && archiveSubPage.classList.contains('show')) {
                         const activeInput = document.activeElement;
                         if (activeInput && (activeInput.tagName === 'INPUT' || activeInput.tagName === 'TEXTAREA')) {
-                            // 找到正在编辑的容器
                             let editContainer = activeInput.closest('.chip-detail-item, .timeline-item, .archive-timeline-row');
                             if (!editContainer) editContainer = activeInput.parentElement;
-                            if (!editContainer) return;
-
-                            // 使用 scrollIntoView 将编辑项滚动到可视区域中央（避免被键盘遮挡）
-                            editContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-                            // 确保 Header 层级最高，背景不透明，内容不会穿透
+                            if (editContainer) {
+                                const archiveContent = document.getElementById('archive-content');
+                                if (archiveContent) {
+                                    // 强制清除任何可能残留的 transform 平移（防止干扰）
+                                    archiveContent.style.transform = '';
+                                    // 计算编辑项底部相对容器顶部的距离
+                                    const containerRect = archiveContent.getBoundingClientRect();
+                                    const elementRect = editContainer.getBoundingClientRect();
+                                    const relativeBottom = elementRect.bottom - containerRect.top + archiveContent.scrollTop;
+                                    const keyboardTop = window.innerHeight - kbHeight;
+                                    const targetBottom = keyboardTop - 20; // 距离键盘顶部留出 20px 间距
+                                    if (relativeBottom > targetBottom) {
+                                        archiveContent.scrollTop += (relativeBottom - targetBottom);
+                                    }
+                                }
+                            }
+                            // 确保 Header 层级最高且背景不透明（足够遮挡）
                             const header = archiveSubPage.querySelector('.nav-header');
                             if (header) {
                                 header.style.zIndex = '100';
-                                header.style.background = 'var(--nav-bg)';
+                                header.style.backgroundColor = 'var(--nav-bg)';
                                 header.style.backdropFilter = 'blur(20px)';
                             }
-
-                            // 关键：阻止后续任何全局平移（setShift）影响档案馆
-                            return;
                         }
+                        // 🔥 关键：设置全局标志，阻止后续任何 setShift 平移
+                        window.preventShiftForArchive = true;
+                        setTimeout(() => { window.preventShiftForArchive = false; }, 300);
+                        return;  // 提前退出，不再执行后面的平移代码
                     }
 
                     if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) return;
@@ -16599,6 +16610,7 @@
 
                     // 2️⃣ 其他弹窗和抽屉
                     setTimeout(() => { 
+                        if (window.preventShiftForArchive) return;
                         const rect = activeEl.getBoundingClientRect();
                         const overlap = rect.bottom - (window.innerHeight - kbHeight) + 20;
 
@@ -16627,6 +16639,7 @@
 
 
                 Keyboard.addListener('keyboardWillHide', () => {
+                    window.preventShiftForArchive = false;
                     window.lastKbHeight = 0;
                     // 恢复展开的控制台高度
                     const consoleBar = document.getElementById('console-input-bar');
