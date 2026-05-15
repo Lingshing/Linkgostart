@@ -165,12 +165,31 @@
             height: calc(44px + env(safe-area-inset-top));
             padding: env(safe-area-inset-top) 16px 0 16px;
         }
-        /* 档案馆头部改为不透明纯色，无毛玻璃效果 */
-        #sub-archive .nav-header {
+        /* 档案馆顶部区域（包括导航栏、搜索栏、按钮组）全部改为不透明纯色 */
+        #sub-archive .nav-header,
+        #sub-archive .archive-glass-morphism,
+        #sub-archive .archive-glass-input,
+        #sub-archive .archive-glass-btn,
+        #sub-archive .archive-category-menu {
             background: var(--bg-color) !important;
             backdrop-filter: none !important;
             -webkit-backdrop-filter: none !important;
-            border-bottom: 0.5px solid var(--border);
+            border: 0.5px solid var(--border);
+        }
+
+        /* 搜索框内部输入字段背景也要纯色，避免半透明 */
+        #sub-archive .archive-glass-input {
+            background: var(--bg-color) !important;
+        }
+
+        /* 排序按钮等圆形背景也纯色 */
+        #sub-archive .archive-glass-btn {
+            background: var(--bg-color) !important;
+        }
+
+        /* 分类菜单下拉背景也统一 */
+        #sub-archive .archive-category-menu {
+            background: var(--bg-color) !important;
         }
         .clean-nav { background: transparent !important; backdrop-filter: none !important; border-bottom: none !important; }
         .nav-title { font-size: 17px; font-weight: 600; color: var(--text-main); }
