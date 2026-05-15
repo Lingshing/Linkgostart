@@ -165,8 +165,22 @@
             height: calc(44px + env(safe-area-inset-top));
             padding: env(safe-area-inset-top) 16px 0 16px;
         }
-        /* 档案馆顶部区域（包括导航栏、搜索栏、按钮组）全部改为不透明纯色 */
+        /* 档案馆顶部整体区域（导航栏 + 工具栏）改为不透明纯色 */
         #sub-archive .nav-header,
+        #sub-archive > div:first-of-type + div { /* 选择导航栏后的第一个 div（工具栏容器） */
+            background: var(--bg-color) !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+
+        /* 更精确地选择工具栏容器（避免选中其他 div） */
+        #sub-archive > div:not(.nav-header):not(#archive-content) {
+            background: var(--bg-color) !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+
+        /* 工具栏内部的子元素（搜索框、按钮等）也强制纯色，去除毛玻璃 */
         #sub-archive .archive-glass-morphism,
         #sub-archive .archive-glass-input,
         #sub-archive .archive-glass-btn,
@@ -177,18 +191,8 @@
             border: 0.5px solid var(--border);
         }
 
-        /* 搜索框内部输入字段背景也要纯色，避免半透明 */
+        /* 搜索框输入区域内部背景也要纯色 */
         #sub-archive .archive-glass-input {
-            background: var(--bg-color) !important;
-        }
-
-        /* 排序按钮等圆形背景也纯色 */
-        #sub-archive .archive-glass-btn {
-            background: var(--bg-color) !important;
-        }
-
-        /* 分类菜单下拉背景也统一 */
-        #sub-archive .archive-category-menu {
             background: var(--bg-color) !important;
         }
         .clean-nav { background: transparent !important; backdrop-filter: none !important; border-bottom: none !important; }
