@@ -17907,6 +17907,7 @@ AI 自己永远是“我”；
                 outline: none;
                 cursor: pointer;
             `;
+            
             const scoreOptions = [
                 {v:5, t:"5 分 (核心)"}, {v:4, t:"4 分 (重要)"}, {v:3, t:"3 分 (普通)"},
                 {v:2, t:"2 分 (琐碎)"}, {v:1, t:"1 分 (碎片)"}
@@ -18040,8 +18041,18 @@ AI 自己永远是“我”；
                 textDiv.style.display = originalDisplay;
             };
             
-            textarea.onblur = () => {
-                setTimeout(finishEdit, 100);
+            textarea.onblur = (e) => {
+                // 延迟检查，因为 blur 发生时新的焦点元素还未激活
+                setTimeout(() => {
+                    // 检查当前聚焦的元素是不是评分下拉框或其子元素
+                    const active = document.activeElement;
+                    if (active && (active === scoreSelect || scoreSelect.contains(active))) {
+                        // 如果用户正在与评分下拉框交互，不保存，让编辑继续
+                        return;
+                    }
+                    // 否则执行保存
+                    finishEdit();
+                }, 150);
             };
             
             textarea.onkeydown = (e) => {
@@ -18055,6 +18066,7 @@ AI 自己永远是“我”；
                 }
             };
         }
+        
         function enableDragOnChips(nodesData, linksData, boardWidth, boardHeight) {
             const chips = document.querySelectorAll('#bio-board .archive-glass-chip');
             const svg = document.getElementById('links-layer');
