@@ -8169,6 +8169,7 @@
             }
         }
         
+        let currentShortMemorySearchTerm = '';
         // --- 打开对话记忆弹窗 ---
         function openShortMemoryModal() {
             if (!currentChatContactId) return;
@@ -8331,6 +8332,9 @@
             const currentScroll = container.scrollTop;
             
             renderShortMemoryContent(false); // 传 false 阻止它自动滚到底部
+            if (currentShortMemorySearchTerm && currentShortMemorySearchTerm.trim() !== '') {
+                filterShortMemory(currentShortMemorySearchTerm);
+            }
             
             setTimeout(() => {
                 container.scrollTop = currentScroll;
@@ -8461,6 +8465,9 @@
                                 const container = document.getElementById('short-memory-content');
                                 const currentScroll = container ? container.scrollTop : 0;
                                 renderShortMemoryContent(false);
+                                if (currentShortMemorySearchTerm && currentShortMemorySearchTerm.trim() !== '') {
+                                    filterShortMemory(currentShortMemorySearchTerm);
+                                }        
                                 setTimeout(() => { if (container) container.scrollTop = currentScroll; }, 10);
                                 
                                 // 同步刷新后面的聊天界面和统计数字
@@ -8538,6 +8545,8 @@
         
         // --- 筛选对话记忆（🎯 修改2：匹配整轮对话，保留原始轮数） ---
         function filterShortMemory(searchText) {
+            currentShortMemorySearchTerm = searchText;
+
             if (!currentChatContactId) return;
             
             const container = document.getElementById('short-memory-content');
@@ -8652,6 +8661,9 @@
         
         // --- 关闭对话记忆弹窗 ---
         function closeShortMemoryModal() {
+            currentShortMemorySearchTerm = '';
+            const searchInput = document.getElementById('short-memory-search');
+            if (searchInput) searchInput.value = '';
             const modal = document.getElementById('shortMemoryModal');
             modal.classList.remove('show');
             
