@@ -165,6 +165,13 @@
             height: calc(44px + env(safe-area-inset-top));
             padding: env(safe-area-inset-top) 16px 0 16px;
         }
+        /* 档案馆头部改为不透明纯色，无毛玻璃效果 */
+        #sub-archive .nav-header {
+            background: var(--bg-color) !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            border-bottom: 0.5px solid var(--border);
+        }
         .clean-nav { background: transparent !important; backdrop-filter: none !important; border-bottom: none !important; }
         .nav-title { font-size: 17px; font-weight: 600; color: var(--text-main); }
         .ios-list { background: var(--card-bg); margin: 20px; border-radius: 12px; overflow: hidden; }
@@ -16543,36 +16550,37 @@
                     if (archiveSubPage && archiveSubPage.classList.contains('show')) {
                         const activeInput = document.activeElement;
                         if (activeInput && (activeInput.tagName === 'INPUT' || activeInput.tagName === 'TEXTAREA')) {
+                            // 找到当前正在编辑的容器（父级 .archive-entity-card 或 .archive-timeline-block 或 .pref-detail-reader）
                             let editContainer = activeInput.closest('.chip-detail-item, .timeline-item, .archive-timeline-row');
                             if (!editContainer) editContainer = activeInput.parentElement;
-                            if (editContainer) {
+                            
+                            // 获取该容器底部相对于视口的位置
+                            const containerRect = editContainer.getBoundingClientRect();
+                            const keyboardTop = window.innerHeight - kbHeight;
+                            // 如果容器底部已经低于键盘顶部，需要抬升多少才能让容器底部刚好在键盘上方 20px
+                            let offsetNeeded = 0;
+                            if (containerRect.bottom > keyboardTop - 20) {
+                                offsetNeeded = containerRect.bottom - (keyboardTop - 20);
+                            }
+                            
+                            // 限制最大抬升量（不超过键盘高度）
+                            offsetNeeded = Math.min(offsetNeeded, kbHeight);
+                            
+                            if (offsetNeeded > 0) {
                                 const archiveContent = document.getElementById('archive-content');
-                                if (archiveContent) {
-                                    // 强制清除任何可能残留的 transform 平移（防止干扰）
-                                    archiveContent.style.transform = '';
-                                    // 计算编辑项底部相对容器顶部的距离
-                                    const containerRect = archiveContent.getBoundingClientRect();
-                                    const elementRect = editContainer.getBoundingClientRect();
-                                    const relativeBottom = elementRect.bottom - containerRect.top + archiveContent.scrollTop;
-                                    const keyboardTop = window.innerHeight - kbHeight;
-                                    const targetBottom = keyboardTop - 20; // 距离键盘顶部留出 20px 间距
-                                    if (relativeBottom > targetBottom) {
-                                        archiveContent.scrollTop += (relativeBottom - targetBottom);
-                                    }
+                                if (archiveContent && !archiveContent.hasAttribute('data-orig-transform')) {
+                                    if (typeof setShift === 'function') setShift(archiveContent, -offsetNeeded);
+                                }
+                                // 确保 header 保持不动且层级更高（增加背景不透明保证）
+                                const header = archiveSubPage.querySelector('.nav-header');
+                                if (header) {
+                                    header.style.zIndex = '100';
+                                    header.style.background = 'var(--nav-bg)'; // 确保背景不透明
+                                    header.style.backdropFilter = 'blur(20px)';
                                 }
                             }
-                            // 确保 Header 层级最高且背景不透明（足够遮挡）
-                            const header = archiveSubPage.querySelector('.nav-header');
-                            if (header) {
-                                header.style.zIndex = '100';
-                                header.style.backgroundColor = 'var(--nav-bg)';
-                                header.style.backdropFilter = 'blur(20px)';
-                            }
+                            return;
                         }
-                        // 🔥 关键：设置全局标志，阻止后续任何 setShift 平移
-                        window.preventShiftForArchive = true;
-                        setTimeout(() => { window.preventShiftForArchive = false; }, 300);
-                        return;  // 提前退出，不再执行后面的平移代码
                     }
 
                     if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) return;
@@ -16610,7 +16618,6 @@
 
                     // 2️⃣ 其他弹窗和抽屉
                     setTimeout(() => { 
-                        if (window.preventShiftForArchive) return;
                         const rect = activeEl.getBoundingClientRect();
                         const overlap = rect.bottom - (window.innerHeight - kbHeight) + 20;
 
@@ -16639,7 +16646,6 @@
 
 
                 Keyboard.addListener('keyboardWillHide', () => {
-                    window.preventShiftForArchive = false;
                     window.lastKbHeight = 0;
                     // 恢复展开的控制台高度
                     const consoleBar = document.getElementById('console-input-bar');
