@@ -16543,35 +16543,44 @@
                     if (archiveSubPage && archiveSubPage.classList.contains('show')) {
                         const activeInput = document.activeElement;
                         if (activeInput && (activeInput.tagName === 'INPUT' || activeInput.tagName === 'TEXTAREA')) {
-                            // 找到当前正在编辑的容器（父级 .archive-entity-card 或 .archive-timeline-block 或 .pref-detail-reader）
+                            // 找到当前正在编辑的容器（卡片、条目等）
                             let editContainer = activeInput.closest('.chip-detail-item, .timeline-item, .archive-timeline-row');
                             if (!editContainer) editContainer = activeInput.parentElement;
-                            
-                            // 获取该容器底部相对于视口的位置
+                            if (!editContainer) return;
+
+                            const archiveContent = document.getElementById('archive-content');
+                            if (!archiveContent) return;
+
+                            // 获取编辑容器相对于滚动容器顶部的位置
                             const containerRect = editContainer.getBoundingClientRect();
+                            const scrollRect = archiveContent.getBoundingClientRect();
+                            const relativeTop = containerRect.top - scrollRect.top + archiveContent.scrollTop;
+                            const relativeBottom = relativeTop + editContainer.offsetHeight;
+
                             const keyboardTop = window.innerHeight - kbHeight;
-                            // 如果容器底部已经低于键盘顶部，需要抬升多少才能让容器底部刚好在键盘上方 20px
-                            let offsetNeeded = 0;
-                            if (containerRect.bottom > keyboardTop - 20) {
-                                offsetNeeded = containerRect.bottom - (keyboardTop - 20);
-                            }
-                            
-                            // 限制最大抬升量（不超过键盘高度）
-                            offsetNeeded = Math.min(offsetNeeded, kbHeight);
-                            
-                            if (offsetNeeded > 0) {
-                                const archiveContent = document.getElementById('archive-content');
-                                if (archiveContent && !archiveContent.hasAttribute('data-orig-transform')) {
-                                    if (typeof setShift === 'function') setShift(archiveContent, -offsetNeeded);
-                                }
-                                // 确保 header 保持不动且层级更高（增加背景不透明保证）
-                                const header = archiveSubPage.querySelector('.nav-header');
-                                if (header) {
-                                    header.style.zIndex = '100';
-                                    header.style.background = 'var(--nav-bg)'; // 确保背景不透明
-                                    header.style.backdropFilter = 'blur(20px)';
+                            // 期望让编辑框底部距离键盘顶部 20px
+                            const targetBottom = keyboardTop - 20;
+
+                            if (relativeBottom > targetBottom) {
+                                // 需要滚动的距离 = 当前底部超出键盘顶部的数值
+                                let delta = relativeBottom - targetBottom;
+                                // 限制最大滚动距离（避免过度）
+                                delta = Math.min(delta, archiveContent.scrollHeight - archiveContent.clientHeight - archiveContent.scrollTop);
+                                if (delta > 0) {
+                                    archiveContent.scrollTop += delta;
                                 }
                             }
+
+                            // 确保 Header 层级最高，背景不透明（足够遮挡滚动内容）
+                            const header = archiveSubPage.querySelector('.nav-header');
+                            if (header) {
+                                header.style.zIndex = '100';
+                                header.style.background = 'var(--nav-bg)';
+                                header.style.backdropFilter = 'blur(20px)';
+                            }
+
+                            // 阻止任何可能的平移操作（取消后续的 setShift 调用）
+                            // 注意：原代码中会调用 setShift，但我们已经通过滚动解决，无需平移
                             return;
                         }
                     }
