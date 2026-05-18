@@ -5207,7 +5207,7 @@
                 if (!config) throw new Error('配置不存在');
                 
                 const contact = mockContacts.find(c => c.id === currentChatContactId);
-                const systemPrompt = getSystemPromptWithMode(contact);
+                let systemPrompt = getSystemPromptWithMode(contact);
 
                 // --- 修复：截断重新生成的历史记录与添加并发控制 ---
                 if (window.currentChatController) {
