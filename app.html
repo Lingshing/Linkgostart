@@ -5175,425 +5175,30 @@
             if (!currentChatContactId) return;
             
             const conversation = getConversation(currentChatContactId);
-            
+            let lastUserMsg = null;
             let lastUserIndex = -1;
             for (let i = conversation.length - 1; i >= 0; i--) {
                 if (conversation[i].role === 'user') {
+                    lastUserMsg = conversation[i].content;
                     lastUserIndex = i;
                     break;
                 }
             }
-            if (lastUserIndex === -1) return;
+            if (!lastUserMsg) return;
             
-            const aiMessagesToDelete = [];
-            for (let i = lastUserIndex + 1; i < conversation.length; i++) {
-                if (conversation[i].role === 'assistant' || conversation[i].role === 'ai') {
-                    aiMessagesToDelete.push(i);
-                }
-            }
-            for (let i = aiMessagesToDelete.length - 1; i >= 0; i--) {
-                conversation.splice(aiMessagesToDelete[i], 1);
-            }
+            // 删除这条用户消息之后的所有AI回复
+            conversation.splice(lastUserIndex + 1);
             saveToLocal();
             renderChatMessages(currentChatContactId);
             
-            if (isTyping) return;
-            isTyping = true;
+            // 保存要重新生成的消息到临时变量
+            window._regenerateTempMsg = lastUserMsg;
             
-            const container = document.getElementById('chat-messages-container');
+            // 调用发送消息函数，跳过用户消息添加
+            await sendChatMessage(true);
             
-            // 🎯 使用与发消息完全相同的统一列阵容器
-            const streamContainer = document.createElement('div');
-            streamContainer.id = 'active-stream-container';
-            streamContainer.style.display = 'flex';
-            streamContainer.style.flexDirection = 'column';
-            streamContainer.style.gap = '16px';
-            streamContainer.style.width = '100%';
-            
-            const aiMessageDiv = document.createElement('div');
-            aiMessageDiv.className = 'chat-message ai';
-            const avatarHtml = generateAvatarHtml(false, currentChatContactId);
-            aiMessageDiv.innerHTML = `${avatarHtml}<div class="chat-bubble breathing-mode" id="active-typing-bubble" onclick="abortCurrentAiReply()" title="点击中止生成"></div>`;
-            streamContainer.appendChild(aiMessageDiv);
-            
-            backgroundAIReply.inProgress = true;
-            backgroundAIReply.contactId = currentChatContactId;
-            backgroundAIReply.fullMessage = '';
-            window.userScrolledUp = false; 
-            
-            streamContainer.style.opacity = '0';
-            streamContainer.style.transform = 'translateY(20px)';
-            container.appendChild(streamContainer);
-            
-            requestAnimationFrame(() => {
-                streamContainer.style.transition = 'opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1), transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
-                streamContainer.style.opacity = '1';
-                streamContainer.style.transform = 'translateY(0)';
-            });
-            
-            scrollToBottom();
-
-            try {
-                const config = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
-                const currentUiModel = document.getElementById('chat-current-model').value;
-                if (currentUiModel) config.model = currentUiModel;
-                if (!config) throw new Error('配置不存在');
-                
-                const contact = mockContacts.find(c => c.id === currentChatContactId);
-                const systemPrompt = getSystemPromptWithMode(contact);
-
-                // --- 修复：截断重新生成的历史记录与添加并发控制 ---
-                if (window.currentChatController) {
-                    window.currentChatController.abort();
-                }
-                window.currentChatController = new AbortController();
-
-                const messages = [];
-                
-
-                const roundLimit = GENERAL_CONFIG.memory.contextLimit || 10;
-                let startIndex = 0;
-                let userMsgCount = 0;
-                for (let i = conversation.length - 1; i >= 0; i--) {
-                    if (conversation[i].role === 'user') {
-                        userMsgCount++;
-                        if (userMsgCount > roundLimit) { 
-                            startIndex = i + 1;
-                            break;
-                        }
-                    }
-                }
-                // ---------- 【修改开始：重新生成模式预设分发引擎】 ----------
-                let rawConversation = JSON.parse(JSON.stringify(conversation.slice(startIndex)));
-                
-                let presetSystemContent = "";
-                let presetJailbreakContent = "【强制指令：严格禁止使用前几轮出现过的重复动作描写、结尾感叹或雷同句式。请务必用全新的视角和词汇回复，拒绝复读！】";
-                
-                if (window.ADVANCED_PRESET_FILES) {
-                    const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
-                    enabledFiles.forEach(file => {
-                        if (file.prompts) file.prompts.forEach(p => {
-                            if (p.enabled !== false && p.content) {
-                                if (p.identifier === "jailbreak" || p.name === "Jailbreak" || p.name === "3.5 Main prompt suffix" || p.name === "Important explanation") {
-                                    presetJailbreakContent += '\n\n' + p.content;
-                                } else {
-                                    presetSystemContent += '\n\n' + p.content;
-                                }
-                            }
-                        });
-                    });
-                }
-                
-                // 组装唯一的系统提示词
-                let finalSystemString = "";
-                if (presetSystemContent) {
-                    finalSystemString += "【预设背景设定参考】\n" + presetSystemContent + "\n\n";
-                }
-                if (systemPrompt) {
-                    finalSystemString += "【！！！最高优先级：必须严格执行以下排版与输出法则！！！】\n" + systemPrompt;
-                }
-                if (finalSystemString) {
-                    messages.push({ role: 'system', content: finalSystemString });
-                }
-
-                let mergedChat = [];
-                for (const msg of rawConversation) {
-                    if (mergedChat.length > 0 && mergedChat[mergedChat.length - 1].role === msg.role) {
-                        mergedChat[mergedChat.length - 1].content += '\n\n' + msg.content;
-                    } else {
-                        mergedChat.push({ ...msg });
-                    }
-                }
-                
-                if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
-                    mergedChat.forEach(msg => {
-                        if (msg.role === 'user') {
-                            msg.content = applyRegexRules(msg.content);
-                        }
-                    });
-                }
-                
-                if (presetJailbreakContent) {
-                    let lastUserMsgIndex = -1;
-                    for (let i = mergedChat.length - 1; i >= 0; i--) {
-                        if (mergedChat[i].role === 'user') {
-                            lastUserMsgIndex = i;
-                            break;
-                        }
-                    }
-                    if (lastUserMsgIndex !== -1) {
-                        mergedChat[lastUserMsgIndex].content += `\n\n【系统强制指令，请绝对服从】：${presetJailbreakContent}`;
-                    } else {
-                        mergedChat.push({ role: 'user', content: `【系统强制指令，请绝对服从】：${presetJailbreakContent}` });
-                    }
-                }
-                
-                messages.push(...mergedChat);
-                // ---------- 【修改结束】 ----------
-                
-                let apiUrl = getStandardApiUrl(config.url, '/chat/completions');
-                
-                // --- 替换开始：根据 useProxy 决定请求方式
-                let response;
-                const useProxy = config.useProxy !== false;  // 利用配置中的开关
-                const isIOSNative = window.Capacitor && window.Capacitor.isNativePlatform();
-
-                if (useProxy) {
-                    // 走 Worker 代理
-                    if (isIOSNative) {
-                        const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
-                            url: 'https://linkgo-api.ginkgo-yinxing.workers.dev/',
-                            headers: { 'Content-Type': 'application/json' },
-                            data: {
-                                customEndpoint: apiUrl,
-                                customApiKey: config.key,
-                                model: config.model || 'gpt-3.5-turbo',
-                                messages: messages,
-                                stream: PARAM_CONFIG.stream,
-                                temperature: PARAM_CONFIG.temperature,
-                                max_tokens: PARAM_CONFIG.maxTokens,
-                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                                presence_penalty: PARAM_CONFIG.presencePenalty,
-                                tool_choice: "none"
-                            }
-                        });
-                        response = {
-                            ok: nativeResponse.status >= 200 && nativeResponse.status < 300,
-                            status: nativeResponse.status,
-                            text: async () => JSON.stringify(nativeResponse.data),
-                            json: async () => nativeResponse.data
-                        };
-                        if (PARAM_CONFIG.stream) {
-                            response.body = {
-                                getReader: () => {
-                                    let done = false;
-                                    return {
-                                        read: async () => {
-                                            if (done) return { done: true };
-                                            done = true;
-                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "";
-                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
-                                            return { done: false, value: new TextEncoder().encode(mockSse) };
-                                        }
-                                    };
-                                }
-                            };
-                        }
-                    } else {
-                        response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
-                            method: 'POST',
-                            signal: window.currentChatController.signal,
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                customEndpoint: apiUrl,
-                                customApiKey: config.key,
-                                model: config.model || 'gpt-3.5-turbo',
-                                messages: messages,
-                                stream: PARAM_CONFIG.stream,
-                                temperature: PARAM_CONFIG.temperature,
-                                max_tokens: PARAM_CONFIG.maxTokens,
-                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                                presence_penalty: PARAM_CONFIG.presencePenalty,
-                                tool_choice: "none"
-                            })
-                        });
-                    }
-                } else {
-                    // 直接请求中转站（不走 Worker）
-                    const directUrl = getStandardApiUrl(config.url, '/chat/completions');
-                    if (isIOSNative) {
-                        const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
-                            url: directUrl,
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${config.key}`
-                            },
-                            data: {
-                                model: config.model || 'gpt-3.5-turbo',
-                                messages: messages,
-                                stream: PARAM_CONFIG.stream,
-                                temperature: PARAM_CONFIG.temperature,
-                                max_tokens: PARAM_CONFIG.maxTokens,
-                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                                presence_penalty: PARAM_CONFIG.presencePenalty,
-                                tool_choice: "none"
-                            }
-                        });
-                        response = {
-                            ok: nativeResponse.status >= 200 && nativeResponse.status < 300,
-                            status: nativeResponse.status,
-                            text: async () => JSON.stringify(nativeResponse.data),
-                            json: async () => nativeResponse.data
-                        };
-                        if (PARAM_CONFIG.stream) {
-                            response.body = {
-                                getReader: () => {
-                                    let done = false;
-                                    return {
-                                        read: async () => {
-                                            if (done) return { done: true };
-                                            done = true;
-                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "";
-                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
-                                            return { done: false, value: new TextEncoder().encode(mockSse) };
-                                        }
-                                    };
-                                }
-                            };
-                        }
-                    } else {
-                        response = await fetch(directUrl, {
-                            method: 'POST',
-                            signal: window.currentChatController.signal,
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${config.key}`
-                            },
-                            body: JSON.stringify({
-                                model: config.model || 'gpt-3.5-turbo',
-                                messages: messages,
-                                stream: PARAM_CONFIG.stream,
-                                temperature: PARAM_CONFIG.temperature,
-                                max_tokens: PARAM_CONFIG.maxTokens,
-                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                                presence_penalty: PARAM_CONFIG.presencePenalty,
-                                tool_choice: "none"
-                            })
-                        });
-                    }
-                }
-                // --- 替换结束（接下来就是 if (!response.ok) ...）
-                
-                if (!response.ok) throw new Error(`API请求失败: ${response.status}`);
-                
-                if (PARAM_CONFIG.stream) {
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder("utf-8");
-                    let buffer = "";
-                    let hasAnyContent = false;
-                    backgroundAIReply.fullMessage = "";
-
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop() || "";
-
-                        for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (trimmed === "") continue;
-
-                            let jsonStr = trimmed;
-                            if (trimmed.startsWith('data:')) {
-                                jsonStr = trimmed.slice(5).trim();
-                            }
-                            if (jsonStr === '[DONE]') continue;
-
-                            let content = '';
-                            try {
-                                const json = JSON.parse(jsonStr);
-                                const delta = json.choices?.[0]?.delta;
-                                content = delta?.content || delta?.text || '';
-                                if (!content && delta?.tool_calls) {
-                                    const tc = delta.tool_calls[0];
-                                    if (tc?.function?.name) {
-                                        content = `🔧 调用工具：${tc.function.name}\n`;
-                                    }
-                                    if (tc?.function?.arguments) {
-                                        content += tc.function.arguments;
-                                    }
-                                }
-                            } catch (e) {
-                                const contentMatch = trimmed.match(/["']content["']\s*:\s*["']([^"']*)/i);
-                                if (contentMatch && contentMatch[1]) {
-                                    content = contentMatch[1];
-                                    content = content.replace(/\\u([\da-f]{4})/gi, (_, hex) =>
-                                        String.fromCharCode(parseInt(hex, 16))
-                                    );
-                                }
-                            }
-
-                            if (content) {
-                                hasAnyContent = true;
-                                backgroundAIReply.fullMessage += content;
-                                backgroundAIReply.lastUpdate = Date.now();
-                            }
-                        }
-                    }
-
-                    if (buffer.trim()) {
-                        const finalLines = buffer.split('\n');
-                        for (const line of finalLines) {
-                            const trimmed = line.trim();
-                            if (trimmed === "") continue;
-                            let jsonStr = trimmed;
-                            if (trimmed.startsWith('data:')) jsonStr = trimmed.slice(5).trim();
-                            if (jsonStr === '[DONE]') continue;
-                            try {
-                                const json = JSON.parse(jsonStr);
-                                const delta = json.choices?.[0]?.delta;
-                                let content = delta?.content || delta?.text || '';
-                                if (content) backgroundAIReply.fullMessage += content;
-                            } catch (e) {}
-                        }
-                    }
-
-                    const finalFullMessage = backgroundAIReply.fullMessage;
-                    backgroundAIReply.inProgress = false;
-                    backgroundAIReply.contactId = null;
-
-                    if (finalFullMessage) {
-                        handleFinalAIResponse(currentChatContactId, finalFullMessage);
-                    } else {
-                        handleFinalAIResponse(currentChatContactId, '【流式响应未收到任何内容，请检查 API 或稍后重试】');
-                    }
-                    scrollToBottom();
-                } else {
-                    // 非流式响应处理（保持原有逻辑，但确保调用 handleFinalAIResponse）
-                    const data = await response.json();
-                    const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
-                    backgroundAIReply.inProgress = false;
-                    backgroundAIReply.contactId = null;
-                    handleFinalAIResponse(currentChatContactId, aiReply);
-                    scrollToBottom();
-                }
-                
-           } catch (error) {
-                if (error.name === 'AbortError') {
-                    console.log('请求被智能取消以防止429报错 (正常)');
-                    return;
-                }
-                // 输出完整原始错误（包含堆栈）
-                let rawError = error.stack || error.toString();
-                addLogToConsole('error', '重新生成失败', rawError);
-                console.error('=== 重新生成失败 ===', error);
-                
-                // 🛠️ 修复：重置打字状态，防止出现双呼吸光晕及后续请求堆积
-                backgroundAIReply.inProgress = false;
-                backgroundAIReply.contactId = null;
-                isTyping = false; // 强制重置打字锁
-                
-                const rawErrorMsg = '❌ 重新生成失败：' + error.message; 
-                const streamCont = document.getElementById('active-stream-container');
-                if (streamCont) streamCont.remove();
-                
-                // ---------- 【新增：重新生成报错后台通知】 ----------
-                if (typeof sendPushNotification === 'function') {
-                    sendPushNotification(`⚠️ API 报错了：${error.message}`);
-                }
-                // ---------- 【新增结束】 ----------
-                
-                const errorMsgDiv = createChatBubble('ai', rawErrorMsg, false);
-                container.appendChild(errorMsgDiv);
-                addMessage(currentChatContactId, 'assistant', rawErrorMsg);
-                updateChatListLastMessage(currentChatContactId, rawErrorMsg);
-                scrollToBottom();
-                if (onError) onError(error);
-            } finally {
-                isTyping = false;
-            }
+            // 清理临时变量
+            delete window._regenerateTempMsg;
         }
 
         // ==========================================
@@ -10100,12 +9705,17 @@ AI 自己永远是“我”；
             }
         }
 
-        async function sendChatMessage() {
-            const input = document.getElementById('chat-message-input');
-            if (!input) return;
-            
-            const message = input.value.trim();
-            if (!message) return;
+        async function sendChatMessage(skipAddUser = false) {
+            let message;
+            if (skipAddUser) {
+                message = window._regenerateTempMsg;
+                if (!message) return;
+            } else {
+                const input = document.getElementById('chat-message-input');
+                if (!input) return;
+                message = input.value.trim();
+                if (!message) return;
+            }
 
             // 取消之前的请求
             if (window.currentChatController) {
@@ -10131,17 +9741,21 @@ AI 自己永远是“我”；
                 return;
             }
             
-            input.value = '';
-            input.style.height = '40px'; 
-            if (chatExtensionsPanelOpen) toggleChatExtensions();
-            
-            addChatMessageToUI('user', message);
-            addMessage(currentChatContactId, 'user', message);
-            
-            const contact = mockContacts.find(c => c.id === currentChatContactId);
-            if (contact) {
-                contact.lastMsg = message.substring(0, 50);
-                contact.time = new Date().toISOString();
+            // 如果不是重新生成模式，才清空输入框、添加用户消息到UI和历史
+            if (!skipAddUser) {
+                const input = document.getElementById('chat-message-input');
+                input.value = '';
+                input.style.height = '40px'; 
+                if (chatExtensionsPanelOpen) toggleChatExtensions();
+                
+                addChatMessageToUI('user', message);
+                addMessage(currentChatContactId, 'user', message);
+                
+                const contact = mockContacts.find(c => c.id === currentChatContactId);
+                if (contact) {
+                    contact.lastMsg = message.substring(0, 50);
+                    contact.time = new Date().toISOString();
+                }
             }
             
             const container = document.getElementById('chat-messages-container');
@@ -10175,6 +9789,7 @@ AI 自己永远是“我”；
             scrollToBottom();
 
             // 构建消息数组（保持不变）
+            const contact = mockContacts.find(c => c.id === currentChatContactId);
             const systemPrompt = getSystemPromptWithMode(contact);
             const conversation = getConversation(currentChatContactId);
             const messages = [];
@@ -10285,7 +9900,6 @@ AI 自己永远是“我”；
                 let response;
 
                 if (useProxy) {
-                    // 统一使用 fetch，不再区分 iOS 原生
                     response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
                         method: 'POST',
                         signal: window.currentChatController?.signal,
@@ -10378,56 +9992,51 @@ AI 自己永远是“我”；
 
                         buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
-                        buffer = lines.pop() || "";   // 保留不完整行
+                        buffer = lines.pop() || "";
 
                         for (const line of lines) {
-                        const trimmed = line.trim();
-                        if (trimmed === "") continue;
+                            const trimmed = line.trim();
+                            if (trimmed === "") continue;
 
-                        console.log('[SSE RAW]', trimmed);
-
-                        let jsonStr = trimmed;
-                        if (trimmed.startsWith('data:')) {
-                            jsonStr = trimmed.slice(5).trim();
-                        }
-                        if (jsonStr === '[DONE]') continue;
-
-                        try {
-                            const json = JSON.parse(jsonStr);
-                            const delta = json.choices?.[0]?.delta;
-                            let content = delta?.content || delta?.text || '';
-                            if (!content && delta?.tool_calls) {
-                                const tc = delta.tool_calls[0];
-                                if (tc?.function?.name) {
-                                    content = `🔧 调用工具：${tc.function.name}\n`;
-                                }
-                                if (tc?.function?.arguments) {
-                                    content += tc.function.arguments;
-                                }
+                            let jsonStr = trimmed;
+                            if (trimmed.startsWith('data:')) {
+                                jsonStr = trimmed.slice(5).trim();
                             }
-                            if (content) {
-                                hasAnyContent = true;
-                                backgroundAIReply.fullMessage += content;
-                                backgroundAIReply.lastUpdate = Date.now();
-                            }
-                        } catch (e) {
-                            // 尝试用正则直接提取 content 字段
-                            const contentMatch = trimmed.match(/["']content["']\s*:\s*["']([^"']*)/i);
-                            if (contentMatch && contentMatch[1]) {
-                                let content = contentMatch[1];
-                                // 处理可能的转义字符
-                                content = content.replace(/\\u([\da-f]{4})/gi, (_, hex) => 
-                                    String.fromCharCode(parseInt(hex, 16))
-                                );
-                                hasAnyContent = true;
-                                backgroundAIReply.fullMessage += content;
-                                backgroundAIReply.lastUpdate = Date.now();
+                            if (jsonStr === '[DONE]') continue;
+
+                            try {
+                                const json = JSON.parse(jsonStr);
+                                const delta = json.choices?.[0]?.delta;
+                                let content = delta?.content || delta?.text || '';
+                                if (!content && delta?.tool_calls) {
+                                    const tc = delta.tool_calls[0];
+                                    if (tc?.function?.name) {
+                                        content = `🔧 调用工具：${tc.function.name}\n`;
+                                    }
+                                    if (tc?.function?.arguments) {
+                                        content += tc.function.arguments;
+                                    }
+                                }
+                                if (content) {
+                                    hasAnyContent = true;
+                                    backgroundAIReply.fullMessage += content;
+                                    backgroundAIReply.lastUpdate = Date.now();
+                                }
+                            } catch (e) {
+                                const contentMatch = trimmed.match(/["']content["']\s*:\s*["']([^"']*)/i);
+                                if (contentMatch && contentMatch[1]) {
+                                    let content = contentMatch[1];
+                                    content = content.replace(/\\u([\da-f]{4})/gi, (_, hex) => 
+                                        String.fromCharCode(parseInt(hex, 16))
+                                    );
+                                    hasAnyContent = true;
+                                    backgroundAIReply.fullMessage += content;
+                                    backgroundAIReply.lastUpdate = Date.now();
+                                }
                             }
                         }
                     }
-                    }
 
-                    // 处理最后剩余的 buffer
                     if (buffer.trim()) {
                         const finalLines = buffer.split('\n');
                         for (const line of finalLines) {
@@ -10452,12 +10061,11 @@ AI 自己永远是“我”；
                     if (finalFullMessage) {
                         handleFinalAIResponse(currentChatContactId, finalFullMessage);
                     } else {
-                        // 完全没有收到内容 → 显示错误
                         handleFinalAIResponse(currentChatContactId, '【流式响应未收到任何内容，请检查 API 或稍后重试】');
                     }
                     scrollToBottom();
                 }
-           
+        
             } catch (error) {
                 if (error.name === 'AbortError') {
                     console.log('请求被智能取消');
