@@ -3177,7 +3177,7 @@
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/js-tiktoken@1.0.16/dist/index.umd.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/gpt-tokenizer@1.2.0/dist/cl100k_base.min.js"></script>
     </head>
 <body>
     <div id="backfill-progress-bar"></div>
@@ -16780,11 +16780,11 @@ AI 自己永远是“我”；
 
         let budgetTiktokenEncoder = null;
 
-        // 初始化 tiktoken 编码器
         async function initTiktokenEncoder() {
+            // gpt-tokenizer 是同步加载的，不需要异步初始化，这里只是为了兼容旧调用
             if (!budgetTiktokenEncoder) {
-                // 使用 cl100k_base 编码，适用于 GPT-4, GPT-3.5-turbo, text-embedding-ada-002
-                budgetTiktokenEncoder = await tiktoken.get_encoding("cl100k_base");
+                budgetTiktokenEncoder = {}; // 占位对象
+                console.log('已切换到 gpt-tokenizer，Token 计数正常');
             }
             return budgetTiktokenEncoder;
         }
@@ -16856,21 +16856,27 @@ AI 自己永远是“我”；
             modal.classList.remove('show');
         }
 
-        // 计算输入 token 数量（模拟本次发送的消息数组）
         async function calculateInputTokens() {
             if (!currentChatContactId) return 0;
+
+            // 检查 gpt-tokenizer 是否加载成功
+            if (typeof GPTTokenizer_cl100k_base === 'undefined') {
+                console.warn('gpt-tokenizer 未加载，使用简化版 token 计数。');
+                const conversation = getConversation(currentChatContactId);
+                return countTokens(conversation);
+            }
             
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             const conversation = getConversation(currentChatContactId);
-            
-            // 构建和发送消息时一模一样的 messages 数组
             const messages = [];
-            
-            // 系统提示词（和 sendChatMessage 里一样）
+
+            // 系统提示词
             let systemPrompt = getSystemPromptWithMode(contact);
             
-            // 注入长期记忆（和 sendChatMessage 逻辑一致）
-            const userMessage = document.getElementById('chat-message-input').value.trim();
+            const userMessage = document.getElementById('chat-message-input')?.value.trim() || '';
+            
+            // 记忆检索（保持不变）
+            let injectedMemoryText = "";
             if (userMessage && contact.longMemories && contact.longMemories.length > 0) {
                 const queryKeywords = extractKeywords(userMessage);
                 const coreMemories = contact.longMemories.filter(m => (m.score || 0) >= 5);
@@ -16882,13 +16888,15 @@ AI 自己永远是“我”；
                 });
                 const relevantMemories = [...coreMemories, ...contextualMemories.slice(0, 5)];
                 if (relevantMemories.length > 0) {
-                    systemPrompt += "\n\n【系统提示：与当前对话相关的历史档案】\n" + relevantMemories.map(m => `[${m.category || '记录'}] ${m.content}`).join('\n');
+                    injectedMemoryText = "\n\n【系统提示：与当前对话相关的历史档案】\n" + relevantMemories.map(m => `[${m.category || '记录'}] ${m.content}`).join('\n');
                 }
             }
-            
-            // 组装系统消息
+
+            let finalUserPrompt = systemPrompt || "";
+            if (injectedMemoryText) finalUserPrompt += injectedMemoryText;
+
+            // 预设背景（保持不变）
             let finalSystemString = "";
-            // 预设背景（简化处理，只取启用的第一个预设文件的非越狱部分，可根据需要完善）
             if (window.ADVANCED_PRESET_FILES) {
                 const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
                 for (const file of enabledFiles) {
@@ -16901,7 +16909,7 @@ AI 自己永远是“我”；
                     }
                 }
             }
-            finalSystemString += "\n\n" + systemPrompt;
+            finalSystemString += "\n\n" + finalUserPrompt;
             
             if (finalSystemString.trim()) {
                 messages.push({ role: 'system', content: finalSystemString });
@@ -16922,7 +16930,6 @@ AI 自己永远是“我”；
             }
             const limitedConversation = conversation.slice(startIndex);
             
-            // 合并相同角色并应用正则
             let merged = [];
             for (const msg of limitedConversation) {
                 if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
@@ -16931,7 +16938,7 @@ AI 自己永远是“我”；
                     merged.push({ role: msg.role, content: msg.content });
                 }
             }
-            // 应用正则（仅用户消息）
+            // 应用正则
             if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
                 merged.forEach(msg => {
                     if (msg.role === 'user') {
@@ -16939,12 +16946,10 @@ AI 自己永远是“我”；
                     }
                 });
             }
-            
             messages.push(...merged);
             
-            // 当前用户输入（如果有）
+            // 当前用户输入
             if (userMessage) {
-                // 这里也应用一次正则
                 let finalUserMsg = userMessage;
                 if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
                     finalUserMsg = applyRegexRules(finalUserMsg);
@@ -16953,20 +16958,16 @@ AI 自己永远是“我”；
             }
             
             try {
-                const encoder = await initTiktokenEncoder();
-                // 按照 OpenAI 官方公式计算 token 数
-                let tokenCount = 0;
+                const { encode } = GPTTokenizer_cl100k_base;
+                let totalTokens = 0;
                 for (const msg of messages) {
-                    // 每条消息的固定标记 token (role 和 特殊标记)
-                    tokenCount += 4;
-                    // 内容的 token
-                    tokenCount += encoder.encode(msg.content).length;
+                    totalTokens += 4; // 每条消息的固定开销
+                    totalTokens += encode(msg.content).length;
                 }
-                tokenCount += 2; // 对话终结标记
-                return tokenCount;
+                totalTokens += 2; // 回复的固定开销
+                return totalTokens;
             } catch (e) {
-                console.error('Token 计算失败:', e);
-                // 降级使用旧的估算方法
+                console.error('Token 计算失败，回退到近似算法:', e);
                 return countTokens(messages);
             }
         }
