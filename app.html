@@ -9390,26 +9390,22 @@ AI 自己永远是“我”；
                         i++;
                     }
                     
-                    // 显示收集到的AI消息（分隔气泡，每个都带头像）
                     aiMessages.forEach((aiMsg, idx) => {
                         const messageDiv = document.createElement('div');
                         messageDiv.className = 'chat-message ai';
-                        
-                        // 🎯 关键修改：每个气泡都显示头像
                         const avatarHtml = generateAvatarHtml(false, contactId);
                         
-                        
-                        
-                        // ---------- 【修改开始：AI气泡显示端正则美化引擎】 ----------
                         let displayContent = aiMsg.content;
-                        // 如果开启了正则开关，就用正则处理文本（允许生成带颜色的HTML特效）
                         if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
                             displayContent = applyRegexRules(displayContent);
                         } else {
-                            // 如果没开正则，就用原来的安全模式
                             displayContent = escapeHtml(displayContent);
                         }
-
+                        // 空消息保护：如果处理后内容为空，显示占位符
+                        if (!displayContent || displayContent.trim() === '') {
+                            displayContent = '（空消息）';
+                        }
+                        
                         messageDiv.innerHTML = `
                             ${avatarHtml}
                             <div class="chat-bubble" onclick="toggleRegenerate(this.closest('.chat-message'))">${displayContent}</div>
@@ -9417,8 +9413,6 @@ AI 自己永远是“我”；
                                 <i class="fas fa-rotate-right"></i>
                             </div>
                         `;
-                        // ---------- 【修改结束】 ----------
-                        
                         container.appendChild(messageDiv);
                     });
                 }
@@ -9872,7 +9866,14 @@ AI 自己永远是“我”；
         function startGlobalBubbleQueue(contactId, fullText) {
             let sentences = splitTextIntoSentences(fullText);
             sentences = sentences.map(s => s.replace(/\\/g, '').trim()).filter(s => s.length > 0);
-            if (sentences.length === 0) sentences = [fullText];
+            // 空消息保护
+            if (sentences.length === 0) {
+                if (!fullText || fullText.trim() === '') {
+                    sentences = ['（AI 未返回任何内容）'];
+                } else {
+                    sentences = [fullText];
+                }
+            }
             
             if (!window.AI_BUBBLE_QUEUE[contactId]) {
                 window.AI_BUBBLE_QUEUE[contactId] = { sentences: [], isProcessing: false };
@@ -9943,34 +9944,41 @@ AI 自己永远是“我”；
             if (contactObj) simulateMemorySummary(contactObj).catch(e => console.error(e));
         }
 
-        // 统一接口：替代旧的臃肿调用
         function handleFinalAIResponse(contactId, finalFullMessage) {
             if (typeof applyRegexRules === 'function') {
                 finalFullMessage = applyRegexRules(finalFullMessage);
             }
-            // 清理界面的呼吸气泡
+            // 空消息保护：如果最终消息为空或仅空白字符，替换为友好提示
+            if (!finalFullMessage || finalFullMessage.trim() === '') {
+                finalFullMessage = '（AI 未返回任何内容，请检查 API 配置或稍后重试）';
+                console.warn('handleFinalAIResponse 收到空消息，已自动替换为提示文本');
+            }
+            // 清理界面上的呼吸灯容器
             const streamCont = document.getElementById('active-stream-container');
             if (streamCont) streamCont.remove();
 
-            // 丢给后台队列排队（无论用户在哪，都会默默执行）
+            // 交给后台队列逐条显示
             startGlobalBubbleQueue(contactId, finalFullMessage);
             
-            // 如果用户在当前页面，立刻显示一个呼吸占位符
+            // 如果用户在当前聊天页面，立即显示一个呼吸占位符（队列会在背后逐条显示）
             const isCurrentPage = document.getElementById('scene-chat') && document.getElementById('scene-chat').classList.contains('show') && currentChatContactId === contactId;
             if (isCurrentPage) {
                 const container = document.getElementById('chat-messages-container');
-                const streamContainer = document.createElement('div');
-                streamContainer.id = 'active-stream-container';
-                streamContainer.style.display = 'flex';
-                streamContainer.style.flexDirection = 'column';
-                streamContainer.style.gap = '16px';
-                streamContainer.style.width = '100%';
-                const aiMessageDiv = document.createElement('div');
-                aiMessageDiv.className = 'chat-message ai';
-                aiMessageDiv.innerHTML = `${generateAvatarHtml(false, contactId)}<div class="chat-bubble breathing-mode" id="active-typing-bubble" onclick="abortCurrentAiReply()" title="点击中止生成"></div>`;
-                streamContainer.appendChild(aiMessageDiv);
-                container.appendChild(streamContainer);
-                scrollToBottom();
+                // 避免重复添加多个呼吸灯
+                if (!document.getElementById('active-stream-container')) {
+                    const streamContainer = document.createElement('div');
+                    streamContainer.id = 'active-stream-container';
+                    streamContainer.style.display = 'flex';
+                    streamContainer.style.flexDirection = 'column';
+                    streamContainer.style.gap = '16px';
+                    streamContainer.style.width = '100%';
+                    const aiMessageDiv = document.createElement('div');
+                    aiMessageDiv.className = 'chat-message ai';
+                    aiMessageDiv.innerHTML = `${generateAvatarHtml(false, contactId)}<div class="chat-bubble breathing-mode" id="active-typing-bubble" onclick="abortCurrentAiReply()" title="点击中止生成"></div>`;
+                    streamContainer.appendChild(aiMessageDiv);
+                    container.appendChild(streamContainer);
+                    scrollToBottom();
+                }
             }
         }
         
@@ -10041,10 +10049,7 @@ AI 自己永远是“我”；
             }
         }
 
-       // --- 发送聊天消息（真正的数据驱动流式版） ---
         async function sendChatMessage() {
-            // ✨ 在发送消息的第一时间，检查并追加时间戳
-            checkAndAppendRealtimeTimestamp();
             const input = document.getElementById('chat-message-input');
             if (!input) return;
             
@@ -10061,15 +10066,17 @@ AI 自己永远是“我”；
             backgroundAIReply.inProgress = true;
             backgroundAIReply.contactId = currentChatContactId;
             backgroundAIReply.fullMessage = '';
-            
+
             if (!CHAT_API_CONFIGS.currentId) {
                 alert('请先在"我"→"API配置"中选择一个配置');
+                backgroundAIReply.inProgress = false;
                 return;
             }
             
             const config = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
             if (!config || !config.url || !config.key) {
                 alert('当前配置不存在或不完整，请检查API设置');
+                backgroundAIReply.inProgress = false;
                 return;
             }
             
@@ -10090,6 +10097,7 @@ AI 自己永远是“我”；
             const welcome = container.querySelector('div[style*="text-align: center"]');
             if (welcome) welcome.remove();
             
+            // 创建呼吸灯容器
             const streamContainer = document.createElement('div');
             streamContainer.id = 'active-stream-container';
             streamContainer.style.display = 'flex';
@@ -10103,12 +10111,6 @@ AI 自己永远是“我”；
             aiMessageDiv.innerHTML = `${avatarHtml}<div class="chat-bubble breathing-mode" id="active-typing-bubble" onclick="abortCurrentAiReply()" title="点击中止生成"></div>`;
             streamContainer.appendChild(aiMessageDiv);
             
-            // 🎯 初始化全局状态
-            backgroundAIReply.inProgress = true;
-            backgroundAIReply.contactId = currentChatContactId;
-            backgroundAIReply.fullMessage = '';
-            window.userScrolledUp = false; 
-            
             streamContainer.style.opacity = '0';
             streamContainer.style.transform = 'translateY(20px)';
             container.appendChild(streamContainer);
@@ -10121,74 +10123,42 @@ AI 自己永远是“我”；
             
             scrollToBottom();
 
-
-            // --- 修复1：引入 AbortController 防止并发 429 报错 ---
-            if (window.currentChatController) {
-                window.currentChatController.abort();
-            }
-            window.currentChatController = new AbortController();
-
+            // 构建消息数组（保持不变）
             const systemPrompt = getSystemPromptWithMode(contact);
             const conversation = getConversation(currentChatContactId);
             const messages = [];
 
-            // --- 修复2：RAG 长期记忆注入 (连接 Cloudflare 向量大脑) ---
             let injectedMemoryText = "";
-            
             try {
-                // 1. 去你的 Cloudflare 呼叫潜意识碎片
                 const ragResponse = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'query_memory',
-                        text: userMessage 
-                    })
+                    body: JSON.stringify({ action: 'query_memory', text: message })
                 });
                 const ragData = await ragResponse.json();
-                
                 if (ragData.matches && ragData.matches.length > 0) {
-                    // 2. 过滤掉分数太低（不相关）的碎片，并提取文本
-                    const relevantMemories = ragData.matches
-                        .filter(m => m.score > 0.3) // 过滤低相关性
-                        .map(m => m.metadata.text);
-                    
+                    const relevantMemories = ragData.matches.filter(m => m.score > 0.3).map(m => m.metadata.text);
                     if (relevantMemories.length > 0) {
-                        injectedMemoryText = "\n\n【系统提示：潜意识唤醒的深度记忆】\n" + 
-                                            relevantMemories.map(text => `· ${text}`).join('\n');
-                        console.log('🌟 RAG成功唤醒记忆:', relevantMemories);
+                        injectedMemoryText = "\n\n【系统提示：潜意识唤醒的深度记忆】\n" + relevantMemories.map(text => `· ${text}`).join('\n');
                     }
                 }
-            } catch (e) {
-                console.error("RAG 唤醒失败，暂不注入:", e);
-            }
+            } catch (e) { console.error("RAG 唤醒失败:", e); }
 
-            // --- 🧠 注入长期记忆到排版规则中 ---
             let finalUserPrompt = systemPrompt || "";
-            if (injectedMemoryText) {
-                finalUserPrompt += injectedMemoryText;
-            }
+            if (injectedMemoryText) finalUserPrompt += injectedMemoryText;
 
-            // --- 修复3：限制历史记录轮数 ---
             const roundLimit = GENERAL_CONFIG.memory.contextLimit || 10;
             let startIndex = 0;
             let userMsgCount = 0;
             for (let i = conversation.length - 1; i >= 0; i--) {
                 if (conversation[i].role === 'user') {
                     userMsgCount++;
-                    if (userMsgCount > roundLimit) {
-                        startIndex = i + 1;
-                        break;
-                    }
+                    if (userMsgCount > roundLimit) { startIndex = i + 1; break; }
                 }
             }
             const limitedConversation = conversation.slice(startIndex);
-
-            // ---------- 【酒馆预设分发与排版保卫引擎】 ----------
             let rawConversation = JSON.parse(JSON.stringify(limitedConversation));
-            let presetSystemContent = "";
-            let presetJailbreakContent = "";
-
+            let presetSystemContent = "", presetJailbreakContent = "";
             if (window.ADVANCED_PRESET_FILES) {
                 const enabledFiles = ADVANCED_PRESET_FILES.list.filter(f => f.enabled);
                 enabledFiles.forEach(file => {
@@ -10203,21 +10173,11 @@ AI 自己永远是“我”；
                     });
                 });
             }
-
-            // 组装唯一的系统提示词 (预设在上方，你的排版家法绝对在下方压轴)
             let finalSystemString = "";
-            if (presetSystemContent) {
-                finalSystemString += "【预设背景设定参考】\n" + presetSystemContent + "\n\n";
-            }
-            if (finalUserPrompt) {
-                finalSystemString += "【！！！最高优先级：必须严格执行以下排版与输出法则！！！】\n" + finalUserPrompt;
-            }
-            
-            if (finalSystemString) {
-                messages.push({ role: 'system', content: finalSystemString });
-            }
+            if (presetSystemContent) finalSystemString += "【预设背景设定参考】\n" + presetSystemContent + "\n\n";
+            if (finalUserPrompt) finalSystemString += "【！！！最高优先级：必须严格执行以下排版与输出法则！！！】\n" + finalUserPrompt;
+            if (finalSystemString) messages.push({ role: 'system', content: finalSystemString });
 
-            // 合并相同角色发言 & 应用正则
             let mergedChat = [];
             for (const msg of rawConversation) {
                 if (mergedChat.length > 0 && mergedChat[mergedChat.length - 1].role === msg.role) {
@@ -10226,22 +10186,13 @@ AI 自己永远是“我”；
                     mergedChat.push({ ...msg });
                 }
             }
-
             if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
-                mergedChat.forEach(msg => {
-                    if (msg.role === 'user') {
-                        msg.content = applyRegexRules(msg.content);
-                    }
-                });
+                mergedChat.forEach(msg => { if (msg.role === 'user') msg.content = applyRegexRules(msg.content); });
             }
-
             if (presetJailbreakContent) {
                 let lastUserMsgIndex = -1;
                 for (let i = mergedChat.length - 1; i >= 0; i--) {
-                    if (mergedChat[i].role === 'user') {
-                        lastUserMsgIndex = i;
-                        break;
-                    }
+                    if (mergedChat[i].role === 'user') { lastUserMsgIndex = i; break; }
                 }
                 if (lastUserMsgIndex !== -1) {
                     mergedChat[lastUserMsgIndex].content += `\n\n【系统越狱强制指令，绝对服从】：${presetJailbreakContent}`;
@@ -10249,40 +10200,23 @@ AI 自己永远是“我”；
                     mergedChat.push({ role: 'user', content: `【系统越狱强制指令，绝对服从】：${presetJailbreakContent}` });
                 }
             }
-
             messages.push(...mergedChat);
-            // ---------- 【引擎结束】 ----------
-      
-            // ==========================================
-            // 🧠 图谱记忆唤醒引擎 (Graph RAG Injection)
-            // ==========================================
-            let memoryPrompt = "【系统最高指令：当前世界观与潜意识状态】\n";
-            let hasMemory = false;
 
-            // 1. 注入动态人物羁绊图谱
+            let hasMemory = false;
+            let memoryPrompt = "【系统最高指令：当前世界观与潜意识状态】\n";
             if (contact.relations && contact.relations.length > 0) {
                 memoryPrompt += "=> 当前核心人物羁绊网络：\n";
-                contact.relations.forEach(r => {
-                    memoryPrompt += `- ${r.source} 与 ${r.target} 当前关系为：[${r.label}] (${r.detail || '暂无明细'})\n`;
-                });
+                contact.relations.forEach(r => memoryPrompt += `- ${r.source} 与 ${r.target} 当前关系为：[${r.label}] (${r.detail || '暂无明细'})\n`);
                 hasMemory = true;
             }
-
-            // 2. 注入高价值核心事件与偏好 (只注入 4分及5分 的核心设定)
             if (contact.longMemories && contact.longMemories.length > 0) {
-                // 如果是没有打过分的旧数据(undefined)，我们默认它是核心设定；如果有打分，则必须大于等于4分
                 const coreMemories = contact.longMemories.filter(m => m.score === undefined || m.score >= 4);
                 if (coreMemories.length > 0) {
                     memoryPrompt += "\n=> 世界观核心事实与事件设定：\n";
-                    coreMemories.forEach(m => {
-                        let timeStr = m.worldTime ? `(${m.worldTime}) ` : '';
-                        memoryPrompt += `- ${timeStr}${m.content}\n`;
-                    });
+                    coreMemories.forEach(m => memoryPrompt += `- ${m.worldTime ? `(${m.worldTime}) ` : ''}${m.content}\n`);
                     hasMemory = true;
                 }
             }
-
-            // 3. 悄悄把这层潜意识，塞进 messages 数组的最开头
             if (hasMemory) {
                 if (messages.length > 0 && messages[0].role === 'system') {
                     messages[0].content = memoryPrompt + "\n\n" + messages[0].content;
@@ -10290,20 +10224,16 @@ AI 自己永远是“我”；
                     messages.unshift({ role: 'system', content: memoryPrompt });
                 }
             }
-            // ==========================================
-            
+
             try {
                 let apiUrl = getStandardApiUrl(config.url, '/chat/completions');
-                const randomOffset = (Math.random() - 0.5) * 0.4; 
+                const randomOffset = (Math.random() - 0.5) * 0.4;
                 const adjustedTemp = Math.max(0.1, Math.min(2.0, PARAM_CONFIG.temperature + randomOffset));
-                
-                // --- 根据 useProxy 决定走 Worker 还是直接请求 ---
-                let response;
-                const useProxy = config.useProxy !== false;  // 默认为 true（走 Worker）
+                const useProxy = config.useProxy !== false;
                 const isIOSNative = window.Capacitor && window.Capacitor.isNativePlatform();
+                let response;
 
                 if (useProxy) {
-                    // 走 Worker 代理
                     if (isIOSNative) {
                         const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
                             url: 'https://linkgo-api.ginkgo-yinxing.workers.dev/',
@@ -10363,15 +10293,11 @@ AI 自己永远是“我”；
                         });
                     }
                 } else {
-                    // 直接请求中转站（不走 Worker）
                     const directUrl = getStandardApiUrl(config.url, '/chat/completions');
                     if (isIOSNative) {
                         const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
                             url: directUrl,
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${config.key}`
-                            },
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
                             data: {
                                 model: config.model || 'gpt-3.5-turbo',
                                 messages: messages,
@@ -10409,10 +10335,7 @@ AI 自己永远是“我”；
                         response = await fetch(directUrl, {
                             method: 'POST',
                             signal: window.currentChatController.signal,
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${config.key}`
-                            },
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
                             body: JSON.stringify({
                                 model: config.model || 'gpt-3.5-turbo',
                                 messages: messages,
@@ -10426,57 +10349,82 @@ AI 自己永远是“我”；
                         });
                     }
                 }
-                
+
                 if (!response.ok) {
                     let errorText = await response.text().catch(e => '无法读取错误信息');
                     throw new Error(`API请求失败 (${response.status}): ${errorText}`);
                 }
-                
+
                 if (PARAM_CONFIG.stream) {
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder("utf-8");
                     let buffer = "";
+                    let hasAnyContent = false;
 
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
+                    // 设置超时保护（30秒内没有任何数据则中断）
+                    let timeoutId = setTimeout(() => {
+                        if (backgroundAIReply.inProgress) {
+                            reader.cancel().catch(() => {});
+                            if (!hasAnyContent && backgroundAIReply.fullMessage === '') {
+                                backgroundAIReply.fullMessage = '【请求超时，请检查网络或 API 配置】';
+                            }
+                            backgroundAIReply.inProgress = false;
+                            handleFinalAIResponse(currentChatContactId, backgroundAIReply.fullMessage);
+                        }
+                    }, 30000);
 
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop(); // 保留不完整的最后一行
+                    try {
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
 
-                        for (const line of lines) {
-                            const trimmedLine = line.trim();
-                            if (trimmedLine.startsWith('data: ')) {
-                                const data = trimmedLine.slice(6);
-                                if (data === '[DONE]') continue;
-                                try {
-                                    const json = JSON.parse(data);
-                                    const delta = json.choices?.[0]?.delta;
-                                    let content = delta?.content || '';
+                            buffer += decoder.decode(value, { stream: true });
+                            const lines = buffer.split('\n');
+                            buffer = lines.pop();
 
-                                    if (!content && delta?.tool_calls) {
-                                        const tc = delta.tool_calls[0];
-                                        if (tc?.function?.name) {
-                                            content += `[系统提示：AI调用了工具 ${tc.function.name}]\n`;
+                            for (const line of lines) {
+                                const trimmedLine = line.trim();
+                                if (trimmedLine.startsWith('data: ')) {
+                                    const data = trimmedLine.slice(6);
+                                    if (data === '[DONE]') continue;
+                                    try {
+                                        const json = JSON.parse(data);
+                                        const delta = json.choices?.[0]?.delta;
+                                        let content = delta?.content || '';
+
+                                        // 增强 tool_calls 处理
+                                        if (!content && delta?.tool_calls) {
+                                            const tc = delta.tool_calls[0];
+                                            if (tc?.function?.name) {
+                                                content = `🔧 正在调用工具：${tc.function.name}`;
+                                                if (tc?.function?.arguments) content += `\n参数：${tc.function.arguments}`;
+                                            } else {
+                                                content = '（AI 发起了工具调用但未提供名称）';
+                                            }
                                         }
-                                        if (tc?.function?.arguments) {
-                                            content += tc.function.arguments;
-                                        }
-                                    }
 
-                                    if (content) {
-                                        backgroundAIReply.fullMessage += content;
-                                        backgroundAIReply.lastUpdate = Date.now();
+                                        if (content) {
+                                            hasAnyContent = true;
+                                            backgroundAIReply.fullMessage += content;
+                                            backgroundAIReply.lastUpdate = Date.now();
+                                        }
+                                    } catch (e) {
+                                        // 忽略解析错误
                                     }
-                                } catch (e) {
-                                    // 忽略解析错误
                                 }
                             }
                         }
+                    } catch (e) {
+                        if (e.name === 'AbortError') {
+                            console.log('请求被取消');
+                        } else {
+                            throw e;
+                        }
+                    } finally {
+                        clearTimeout(timeoutId);
                     }
 
-                    // ✅ 关键修复：处理缓冲区里剩余的不完整数据
+                    // 处理缓冲区剩余数据
                     if (buffer) {
                         const lines = buffer.split('\n');
                         for (const line of lines) {
@@ -10488,9 +10436,16 @@ AI 自己永远是“我”；
                                     const json = JSON.parse(data);
                                     const delta = json.choices?.[0]?.delta;
                                     let content = delta?.content || '';
-                                    if (content) {
-                                        backgroundAIReply.fullMessage += content;
+                                    if (!content && delta?.tool_calls) {
+                                        const tc = delta.tool_calls[0];
+                                        if (tc?.function?.name) {
+                                            content = `🔧 正在调用工具：${tc.function.name}`;
+                                            if (tc?.function?.arguments) content += `\n参数：${tc.function.arguments}`;
+                                        } else {
+                                            content = '（AI 发起了工具调用但未提供名称）';
+                                        }
                                     }
+                                    if (content) backgroundAIReply.fullMessage += content;
                                 } catch (e) {}
                             }
                         }
@@ -10501,42 +10456,37 @@ AI 自己永远是“我”；
                     backgroundAIReply.contactId = null;
                     if (finalFullMessage) {
                         handleFinalAIResponse(currentChatContactId, finalFullMessage);
+                    } else {
+                        // 完全没有收到任何内容，强制生成错误提示
+                        handleFinalAIResponse(currentChatContactId, '【AI 未返回任何内容，请检查 API 配置或稍后重试】');
                     }
 
                 } else {
-                    // 非流式分支保持不变
                     const data = await response.json();
                     const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
                     backgroundAIReply.inProgress = false;
                     backgroundAIReply.contactId = null;
                     handleFinalAIResponse(currentChatContactId, aiReply);
                 }
-                
                 scrollToBottom();
-                
+
             } catch (error) {
                 if (error.name === 'AbortError') {
-                    console.log('请求被智能取消以防止429报错 (正常)');
-                    return; // 如果是被刹停的，直接悄悄退出，不报错
+                    console.log('请求被智能取消');
+                    return;
                 }
-                console.error('=== 发送消息失败 ===', error);
-                
-                // 🛠️ 修复：重置打字状态，防止出现双呼吸光晕
+                console.error('发送消息失败:', error);
                 backgroundAIReply.inProgress = false;
                 backgroundAIReply.contactId = null;
-                
-                const rawErrorMsg = '❌ 发送失败：' + error.message; 
                 const streamCont = document.getElementById('active-stream-container');
                 if (streamCont) streamCont.remove();
-                
-                const errorMsgDiv = createChatBubble('ai', rawErrorMsg, false);
+                const errorMsg = '❌ 发送失败：' + error.message;
+                const errorMsgDiv = createChatBubble('ai', errorMsg, false);
                 container.appendChild(errorMsgDiv);
-                
-                addMessage(currentChatContactId, 'assistant', rawErrorMsg);
-                updateChatListLastMessage(currentChatContactId, rawErrorMsg);
+                addMessage(currentChatContactId, 'assistant', errorMsg);
+                updateChatListLastMessage(currentChatContactId, errorMsg);
                 scrollToBottom();
             }
-            
         }
         
         // --- 输入框回车发送 + 自动调整高度 ---
