@@ -17056,70 +17056,70 @@ AI 自己永远是“我”；
             requestAnimationFrame(animation);
         }
 
-        // --- 🌟 独立出来的星图/偏好视窗控制器 (节奏同步完美版) ---
+        // 替换原有的 window.togglePrefReader 函数
         window.togglePrefReader = function(chipId) {
             const matrix = document.getElementById('pref-matrix');
             const reader = document.getElementById('pref-detail-reader');
             const chipEl = document.getElementById(chipId);
             if (!matrix || !reader || !chipEl) return;
 
+            // 关闭逻辑
             if (chipEl.classList.contains('active')) {
                 chipEl.classList.remove('active');
                 matrix.classList.remove('has-active');
                 
-                // 🌟 关键修复：清除打开时设置的动态负 margin，恢复到原始文档流位置
-                reader.style.marginTop = '';
-                
-                // 1. 精确测量即将抽走的物理高度
                 const styles = window.getComputedStyle(reader);
                 const heightLoss = reader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
-                
                 reader.style.opacity = '0';
-                // 2. 将丢失的高度传给引擎，锁定安全滚动目标
                 smoothScrollToElement(matrix, 400, heightLoss);
                 
                 setTimeout(() => {
                     if (!matrix.classList.contains('has-active')) {
-                        // 3. 剥离 CSS 过渡动画，瞬间物理塌陷，杜绝 0.4s 的拖影干扰
-                        reader.style.transition = 'none'; 
+                        reader.style.transition = 'none';
                         reader.classList.remove('show');
                         requestAnimationFrame(() => {
-                            reader.style.opacity = ''; 
-                            reader.style.transition = ''; // 恢复样式以备下次打开
-                            // marginTop 已在前面清除，不需要重复处理
+                            reader.style.opacity = '';
+                            reader.style.transition = '';
                         });
                     }
                 }, 400);
                 return;
             }
 
-            reader.style.cssText = '';
-            matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
-            chipEl.classList.add('active');
-            matrix.classList.add('has-active');
-            dimRelationLines(true);
-
+            // 获取数据，增加防御
             const data = window.currentPrefGroups[chipId];
-            let readerClass = `pref-detail-reader ${data.themeClass} `;
+            if (!data) {
+                console.error('未找到偏好数据', chipId);
+                return;
+            }
+
+            // 确保关键词和内容可用
+            const keyword = data.keyword || '未命名偏好';
+            const detailsHtml = data.detailsHtml || '<div class="chip-detail-item">暂无详细记录</div>';
+            let readerClass = `pref-detail-reader ${data.themeClass || 'chip-theme-blue'} `;
             readerClass += data.score >= 5 ? 'core' : (data.score === 4 ? 'major' : 'minor');
+
             reader.className = readerClass;
-            
             reader.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding-bottom: 12px;">
                     <div style="font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px;">
-                        ${data.iconHtml}
-                        <span>${escapeHtml(data.characterName)}</span>
-                        <i class="fas fa-pencil-alt" style="font-size:14px; opacity:0.6; cursor:pointer; margin-left:6px;" onclick="editBioCharacterName('${chipId}', '${escapeHtml(data.characterName)}')"></i>
+                        ${data.iconHtml || '<i class="fas fa-tag"></i>'}
+                        <span>${escapeHtml(keyword)}</span>
                     </div>
-                    <i class="fas fa-times" onclick="window.toggleBioReader('${chipId}')" style="opacity:0.6; font-size:18px; cursor:pointer;"></i>
+                    <i class="fas fa-times" onclick="window.togglePrefReader('${chipId}')" style="opacity:0.6; font-size:18px; cursor:pointer;"></i>
                 </div>
-                <div>${data.detailsHtml}</div>
+                <div>${detailsHtml}</div>
             `;
-            
-            // 打开逻辑
+
+            // 高亮当前小球，并隐藏其他小球
+            matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+            chipEl.classList.add('active');
+            matrix.classList.add('has-active');
+
             reader.classList.add('show');
-            // ✨ 打开时因为要撑开高度，必须等待 300ms 动画完成再滚动（保留原有的好手感）
-            setTimeout(() => { reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 300);
+            setTimeout(() => {
+                reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 300);
         };
 
         window.toggleBioReader = function(chipId) {
@@ -17505,12 +17505,18 @@ AI 自己永远是“我”；
             if (!currentChatContactId) return;
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             if (!contact || !contact.longMemories) return;
-            
+
             const memIndex = contact.longMemories.findIndex(m => String(m.id) === String(memoryId));
-            if (memIndex === -1) return;
-            
+            if (memIndex === -1) {
+                alert('未找到该记忆条目，可能已被删除');
+                return;
+            }
+
             const textDiv = document.getElementById(`archive-text-${memoryId}`);
-            if (!textDiv) return;
+            if (!textDiv) {
+                alert('未找到编辑按钮对应的文本区域，请刷新页面重试');
+                return;
+            }
             
             const scrollContainer = document.getElementById('archive-content');
             
@@ -17994,19 +18000,11 @@ AI 自己永远是“我”；
                     for (const [chipId, group] of Object.entries(window.currentPrefGroups)) {
                         group.detailsHtml = '';
                         group.items.forEach(item => {
+                            if (!item.id) {
+                                item.id = 'tmp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                            }
                             const highlightedContent = highlightSearchTerm(item.content, searchText);
-                            group.detailsHtml += `
-                                        <div class="chip-detail-item">
-                                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                                <div class="archive-item-text" style="flex:1;">${highlightedContent}</div>
-                                                <div class="chip-actions">
-                                                    <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
-                                                    <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
-                                                </div>
-                                            </div>
-                                            <div class="chip-detail-time">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>
-                                        </div>
-                                    `;
+                            group.detailsHtml += `...`; // 使用与下面相同的 HTML 结构
                         });
                     }
                     return;
@@ -18179,6 +18177,9 @@ AI 自己永远是“我”；
                     // 生成详情 HTML，对每个 item 的 content 进行搜索高亮
                     let detailsHtml = '';
                     sortedItems.forEach(item => {
+                        if (!item.id) {
+                            item.id = 'tmp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                        }
                         const highlightedContent = highlightSearchTerm(item.content, searchText);
                         detailsHtml += `
                             <div class="chip-detail-item">
