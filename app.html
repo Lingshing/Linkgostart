@@ -4990,20 +4990,6 @@
                 });
             }
 
-            // 6. 将越狱防复读指令绑在最后一条用户消息的末尾
-            if (presetJailbreakContent) {
-                let lastUserMsgIndex = -1;
-                for (let i = mergedChat.length - 1; i >= 0; i--) {
-                    if (mergedChat[i].role === 'user') {
-                        lastUserMsgIndex = i;
-                        break;
-                    }
-                }
-                if (lastUserMsgIndex !== -1) {
-                    mergedChat[lastUserMsgIndex].content += `\n\n【系统越狱强制指令，绝对服从】：${presetJailbreakContent}`;
-                }
-            }
-
             // 7. 最后把处理好的历史记录推入消息队列
             messages.push(...mergedChat);
             // ---------- 【修改结束：引擎替换完毕】 ----------
@@ -5163,6 +5149,7 @@
         let isTyping = false;
         
         async function regenerateResponse(contactId, onChunk, onComplete, onError) {
+            console.log('[REGEN] config.key 存在?', !!config.key, '长度:', config.key?.length);
             if (!currentChatContactId) return;
             
             const conversation = getConversation(currentChatContactId);
