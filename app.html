@@ -17517,49 +17517,42 @@ AI 自己永远是“我”；
                 alert('未找到编辑按钮对应的文本区域，请刷新页面重试');
                 return;
             }
-            
+
             const scrollContainer = document.getElementById('archive-content');
-            
             const originalContent = contact.longMemories[memIndex].content;
             const originalScore = contact.longMemories[memIndex].score || 4;
             const originalDisplay = textDiv.style.display || 'block';
-            
+
             const container = document.createElement('div');
             container.id = `edit-container-${memoryId}`;
             container.style.width = '100%';
-            
-            const rect = textDiv.getBoundingClientRect();
-            const computedStyle = window.getComputedStyle(textDiv);
-            
+            container.style.backgroundColor = 'var(--bg-color)';
+            container.style.borderRadius = '8px';
+            container.style.padding = '4px 0';
+
             const textarea = document.createElement('textarea');
             textarea.value = originalContent;
             textarea.style.cssText = `
                 width: 100% !important;
-                min-height: ${rect.height}px !important;
+                min-height: 60px;
                 font-family: inherit;
-                font-size: ${computedStyle.fontSize};
-                line-height: ${computedStyle.lineHeight};
-                font-weight: ${computedStyle.fontWeight};
+                font-size: 14px;
+                line-height: 1.5;
                 color: var(--text-main);
-                background: transparent;
-                border: none !important;
-                outline: none !important;
-                padding: 0 !important;
-                margin: 0 !important;
+                background: var(--input-bg);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 8px;
+                margin: 0;
                 resize: vertical;
-                overflow: auto;
-                display: block;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                box-shadow: none !important;
-                -webkit-appearance: none;
+                box-sizing: border-box;
             `;
-            
+
             const scoreSelect = document.createElement('select');
             scoreSelect.style.cssText = `
                 display: block;
-                margin: 8px 0;
-                padding: 4px 8px;
+                margin: 8px 0 0 0;
+                padding: 6px 10px;
                 border-radius: 6px;
                 border: 1px solid var(--border);
                 background: var(--hover-bg);
@@ -17567,11 +17560,15 @@ AI 自己永远是“我”；
                 font-size: 12px;
                 outline: none;
                 cursor: pointer;
+                width: fit-content;
             `;
-            
+
             const scoreOptions = [
-                {v:5, t:"5 分 (核心)"}, {v:4, t:"4 分 (重要)"}, {v:3, t:"3 分 (普通)"},
-                {v:2, t:"2 分 (琐碎)"}, {v:1, t:"1 分 (碎片)"}
+                { v: 5, t: "5 分 (核心)" },
+                { v: 4, t: "4 分 (重要)" },
+                { v: 3, t: "3 分 (普通)" },
+                { v: 2, t: "2 分 (琐碎)" },
+                { v: 1, t: "1 分 (碎片)" }
             ];
             scoreOptions.forEach(opt => {
                 const o = document.createElement('option');
@@ -17580,93 +17577,33 @@ AI 自己永远是“我”；
                 if (opt.v === originalScore) o.selected = true;
                 scoreSelect.appendChild(o);
             });
-            
+
             container.appendChild(textarea);
             container.appendChild(scoreSelect);
             textDiv.style.display = 'none';
             textDiv.parentNode.insertBefore(container, textDiv.nextSibling);
-            
+
+            // 自动调整高度
             const autoSize = () => {
                 textarea.style.height = 'auto';
                 textarea.style.height = textarea.scrollHeight + 'px';
             };
             textarea.addEventListener('input', autoSize);
             autoSize();
-            
-            // 聚焦但不选中
+
             textarea.focus();
             textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-            
-            // ========== 🎯 滚动：让整个编辑容器（textarea+分数）底部可见 ==========
-            const scrollEditContainerToVisible = () => {
-                if (!scrollContainer) return;
-                // 获取编辑容器的边界（相对于视口）
-                const containerRect = container.getBoundingClientRect();
-                const scrollRect = scrollContainer.getBoundingClientRect();
-                
-                // 计算需要滚动的距离：让容器底部对齐到滚动容器底部，并留出一点边距
-                // 但为了露出分数，我们让容器的底部距离滚动容器底部 80px（给键盘预留空间）
-                // 实际上更简单：使用 element.scrollIntoView 并指定 block: 'center'
-                // 但 scrollIntoView 会滚动整个页面，我们需要滚动 scrollContainer
-                const relativeBottom = containerRect.bottom - scrollRect.top + scrollContainer.scrollTop;
-                const targetBottom = scrollContainer.scrollHeight - (scrollRect.height - 200); // 留出200px空间给键盘和顶部
-                let targetScroll = relativeBottom - (scrollRect.height - 200);
-                targetScroll = Math.max(0, targetScroll);
-                targetScroll = Math.min(targetScroll, scrollContainer.scrollHeight - scrollRect.height);
-                
-                // 如果目标滚动值小于当前滚动值很多（即需要向上滚动），且元素已经在底部附近，则不做动画直接跳转
-                if (Math.abs(scrollContainer.scrollTop - targetScroll) < 10) {
-                    scrollContainer.scrollTop = targetScroll;
-                } else {
-                    scrollContainer.scrollTo({
-                        top: targetScroll,
-                        behavior: 'smooth'
-                    });
-                }
-            };
-            
-            // 方法2：使用 scrollIntoView 针对滚动容器内的元素（更可靠）
-            const smoothScrollToElement = (element) => {
-                if (!scrollContainer || !element) return;
-                const elementTop = element.getBoundingClientRect().top;
-                const containerTop = scrollContainer.getBoundingClientRect().top;
-                const relativeTop = elementTop - containerTop + scrollContainer.scrollTop;
-                const targetTop = relativeTop - 100; // 留出100px顶部空间，让分数也能看到
-                scrollContainer.scrollTo({
-                    top: Math.max(0, targetTop),
-                    behavior: 'smooth'
-                });
-            };
-            
-            // 延迟执行，确保键盘完全弹出后滚动（最可靠的方式是监听键盘事件）
-            let keyboardVisible = false;
-            const onKeyboardShow = () => {
-                if (keyboardVisible) return;
-                keyboardVisible = true;
-                // 滚动整个编辑容器到可视区域
-                setTimeout(() => {
-                }, 50);
-            };
-            
-            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Keyboard) {
-                window.addEventListener('keyboardWillShow', onKeyboardShow);
-            } else {
-                // 降级：监听窗口 resize
-                window.addEventListener('resize', onKeyboardShow);
-            }
-            
-            // 同时，聚焦时也尝试滚动一次（如果键盘已经显示）
-            textarea.addEventListener('focus', () => {
-            });
-            
-            // ========== 保存编辑 ==========
+
+            // ========== 全局点击保存逻辑 ==========
+            let isEditing = true;
             const finishEdit = () => {
-                // 清理事件
-                if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Keyboard) {
-                    window.removeEventListener('keyboardWillShow', onKeyboardShow);
-                } else {
-                    window.removeEventListener('resize', onKeyboardShow);
-                }
+                if (!isEditing) return;
+                isEditing = false;
+
+                // 清理全局监听器
+                document.removeEventListener('mousedown', handleOutsideClick);
+                document.removeEventListener('touchstart', handleOutsideClick);
+
                 const newContent = textarea.value.trim();
                 const newScore = parseInt(scoreSelect.value);
                 if (newContent === "") {
@@ -17691,32 +17628,41 @@ AI 自己永远是“我”；
                     }
                 }
             };
-            
+
+            const handleOutsideClick = (e) => {
+                // 如果点击的目标在编辑容器内部，不处理
+                if (container.contains(e.target)) return;
+                // 否则保存退出
+                finishEdit();
+            };
+
+            // 延迟添加监听器，避免当前点击触发
+            setTimeout(() => {
+                document.addEventListener('mousedown', handleOutsideClick);
+                document.addEventListener('touchstart', handleOutsideClick, { passive: true });
+            }, 100);
+
+            // 保留原来的 blur 作为后备（但用户点击 select 时不会 blur，所以全局监听是主要的）
+            textarea.addEventListener('blur', () => {
+                // 延迟检查，确保 select 的点击不会立即触发
+                setTimeout(() => {
+                    if (isEditing && document.activeElement !== scoreSelect && !container.contains(document.activeElement)) {
+                        finishEdit();
+                    }
+                }, 150);
+            });
+
+            // 按 Esc 取消编辑（恢复到原始内容）
             const cancelEdit = () => {
-                if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Keyboard) {
-                    window.removeEventListener('keyboardWillShow', onKeyboardShow);
-                } else {
-                    window.removeEventListener('resize', onKeyboardShow);
-                }
+                if (!isEditing) return;
+                isEditing = false;
+                document.removeEventListener('mousedown', handleOutsideClick);
+                document.removeEventListener('touchstart', handleOutsideClick);
                 container.remove();
                 textDiv.style.display = originalDisplay;
             };
-            
-            textarea.onblur = (e) => {
-                // 延迟检查，因为 blur 发生时新的焦点元素还未激活
-                setTimeout(() => {
-                    // 检查当前聚焦的元素是不是评分下拉框或其子元素
-                    const active = document.activeElement;
-                    if (active && (active === scoreSelect || scoreSelect.contains(active))) {
-                        // 如果用户正在与评分下拉框交互，不保存，让编辑继续
-                        return;
-                    }
-                    // 否则执行保存
-                    finishEdit();
-                }, 150);
-            };
-            
-            textarea.onkeydown = (e) => {
+
+            textarea.addEventListener('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                     e.preventDefault();
                     finishEdit();
@@ -17725,7 +17671,7 @@ AI 自己永远是“我”；
                     e.preventDefault();
                     cancelEdit();
                 }
-            };
+            });
         }
         
         function enableDragOnChips(nodesData, linksData, boardWidth, boardHeight) {
