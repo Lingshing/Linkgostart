@@ -4448,51 +4448,51 @@
                 if (this.db) {
                     try {
                         const valStr = typeof value === 'string' ? value : JSON.stringify(value);
+                        // 开启事务
+                        await this.db.beginTransaction();
                         await this.db.execute(`
                             INSERT INTO storage (key, value) VALUES (?, ?)
                             ON CONFLICT(key) DO UPDATE SET value = excluded.value;
                         `, [key, valStr]);
+                        await this.db.commitTransaction();
                         return;
                     } catch(e) {
-                        console.error('SQLite setItem 失败, 回退 localforage:', e);
+                        console.error('SQLite setItem 失败:', e);
+                        await this.db.rollbackTransaction(); // 回滚
                     }
                 }
                 return localforage.setItem(key, value);
             },
-            async getItem(key) {
-                if (this.db) {
-                    try {
-                        const res = await this.db.query(`SELECT value FROM storage WHERE key = ?`, [key]);
-                        if (res.values && res.values.length > 0) {
-                            return res.values[0].value;  // 注意：这里返回字符串，原代码自行 JSON.parse
-                        }
-                        return null;
-                    } catch(e) {
-                        console.error('SQLite getItem 失败:', e);
-                    }
-                }
-                return localforage.getItem(key);
-            },
+
             async removeItem(key) {
                 if (this.db) {
                     try {
+                        await this.db.beginTransaction();
                         await this.db.execute(`DELETE FROM storage WHERE key = ?`, [key]);
+                        await this.db.commitTransaction();
                         return;
                     } catch(e) {
                         console.error('SQLite removeItem 失败:', e);
+                        await this.db.rollbackTransaction();
                     }
                 }
                 return localforage.removeItem(key);
             },
-            async clear() {
+            async clear() {                       // 也要加事务
                 if (this.db) {
-                    await this.db.execute(`DELETE FROM storage`);
-                    return;
+                    try {
+                        await this.db.beginTransaction();
+                        await this.db.execute(`DELETE FROM storage`);
+                        await this.db.commitTransaction();
+                        return;
+                    } catch(e) {
+                        console.error('SQLite clear 失败:', e);
+                        await this.db.rollbackTransaction();
+                    }
                 }
                 return localforage.clear();
             }
         };
-
         // ==========================================
         // 🌟 全局统一：高级胶囊通知引擎 (粒子渐变版 - 修复消失生硬)
         // ==========================================
