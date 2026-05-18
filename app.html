@@ -3152,7 +3152,19 @@
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/js-tiktoken@1.0.16/dist/index.umd.min.js"></script>
-</head>
+    <script>
+    (function() {
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            const msg = args.join(' ');
+            if (msg.includes('nativeCallback') && msg.includes('deprecated')) {
+                return; // 忽略这条警告
+            }
+            originalWarn.apply(console, args);
+        };
+    })();
+    </script>
+    </head>
 <body>
     <div id="backfill-progress-bar"></div>
     <!-- 顶部输入状态 -->
