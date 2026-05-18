@@ -16859,11 +16859,25 @@ AI 自己永远是“我”；
         async function calculateInputTokens() {
             if (!currentChatContactId) return 0;
 
-            // 检查 gpt-tokenizer 是否加载成功
+            // 强制确保 tokenizer 已加载
             if (typeof GPTTokenizer_cl100k_base === 'undefined') {
-                console.warn('gpt-tokenizer 未加载，使用简化版 token 计数。');
-                const conversation = getConversation(currentChatContactId);
-                return countTokens(conversation);
+                console.error('gpt-tokenizer 未加载，无法精确计算 tokens');
+                // 降级：使用截断后的历史 + 近似算法（但至少截断是生效的）
+                const contact = mockContacts.find(c => c.id === currentChatContactId);
+                const fullConv = getConversation(currentChatContactId);
+                const roundLimit = GENERAL_CONFIG.memory.contextLimit || 10;
+                let startIndex = 0, userMsgCount = 0;
+                for (let i = fullConv.length - 1; i >= 0; i--) {
+                    if (fullConv[i].role === 'user') {
+                        userMsgCount++;
+                        if (userMsgCount > roundLimit) {
+                            startIndex = i + 1;
+                            break;
+                        }
+                    }
+                }
+                const limitedConv = fullConv.slice(startIndex);
+                return countTokens(limitedConv);  // 用截断后的历史估算
             }
             
             const contact = mockContacts.find(c => c.id === currentChatContactId);
