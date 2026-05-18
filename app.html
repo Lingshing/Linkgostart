@@ -4592,6 +4592,7 @@
         }
         
         function countTokens(messages) {
+            addLogToConsole('info', 'Token估算', `使用近似算法，消息数量: ${messages.length}`);
             // 计算消息数组的总token数
             let total = 0;
             messages.forEach(msg => {
@@ -5027,15 +5028,12 @@
                 console.log('API响应状态:', response.status);
                 
                 if (!response.ok) {
-                    let errorText = '';
-                    try {
-                        errorText = await response.text();
-                    } catch(e) {
-                        errorText = '无法读取错误信息';
-                    }
-                    console.error('=== API错误详情 ===');
-                    console.error('状态码:', response.status);
-                    console.error('错误内容:', errorText);
+                    let errorText = await response.text().catch(() => '无法读取错误信息');
+                    addLogToConsole('error', 'API响应错误', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        body: errorText
+                    });
                     throw new Error(`API请求失败 (${response.status}): ${errorText}`);
                 }
                 
@@ -5128,18 +5126,15 @@
 
                 
             } catch (error) {
-            console.error('=== 发送消息失败 ===');
-            console.error('错误类型:', error.name);
-            console.error('错误消息:', error.message);
-            
-            // ---------- 【修改开始：发消息报错后台通知】 ----------
-            if (typeof sendPushNotification === 'function') {
-                sendPushNotification(`⚠️ API 报错了：${error.message}`);
+                console.error('=== 发送消息失败 ===', error);
+                addLogToConsole('error', 'API请求失败', {
+                    message: error.message,
+                    stack: error.stack,
+                    responseStatus: error.response?.status,
+                    responseText: error.responseText || '无响应体'
+                });
+                if (onError) onError(error);
             }
-            // ---------- 【修改结束】 ----------
-            
-            if (onError) onError(error);
-        }
         }
         
         // --- 重新生成回复 (底层统一引擎版) ---
@@ -5535,7 +5530,12 @@
                     return;
                 }
                 console.error('=== 重新生成失败 ===', error);
-                
+                addLogToConsole('error', '重新生成失败', {
+                    message: error.message,
+                    stack: error.stack,
+                    responseStatus: error.response?.status,
+                    responseText: error.responseText || '无响应体'
+                });
                 // 🛠️ 修复：重置打字状态，防止出现双呼吸光晕及后续请求堆积
                 backgroundAIReply.inProgress = false;
                 backgroundAIReply.contactId = null;
@@ -17215,13 +17215,25 @@ AI 自己永远是“我”；
 
         let budgetTiktokenEncoder = null;
 
-        // 初始化 tiktoken 编码器
         async function initTiktokenEncoder() {
-            if (!budgetTiktokenEncoder) {
-                // 使用 cl100k_base 编码，适用于 GPT-4, GPT-3.5-turbo, text-embedding-ada-002
+            if (budgetTiktokenEncoder) return budgetTiktokenEncoder;
+            addLogToConsole('info', 'Token编码器', '开始初始化 cl100k_base...');
+            try {
+                // 确保全局 tiktoken 存在
+                if (typeof tiktoken === 'undefined') {
+                    throw new Error('tiktoken 库未加载，请检查网络或刷新页面重试');
+                }
                 budgetTiktokenEncoder = await tiktoken.get_encoding("cl100k_base");
+                addLogToConsole('success', 'Token编码器', `cl100k_base 初始化成功，encoder 类型: ${typeof budgetTiktokenEncoder}`);
+                return budgetTiktokenEncoder;
+            } catch (e) {
+                addLogToConsole('error', 'Token编码器初始化失败', {
+                    message: e.message,
+                    stack: e.stack,
+                    tiktokenExists: typeof tiktoken !== 'undefined'
+                });
+                throw e;  // 让上层可以降级处理
             }
-            return budgetTiktokenEncoder;
         }
 
         function calculateAvgOutputTokens() {
@@ -17271,8 +17283,18 @@ AI 自己永远是“我”；
             document.getElementById('budget-output-tokens').value = suggestedOutput;
             
             // 计算输入 token
-            const inputTokens = await calculateInputTokens();
-            document.getElementById('budget-input-tokens').value = inputTokens;
+            let inputTokens = 0;
+            try {
+                inputTokens = await calculateInputTokens();
+                document.getElementById('budget-input-tokens').value = inputTokens;
+            } catch (e) {
+                addLogToConsole('error', '打开预算面板时计算输入token失败', e.message);
+                document.getElementById('budget-input-tokens').value = '计算失败';
+                // 可选：在界面上显示一个小红字提示
+                const inputField = document.getElementById('budget-input-tokens');
+                inputField.style.color = 'var(--danger)';
+                setTimeout(() => { inputField.style.color = ''; }, 2000);
+            }
             
             // 重新计算费用
             calculateBudgetCosts();
@@ -17293,7 +17315,11 @@ AI 自己永远是“我”；
 
         // 计算输入 token 数量（模拟本次发送的消息数组）
         async function calculateInputTokens() {
-            if (!currentChatContactId) return 0;
+            addLogToConsole('info', 'Token计算', '进入 calculateInputTokens');
+            if (!currentChatContactId) {
+                addLogToConsole('warn', 'Token计算', 'currentChatContactId 为空，返回 0');
+                return 0;
+            }
             
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             const conversation = getConversation(currentChatContactId);
@@ -17379,13 +17405,14 @@ AI 自己永远是“我”；
             
             // 当前用户输入（如果有）
             if (userMessage) {
-                // 这里也应用一次正则
                 let finalUserMsg = userMessage;
                 if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
                     finalUserMsg = applyRegexRules(finalUserMsg);
                 }
                 messages.push({ role: 'user', content: finalUserMsg });
             }
+            
+            addLogToConsole('info', 'Token计算', `准备计算 ${messages.length} 条消息的 token 数`);
             
             try {
                 const encoder = await initTiktokenEncoder();
@@ -17395,14 +17422,21 @@ AI 自己永远是“我”；
                     // 每条消息的固定标记 token (role 和 特殊标记)
                     tokenCount += 4;
                     // 内容的 token
-                    tokenCount += encoder.encode(msg.content).length;
+                    const encoded = encoder.encode(msg.content);
+                    tokenCount += encoded.length;
                 }
                 tokenCount += 2; // 对话终结标记
+                addLogToConsole('success', 'Token计算', `计算成功，总 tokens = ${tokenCount}`);
                 return tokenCount;
             } catch (e) {
-                console.error('Token 计算失败:', e);
+                addLogToConsole('error', 'Token计算失败（将使用降级算法）', {
+                    message: e.message,
+                    stack: e.stack
+                });
                 // 降级使用旧的估算方法
-                return countTokens(messages);
+                const fallbackResult = countTokens(messages);
+                addLogToConsole('info', 'Token计算降级', `降级算法结果 = ${fallbackResult}`);
+                return fallbackResult;
             }
         }
 
@@ -19449,16 +19483,31 @@ AI 自己永远是“我”；
         const readyMsg = document.getElementById('console-ready-msg');
         if (readyMsg) readyMsg.remove();
 
-        const time = new Date().toLocaleTimeString('en-US', {hour12: false});
-        let dotColor = '#34C759'; // 默认绿色
+        const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+        let dotColor = '#34C759';
         if (type === 'error') dotColor = 'var(--danger)';
         else if (type === 'warn') dotColor = '#FF9F0A';
-        else if (type === 'info') dotColor = '#8E8E93';  // 灰色
+        else if (type === 'info') dotColor = '#8E8E93';
+
         const logItem = document.createElement('div');
         logItem.style.cssText = 'margin-bottom: 18px; padding-bottom: 12px; border-bottom: 0.5px solid var(--border);';
-        
+
         const logId = 'log_' + Date.now() + Math.random().toString(36).substr(2, 5);
-        let detailStr = typeof detail === 'object' ? JSON.stringify(detail, null, 2) : String(detail);
+        // 关键修复：把 undefined/null 转为字符串 'undefined' / 'null'
+        let detailStr = '';
+        if (detail === undefined) {
+            detailStr = 'undefined';
+        } else if (detail === null) {
+            detailStr = 'null';
+        } else if (typeof detail === 'object') {
+            try {
+                detailStr = JSON.stringify(detail, null, 2);
+            } catch (e) {
+                detailStr = String(detail);
+            }
+        } else {
+            detailStr = String(detail);
+        }
         LOG_STORAGE.set(logId, detailStr);
 
         logItem.innerHTML = `
@@ -19472,9 +19521,9 @@ AI 自己永远是“我”；
                     <i class="fa-regular fa-copy"></i>
                 </div>
             </div>
-            ${detailStr && detailStr !== 'undefined' ? `<pre style="color: var(--text-sub); margin: 0 0 0 15px; white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; font-family: monospace;">${detailStr}</pre>` : ''}
+            <pre style="color: var(--text-sub); margin: 0 0 0 15px; white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; font-family: monospace;">${detailStr}</pre>
         `;
-        if(devConsoleLogs) devConsoleLogs.prepend(logItem);
+        if (devConsoleLogs) devConsoleLogs.prepend(logItem);
     }
 
     // 绑定事件：抛弃一切花里胡哨，回归原生体验
