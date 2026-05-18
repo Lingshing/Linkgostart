@@ -5535,6 +5535,9 @@
                     console.log('请求被智能取消以防止429报错 (正常)');
                     return;
                 }
+                // 输出完整原始错误（包含堆栈）
+                let rawError = error.stack || error.toString();
+                addLogToConsole('error', '重新生成失败', rawError);
                 console.error('=== 重新生成失败 ===', error);
                 
                 // 🛠️ 修复：重置打字状态，防止出现双呼吸光晕及后续请求堆积
@@ -6503,12 +6506,11 @@
                         stale: false,
                         distanceFilter: 0 
                     }, function(location, error) {
-                        if (location) console.log("📍 定位保活中...");
+                        if (location) { /* console.log("📍 定位保活中..."); */ }
                     });
 
                     // 3. ✨ 核心修复：把 ID 存入永久记忆，防止刷新后失控
                     localStorage.setItem('LINKGO_KEEP_ALIVE_ID', watchId);
-                    console.log("✅ 保活任务已开启，ID已记录:", watchId);
                 }
             } catch (error) {
                 console.error("定位保活启动失败:", error);
@@ -6867,6 +6869,8 @@
                     if (addedCount > 0) saveToLocal();
                 }
             } catch (e) {
+                let rawError = e.stack || e.toString();
+                addLogToConsole('error', '生成长期记忆失败', rawError);
                 console.error("生成长期记忆失败:", e);
             }
         }
@@ -7685,8 +7689,11 @@
                 alert(`✅ 记忆融合完成！\n\n成功萃取了 ${addedCount} 条设定档案，及 ${result.relations ? result.relations.length : 0} 组人物羁绊。`);
 
             } catch (error) {
+                let rawError = error.stack || error.toString();
+                addLogToConsole('error', '修史提取出错', rawError);
                 console.error("提取出错:", error);
-                alert(`❌ 提取出错: ${error.message}\n请检查控制台获取详细信息。`);
+                alert(`❌ 提取出错: ${error.message}\n请查看控制台获取原始错误信息。`);
+
             } finally {
                 const progressBar = document.getElementById('backfill-progress-bar');
                 if (progressBar) {
@@ -10387,6 +10394,8 @@ AI 自己永远是“我”；
                             const trimmed = line.trim();
                             if (trimmed === "") continue;
 
+                             console.log('[SSE RAW]', trimmed);
+
                             let jsonStr = trimmed;
                             // 兼容 "data: {...}" 格式
                             if (trimmed.startsWith('data:')) {
@@ -10454,6 +10463,8 @@ AI 自己永远是“我”；
                     console.log('请求被智能取消');
                     return;
                 }
+                let rawError = error.stack || error.toString();
+                addLogToConsole('error', '发送消息失败', rawError);
                 console.error('发送消息失败:', error);
                 backgroundAIReply.inProgress = false;
                 backgroundAIReply.contactId = null;
@@ -16757,7 +16768,6 @@ AI 自己永远是“我”；
 
                                 // 如果 AI 闭嘴了，且队列吐干净了（没有气泡了）
                                 if (!isThinking && !hasQueue) {
-                                    console.log('✅ 后台任务圆满完成，Bark 已全部推完，允许系统休眠省电。');
                                     clearInterval(watchdog);
                                     BackgroundTask.finish({ taskId }); // 把特权还给 iOS
                                 }
@@ -19355,13 +19365,20 @@ AI 自己永远是“我”；
             detailStr = 'null';
         } else if (typeof detail === 'object') {
             try {
-                detailStr = JSON.stringify(detail, null, 2);
+                // 尝试提取错误消息或堆栈，避免 JSON 大括号
+                if (detail.message) detailStr = detail.message;
+                else if (detail.stack) detailStr = detail.stack;
+                else detailStr = String(detail);
+                // 移除所有花括号和方括号（以及内部可能遗留的）
+                detailStr = detailStr.replace(/[\[\]{}]/g, '');
             } catch(e) {
-                detailStr = String(detail);
+                detailStr = String(detail).replace(/[\[\]{}]/g, '');
             }
         } else {
             detailStr = String(detail);
         }
+        // 确保任何意外的括号也被清除
+        detailStr = detailStr.replace(/[\[\]{}]/g, '');
         // 如果最终得到的字符串是空的，显示一个占位符
         if (detailStr === '') detailStr = '(空字符串)';
         
