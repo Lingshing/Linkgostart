@@ -5385,7 +5385,7 @@
                             data: {
                                 model: config.model || 'gpt-3.5-turbo',
                                 messages: messages,
-                                stream: false,
+                                stream: PARAM_CONFIG.stream,
                                 temperature: PARAM_CONFIG.temperature,
                                 max_tokens: PARAM_CONFIG.maxTokens,
                                 frequency_penalty: PARAM_CONFIG.frequencyPenalty,
@@ -5439,68 +5439,54 @@
                 // --- 替换结束（接下来就是 if (!response.ok) ...）
                 
                 if (!response.ok) throw new Error(`API请求失败: ${response.status}`);
-                
-                // [替换] regenerateResponse 流式处理（含主线程防卡死优化）
-                if (PARAM_CONFIG.stream) {
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder("utf-8");
-                    let buffer = ""; // [新增] 数据缓冲区，用于拼接被网络切断的数据
-                    
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        
-                        // [核心] 将新收到的数据拼接到缓冲区
-                        buffer += decoder.decode(value, {stream: true});
-                        const lines = buffer.split('\n');
-                        
-                        // [核心] 把最后一行拿出来留到下一次循环拼接
-                        buffer = lines.pop(); 
-                        
-                        for (const line of lines) {
-                            const trimmedLine = line.trim();
-                            if (trimmedLine.startsWith('data: ')) {
-                                const data = trimmedLine.slice(6);
-                                if (data === '[DONE]') continue;
-                                try {
-                                    const json = JSON.parse(data);
-                                    const delta = json.choices?.[0]?.delta;
-                                    let content = delta?.content || '';
+                    if (PARAM_CONFIG.stream) {
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder("utf-8");
+                        let buffer = "";
+                        let fullMessage = "";
 
-                                    if (!content && delta?.tool_calls) {
-                                        const tc = delta.tool_calls[0];
-                                        // 如果AI传回了工具的名字，就作为系统提示显示出来
-                                        if (tc?.function?.name) {
-                                            content += `[系统提示：AI调用了工具 ${tc.function.name}]\n`;
-                                        }
-                                        // 拼接可能存在的参数
-                                        if (tc?.function?.arguments) {
-                                            content += tc.function.arguments;
-                                        }
-                                    }
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
 
-                                    if (content) {
-                                        backgroundAIReply.fullMessage += content;
-                                        backgroundAIReply.lastUpdate = Date.now();
-                                        // [修复] 禁止流式接收时疯狂重绘列表界面，防止主线程卡死
-                                        // updateChatListLastMessage(backgroundAIReply.contactId, backgroundAIReply.fullMessage);
-                                    }
-                                } catch (e) {
-                                    // 解析失败不报错，因为极小概率还会有残缺的 JSON 块
+                            buffer += decoder.decode(value, { stream: true });
+                            let events = buffer.split(/\n\n/);
+                            buffer = events.pop();
+
+                            for (const event of events) {
+                                const lines = event.split('\n');
+                                for (const line of lines) {
+                                    const trimmed = line.trim();
+                                    if (!trimmed.startsWith('data: ')) continue;
+                                    const data = trimmed.slice(6);
+                                    if (data === '[DONE]') continue;
+
+                                    try {
+                                        const json = JSON.parse(data);
+                                        const delta = json.choices?.[0]?.delta;
+                                        let content = delta?.content || '';
+                                        if (content) {
+                                            fullMessage += content;
+                                            if (document.getElementById('scene-chat').classList.contains('show') && currentChatContactId === contact.id) {
+                                                const activeBubble = document.getElementById('active-typing-bubble');
+                                                if (activeBubble) {
+                                                    activeBubble.textContent = fullMessage;
+                                                    scrollToBottom();
+                                                }
+                                            }
+                                        }
+                                    } catch (e) {}
                                 }
                             }
                         }
-                    }
-                    
-                    const finalFullMessage = backgroundAIReply.fullMessage;
-                    backgroundAIReply.inProgress = false;
-                    backgroundAIReply.contactId = null;
-                    if (finalFullMessage) {
-                        handleFinalAIResponse(currentChatContactId, finalFullMessage);
-                    }
-                    if (onComplete) onComplete(finalFullMessage);
-                    
-                } else {
+
+                        backgroundAIReply.fullMessage = fullMessage;
+                        backgroundAIReply.inProgress = false;
+                        backgroundAIReply.contactId = null;
+                        if (fullMessage) {
+                            handleFinalAIResponse(currentChatContactId, fullMessage);
+                        }
+                    } else { 
                     const data = await response.json();
                     const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
                     backgroundAIReply.inProgress = false;
@@ -10039,6 +10025,17 @@ AI 自己永远是“我”；
             
             const message = input.value.trim();
             if (!message) return;
+
+            // 取消之前的请求
+            if (window.currentChatController) {
+                window.currentChatController.abort();
+            }
+            window.currentChatController = new AbortController();
+
+            // 重置后台状态
+            backgroundAIReply.inProgress = true;
+            backgroundAIReply.contactId = currentChatContactId;
+            backgroundAIReply.fullMessage = '';
             
             if (!CHAT_API_CONFIGS.currentId) {
                 alert('请先在"我"→"API配置"中选择一个配置');
@@ -10291,7 +10288,7 @@ AI 自己永远是“我”；
                                 customApiKey: config.key,
                                 model: config.model || 'gpt-3.5-turbo',
                                 messages: messages,
-                                stream: false,
+                                stream: PARAM_CONFIG.stream,
                                 temperature: adjustedTemp,
                                 max_tokens: PARAM_CONFIG.maxTokens,
                                 frequency_penalty: PARAM_CONFIG.frequencyPenalty,
@@ -10306,21 +10303,59 @@ AI 自己永远是“我”；
                             json: async () => nativeResponse.data
                         };
                         if (PARAM_CONFIG.stream) {
-                            response.body = {
-                                getReader: () => {
-                                    let done = false;
-                                    return {
-                                        read: async () => {
-                                            if (done) return { done: true };
-                                            done = true;
-                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
-                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
-                                            return { done: false, value: new TextEncoder().encode(mockSse) };
+                            const reader = response.body.getReader();
+                            const decoder = new TextDecoder("utf-8");
+                            let buffer = "";
+                            let fullMessage = "";
+                            let lastLength = 0;
+
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+
+                                buffer += decoder.decode(value, { stream: true });
+                                // 按两个换行符分割完整事件
+                                let events = buffer.split(/\n\n/);
+                                buffer = events.pop(); // 最后一段可能不完整
+
+                                for (const event of events) {
+                                const lines = event.split('\n');
+                                for (const line of lines) {
+                                    const trimmed = line.trim();
+                                    if (!trimmed.startsWith('data: ')) continue;
+                                    const data = trimmed.slice(6);
+                                    if (data === '[DONE]') continue;
+
+                                    try {
+                                    const json = JSON.parse(data);
+                                    const delta = json.choices?.[0]?.delta;
+                                    let content = delta?.content || '';
+                                    if (content) {
+                                        fullMessage += content;
+                                        // 实时更新 UI（如果当前在聊天页面）
+                                        if (document.getElementById('scene-chat').classList.contains('show') && currentChatContactId === contactId) {
+                                        const activeBubble = document.getElementById('active-typing-bubble');
+                                        if (activeBubble) {
+                                            activeBubble.textContent = fullMessage;
+                                            scrollToBottom();
                                         }
-                                    };
+                                        }
+                                    }
+                                    } catch (e) {
+                                    // 解析失败不中断，继续等下一个包
+                                    }
                                 }
-                            };
-                        }
+                                }
+                            }
+
+                            // 流结束，交给队列处理
+                            backgroundAIReply.fullMessage = fullMessage;
+                            backgroundAIReply.inProgress = false;
+                            backgroundAIReply.contactId = null;
+                            if (fullMessage) {
+                                handleFinalAIResponse(contactId, fullMessage);
+                            }
+                            }
                     } else {
                         response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
                             method: 'POST',
@@ -10353,7 +10388,7 @@ AI 自己永远是“我”；
                             data: {
                                 model: config.model || 'gpt-3.5-turbo',
                                 messages: messages,
-                                stream: false,
+                                stream: PARAM_CONFIG.stream,
                                 temperature: adjustedTemp,
                                 max_tokens: PARAM_CONFIG.maxTokens,
                                 frequency_penalty: PARAM_CONFIG.frequencyPenalty,
@@ -10410,64 +10445,53 @@ AI 自己永远是“我”；
                     throw new Error(`API请求失败 (${response.status}): ${errorText}`);
                 }
                 
-                if (PARAM_CONFIG.stream) {
+                    if (PARAM_CONFIG.stream) {
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder("utf-8");
-                    let buffer = ""; // 🌟 新增：数据缓冲区，用于拼接被网络切断的数据
-                    
+                    let buffer = "";
+                    let fullMessage = "";
+
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
-                        
-                        // 🌟 将新收到的数据拼接到缓冲区
-                        buffer += decoder.decode(value, {stream: true});
-                        const lines = buffer.split('\n');
-                        
-                        // 🌟 核心修复：把最后一行（通常是不完整的半截数据）拿出来留到下一次循环拼接
-                        buffer = lines.pop(); 
-                        
-                        for (const line of lines) {
-                            const trimmedLine = line.trim();
-                            if (trimmedLine.startsWith('data: ')) {
-                                const data = trimmedLine.slice(6);
+
+                        buffer += decoder.decode(value, { stream: true });
+                        let events = buffer.split(/\n\n/);
+                        buffer = events.pop();
+
+                        for (const event of events) {
+                            const lines = event.split('\n');
+                            for (const line of lines) {
+                                const trimmed = line.trim();
+                                if (!trimmed.startsWith('data: ')) continue;
+                                const data = trimmed.slice(6);
                                 if (data === '[DONE]') continue;
+
                                 try {
                                     const json = JSON.parse(data);
                                     const delta = json.choices?.[0]?.delta;
                                     let content = delta?.content || '';
-
-                                    if (!content && delta?.tool_calls) {
-                                        const tc = delta.tool_calls[0];
-                                        // 如果AI传回了工具的名字，就作为系统提示显示出来
-                                        if (tc?.function?.name) {
-                                            content += `[系统提示：AI调用了工具 ${tc.function.name}]\n`;
-                                        }
-                                        // 拼接可能存在的参数
-                                        if (tc?.function?.arguments) {
-                                            content += tc.function.arguments;
-                                        }
-                                    }
-
                                     if (content) {
-                                        backgroundAIReply.fullMessage += content;
-                                        backgroundAIReply.lastUpdate = Date.now();
-                                        // 🌟 修复：禁止流式接收时疯狂重绘列表界面，防止主线程卡死
-                                        // updateChatListLastMessage(backgroundAIReply.contactId, backgroundAIReply.fullMessage);
+                                        fullMessage += content;
+                                        if (document.getElementById('scene-chat').classList.contains('show') && currentChatContactId === currentChatContactId) {
+                                            const activeBubble = document.getElementById('active-typing-bubble');
+                                            if (activeBubble) {
+                                                activeBubble.textContent = fullMessage;
+                                                scrollToBottom();
+                                            }
+                                        }
                                     }
-                                } catch (e) {
-                                    // 解析失败不报错，因为极小概率还会有残缺的 JSON 块
-                                }
+                                } catch (e) {}
                             }
                         }
                     }
-                    
-                    const finalFullMessage = backgroundAIReply.fullMessage;
+
+                    backgroundAIReply.fullMessage = fullMessage;
                     backgroundAIReply.inProgress = false;
                     backgroundAIReply.contactId = null;
-                    if (finalFullMessage) {
-                        handleFinalAIResponse(currentChatContactId, finalFullMessage);
+                    if (fullMessage) {
+                        handleFinalAIResponse(currentChatContactId, fullMessage);
                     }
-                    
                 } else {
                     const data = await response.json();
                     const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
@@ -19375,7 +19399,10 @@ AI 自己永远是“我”；
         if (readyMsg) readyMsg.remove();
 
         const time = new Date().toLocaleTimeString('en-US', {hour12: false});
-        let dotColor = type === 'error' ? 'var(--danger)' : type === 'warn' ? '#FF9F0A' : '#34C759';
+        let dotColor = '#34C759'; // 默认绿色
+        if (type === 'error') dotColor = 'var(--danger)';
+        else if (type === 'warn') dotColor = '#FF9F0A';
+        else if (type === 'info') dotColor = '#8E8E93';  // 灰色
         const logItem = document.createElement('div');
         logItem.style.cssText = 'margin-bottom: 18px; padding-bottom: 12px; border-bottom: 0.5px solid var(--border);';
         
@@ -19409,15 +19436,17 @@ AI 自己永远是“我”；
             const cmd = input.value.trim();
             if (!cmd) return;
             input.value = '';
+            // 先记录输入的命令
+            addLogToConsole('info', '📥 输入', cmd);
             try {
                 const result = eval(cmd);
-                addLogToConsole('success', '指令执行', result);
+                addLogToConsole('success', '✅ 结果', result);
             } catch (e) {
-                addLogToConsole('error', '执行报错', e.message);
+                addLogToConsole('error', '❌ 报错', e.message);
             }
             // 执行完毕让日志区自动滚到最上面
             const scrollArea = document.getElementById('console-scroll-area');
-            if(scrollArea) scrollArea.scrollTop = 0; 
+            if (scrollArea) scrollArea.scrollTop = 0;
         };
 
         btn.addEventListener('touchstart', (e) => {
@@ -19433,13 +19462,13 @@ AI 自己永远是“我”；
                 input.blur();
             }, 200);
         }, { passive: false });
-        
+
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 if (e.shiftKey || e.ctrlKey || e.metaKey) {
                     e.preventDefault();
-                    run();   // 你的执行函数
-                } // 否则允许换行，不做任何阻止
+                    run();
+                }
             }
         });
     }, 500);
