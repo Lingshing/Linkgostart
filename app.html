@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <title>Linkgo</title>
+
+    <script>
+        (function() {
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+                const msg = args.join(' ');
+                // 放宽条件：只要包含 nativeCallback 或 deprecated 就过滤
+                if (msg.includes('nativeCallback') || msg.includes('deprecated')) {
+                    return;
+                }
+                originalWarn.apply(console, args);
+            };
+        })();
+    </script>
     <link rel="manifest" href="https://lingshing.github.io/Linkgostart/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -3152,18 +3166,6 @@
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/js-tiktoken@1.0.16/dist/index.umd.min.js"></script>
-    <script>
-    (function() {
-        const originalWarn = console.warn;
-        console.warn = function(...args) {
-            const msg = args.join(' ');
-            if (msg.includes('nativeCallback') && msg.includes('deprecated')) {
-                return; // 忽略这条警告
-            }
-            originalWarn.apply(console, args);
-        };
-    })();
-</script>
     </head>
 <body>
     <div id="backfill-progress-bar"></div>
