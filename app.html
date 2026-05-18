@@ -19386,15 +19386,32 @@ AI 自己永远是“我”；
         if (readyMsg) readyMsg.remove();
 
         const time = new Date().toLocaleTimeString('en-US', {hour12: false});
-        let dotColor = '#34C759'; // 默认绿色
+        let dotColor = '#34C759';
         if (type === 'error') dotColor = 'var(--danger)';
         else if (type === 'warn') dotColor = '#FF9F0A';
-        else if (type === 'info') dotColor = '#8E8E93';  // 灰色
+        else if (type === 'info') dotColor = '#8E8E93';
         const logItem = document.createElement('div');
         logItem.style.cssText = 'margin-bottom: 18px; padding-bottom: 12px; border-bottom: 0.5px solid var(--border);';
         
         const logId = 'log_' + Date.now() + Math.random().toString(36).substr(2, 5);
-        let detailStr = typeof detail === 'object' ? JSON.stringify(detail, null, 2) : String(detail);
+        // 修复：确保 undefined/null/空值都能转化为可见字符串
+        let detailStr;
+        if (detail === undefined) {
+            detailStr = 'undefined';
+        } else if (detail === null) {
+            detailStr = 'null';
+        } else if (typeof detail === 'object') {
+            try {
+                detailStr = JSON.stringify(detail, null, 2);
+            } catch(e) {
+                detailStr = String(detail);
+            }
+        } else {
+            detailStr = String(detail);
+        }
+        // 如果最终得到的字符串是空的，显示一个占位符
+        if (detailStr === '') detailStr = '(空字符串)';
+        
         LOG_STORAGE.set(logId, detailStr);
 
         logItem.innerHTML = `
@@ -19408,7 +19425,7 @@ AI 自己永远是“我”；
                     <i class="fa-regular fa-copy"></i>
                 </div>
             </div>
-            ${detailStr && detailStr !== 'undefined' ? `<pre style="color: var(--text-sub); margin: 0 0 0 15px; white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; font-family: monospace;">${detailStr}</pre>` : ''}
+            <pre style="color: var(--text-sub); margin: 0 0 0 15px; white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; font-family: monospace;">${detailStr}</pre>
         `;
         if(devConsoleLogs) devConsoleLogs.prepend(logItem);
     }
@@ -19420,17 +19437,25 @@ AI 自己永远是“我”；
         if (!input || !btn) return;
 
         const run = () => {
-        const cmd = input.value.trim();
-        if (!cmd) return;
-        input.value = '';
-        // 先记录输入的命令
-        addLogToConsole('info', '输入', cmd);
-        try {
-            const result = eval(cmd);
-            addLogToConsole('success', '结果', result);
-        } catch (e) {
-            addLogToConsole('error', '报错', e.message);
-        }
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            input.value = '';
+            addLogToConsole('info', '输入', cmd);
+            try {
+                let result = eval(cmd);
+                // 确保 undefined 和 null 也能显示具体文本
+                if (result === undefined) {
+                    addLogToConsole('success', '结果', 'undefined');
+                } else if (result === null) {
+                    addLogToConsole('success', '结果', 'null');
+                } else {
+                    addLogToConsole('success', '结果', result);
+                }
+            } catch (e) {
+                // 显示完整的错误堆栈，而不仅仅是 message
+                let errorDetail = e.stack ? e.stack : e.toString();
+                addLogToConsole('error', '报错', errorDetail);
+            }
         };
 
         btn.addEventListener('touchstart', (e) => {
@@ -19462,7 +19487,14 @@ AI 自己永远是“我”；
         const msg = String(args[0]);
         if (!msg.includes('滴答') && !msg.includes('还活着')) addLogToConsole('info', 'LOG', args); 
     };
-    console.error = (...args) => addLogToConsole('error', 'ERROR', args);
+    console.error = (...args) => {
+        // 如果第一个参数是 Error 对象，提取堆栈
+        let detail = args;
+        if (args[0] instanceof Error) {
+            detail = args[0].stack || args[0].toString();
+        }
+        addLogToConsole('error', 'ERROR', detail);
+    };
     console.warn = (...args) => addLogToConsole('warn', 'WARN', args);
     window.onerror = (msg, url, line) => addLogToConsole('error', '运行时崩溃', `${msg} (Line: ${line})`);
 </script>
