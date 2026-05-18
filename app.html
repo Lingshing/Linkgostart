@@ -10363,26 +10363,29 @@ AI 自己永远是“我”；
                             }
                             if (jsonStr === '[DONE]') continue;
 
+                            let content = '';
                             try {
                                 const json = JSON.parse(jsonStr);
                                 const delta = json.choices?.[0]?.delta;
-                                let content = delta?.content || delta?.text || '';
+                                content = delta?.content || delta?.text || '';
                                 if (!content && delta?.tool_calls) {
                                     const tc = delta.tool_calls[0];
-                                    if (tc?.function?.name) {
-                                        content = `🔧 调用工具：${tc.function.name}\n`;
-                                    }
-                                    if (tc?.function?.arguments) {
-                                        content += tc.function.arguments;
-                                    }
-                                }
-                                if (content) {
-                                    hasAnyContent = true;
-                                    backgroundAIReply.fullMessage += content;
-                                    backgroundAIReply.lastUpdate = Date.now();
+                                    if (tc?.function?.name) content = `🔧 调用工具：${tc.function.name}\n`;
+                                    if (tc?.function?.arguments) content += tc.function.arguments;
                                 }
                             } catch (e) {
-                                // 不是 JSON 或格式错误，跳过
+                                // JSON 解析失败，尝试用正则从畸形字符串中提取 content 字段
+                                const match = jsonStr.match(/["']content["']\s*:\s*["']([^"']*)/);
+                                if (match && match[1]) {
+                                    content = match[1];
+                                    // 可选：处理 Unicode 转义
+                                    content = content.replace(/\\u([\da-f]{4})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+                                }
+                            }
+                            if (content) {
+                                hasAnyContent = true;
+                                backgroundAIReply.fullMessage += content;
+                                backgroundAIReply.lastUpdate = Date.now();
                             }
                         }
                     }
