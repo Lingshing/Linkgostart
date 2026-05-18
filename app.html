@@ -3151,6 +3151,8 @@
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/js-tiktoken@1.0.16/dist/index.umd.min.js"></script>
+</head>
 <body>
     <div id="backfill-progress-bar"></div>
     <!-- 顶部输入状态 -->
@@ -4590,7 +4592,6 @@
         }
         
         function countTokens(messages) {
-            addLogToConsole('info', 'Token估算', `使用近似算法，消息数量: ${messages.length}`);
             // 计算消息数组的总token数
             let total = 0;
             messages.forEach(msg => {
@@ -5026,12 +5027,15 @@
                 console.log('API响应状态:', response.status);
                 
                 if (!response.ok) {
-                    let errorText = await response.text().catch(() => '无法读取错误信息');
-                    addLogToConsole('error', 'API响应错误', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        body: errorText
-                    });
+                    let errorText = '';
+                    try {
+                        errorText = await response.text();
+                    } catch(e) {
+                        errorText = '无法读取错误信息';
+                    }
+                    console.error('=== API错误详情 ===');
+                    console.error('状态码:', response.status);
+                    console.error('错误内容:', errorText);
                     throw new Error(`API请求失败 (${response.status}): ${errorText}`);
                 }
                 
@@ -5124,15 +5128,18 @@
 
                 
             } catch (error) {
-                console.error('=== 发送消息失败 ===', error);
-                addLogToConsole('error', 'API请求失败', {
-                    message: error.message,
-                    stack: error.stack,
-                    responseStatus: error.response?.status,
-                    responseText: error.responseText || '无响应体'
-                });
-                if (onError) onError(error);
+            console.error('=== 发送消息失败 ===');
+            console.error('错误类型:', error.name);
+            console.error('错误消息:', error.message);
+            
+            // ---------- 【修改开始：发消息报错后台通知】 ----------
+            if (typeof sendPushNotification === 'function') {
+                sendPushNotification(`⚠️ API 报错了：${error.message}`);
             }
+            // ---------- 【修改结束】 ----------
+            
+            if (onError) onError(error);
+        }
         }
         
         // --- 重新生成回复 (底层统一引擎版) ---
@@ -5207,7 +5214,7 @@
                 if (!config) throw new Error('配置不存在');
                 
                 const contact = mockContacts.find(c => c.id === currentChatContactId);
-                let systemPrompt = getSystemPromptWithMode(contact);
+                const systemPrompt = getSystemPromptWithMode(contact);
 
                 // --- 修复：截断重新生成的历史记录与添加并发控制 ---
                 if (window.currentChatController) {
@@ -5338,23 +5345,6 @@
                                         read: async () => {
                                             if (done) return { done: true };
                                             done = true;
-                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
-                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
-                                            return { done: false, value: new TextEncoder().encode(mockSse) };
-                                        }
-                                    };
-                                }
-                            };
-                        }
-
-                        if (PARAM_CONFIG.stream) {
-                            response.body = {
-                                getReader: () => {
-                                    let done = false;
-                                    return {
-                                        read: async () => {
-                                            if (done) return { done: true };
-                                            done = true;
                                             const content = nativeResponse.data.choices?.[0]?.message?.content || "";
                                             const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
                                             return { done: false, value: new TextEncoder().encode(mockSse) };
@@ -5417,23 +5407,6 @@
                                         read: async () => {
                                             if (done) return { done: true };
                                             done = true;
-                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
-                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
-                                            return { done: false, value: new TextEncoder().encode(mockSse) };
-                                        }
-                                    };
-                                }
-                            };
-                        }
-
-                        if (PARAM_CONFIG.stream) {
-                            response.body = {
-                                getReader: () => {
-                                    let done = false;
-                                    return {
-                                        read: async () => {
-                                            if (done) return { done: true };
-                                            done = true;
                                             const content = nativeResponse.data.choices?.[0]?.message?.content || "";
                                             const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
                                             return { done: false, value: new TextEncoder().encode(mockSse) };
@@ -5466,54 +5439,68 @@
                 // --- 替换结束（接下来就是 if (!response.ok) ...）
                 
                 if (!response.ok) throw new Error(`API请求失败: ${response.status}`);
-                    if (PARAM_CONFIG.stream) {
-                        const reader = response.body.getReader();
-                        const decoder = new TextDecoder("utf-8");
-                        let buffer = "";
-                        let fullMessage = "";
+                
+                // [替换] regenerateResponse 流式处理（含主线程防卡死优化）
+                if (PARAM_CONFIG.stream) {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder("utf-8");
+                    let buffer = ""; // [新增] 数据缓冲区，用于拼接被网络切断的数据
+                    
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        // [核心] 将新收到的数据拼接到缓冲区
+                        buffer += decoder.decode(value, {stream: true});
+                        const lines = buffer.split('\n');
+                        
+                        // [核心] 把最后一行拿出来留到下一次循环拼接
+                        buffer = lines.pop(); 
+                        
+                        for (const line of lines) {
+                            const trimmedLine = line.trim();
+                            if (trimmedLine.startsWith('data: ')) {
+                                const data = trimmedLine.slice(6);
+                                if (data === '[DONE]') continue;
+                                try {
+                                    const json = JSON.parse(data);
+                                    const delta = json.choices?.[0]?.delta;
+                                    let content = delta?.content || '';
 
-                        while (true) {
-                            const { done, value } = await reader.read();
-                            if (done) break;
-
-                            buffer += decoder.decode(value, { stream: true });
-                            let events = buffer.split(/\n\n/);
-                            buffer = events.pop();
-
-                            for (const event of events) {
-                                const lines = event.split('\n');
-                                for (const line of lines) {
-                                    const trimmed = line.trim();
-                                    if (!trimmed.startsWith('data: ')) continue;
-                                    const data = trimmed.slice(6);
-                                    if (data === '[DONE]') continue;
-
-                                    try {
-                                        const json = JSON.parse(data);
-                                        const delta = json.choices?.[0]?.delta;
-                                        let content = delta?.content || '';
-                                        if (content) {
-                                            fullMessage += content;
-                                            if (document.getElementById('scene-chat').classList.contains('show') && currentChatContactId === contact.id) {
-                                                const activeBubble = document.getElementById('active-typing-bubble');
-                                                if (activeBubble) {
-                                                    activeBubble.textContent = fullMessage;
-                                                    scrollToBottom();
-                                                }
-                                            }
+                                    if (!content && delta?.tool_calls) {
+                                        const tc = delta.tool_calls[0];
+                                        // 如果AI传回了工具的名字，就作为系统提示显示出来
+                                        if (tc?.function?.name) {
+                                            content += `[系统提示：AI调用了工具 ${tc.function.name}]\n`;
                                         }
-                                    } catch (e) {}
+                                        // 拼接可能存在的参数
+                                        if (tc?.function?.arguments) {
+                                            content += tc.function.arguments;
+                                        }
+                                    }
+
+                                    if (content) {
+                                        backgroundAIReply.fullMessage += content;
+                                        backgroundAIReply.lastUpdate = Date.now();
+                                        // [修复] 禁止流式接收时疯狂重绘列表界面，防止主线程卡死
+                                        // updateChatListLastMessage(backgroundAIReply.contactId, backgroundAIReply.fullMessage);
+                                    }
+                                } catch (e) {
+                                    // 解析失败不报错，因为极小概率还会有残缺的 JSON 块
                                 }
                             }
                         }
-
-                        backgroundAIReply.fullMessage = fullMessage;
-                        backgroundAIReply.inProgress = false;
-                        backgroundAIReply.contactId = null;
-                        if (fullMessage) {
-                            handleFinalAIResponse(currentChatContactId, fullMessage);
-                        }
-                    } else { 
+                    }
+                    
+                    const finalFullMessage = backgroundAIReply.fullMessage;
+                    backgroundAIReply.inProgress = false;
+                    backgroundAIReply.contactId = null;
+                    if (finalFullMessage) {
+                        handleFinalAIResponse(currentChatContactId, finalFullMessage);
+                    }
+                    if (onComplete) onComplete(finalFullMessage);
+                    
+                } else {
                     const data = await response.json();
                     const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
                     backgroundAIReply.inProgress = false;
@@ -5528,12 +5515,7 @@
                     return;
                 }
                 console.error('=== 重新生成失败 ===', error);
-                addLogToConsole('error', '重新生成失败', {
-                    message: error.message,
-                    stack: error.stack,
-                    responseStatus: error.response?.status,
-                    responseText: error.responseText || '无响应体'
-                });
+                
                 // 🛠️ 修复：重置打字状态，防止出现双呼吸光晕及后续请求堆积
                 backgroundAIReply.inProgress = false;
                 backgroundAIReply.contactId = null;
@@ -10057,17 +10039,6 @@ AI 自己永远是“我”；
             
             const message = input.value.trim();
             if (!message) return;
-
-            // 取消之前的请求
-            if (window.currentChatController) {
-                window.currentChatController.abort();
-            }
-            window.currentChatController = new AbortController();
-
-            // 重置后台状态
-            backgroundAIReply.inProgress = true;
-            backgroundAIReply.contactId = currentChatContactId;
-            backgroundAIReply.fullMessage = '';
             
             if (!CHAT_API_CONFIGS.currentId) {
                 alert('请先在"我"→"API配置"中选择一个配置');
@@ -10350,61 +10321,6 @@ AI 自己永远是“我”；
                                 }
                             };
                         }
-
-                        if (PARAM_CONFIG.stream) {
-                            const reader = response.body.getReader();
-                            const decoder = new TextDecoder("utf-8");
-                            let buffer = "";
-                            let fullMessage = "";
-                            let lastLength = 0;
-
-                            while (true) {
-                                const { done, value } = await reader.read();
-                                if (done) break;
-
-                                buffer += decoder.decode(value, { stream: true });
-                                // 按两个换行符分割完整事件
-                                let events = buffer.split(/\n\n/);
-                                buffer = events.pop(); // 最后一段可能不完整
-
-                                for (const event of events) {
-                                const lines = event.split('\n');
-                                for (const line of lines) {
-                                    const trimmed = line.trim();
-                                    if (!trimmed.startsWith('data: ')) continue;
-                                    const data = trimmed.slice(6);
-                                    if (data === '[DONE]') continue;
-
-                                    try {
-                                    const json = JSON.parse(data);
-                                    const delta = json.choices?.[0]?.delta;
-                                    let content = delta?.content || '';
-                                    if (content) {
-                                        fullMessage += content;
-                                        // 实时更新 UI（如果当前在聊天页面）
-                                        if (document.getElementById('scene-chat').classList.contains('show') && currentChatContactId === contactId) {
-                                        const activeBubble = document.getElementById('active-typing-bubble');
-                                        if (activeBubble) {
-                                            activeBubble.textContent = fullMessage;
-                                            scrollToBottom();
-                                        }
-                                        }
-                                    }
-                                    } catch (e) {
-                                    // 解析失败不中断，继续等下一个包
-                                    }
-                                }
-                                }
-                            }
-
-                            // 流结束，交给队列处理
-                            backgroundAIReply.fullMessage = fullMessage;
-                            backgroundAIReply.inProgress = false;
-                            backgroundAIReply.contactId = null;
-                            if (fullMessage) {
-                                handleFinalAIResponse(contactId, fullMessage);
-                            }
-                            }
                     } else {
                         response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
                             method: 'POST',
@@ -10494,53 +10410,64 @@ AI 自己永远是“我”；
                     throw new Error(`API请求失败 (${response.status}): ${errorText}`);
                 }
                 
-                    if (PARAM_CONFIG.stream) {
+                if (PARAM_CONFIG.stream) {
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder("utf-8");
-                    let buffer = "";
-                    let fullMessage = "";
-
+                    let buffer = ""; // 🌟 新增：数据缓冲区，用于拼接被网络切断的数据
+                    
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
-
-                        buffer += decoder.decode(value, { stream: true });
-                        let events = buffer.split(/\n\n/);
-                        buffer = events.pop();
-
-                        for (const event of events) {
-                            const lines = event.split('\n');
-                            for (const line of lines) {
-                                const trimmed = line.trim();
-                                if (!trimmed.startsWith('data: ')) continue;
-                                const data = trimmed.slice(6);
+                        
+                        // 🌟 将新收到的数据拼接到缓冲区
+                        buffer += decoder.decode(value, {stream: true});
+                        const lines = buffer.split('\n');
+                        
+                        // 🌟 核心修复：把最后一行（通常是不完整的半截数据）拿出来留到下一次循环拼接
+                        buffer = lines.pop(); 
+                        
+                        for (const line of lines) {
+                            const trimmedLine = line.trim();
+                            if (trimmedLine.startsWith('data: ')) {
+                                const data = trimmedLine.slice(6);
                                 if (data === '[DONE]') continue;
-
                                 try {
                                     const json = JSON.parse(data);
                                     const delta = json.choices?.[0]?.delta;
                                     let content = delta?.content || '';
-                                    if (content) {
-                                        fullMessage += content;
-                                        if (document.getElementById('scene-chat').classList.contains('show') && currentChatContactId === currentChatContactId) {
-                                            const activeBubble = document.getElementById('active-typing-bubble');
-                                            if (activeBubble) {
-                                                activeBubble.textContent = fullMessage;
-                                                scrollToBottom();
-                                            }
+
+                                    if (!content && delta?.tool_calls) {
+                                        const tc = delta.tool_calls[0];
+                                        // 如果AI传回了工具的名字，就作为系统提示显示出来
+                                        if (tc?.function?.name) {
+                                            content += `[系统提示：AI调用了工具 ${tc.function.name}]\n`;
+                                        }
+                                        // 拼接可能存在的参数
+                                        if (tc?.function?.arguments) {
+                                            content += tc.function.arguments;
                                         }
                                     }
-                                } catch (e) {}
+
+                                    if (content) {
+                                        backgroundAIReply.fullMessage += content;
+                                        backgroundAIReply.lastUpdate = Date.now();
+                                        // 🌟 修复：禁止流式接收时疯狂重绘列表界面，防止主线程卡死
+                                        // updateChatListLastMessage(backgroundAIReply.contactId, backgroundAIReply.fullMessage);
+                                    }
+                                } catch (e) {
+                                    // 解析失败不报错，因为极小概率还会有残缺的 JSON 块
+                                }
                             }
                         }
                     }
-
-                    backgroundAIReply.fullMessage = fullMessage;
+                    
+                    const finalFullMessage = backgroundAIReply.fullMessage;
                     backgroundAIReply.inProgress = false;
                     backgroundAIReply.contactId = null;
-                    if (fullMessage) {
-                        handleFinalAIResponse(currentChatContactId, fullMessage);
+                    if (finalFullMessage) {
+                        handleFinalAIResponse(currentChatContactId, finalFullMessage);
                     }
+                    
                 } else {
                     const data = await response.json();
                     const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
@@ -17213,128 +17140,12 @@ AI 自己永远是“我”；
 
         let budgetTiktokenEncoder = null;
 
-        /**
-         * 一个轻量级但足够精确的 GPT-4 / cl100k_base 编码器
-         * 实现了核心的 BPE 合并逻辑，无需任何外部请求
-         */
-        class Cl100kBaseTokenizer {
-            constructor() {
-                // 预定义的高频合并规则 (从真实的 cl100k_base 词库中提取的关键规则)
-                this.mergeRules = this._buildMergeRules();
-            }
-
-            _buildMergeRules() {
-                // 真实 cl100k_base 中最常见的一些字节对合并规则
-                // 覆盖了大部分英文单词、标点、数字的合并方式
-                const rules = new Map();
-                const commonPairs = [
-                    ' t', ' a', 'he', 'in', 'er', 'an', 're', 'on', 'at', 'en',
-                    'nd', 'ti', 'es', 'or', 'te', 'of', 'ed', 'is', 'it', 'al',
-                    ' .', ' ,', ' ?', ' !', ' :', ' ;', " '", 'n\'', '\'s',
-                    '  ', ' \n', ' \t', 've', 'll', 're', 'm\'', ' d', ' s',
-                    ' w', ' b', ' c', ' f', ' g', ' h', ' j', ' k', ' l', ' m',
-                    ' n', ' p', ' q', ' r', ' s', ' t', ' u', ' v', ' x', ' y', ' z'
-                ];
-                commonPairs.forEach((pair, idx) => rules.set(pair, idx));
-                return rules;
-            }
-
-            encode(text) {
-                if (!text || typeof text !== 'string') return [];
-
-                // 第一步：将文本分割为字节级 tokens（简化但有效的策略）
-                // 使用正则匹配：单词、数字、标点、空格、中文等
-                const tokens = [];
-                const segments = text.match(/[a-zA-Z0-9]+|[^\s\w]|[\u4e00-\u9fa5]|\s+/g) || [];
-                
-                for (let seg of segments) {
-                    if (/[\u4e00-\u9fa5]/.test(seg)) {
-                        // 中文字符：每个字符单独作为一个 token（cl100k_base 中约为 1.5 token/字符，但为了保持整数，暂按 2 个 token 处理）
-                        for (let ch of seg) {
-                            tokens.push(ch);
-                        }
-                    } else if (/[a-zA-Z0-9]+/.test(seg)) {
-                        // 英文单词/数字：先作为整体，再尝试 BPE 合并
-                        let word = seg;
-                        let changed = true;
-                        while (changed && word.length > 1) {
-                            changed = false;
-                            for (let i = 1; i <= word.length; i++) {
-                                const left = word.substring(0, i);
-                                const right = word.substring(i);
-                                if (left && right && this.mergeRules.has(left) && this.mergeRules.has(right)) {
-                                    word = left + right;
-                                    changed = true;
-                                    break;
-                                }
-                            }
-                        }
-                        tokens.push(word);
-                    } else {
-                        // 标点、空格等：直接作为一个 token
-                        tokens.push(seg);
-                    }
-                }
-
-                return tokens;
-            }
-
-            // 便捷方法：直接返回 token 数量
-            count(text) {
-                return this.encode(text).length;
-            }
-        }
-
-        // 创建全局单例
-        const globalTokenizer = new Cl100kBaseTokenizer();
-
-        // 模拟 tiktoken 的 get_encoding 接口
-        window.tiktoken = {
-            get_encoding: () => ({
-                encode: (text) => globalTokenizer.encode(text)
-            })
-        };
-
+        // 初始化 tiktoken 编码器
         async function initTiktokenEncoder() {
-            if (budgetTiktokenEncoder) return budgetTiktokenEncoder;
-            
-            // 使用一个内置的近似 token 计数器（基于字符分析）
-            const simpleEstimator = {
-                encode: (text) => {
-                    if (!text) return [];
-                    const tokens = [];
-                    // 匹配单词、数字、标点、中文、空格
-                    const matches = text.match(/[a-zA-Z0-9]+|[^\s\w]|[\u4e00-\u9fa5]|\s+/g) || [];
-                    for (let m of matches) {
-                        if (/[\u4e00-\u9fa5]/.test(m)) {
-                            // 中文字符：每个字符约 1.5 token，向上取整
-                            for (let i = 0; i < m.length; i++) {
-                                tokens.push({ token: m[i], count: 2 });
-                            }
-                        } else if (/[a-zA-Z0-9]+/.test(m)) {
-                            // 英文/数字：平均 1 token 对应约 3.5 个字符
-                            const tokenCount = Math.max(1, Math.ceil(m.length / 3.5));
-                            tokens.push({ token: m, count: tokenCount });
-                        } else if (/\s+/.test(m)) {
-                            // 连续空格：每个空格约 0.2 token，但至少 1 个 token
-                            const spaceCount = Math.max(1, Math.ceil(m.length * 0.2));
-                            tokens.push({ token: m, count: spaceCount });
-                        } else {
-                            // 标点符号：每个标点算 1 个 token
-                            for (let i = 0; i < m.length; i++) {
-                                tokens.push({ token: m[i], count: 1 });
-                            }
-                        }
-                    }
-                    // 返回 token 数组，每个元素是一个字符串 token（兼容原有 encode 返回格式）
-                    return tokens.flatMap(t => Array(t.count).fill(t.token));
-                }
-            };
-            
-            budgetTiktokenEncoder = {
-                encode: (text) => simpleEstimator.encode(text)
-            };
-            addLogToConsole('info', 'Token编码器', '使用内置估算器（无外部依赖）');
+            if (!budgetTiktokenEncoder) {
+                // 使用 cl100k_base 编码，适用于 GPT-4, GPT-3.5-turbo, text-embedding-ada-002
+                budgetTiktokenEncoder = await tiktoken.get_encoding("cl100k_base");
+            }
             return budgetTiktokenEncoder;
         }
 
@@ -17385,18 +17196,8 @@ AI 自己永远是“我”；
             document.getElementById('budget-output-tokens').value = suggestedOutput;
             
             // 计算输入 token
-            let inputTokens = 0;
-            try {
-                inputTokens = await calculateInputTokens();
-                document.getElementById('budget-input-tokens').value = inputTokens;
-            } catch (e) {
-                addLogToConsole('error', '打开预算面板时计算输入token失败', e.message);
-                document.getElementById('budget-input-tokens').value = '计算失败';
-                // 可选：在界面上显示一个小红字提示
-                const inputField = document.getElementById('budget-input-tokens');
-                inputField.style.color = 'var(--danger)';
-                setTimeout(() => { inputField.style.color = ''; }, 2000);
-            }
+            const inputTokens = await calculateInputTokens();
+            document.getElementById('budget-input-tokens').value = inputTokens;
             
             // 重新计算费用
             calculateBudgetCosts();
@@ -17417,11 +17218,7 @@ AI 自己永远是“我”；
 
         // 计算输入 token 数量（模拟本次发送的消息数组）
         async function calculateInputTokens() {
-            addLogToConsole('info', 'Token计算', '进入 calculateInputTokens');
-            if (!currentChatContactId) {
-                addLogToConsole('warn', 'Token计算', 'currentChatContactId 为空，返回 0');
-                return 0;
-            }
+            if (!currentChatContactId) return 0;
             
             const contact = mockContacts.find(c => c.id === currentChatContactId);
             const conversation = getConversation(currentChatContactId);
@@ -17507,6 +17304,7 @@ AI 自己永远是“我”；
             
             // 当前用户输入（如果有）
             if (userMessage) {
+                // 这里也应用一次正则
                 let finalUserMsg = userMessage;
                 if (typeof REGEX_RULES !== 'undefined' && REGEX_RULES.enabled && typeof applyRegexRules === 'function') {
                     finalUserMsg = applyRegexRules(finalUserMsg);
@@ -17514,26 +17312,21 @@ AI 自己永远是“我”；
                 messages.push({ role: 'user', content: finalUserMsg });
             }
             
-            addLogToConsole('info', 'Token计算', `准备计算 ${messages.length} 条消息的 token 数`);
-            
-           try {
+            try {
                 const encoder = await initTiktokenEncoder();
-                if (encoder) {
-                    // 精确计算
-                    let tokenCount = 0;
-                    for (const msg of messages) {
-                        tokenCount += 4;
-                        tokenCount += encoder.encode(msg.content).length;
-                    }
-                    tokenCount += 2;
-                    addLogToConsole('success', 'Token计算', `精确计算成功，总 tokens = ${tokenCount}`);
-                    return tokenCount;
-                } else {
-                    // 降级
-                    throw new Error('encoder 不可用，降级');
+                // 按照 OpenAI 官方公式计算 token 数
+                let tokenCount = 0;
+                for (const msg of messages) {
+                    // 每条消息的固定标记 token (role 和 特殊标记)
+                    tokenCount += 4;
+                    // 内容的 token
+                    tokenCount += encoder.encode(msg.content).length;
                 }
+                tokenCount += 2; // 对话终结标记
+                return tokenCount;
             } catch (e) {
-                addLogToConsole('info', 'Token计算降级', `使用 countTokens 估算`);
+                console.error('Token 计算失败:', e);
+                // 降级使用旧的估算方法
                 return countTokens(messages);
             }
         }
@@ -19581,31 +19374,13 @@ AI 自己永远是“我”；
         const readyMsg = document.getElementById('console-ready-msg');
         if (readyMsg) readyMsg.remove();
 
-        const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-        let dotColor = '#34C759';
-        if (type === 'error') dotColor = 'var(--danger)';
-        else if (type === 'warn') dotColor = '#FF9F0A';
-        else if (type === 'info') dotColor = '#8E8E93';
-
+        const time = new Date().toLocaleTimeString('en-US', {hour12: false});
+        let dotColor = type === 'error' ? 'var(--danger)' : type === 'warn' ? '#FF9F0A' : '#34C759';
         const logItem = document.createElement('div');
         logItem.style.cssText = 'margin-bottom: 18px; padding-bottom: 12px; border-bottom: 0.5px solid var(--border);';
-
+        
         const logId = 'log_' + Date.now() + Math.random().toString(36).substr(2, 5);
-        // 关键修复：把 undefined/null 转为字符串 'undefined' / 'null'
-        let detailStr = '';
-        if (detail === undefined) {
-            detailStr = 'undefined';
-        } else if (detail === null) {
-            detailStr = 'null';
-        } else if (typeof detail === 'object') {
-            try {
-                detailStr = JSON.stringify(detail, null, 2);
-            } catch (e) {
-                detailStr = String(detail);
-            }
-        } else {
-            detailStr = String(detail);
-        }
+        let detailStr = typeof detail === 'object' ? JSON.stringify(detail, null, 2) : String(detail);
         LOG_STORAGE.set(logId, detailStr);
 
         logItem.innerHTML = `
@@ -19619,9 +19394,9 @@ AI 自己永远是“我”；
                     <i class="fa-regular fa-copy"></i>
                 </div>
             </div>
-            <pre style="color: var(--text-sub); margin: 0 0 0 15px; white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; font-family: monospace;">${detailStr}</pre>
+            ${detailStr && detailStr !== 'undefined' ? `<pre style="color: var(--text-sub); margin: 0 0 0 15px; white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; font-family: monospace;">${detailStr}</pre>` : ''}
         `;
-        if (devConsoleLogs) devConsoleLogs.prepend(logItem);
+        if(devConsoleLogs) devConsoleLogs.prepend(logItem);
     }
 
     // 绑定事件：抛弃一切花里胡哨，回归原生体验
@@ -19634,17 +19409,15 @@ AI 自己永远是“我”；
             const cmd = input.value.trim();
             if (!cmd) return;
             input.value = '';
-            // 先记录输入的命令
-            addLogToConsole('info', '输入', cmd);
             try {
                 const result = eval(cmd);
-                addLogToConsole('success', '结果', result);
+                addLogToConsole('success', '指令执行', result);
             } catch (e) {
-                addLogToConsole('error', '报错', e.message);
+                addLogToConsole('error', '执行报错', e.message);
             }
             // 执行完毕让日志区自动滚到最上面
             const scrollArea = document.getElementById('console-scroll-area');
-            if (scrollArea) scrollArea.scrollTop = 0;
+            if(scrollArea) scrollArea.scrollTop = 0; 
         };
 
         btn.addEventListener('touchstart', (e) => {
@@ -19660,13 +19433,13 @@ AI 自己永远是“我”；
                 input.blur();
             }, 200);
         }, { passive: false });
-
+        
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 if (e.shiftKey || e.ctrlKey || e.metaKey) {
                     e.preventDefault();
-                    run();
-                }
+                    run();   // 你的执行函数
+                } // 否则允许换行，不做任何阻止
             }
         });
     }, 500);
