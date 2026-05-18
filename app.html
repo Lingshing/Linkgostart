@@ -10351,35 +10351,28 @@ AI 自己永远是“我”；
                         buffer = lines.pop() || "";   // 保留不完整行
 
                         for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (trimmed === "") continue;
+                        const trimmed = line.trim();
+                        if (trimmed === "") continue;
 
-                             console.log('[SSE RAW]', trimmed);
+                        console.log('[SSE RAW]', trimmed);
 
-                            let jsonStr = trimmed;
-                            // 兼容 "data: {...}" 格式
-                            if (trimmed.startsWith('data:')) {
-                                jsonStr = trimmed.slice(5).trim();
-                            }
-                            if (jsonStr === '[DONE]') continue;
+                        let jsonStr = trimmed;
+                        if (trimmed.startsWith('data:')) {
+                            jsonStr = trimmed.slice(5).trim();
+                        }
+                        if (jsonStr === '[DONE]') continue;
 
-                            let content = '';
-                            try {
-                                const json = JSON.parse(jsonStr);
-                                const delta = json.choices?.[0]?.delta;
-                                content = delta?.content || delta?.text || '';
-                                if (!content && delta?.tool_calls) {
-                                    const tc = delta.tool_calls[0];
-                                    if (tc?.function?.name) content = `🔧 调用工具：${tc.function.name}\n`;
-                                    if (tc?.function?.arguments) content += tc.function.arguments;
+                        try {
+                            const json = JSON.parse(jsonStr);
+                            const delta = json.choices?.[0]?.delta;
+                            let content = delta?.content || delta?.text || '';
+                            if (!content && delta?.tool_calls) {
+                                const tc = delta.tool_calls[0];
+                                if (tc?.function?.name) {
+                                    content = `🔧 调用工具：${tc.function.name}\n`;
                                 }
-                            } catch (e) {
-                                // JSON 解析失败，尝试用正则从畸形字符串中提取 content 字段
-                                const match = jsonStr.match(/["']content["']\s*:\s*["']([^"']*)/);
-                                if (match && match[1]) {
-                                    content = match[1];
-                                    // 可选：处理 Unicode 转义
-                                    content = content.replace(/\\u([\da-f]{4})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+                                if (tc?.function?.arguments) {
+                                    content += tc.function.arguments;
                                 }
                             }
                             if (content) {
@@ -10387,7 +10380,21 @@ AI 自己永远是“我”；
                                 backgroundAIReply.fullMessage += content;
                                 backgroundAIReply.lastUpdate = Date.now();
                             }
+                        } catch (e) {
+                            // 尝试用正则直接提取 content 字段
+                            const contentMatch = trimmed.match(/["']content["']\s*:\s*["']([^"']*)/i);
+                            if (contentMatch && contentMatch[1]) {
+                                let content = contentMatch[1];
+                                // 处理可能的转义字符
+                                content = content.replace(/\\u([\da-f]{4})/gi, (_, hex) => 
+                                    String.fromCharCode(parseInt(hex, 16))
+                                );
+                                hasAnyContent = true;
+                                backgroundAIReply.fullMessage += content;
+                                backgroundAIReply.lastUpdate = Date.now();
+                            }
                         }
+                    }
                     }
 
                     // 处理最后剩余的 buffer
