@@ -5444,19 +5444,16 @@
                 if (PARAM_CONFIG.stream) {
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder("utf-8");
-                    let buffer = ""; // [新增] 数据缓冲区，用于拼接被网络切断的数据
-                    
+                    let buffer = "";
+
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
-                        
-                        // [核心] 将新收到的数据拼接到缓冲区
-                        buffer += decoder.decode(value, {stream: true});
+
+                        buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
-                        
-                        // [核心] 把最后一行拿出来留到下一次循环拼接
-                        buffer = lines.pop(); 
-                        
+                        buffer = lines.pop();
+
                         for (const line of lines) {
                             const trimmedLine = line.trim();
                             if (trimmedLine.startsWith('data: ')) {
@@ -5469,11 +5466,9 @@
 
                                     if (!content && delta?.tool_calls) {
                                         const tc = delta.tool_calls[0];
-                                        // 如果AI传回了工具的名字，就作为系统提示显示出来
                                         if (tc?.function?.name) {
                                             content += `[系统提示：AI调用了工具 ${tc.function.name}]\n`;
                                         }
-                                        // 拼接可能存在的参数
                                         if (tc?.function?.arguments) {
                                             content += tc.function.arguments;
                                         }
@@ -5482,16 +5477,32 @@
                                     if (content) {
                                         backgroundAIReply.fullMessage += content;
                                         backgroundAIReply.lastUpdate = Date.now();
-                                        // [修复] 禁止流式接收时疯狂重绘列表界面，防止主线程卡死
-                                        // updateChatListLastMessage(backgroundAIReply.contactId, backgroundAIReply.fullMessage);
                                     }
-                                } catch (e) {
-                                    // 解析失败不报错，因为极小概率还会有残缺的 JSON 块
-                                }
+                                } catch (e) {}
                             }
                         }
                     }
-                    
+
+                    // ✅ 关键修复：处理缓冲区里剩余的不完整数据
+                    if (buffer) {
+                        const lines = buffer.split('\n');
+                        for (const line of lines) {
+                            const trimmedLine = line.trim();
+                            if (trimmedLine.startsWith('data: ')) {
+                                const data = trimmedLine.slice(6);
+                                if (data === '[DONE]') continue;
+                                try {
+                                    const json = JSON.parse(data);
+                                    const delta = json.choices?.[0]?.delta;
+                                    let content = delta?.content || '';
+                                    if (content) {
+                                        backgroundAIReply.fullMessage += content;
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    }
+
                     const finalFullMessage = backgroundAIReply.fullMessage;
                     backgroundAIReply.inProgress = false;
                     backgroundAIReply.contactId = null;
@@ -5499,7 +5510,7 @@
                         handleFinalAIResponse(currentChatContactId, finalFullMessage);
                     }
                     if (onComplete) onComplete(finalFullMessage);
-                    
+
                 } else {
                     const data = await response.json();
                     const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
@@ -10424,19 +10435,16 @@ AI 自己永远是“我”；
                 if (PARAM_CONFIG.stream) {
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder("utf-8");
-                    let buffer = ""; // 🌟 新增：数据缓冲区，用于拼接被网络切断的数据
-                    
+                    let buffer = "";
+
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
-                        
-                        // 🌟 将新收到的数据拼接到缓冲区
-                        buffer += decoder.decode(value, {stream: true});
+
+                        buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
-                        
-                        // 🌟 核心修复：把最后一行（通常是不完整的半截数据）拿出来留到下一次循环拼接
-                        buffer = lines.pop(); 
-                        
+                        buffer = lines.pop(); // 保留不完整的最后一行
+
                         for (const line of lines) {
                             const trimmedLine = line.trim();
                             if (trimmedLine.startsWith('data: ')) {
@@ -10449,11 +10457,9 @@ AI 自己永远是“我”；
 
                                     if (!content && delta?.tool_calls) {
                                         const tc = delta.tool_calls[0];
-                                        // 如果AI传回了工具的名字，就作为系统提示显示出来
                                         if (tc?.function?.name) {
                                             content += `[系统提示：AI调用了工具 ${tc.function.name}]\n`;
                                         }
-                                        // 拼接可能存在的参数
                                         if (tc?.function?.arguments) {
                                             content += tc.function.arguments;
                                         }
@@ -10462,29 +10468,47 @@ AI 自己永远是“我”；
                                     if (content) {
                                         backgroundAIReply.fullMessage += content;
                                         backgroundAIReply.lastUpdate = Date.now();
-                                        // 🌟 修复：禁止流式接收时疯狂重绘列表界面，防止主线程卡死
-                                        // updateChatListLastMessage(backgroundAIReply.contactId, backgroundAIReply.fullMessage);
                                     }
                                 } catch (e) {
-                                    // 解析失败不报错，因为极小概率还会有残缺的 JSON 块
+                                    // 忽略解析错误
                                 }
                             }
                         }
                     }
-                    
+
+                    // ✅ 关键修复：处理缓冲区里剩余的不完整数据
+                    if (buffer) {
+                        const lines = buffer.split('\n');
+                        for (const line of lines) {
+                            const trimmedLine = line.trim();
+                            if (trimmedLine.startsWith('data: ')) {
+                                const data = trimmedLine.slice(6);
+                                if (data === '[DONE]') continue;
+                                try {
+                                    const json = JSON.parse(data);
+                                    const delta = json.choices?.[0]?.delta;
+                                    let content = delta?.content || '';
+                                    if (content) {
+                                        backgroundAIReply.fullMessage += content;
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    }
+
                     const finalFullMessage = backgroundAIReply.fullMessage;
                     backgroundAIReply.inProgress = false;
                     backgroundAIReply.contactId = null;
                     if (finalFullMessage) {
                         handleFinalAIResponse(currentChatContactId, finalFullMessage);
                     }
-                    
+
                 } else {
+                    // 非流式分支保持不变
                     const data = await response.json();
                     const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
                     backgroundAIReply.inProgress = false;
                     backgroundAIReply.contactId = null;
-
                     handleFinalAIResponse(currentChatContactId, aiReply);
                 }
                 
