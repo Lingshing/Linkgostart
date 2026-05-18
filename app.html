@@ -7,18 +7,30 @@
     <title>Linkgo</title>
 
     <script>
-        (function() {
-            const originalWarn = console.warn;
-            console.warn = function(...args) {
-                const msg = args.join(' ');
-                // 放宽条件：只要包含 nativeCallback 或 deprecated 就过滤
-                if (msg.includes('nativeCallback') || msg.includes('deprecated')) {
-                    return;
-                }
-                originalWarn.apply(console, args);
-            };
-        })();
-    </script>
+    // 锁定 console.warn，防止被任何代码覆盖
+    (function() {
+        const originalWarn = console.warn;
+        // 定义新的 warn 方法
+        const customWarn = function(...args) {
+            const msg = args.join(' ');
+            if (msg.includes('nativeCallback') && msg.includes('deprecated')) {
+                return; // 完全忽略
+            }
+            originalWarn.apply(console, args);
+        };
+        
+        // 使用 Object.defineProperty 锁定属性，防止被重新赋值
+        Object.defineProperty(console, 'warn', {
+            get: () => customWarn,
+            set: () => {
+                // 禁止任何尝试覆盖 warn 的行为
+                console.log('阻止了对 console.warn 的覆盖');
+            },
+            configurable: false,  // 不可配置，防止 defineProperty 再次修改
+            enumerable: true
+        });
+    })();
+</script>
     <link rel="manifest" href="https://lingshing.github.io/Linkgostart/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
