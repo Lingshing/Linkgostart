@@ -10255,64 +10255,24 @@ AI 自己永远是“我”；
                 let response;
 
                 if (useProxy) {
-                    if (isIOSNative) {
-                        const nativeResponse = await window.Capacitor.Plugins.CapacitorHttp.post({
-                            url: 'https://linkgo-api.ginkgo-yinxing.workers.dev/',
-                            headers: { 'Content-Type': 'application/json' },
-                            data: {
-                                customEndpoint: apiUrl,
-                                customApiKey: config.key,
-                                model: config.model || 'gpt-3.5-turbo',
-                                messages: messages,
-                                stream: PARAM_CONFIG.stream,
-                                temperature: adjustedTemp,
-                                max_tokens: PARAM_CONFIG.maxTokens,
-                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                                presence_penalty: PARAM_CONFIG.presencePenalty,
-                                tool_choice: "none"
-                            }
-                        });
-                        response = {
-                            ok: nativeResponse.status >= 200 && nativeResponse.status < 300,
-                            status: nativeResponse.status,
-                            text: async () => JSON.stringify(nativeResponse.data),
-                            json: async () => nativeResponse.data
-                        };
-                        if (PARAM_CONFIG.stream) {
-                            response.body = {
-                                getReader: () => {
-                                    let done = false;
-                                    return {
-                                        read: async () => {
-                                            if (done) return { done: true };
-                                            done = true;
-                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
-                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
-                                            return { done: false, value: new TextEncoder().encode(mockSse) };
-                                        }
-                                    };
-                                }
-                            };
-                        }
-                    } else {
-                        response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
-                            method: 'POST',
-                            signal: window.currentChatController.signal,
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                customEndpoint: apiUrl,
-                                customApiKey: config.key,
-                                model: config.model || 'gpt-3.5-turbo',
-                                messages: messages,
-                                stream: PARAM_CONFIG.stream,
-                                temperature: adjustedTemp,
-                                max_tokens: PARAM_CONFIG.maxTokens,
-                                frequency_penalty: PARAM_CONFIG.frequencyPenalty,
-                                presence_penalty: PARAM_CONFIG.presencePenalty,
-                                tool_choice: "none"
-                            })
-                        });
-                    }
+                    // 统一使用 fetch，不再区分 iOS 原生
+                    response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
+                        method: 'POST',
+                        signal: window.currentChatController?.signal,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            customEndpoint: apiUrl,
+                            customApiKey: config.key,
+                            model: config.model || 'gpt-3.5-turbo',
+                            messages: messages,
+                            stream: PARAM_CONFIG.stream,
+                            temperature: adjustedTemp,
+                            max_tokens: PARAM_CONFIG.maxTokens,
+                            frequency_penalty: PARAM_CONFIG.frequencyPenalty,
+                            presence_penalty: PARAM_CONFIG.presencePenalty,
+                            tool_choice: "none"
+                        })
+                    });
                 } else {
                     const directUrl = getStandardApiUrl(config.url, '/chat/completions');
                     if (isIOSNative) {
@@ -11102,7 +11062,7 @@ AI 自己永远是“我”；
         
         // --- 参数配置数据结构 ---
         const PARAM_CONFIG = {
-            stream: false, // 流式输出
+            stream: true, // 流式输出
             temperature: 0.7, // 温度 (0.1 - 2.0)
             maxTokens: 2048, // 最大长度 (256 - 4096)
             frequencyPenalty: 0.0, // 频率惩罚
@@ -16756,7 +16716,6 @@ AI 自己永远是“我”；
                     if (!isActive) {
                         // 🚨 警报：App 被划到后台了！立刻向 iOS 申请免死金牌！
                         const taskId = await BackgroundTask.beforeExit(async () => {
-                            console.log('🛡️ 后台保活已启动，JS 引擎继续运行...');
                             let secondsCount = 0;
 
                             const watchdog = setInterval(() => {
