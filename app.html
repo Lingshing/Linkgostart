@@ -5345,6 +5345,23 @@
                                         read: async () => {
                                             if (done) return { done: true };
                                             done = true;
+                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
+                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
+                                            return { done: false, value: new TextEncoder().encode(mockSse) };
+                                        }
+                                    };
+                                }
+                            };
+                        }
+
+                        if (PARAM_CONFIG.stream) {
+                            response.body = {
+                                getReader: () => {
+                                    let done = false;
+                                    return {
+                                        read: async () => {
+                                            if (done) return { done: true };
+                                            done = true;
                                             const content = nativeResponse.data.choices?.[0]?.message?.content || "";
                                             const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
                                             return { done: false, value: new TextEncoder().encode(mockSse) };
@@ -5399,6 +5416,23 @@
                             text: async () => JSON.stringify(nativeResponse.data),
                             json: async () => nativeResponse.data
                         };
+                        if (PARAM_CONFIG.stream) {
+                            response.body = {
+                                getReader: () => {
+                                    let done = false;
+                                    return {
+                                        read: async () => {
+                                            if (done) return { done: true };
+                                            done = true;
+                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
+                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
+                                            return { done: false, value: new TextEncoder().encode(mockSse) };
+                                        }
+                                    };
+                                }
+                            };
+                        }
+
                         if (PARAM_CONFIG.stream) {
                             response.body = {
                                 getReader: () => {
@@ -10302,6 +10336,23 @@ AI 自己永远是“我”；
                             text: async () => JSON.stringify(nativeResponse.data),
                             json: async () => nativeResponse.data
                         };
+                        if (PARAM_CONFIG.stream) {
+                            response.body = {
+                                getReader: () => {
+                                    let done = false;
+                                    return {
+                                        read: async () => {
+                                            if (done) return { done: true };
+                                            done = true;
+                                            const content = nativeResponse.data.choices?.[0]?.message?.content || "（无内容）";
+                                            const mockSse = `data: ${JSON.stringify({choices: [{delta: {content: content}}]})}\n\ndata: [DONE]\n`;
+                                            return { done: false, value: new TextEncoder().encode(mockSse) };
+                                        }
+                                    };
+                                }
+                            };
+                        }
+
                         if (PARAM_CONFIG.stream) {
                             const reader = response.body.getReader();
                             const decoder = new TextDecoder("utf-8");
@@ -19437,12 +19488,12 @@ AI 自己永远是“我”；
             if (!cmd) return;
             input.value = '';
             // 先记录输入的命令
-            addLogToConsole('info', '📥 输入', cmd);
+            addLogToConsole('info', '输入', cmd);
             try {
                 const result = eval(cmd);
-                addLogToConsole('success', '✅ 结果', result);
+                addLogToConsole('success', '结果', result);
             } catch (e) {
-                addLogToConsole('error', '❌ 报错', e.message);
+                addLogToConsole('error', '报错', e.message);
             }
             // 执行完毕让日志区自动滚到最上面
             const scrollArea = document.getElementById('console-scroll-area');
