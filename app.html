@@ -10039,6 +10039,17 @@ AI 自己永远是“我”；
             
             const message = input.value.trim();
             if (!message) return;
+
+            // 取消之前的请求
+            if (window.currentChatController) {
+                window.currentChatController.abort();
+            }
+            window.currentChatController = new AbortController();
+
+            // 重置后台状态
+            backgroundAIReply.inProgress = true;
+            backgroundAIReply.contactId = currentChatContactId;
+            backgroundAIReply.fullMessage = '';
             
             if (!CHAT_API_CONFIGS.currentId) {
                 alert('请先在"我"→"API配置"中选择一个配置');
@@ -19375,7 +19386,10 @@ AI 自己永远是“我”；
         if (readyMsg) readyMsg.remove();
 
         const time = new Date().toLocaleTimeString('en-US', {hour12: false});
-        let dotColor = type === 'error' ? 'var(--danger)' : type === 'warn' ? '#FF9F0A' : '#34C759';
+        let dotColor = '#34C759'; // 默认绿色
+        if (type === 'error') dotColor = 'var(--danger)';
+        else if (type === 'warn') dotColor = '#FF9F0A';
+        else if (type === 'info') dotColor = '#8E8E93';  // 灰色
         const logItem = document.createElement('div');
         logItem.style.cssText = 'margin-bottom: 18px; padding-bottom: 12px; border-bottom: 0.5px solid var(--border);';
         
@@ -19406,18 +19420,17 @@ AI 自己永远是“我”；
         if (!input || !btn) return;
 
         const run = () => {
-            const cmd = input.value.trim();
-            if (!cmd) return;
-            input.value = '';
-            try {
-                const result = eval(cmd);
-                addLogToConsole('success', '指令执行', result);
-            } catch (e) {
-                addLogToConsole('error', '执行报错', e.message);
-            }
-            // 执行完毕让日志区自动滚到最上面
-            const scrollArea = document.getElementById('console-scroll-area');
-            if(scrollArea) scrollArea.scrollTop = 0; 
+        const cmd = input.value.trim();
+        if (!cmd) return;
+        input.value = '';
+        // 先记录输入的命令
+        addLogToConsole('info', '输入', cmd);
+        try {
+            const result = eval(cmd);
+            addLogToConsole('success', '结果', result);
+        } catch (e) {
+            addLogToConsole('error', '报错', e.message);
+        }
         };
 
         btn.addEventListener('touchstart', (e) => {
