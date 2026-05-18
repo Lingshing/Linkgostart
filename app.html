@@ -4657,7 +4657,7 @@
             const writes = [
                 DB.setItem('CHAT_CONTACTS', contactsStr),
                 DB.setItem('APP_SETTINGS', settingsStr)
-                // ❌ 不写 APP_DATA，避免重复
+                // ⚠️ 不写 APP_DATA，避免重复
             ];
         
             const validIds = new Set(mockContacts.map(c => c.id));
@@ -5552,7 +5552,7 @@
             // 2. 平滑地把底部选择弹窗收回去
             closeThemeModeSelector();
             
-            // ❌ 彻底抛弃那一套重新加载逻辑，告别白屏闪烁！
+            // ⚠️ 彻底抛弃那一套重新加载逻辑，告别白屏闪烁！
         }
         
         // --- 关闭主题模式选择器 ---
@@ -6649,7 +6649,7 @@
         // --- 点击魔法棒：呼出自由修史面板 ---
         function backfillAllMemories() {
             if (!currentChatContactId) {
-                alert('❌ 请先打开一个聊天窗口');
+                alert('⚠️ 请先打开一个聊天窗口');
                 return;
             }
             const contact = mockContacts.find(c => c.id === currentChatContactId);
@@ -7136,7 +7136,7 @@
                 apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
             }
             if (!apiConfig) {
-                alert('❌ 没有可用的 API 配置');
+                alert('⚠️ 没有可用的 API 配置');
                 return;
             }
 
@@ -7327,7 +7327,7 @@
                 let rawError = error.stack || error.toString();
                 addLogToConsole('error', '修史提取出错', rawError);
                 console.error("提取出错:", error);
-                alert(`❌ 提取出错: ${error.message}\n请查看控制台获取原始错误信息。`);
+                alert(`⚠️ 提取出错: ${error.message}\n请查看控制台获取原始错误信息。`);
 
             } finally {
                 const progressBar = document.getElementById('backfill-progress-bar');
@@ -10025,17 +10025,15 @@ AI 自己永远是“我”；
                                 container.appendChild(newStream);
                                 scrollToBottom();
                             }
-                            // 随机延迟 1~2 秒（与原来完全一致）
-                            const delayMs = 1000 + Math.random() * 1000;
-                            await new Promise(resolve => setTimeout(resolve, delayMs));
-                        }
-                        isProcessingQueue = false;
-                        // 队列处理完后，移除呼吸灯容器
-                        const finalStream = document.getElementById('active-stream-container');
-                        if (finalStream && sentenceQueue.length === 0 && !backgroundAIReply.inProgress) {
-                            finalStream.remove();
-                        }
-                    };
+                                    // 随机延迟 1~2 秒（与原来完全一致）
+                                    const delayMs = 1000 + Math.random() * 1000;
+                                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                                }
+                                // 立即移除呼吸灯（因为队列已经空了）
+                                const finalStream = document.getElementById('active-stream-container');
+                                if (finalStream) finalStream.remove();
+                                isProcessingQueue = false;
+                            };
 
                     const pushSentence = (sentence) => {
                         if (!sentence.trim()) return;
@@ -10116,7 +10114,7 @@ AI 自己永远是“我”；
 
                     // 如果没有收到任何内容，显示错误
                     if (!hasAnyContent) {
-                        const errorMsg = '【流式响应未收到任何内容，请检查 API 或稍后重试】';
+                        const errorMsg = '【流式响应未收到任何内容】';
                         pushSentence(errorMsg);
                     }
 
@@ -10139,7 +10137,7 @@ AI 自己永远是“我”；
                 backgroundAIReply.contactId = null;
                 const streamCont = document.getElementById('active-stream-container');
                 if (streamCont) streamCont.remove();
-                const errorMsg = '❌ 发送失败：' + error.message;
+                const errorMsg = '⚠️ 发送失败：' + error.message;
                 const errorMsgDiv = createChatBubble('ai', errorMsg, false);
                 container.appendChild(errorMsgDiv);
                 addMessage(currentChatContactId, 'assistant', errorMsg);
@@ -12168,7 +12166,7 @@ AI 自己永远是“我”；
                 }
             } catch(e) {
                 console.error(e);
-                alert('❌ 导出失败: ' + e.message);
+                alert('⚠️ 导出失败: ' + e.message);
             }
         }
 
@@ -12197,7 +12195,7 @@ AI 自己永远是“我”；
                         pendingImportSnapshot = fileData.data || fileData.localStorageData;
                         
                         if (!pendingImportSnapshot || typeof pendingImportSnapshot !== 'object') {
-                            alert('❌ 文件格式错误，不是有效的备份文件！');
+                            alert('⚠️ 文件格式错误，不是有效的备份文件！');
                             return;
                         }
                         
@@ -12243,7 +12241,7 @@ AI 自己永远是“我”；
                         
                     } catch(e) {
                         console.error(e);
-                        alert('❌ 读取失败，备份文件可能已损坏');
+                        alert('⚠️ 读取失败，备份文件可能已损坏');
                     }
                     if (document.body.contains(input)) document.body.removeChild(input);
                 };
@@ -16406,7 +16404,7 @@ AI 自己永远是“我”；
             const topDelete = document.getElementById('todo-sheet-top-delete');
             if (topDelete) topDelete.style.visibility = 'visible';
             
-            // ❌ 彻底移除了那句会引发崩溃的报错代码
+            // ⚠️ 彻底移除了那句会引发崩溃的报错代码
 
             // 顺利弹出大抽屉
             setTimeout(() => {
