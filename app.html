@@ -3151,7 +3151,7 @@
     </style>
         <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/js-tiktoken@1.0.16/dist/index.umd.min.js"></script>
+        <script src="https://unpkg.com/js-tiktoken@1.0.16/dist/index.umd.js"></script>
 </head>
 <body>
     <div id="backfill-progress-bar"></div>
@@ -17217,22 +17217,26 @@ AI 自己永远是“我”；
 
         async function initTiktokenEncoder() {
             if (budgetTiktokenEncoder) return budgetTiktokenEncoder;
-            addLogToConsole('info', 'Token编码器', '开始初始化 cl100k_base...');
+            
+            // 等待全局 tiktoken 对象出现，最多等待 5 秒
+            let attempts = 0;
+            while (typeof tiktoken === 'undefined' && attempts < 50) {
+                await new Promise(r => setTimeout(r, 100));
+                attempts++;
+            }
+            
+            if (typeof tiktoken === 'undefined') {
+                addLogToConsole('error', 'Token编码器', '等待 tiktoken 库超时，请检查网络或刷新页面');
+                throw new Error('tiktoken 库加载超时');
+            }
+            
             try {
-                // 确保全局 tiktoken 存在
-                if (typeof tiktoken === 'undefined') {
-                    throw new Error('tiktoken 库未加载，请检查网络或刷新页面重试');
-                }
                 budgetTiktokenEncoder = await tiktoken.get_encoding("cl100k_base");
-                addLogToConsole('success', 'Token编码器', `cl100k_base 初始化成功，encoder 类型: ${typeof budgetTiktokenEncoder}`);
+                addLogToConsole('success', 'Token编码器', 'cl100k_base 初始化成功');
                 return budgetTiktokenEncoder;
             } catch (e) {
-                addLogToConsole('error', 'Token编码器初始化失败', {
-                    message: e.message,
-                    stack: e.stack,
-                    tiktokenExists: typeof tiktoken !== 'undefined'
-                });
-                throw e;  // 让上层可以降级处理
+                addLogToConsole('error', 'Token编码器初始化失败', e.message);
+                throw e;
             }
         }
 
@@ -17414,29 +17418,25 @@ AI 自己永远是“我”；
             
             addLogToConsole('info', 'Token计算', `准备计算 ${messages.length} 条消息的 token 数`);
             
-            try {
+           try {
                 const encoder = await initTiktokenEncoder();
-                // 按照 OpenAI 官方公式计算 token 数
-                let tokenCount = 0;
-                for (const msg of messages) {
-                    // 每条消息的固定标记 token (role 和 特殊标记)
-                    tokenCount += 4;
-                    // 内容的 token
-                    const encoded = encoder.encode(msg.content);
-                    tokenCount += encoded.length;
+                if (encoder) {
+                    // 精确计算
+                    let tokenCount = 0;
+                    for (const msg of messages) {
+                        tokenCount += 4;
+                        tokenCount += encoder.encode(msg.content).length;
+                    }
+                    tokenCount += 2;
+                    addLogToConsole('success', 'Token计算', `精确计算成功，总 tokens = ${tokenCount}`);
+                    return tokenCount;
+                } else {
+                    // 降级
+                    throw new Error('encoder 不可用，降级');
                 }
-                tokenCount += 2; // 对话终结标记
-                addLogToConsole('success', 'Token计算', `计算成功，总 tokens = ${tokenCount}`);
-                return tokenCount;
             } catch (e) {
-                addLogToConsole('error', 'Token计算失败（将使用降级算法）', {
-                    message: e.message,
-                    stack: e.stack
-                });
-                // 降级使用旧的估算方法
-                const fallbackResult = countTokens(messages);
-                addLogToConsole('info', 'Token计算降级', `降级算法结果 = ${fallbackResult}`);
-                return fallbackResult;
+                addLogToConsole('info', 'Token计算降级', `使用 countTokens 估算`);
+                return countTokens(messages);
             }
         }
 
