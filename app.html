@@ -6206,10 +6206,10 @@
             a) 通读本段对话，提取【已有记忆库】中完全不存在的全新属性/事件/偏好。
             b) 按"属性粒度"拆分：比如嗜甜和体能优异是两种属性，必须分别记录为两条独立记忆，严禁合并。
             c) 同一属性在本段多次出现，只保留一条，其 roundRange 标记为首次和末次的大致区间（如 "2-9"），内容不赘述次数。
-        4. 人物实体防污染：严禁将属性、物品、身体部位、组织名等当作独立人物建档。所有已知人物的新增信息，必须用"更新：角色名"附着到本体档案中。仅首次出现的真人方可建立"人物"记忆。
-        5. 人物内容格式：category 为"人物"的记忆中，content 内不得再写人名，只写新属性/特征。
-            - 正确：旧有"林深，男，慕辞的同学"，新发现他爱吃西瓜 → content: "近期表现出对西瓜的极度偏好。"
-            - 错误：content 为"林深，男，爱吃西瓜。"
+        4. 人物实体防污染：严禁将属性、物品、身体部位、组织名等当作独立人物建档。所有已知人物的新增信息，必须用"角色名"附着到本体档案中。
+        5. 人物内容格式：category 为"人物"的记忆中，content 内写人名和新属性/特征。
+            - 正确：旧有"林深，男，慕辞的同学"，新发现他爱吃西瓜 → content: "林深近期表现出对西瓜的极度偏好。"
+            - 错误：content 为"男，爱吃西瓜。"
         6. 实体代称归一：遇到已知人物的新称呼（如"慕辞的哥哥"），必须识别为原有实体"慕辞哥哥"的变体，keywords 沿用主词条，并用 previousName 指明本次出现的代称。严禁新建独立实体。
         7. 禁止联想：只记录明确发生的事实，语言自然简洁但不过度扁平。
         8. 拆分逻辑：复杂事件/设定须拆成多条 memory，每条只讲一个极简事实。
@@ -6305,9 +6305,9 @@
         正确输出：
         {
             "memories": [
-            {"category":"人物","keywords":["林深"],"content":"男性，Alpha。慕辞的同学。","score":5,"isMilestone":true,"roundRange":"2-7"},
-            {"category":"偏好","keywords":["林深"],"content":"嗜甜，特别爱吃西瓜。","score":4,"isMilestone":false,"roundRange":"7-12"},
-            {"category":"人物","keywords":["林深"],"content":"体能优异，在训练中表现突出。","score":3,"isMilestone":false,"roundRange":"12-12"}
+            {"category":"人物","keywords":["林深"],"content":"林深，男性，Alpha。慕辞的同学。","score":5,"isMilestone":true,"roundRange":"2-7"},
+            {"category":"偏好","keywords":["林深"],"content":"林深嗜甜，特别爱吃西瓜。","score":4,"isMilestone":false,"roundRange":"7-12"},
+            {"category":"人物","keywords":["林深"],"content":"林深体能优异，在训练中表现突出。","score":3,"isMilestone":false,"roundRange":"12-12"}
             ],
             "relations":[]
         }
@@ -6316,13 +6316,13 @@
         正确输出：
         {
             "memories":[
-            {"category":"偏好","keywords":["林深"],"content":"近期开始喜欢熬夜，常在凌晨两点后入睡。","score":3,"isMilestone":false,"roundRange":"15-19"}
+            {"category":"偏好","keywords":["林深"],"content":"林深近期开始喜欢熬夜，常在凌晨两点后入睡。","score":3,"isMilestone":false,"roundRange":"15-19"}
             ]
         }
 
         3. 实体防污染：已有慕辞档案，对话提及其性器尺寸。
         错误：{"category":"人物","keywords":["慕辞的性器尺寸"],"content":"尺寸为20cm。"}
-        正确：{"category":"人物","keywords":["慕辞"],"content":"私密档案：性器尺寸巨大，长度约20cm。"}
+        正确：{"category":"人物","keywords":["慕辞"],"content":"私密档案：慕辞的性器尺寸巨大，长度约20cm。"}
 
         4. 实体代称归一：记忆库已有"慕辞哥哥"，对话出现"慕辞的哥哥"。
         错误输出：keywords:["慕辞的哥哥"]
