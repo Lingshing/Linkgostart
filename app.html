@@ -5123,30 +5123,20 @@
                     if (onComplete) onComplete(fullMessage);
                     
                     } else {
-                        // 🎯 非流式响应处理
+                        // 非流式响应处理
                         const data = await response.json();
                         const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
                         
-                        // 获取消息容器
-                        const container = document.getElementById('chat-messages-container');
+                        // 清除呼吸灯容器（如果存在）
+                        const breathingDiv = document.getElementById('active-stream-container');
+                        if (breathingDiv) breathingDiv.remove();
                         
-                        // 🔥 创建并显示临时占位气泡
-                        const avatarHtml = generateAvatarHtml(false, contactId);
+                        // 使用全局队列机制（会自动逐句显示、保存历史、发送通知）
+                        startGlobalBubbleQueue(contactId, aiReply);
                         
-                        
-                        // 🎯 使用分隔气泡功能显示完整消息
-                        const result = await typeMessageInMultipleBubbles(aiReply, container);
-                        
-                        // 保存消息到历史
-                        if (result.sentences && result.sentences.length > 0) {
-                            result.sentences.forEach(sentence => {
-                                addMessage(currentChatContactId, 'assistant', sentence);
-                            });
-                            const lastSentence = result.sentences[result.sentences.length - 1];
-                            updateChatListLastMessage(currentChatContactId, lastSentence);
-                        } else {
-                            addMessage(currentChatContactId, 'assistant', aiReply);
-                            updateChatListLastMessage(currentChatContactId, aiReply);
+                        // 如果页面完全不可见，立即发送整条消息的通知（队列也会发，但可确保即时性）
+                        if (document.visibilityState !== 'visible') {
+                            sendPushNotification(aiReply);
                         }
                         
                         if (onComplete) onComplete(aiReply);
