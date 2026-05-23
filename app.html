@@ -5125,17 +5125,25 @@
                     } else {
                         // 非流式响应处理
                         const data = await response.json();
-                        const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
+                        // 增加了一层兼容，防止有些模型返回的是 data.result
+                        const aiReply = data.choices?.[0]?.message?.content || data.result || '抱歉，我没有收到回复';
 
                         // 清除呼吸灯容器（流式专用）
                         const breathingDiv = document.getElementById('active-stream-container');
                         if (breathingDiv) breathingDiv.remove();
 
-                        // 重置后台回复状态
-                        backgroundAIReply.inProgress = false;
-                        backgroundAIReply.contactId = null;
+                        // 修复 1：加上安全判断，防止 backgroundAIReply 未定义导致代码崩溃
+                        if (typeof backgroundAIReply !== 'undefined') {
+                            backgroundAIReply.inProgress = false;
+                            backgroundAIReply.contactId = null;
+                        }
 
-                        // 只触发上层完成回调，让 handleFinalAIResponse 统一处理消息保存和显示
+                        // 修复 2：像流式一样，主动把收到的消息保存到你的对话历史记录中
+                        if (aiReply) {
+                            addMessage(contactId, 'assistant', aiReply);
+                        }
+
+                        // 触发上层完成回调，把消息显示在界面上
                         if (onComplete) onComplete(aiReply);
                     }
 
