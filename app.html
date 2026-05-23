@@ -5123,24 +5123,49 @@
                     if (onComplete) onComplete(fullMessage);
                     
                     } else {
-                        // 非流式响应处理
-                        const data = await response.json();
-                        const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
-                        
-                        // 清除呼吸灯容器（如果存在）
-                        const breathingDiv = document.getElementById('active-stream-container');
-                        if (breathingDiv) breathingDiv.remove();
-                        
-                        // 使用全局队列机制（会自动逐句显示、保存历史、发送通知）
-                        startGlobalBubbleQueue(contactId, aiReply);
-                        
-                        // 如果页面完全不可见，立即发送整条消息的通知（队列也会发，但可确保即时性）
-                        if (document.visibilityState !== 'visible') {
-                            sendPushNotification(aiReply);
-                        }
-                        
-                        if (onComplete) onComplete(aiReply);
+                    // 非流式响应处理
+                    const data = await response.json();
+                    const aiReply = data.choices[0]?.message?.content || '抱歉，我没有收到回复';
+                    
+                    // 清除呼吸灯容器
+                    const breathingDiv = document.getElementById('active-stream-container');
+                    if (breathingDiv) breathingDiv.remove();
+                    
+                    // === 新增强化版：立即处理，无延迟 ===
+                    // 1. 分割句子（复用原有分割逻辑，但不要进入队列）
+                    let sentences = splitTextIntoSentences(aiReply);
+                    sentences = sentences.map(s => s.replace(/\\/g, '').trim()).filter(s => s.length > 0);
+                    if (sentences.length === 0) {
+                        sentences = [aiReply];
                     }
+                    
+                    // 2. 立即保存每条句子到历史，并刷新列表
+                    for (const sentence of sentences) {
+                        addMessage(contactId, 'assistant', sentence);
+                        updateChatListLastMessage(contactId, sentence);
+                    }
+                    
+                    // 3. 如果用户当前在这个聊天页面，立即在界面中追加所有气泡（无延迟）
+                    const isCurrentPage = document.getElementById('scene-chat') && 
+                                        document.getElementById('scene-chat').classList.contains('show') && 
+                                        currentChatContactId === contactId;
+                    if (isCurrentPage) {
+                        const container = document.getElementById('chat-messages-container');
+                        for (const sentence of sentences) {
+                            const messageDiv = createChatBubble('ai', sentence, false);
+                            container.appendChild(messageDiv);
+                        }
+                        scrollToBottom();
+                    }
+                    
+                    // 4. 发送通知（如果页面不可见）
+                    if (document.visibilityState !== 'visible') {
+                        // 取整条消息作为通知内容（或取第一句）
+                        sendPushNotification(aiReply);
+                    }
+                    
+                    if (onComplete) onComplete(aiReply);
+                }
 
                 
             } catch (error) {
