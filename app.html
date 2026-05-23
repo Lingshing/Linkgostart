@@ -10132,8 +10132,21 @@ AI 自己永远是“我”；
                         await new Promise(resolve => setTimeout(resolve, 200));
                     }
                     scrollToBottom();
+                } else {
+                    // 🌟 修复：补充缺失的非流式响应处理分支
+                    const data = await response.json();
+                    
+                    // 安全提取大模型返回的文本
+                    const aiContent = data.choices?.[0]?.message?.content || data.result || '（空消息）';
+                    
+                    // 重置后台回复状态，防止卡死
+                    backgroundAIReply.inProgress = false;
+                    backgroundAIReply.contactId = null;
+
+                    // 核心：交给统一引擎去处理打字机动画、气泡分割和历史保存
+                    handleFinalAIResponse(currentChatContactId, aiContent);
                 }
-        
+
             } catch (error) {
                 if (error.name === 'AbortError') {
                     console.log('请求被智能取消');
