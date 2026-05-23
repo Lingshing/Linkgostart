@@ -10041,9 +10041,19 @@ AI 自己永远是“我”；
 
                     const pushSentence = (sentence) => {
                         if (!sentence.trim()) return;
-                        sentenceQueue.push(sentence);
-                        // 启动队列处理器（如果还没启动）
-                        if (!isProcessingQueue) processQueue();
+                        
+                        // 🌟 核心：判断页面是否可见
+                        if (document.visibilityState === 'hidden') {
+                            // 后台模式：立即处理，不进入队列
+                            addMessage(currentChatContactId, 'assistant', sentence);
+                            updateChatListLastMessage(currentChatContactId, sentence);
+                            sendPushNotification(sentence);  // 发送通知
+                            // 注意：后台时不操作 DOM，不显示气泡
+                        } else {
+                            // 前台模式：进入队列，延迟显示
+                            sentenceQueue.push(sentence);
+                            if (!isProcessingQueue) processQueue();
+                        }
                     };
                     // ----------------------------------------------------
 
@@ -10110,7 +10120,7 @@ AI 自己永远是“我”；
                         }
                     }
 
-                    // 处理最后残留的句子
+                    // 处理最后残留的句子（立即处理）
                     if (pending.trim()) pushSentence(pending);
 
                     backgroundAIReply.inProgress = false;
