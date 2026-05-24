@@ -10009,24 +10009,27 @@ AI 自己永远是“我”；
                                 const bubbleDiv = createChatBubble('ai', sentence, false);
                                 const container = document.getElementById('chat-messages-container');
                                 container.appendChild(bubbleDiv);
-                                // 重新添加呼吸灯容器（表示还在继续生成）
-                                const newStream = document.createElement('div');
-                                newStream.id = 'active-stream-container';
-                                newStream.style.display = 'flex';
-                                newStream.style.flexDirection = 'column';
-                                newStream.style.gap = '16px';
-                                newStream.style.width = '100%';
-                                const aiMsg = document.createElement('div');
-                                aiMsg.className = 'chat-message ai';
-                                const avatarHtml = generateAvatarHtml(false, currentChatContactId);
-                                aiMsg.innerHTML = `${avatarHtml}<div class="chat-bubble breathing-mode" id="active-typing-bubble" onclick="abortCurrentAiReply()" title="点击中止生成"></div>`;
-                                newStream.appendChild(aiMsg);
-                                container.appendChild(newStream);
+                                // 🌟 修复：智能判断是否还需要显示呼吸灯
+                                // 只有当队列里还有等待发送的句子，或者API还在后台接收数据时，才显示呼吸灯
+                                if (sentenceQueue.length > 0 || backgroundAIReply.inProgress) {
+                                    const newStream = document.createElement('div');
+                                    newStream.id = 'active-stream-container';
+                                    newStream.style.display = 'flex';
+                                    newStream.style.flexDirection = 'column';
+                                    newStream.style.gap = '16px';
+                                    newStream.style.width = '100%';
+                                    const aiMsg = document.createElement('div');
+                                    aiMsg.className = 'chat-message ai';
+                                    const avatarHtml = generateAvatarHtml(false, currentChatContactId);
+                                    aiMsg.innerHTML = `${avatarHtml}<div class="chat-bubble breathing-mode" id="active-typing-bubble" onclick="abortCurrentAiReply()" title="点击中止生成"></div>`;
+                                    newStream.appendChild(aiMsg);
+                                    container.appendChild(newStream);
+                                }
                                 scrollToBottom();
                             }
-                                    // 随机延迟 1~2 秒（与原来完全一致）
-                                    const delayMs = 1000 + Math.random() * 1000;
-                                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                                // 随机延迟 1~2 秒（与原来完全一致）
+                                const delayMs = 1000 + Math.random() * 1000;
+                                await new Promise(resolve => setTimeout(resolve, delayMs));
                                 }
                                 // 立即移除呼吸灯（因为队列已经空了）
                                 const finalStream = document.getElementById('active-stream-container');
