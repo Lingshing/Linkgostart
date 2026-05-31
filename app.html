@@ -4820,6 +4820,30 @@
             } else if (!APP_DATA.activityStats) {
                 APP_DATA.activityStats = {};
             }
+
+            // ===== 强制同步：从 APP_SETTINGS 中更新 ACTIVITY_STATS（确保 5.19-5.31 数据恢复）=====
+            try {
+                const settingsStr = await DB.getItem('APP_SETTINGS');
+                if (settingsStr) {
+                    const settings = JSON.parse(settingsStr);
+                    if (settings.activityStats && Object.keys(settings.activityStats).length > 0) {
+                        // 读取当前独立键中的旧数据（如果存在）
+                        let existingStats = {};
+                        const existingStatsStr = await DB.getItem('ACTIVITY_STATS');
+                        if (existingStatsStr) existingStats = JSON.parse(existingStatsStr);
+                        
+                        // 将 APP_SETTINGS 中的 activityStats 合并到独立键（以后者为准，覆盖冲突）
+                        const newStats = { ...existingStats, ...settings.activityStats };
+                        await DB.setItem('ACTIVITY_STATS', JSON.stringify(newStats));
+                        console.log('✅ 已从 APP_SETTINGS 同步 activityStats 到 ACTIVITY_STATS');
+                        
+                        // 同时更新内存中的 APP_DATA.activityStats
+                        APP_DATA.activityStats = newStats;
+                    }
+                }
+            } catch(e) {
+                console.error('从 APP_SETTINGS 同步 activityStats 失败', e);
+            }
         }
         
         // --- 按时间排序聊天列表 ---
@@ -12396,6 +12420,22 @@ AI 自己永远是“我”；
                         }
                     } catch(e) { console.error('拆分旧 APP_DATA 失败', e); }
                     shouldImport = false; // 不直接导入 APP_DATA 整体
+                }
+
+                // 兼容新格式备份：从 APP_SETTINGS 中提取 activityStats
+                if (key === 'APP_SETTINGS' && (checkedCategories.includes('interaction') || checkedCategories.includes('chat'))) {
+                    try {
+                        const settings = JSON.parse(valStr);
+                        // 恢复互动视图数据
+                        if (settings.activityStats && checkedCategories.includes('interaction')) {
+                            await DB.setItem('ACTIVITY_STATS', JSON.stringify(settings.activityStats));
+                            console.log('✅ 已从 APP_SETTINGS 恢复 ACTIVITY_STATS');
+                        }
+                        // 注意：聊天记录已经在 CONV_* 中单独处理，这里不再重复
+                    } catch(e) {
+                        console.error('拆分 APP_SETTINGS 失败', e);
+                    }
+                    shouldImport = false; // 不直接导入 APP_SETTINGS 整体（避免覆盖当前配置）
                 }
 
                 if (shouldImport) {
