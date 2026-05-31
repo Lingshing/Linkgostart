@@ -4588,6 +4588,15 @@
             }
         };
 
+        // ========== 互动视图独立存储辅助函数 ==========
+        async function loadActivityStats() {
+            const stats = await DB.getItem('ACTIVITY_STATS');
+            return stats ? JSON.parse(stats) : {};
+        }
+        async function saveActivityStats(stats) {
+            await DB.setItem('ACTIVITY_STATS', JSON.stringify(stats));
+        }
+
         function getStandardApiUrl(rawUrl, endpoint = '/chat/completions') {
             let url = rawUrl.trim();
             // 1. 先把末尾可能存在的 /chat/completions 或 /models 和斜杠切掉
@@ -4789,6 +4798,28 @@
             } catch(e) {
                 console.error('加载数据失败:', e);
             }
+            // 迁移：将旧的 activityStats 从 APP_DATA 移到独立键 ACTIVITY_STATS
+            try {
+                let hasNew = await DB.getItem('ACTIVITY_STATS');
+                if (!hasNew) {
+                    const appDataStr = await DB.getItem('APP_DATA');
+                    if (appDataStr) {
+                        const appData = JSON.parse(appDataStr);
+                        if (appData.activityStats && Object.keys(appData.activityStats).length > 0) {
+                            await DB.setItem('ACTIVITY_STATS', JSON.stringify(appData.activityStats));
+                            console.log('✅ 已将活动统计数据迁移到 ACTIVITY_STATS');
+                        }
+                    }
+                }
+            } catch(e) { console.error('迁移 activityStats 失败', e); }
+                
+            // 确保 APP_DATA.activityStats 有值（优先从独立键读取）
+            const independentStats = await DB.getItem('ACTIVITY_STATS');
+            if (independentStats) {
+                APP_DATA.activityStats = JSON.parse(independentStats);
+            } else if (!APP_DATA.activityStats) {
+                APP_DATA.activityStats = {};
+            }
         }
         
         // --- 按时间排序聊天列表 ---
@@ -4855,7 +4886,7 @@
             return APP_DATA.conversations[contactId];
         }
         
-        function addMessage(contactId, role, content) {
+        async function addMessage(contactId, role, content) {
             // 添加一条消息到对话历史
             const conversation = getConversation(contactId);
             conversation.push({ role, content, timestamp: Date.now() });
@@ -4864,12 +4895,14 @@
             if (!APP_DATA.activityStats) APP_DATA.activityStats = {};
             const d = new Date();
             const todayStr = d.toLocaleDateString('zh-CN').replace(/\//g, '-');
-            const hourKey = todayStr + '_' + d.getHours(); // 生成小时级标记
+            const hourKey = todayStr + '_' + d.getHours();
 
             // 只在用户发言时统计（记为1轮）
             if (role === 'user') {
                 APP_DATA.activityStats[todayStr] = (APP_DATA.activityStats[todayStr] || 0) + 1;
                 APP_DATA.activityStats[hourKey] = (APP_DATA.activityStats[hourKey] || 0) + 1;
+                // 同时同步到独立键 ACTIVITY_STATS
+                await saveActivityStats(APP_DATA.activityStats);
             }
 
             saveToLocal();
@@ -12047,12 +12080,14 @@ AI 自己永远是“我”；
 
         // --- 分类字典与兜底规则 ---
         const EXPORT_DICTIONARY = {
-            chat: ['APP_DATA', 'CHAT_CONTACTS'],
-            api: ['CHAT_API_CONFIGS', 'OTHER_API_CONFIGS', 'MODEL_PARAMS'],
-            ui: ['theme', 'themeMode'],
+            chat: ['CHAT_CONTACTS'],          // 只存角色列表，对话记录单独处理
+            interaction: ['ACTIVITY_STATS'],   // 互动视图数据
+            api: ['CHAT_API_CONFIGS', 'OTHER_API_CONFIGS', 'MODEL_PARAMS', 'PARAM_CONFIG', 'MEMORY_CONFIG'],
+            appearance: ['AVATAR_CONFIG', 'theme', 'themeMode'],
             general: ['GENERAL_CONFIG', 'PUSH_ENABLED', 'PUSH_SHOW_CONTENT', 'KEEP_ALIVE_ENABLED', 'RELOAD_TARGET_PAGE'],
             presets: ['PRESETS', 'ADVANCED_PRESET_FILES'],
-            regex: ['REGEX_RULES', 'ADVANCED_REGEX_FILES']
+            regex: ['REGEX_RULES', 'ADVANCED_REGEX_FILES'],
+            forum: ['FORUM_POSTS']
         };
 
         // 1. 打开导出弹窗 (修复透明度Bug版)
@@ -12089,16 +12124,16 @@ AI 自己永远是“我”；
         }
 
         // 4. 执行分类导出
-        async function executeCategorizedExport() { 
-            await saveQueue; // 等待所有写入完
-             try {
+        async function executeCategorizedExport() {
+            await saveQueue; // 等待所有写入完成
+            try {
                 // 保存最新内存数据
                 if (typeof saveToLocal === 'function') await saveToLocal();
                 if (typeof saveChatApiConfigs === 'function') saveChatApiConfigs();
                 if (typeof saveOtherApiConfigs === 'function') saveOtherApiConfigs();
                 if (typeof saveGeneralConfig === 'function') saveGeneralConfig();
 
-                // 获取所有被勾选的分类
+                // 获取用户勾选的分类
                 const checkedCategories = Array.from(document.querySelectorAll('.export-item-cb'))
                     .filter(cb => cb.checked)
                     .map(cb => cb.value);
@@ -12108,53 +12143,54 @@ AI 自己永远是“我”；
                     return;
                 }
 
-                // 整理需要导出的 Key
-                let targetKeys = [];
-                let exportOther = checkedCategories.includes('other');
-                checkedCategories.forEach(category => {
-                    if (EXPORT_DICTIONARY[category]) {
-                        targetKeys = targetKeys.concat(EXPORT_DICTIONARY[category]);
-                    }
-                });
-
-                // 开始提取数据
                 const snapshot = {};
-                
-                // 【第一步】：从普通缓存 (localStorage) 提取配置和轻量数据
+
+                // 1. 处理普通 localStorage 键（按字典）
                 const allLocalKeys = Object.keys(localStorage);
                 allLocalKeys.forEach(key => {
-                    if (targetKeys.includes(key)) {
-                        snapshot[key] = localStorage.getItem(key);
-                    } else if (exportOther) {
-                        let isKnownKey = false;
-                        for (let cat in EXPORT_DICTIONARY) {
-                            if (EXPORT_DICTIONARY[cat].includes(key)) isKnownKey = true;
-                        }
-                        if (!isKnownKey) {
+                    // 检查这个键属于哪个分类
+                    let owned = false;
+                    for (let cat of checkedCategories) {
+                        if (EXPORT_DICTIONARY[cat] && EXPORT_DICTIONARY[cat].includes(key)) {
                             snapshot[key] = localStorage.getItem(key);
+                            owned = true;
+                            break;
                         }
                     }
                 });
 
-                // 【第二步】：从大仓库 (IndexedDB / localforage) 提取聊天记录重度数据
-                const forageKeys = await localforage.keys();
-                for (const key of forageKeys) {
-                    if (targetKeys.includes(key)) {
-                        snapshot[key] = await DB.getItem(key);
-                    } else if (exportOther) {
-                        let isKnownKey = false;
-                        for (let cat in EXPORT_DICTIONARY) {
-                            if (EXPORT_DICTIONARY[cat].includes(key)) isKnownKey = true;
-                        }
-                        if (!isKnownKey) {
-                            snapshot[key] = await DB.getItem(key);
+                // 2. 特殊处理：如果勾选了 chat 分类，则把所有 CONV_* 对话记录打包
+                if (checkedCategories.includes('chat')) {
+                    const forageKeys = await localforage.keys();
+                    for (const key of forageKeys) {
+                        if (key.startsWith('CONV_')) {
+                            const val = await DB.getItem(key);
+                            if (val) snapshot[key] = val;
                         }
                     }
                 }
 
-                // 打包下载
+                // 3. 特殊处理：互动视图数据 (ACTIVITY_STATS) — 如果尚未迁移，则从 APP_DATA 里提取
+                if (checkedCategories.includes('interaction')) {
+                    let activityStats = await DB.getItem('ACTIVITY_STATS');
+                    if (!activityStats) {
+                        // 兼容旧数据：从 APP_DATA 里提取
+                        const appDataStr = await DB.getItem('APP_DATA');
+                        if (appDataStr) {
+                            try {
+                                const appData = JSON.parse(appDataStr);
+                                if (appData.activityStats) {
+                                    activityStats = JSON.stringify(appData.activityStats);
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                    if (activityStats) snapshot['ACTIVITY_STATS'] = activityStats;
+                }
+
+                // 4. 打包下载
                 const exportData = {
-                    _version: '7.0',
+                    _version: '7.1',  // 版本号增加，表示新格式
                     _time: new Date().toISOString(),
                     data: snapshot
                 };
@@ -12163,18 +12199,10 @@ AI 自己永远是“我”；
                 const dateStr = new Date().toISOString().split('T')[0];
                 const fileName = `linkgo-backup-${dateStr}.json`;
 
-                // iOS App 原生分享呼出魔法
                 const file = new File([blob], fileName, { type: 'application/json' });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    navigator.share({
-                        files: [file],
-                    }).then(() => {
-                        closeExportSheet();
-                    }).catch(e => {
-                        closeExportSheet();
-                    });
+                    navigator.share({ files: [file] }).then(() => closeExportSheet()).catch(() => closeExportSheet());
                 } else {
-                    // 兜底方案
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
@@ -12187,7 +12215,7 @@ AI 自己永远是“我”；
                         URL.revokeObjectURL(url);
                     }, 2000);
                     closeExportSheet();
-                    alert('✅ 分类导出成功！');
+                    alert('✅ 导出成功！');
                 }
             } catch(e) {
                 console.error(e);
@@ -12303,11 +12331,9 @@ AI 自己永远是“我”；
             });
         });
 
-        // 4. 执行分类覆盖
-        async function executeCategorizedImport() { // 🌟 修复1：改为异步函数
+        async function executeCategorizedImport() {
             if (!pendingImportSnapshot) return;
 
-            // 看看用户勾选了哪些分类
             const checkedCategories = Array.from(document.querySelectorAll('.import-item-cb'))
                 .filter(cb => cb.checked)
                 .map(cb => cb.value);
@@ -12321,16 +12347,7 @@ AI 自己永远是“我”；
                 return;
             }
 
-            // 将勾选的分类转化为实际需要覆盖的 Key
-            let targetKeys = [];
-            let importOther = checkedCategories.includes('other');
-            checkedCategories.forEach(category => {
-                if (EXPORT_DICTIONARY[category]) {
-                    targetKeys = targetKeys.concat(EXPORT_DICTIONARY[category]);
-                }
-            });
-
-            // 终极护盾：瘫痪保存函数，防止刷新时旧数据反向覆盖
+            // 临时禁止自动保存，防止恢复过程中被覆盖
             window.saveToLocal = function() {};
             window.saveChatApiConfigs = function() {};
             window.saveOtherApiConfigs = function() {};
@@ -12338,32 +12355,51 @@ AI 自己永远是“我”；
             window.saveAdvancedPresetFiles = function() {};
             window.saveAdvancedRegexFiles = function() {};
 
-            // 遍历备份文件里的所有数据
             const backupKeys = Object.keys(pendingImportSnapshot);
-            for (const key of backupKeys) { // 🌟 修复2：使用 for...of 以支持大仓库的 await 写入
+            for (const key of backupKeys) {
                 let shouldImport = false;
-                
-                // 如果这个 key 属于用户勾选的明确分类
-                if (targetKeys.includes(key)) {
+                const valStr = String(pendingImportSnapshot[key]);
+
+                // 1. 先判断是否属于勾选分类的静态键
+                for (let cat of checkedCategories) {
+                    if (EXPORT_DICTIONARY[cat] && EXPORT_DICTIONARY[cat].includes(key)) {
+                        shouldImport = true;
+                        break;
+                    }
+                }
+
+                // 2. 特殊处理 CONV_* 动态键（仅当勾选了 chat 分类）
+                if (checkedCategories.includes('chat') && key.startsWith('CONV_')) {
                     shouldImport = true;
                 }
-                // 兜底逻辑：如果用户勾选了"其他"，且这个 key 不在我们的字典里
-                else if (importOther) {
-                    let isKnownKey = false;
-                    for (let cat in EXPORT_DICTIONARY) {
-                        if (EXPORT_DICTIONARY[cat].includes(key)) isKnownKey = true;
-                    }
-                    if (!isKnownKey) {
-                        shouldImport = true;
-                    }
+
+                // 3. 特殊处理 ACTIVITY_STATS（当勾选了 interaction 分类）
+                if (checkedCategories.includes('interaction') && key === 'ACTIVITY_STATS') {
+                    shouldImport = true;
                 }
-                
-                // 只有符合条件的数据，才会被写入当前存储！
+
+                // 4. 兼容旧备份：如果备份文件里还有 APP_DATA，且勾选了 interaction 或 chat，尝试拆分恢复
+                if (key === 'APP_DATA' && (checkedCategories.includes('interaction') || checkedCategories.includes('chat'))) {
+                    try {
+                        const oldAppData = JSON.parse(valStr);
+                        // 恢复互动视图数据
+                        if (oldAppData.activityStats && checkedCategories.includes('interaction')) {
+                            await DB.setItem('ACTIVITY_STATS', JSON.stringify(oldAppData.activityStats));
+                        }
+                        // 恢复聊天记录（如果备份里没有单独的 CONV_*，则从 conversations 恢复）
+                        if (checkedCategories.includes('chat') && oldAppData.conversations) {
+                            for (const [contactId, conv] of Object.entries(oldAppData.conversations)) {
+                                if (conv && conv.length > 0) {
+                                    await DB.setItem(`CONV_${contactId}`, JSON.stringify(conv));
+                                }
+                            }
+                        }
+                    } catch(e) { console.error('拆分旧 APP_DATA 失败', e); }
+                    shouldImport = false; // 不直接导入 APP_DATA 整体
+                }
+
                 if (shouldImport) {
-                    const valStr = String(pendingImportSnapshot[key]);
-                    
-                    // 🌟 核心修复3：重度数据必须安全回归 IndexedDB，否则将直接撑爆报错！
-                    if (key === 'APP_DATA' || key === 'CHAT_CONTACTS') {
+                    if (key.startsWith('CONV_') || key === 'ACTIVITY_STATS') {
                         await DB.setItem(key, valStr);
                     } else {
                         localStorage.setItem(key, valStr);
@@ -14089,6 +14125,12 @@ AI 自己永远是“我”；
             const timeBox = document.getElementById('hm-val-time').parentElement;
             timeBox.onclick = toggleTimeStat;
             timeBox.style.cursor = range === 'day' ? 'default' : 'pointer'; 
+
+            // 确保使用最新的独立键数据
+            if (window.loadActivityStats) {
+                // 异步加载，但因为 switchHmRange 是同步调用，需要稍微改造
+                // 简单起见，我们直接使用 APP_DATA.activityStats（它已经和独立键同步）
+            }
 
             if (!APP_DATA.activityStats) APP_DATA.activityStats = {};
             const stats = APP_DATA.activityStats;
@@ -18838,13 +18880,14 @@ AI 自己永远是“我”；
                 </div>
                 
                 <div class="sheet-body" id="export-options-list" style="padding: 20px; display: flex; flex-direction: column; gap: 16px; font-size: 16px;">
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="chat" checked style="width:18px; height:18px; accent-color: var(--accent);"> 聊天、角色与互动视图</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="chat" checked style="width:18px; height:18px; accent-color: var(--accent);"> 聊天记录</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="interaction" checked style="width:18px; height:18px; accent-color: var(--accent);"> 互动视图</label>
                     <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="api" checked style="width:18px; height:18px; accent-color: var(--accent);"> API与模型配置</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="ui" checked style="width:18px; height:18px; accent-color: var(--accent);"> 外观与主题设置</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="general" checked style="width:18px; height:18px; accent-color: var(--accent);"> 通用偏好与系统状态</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="appearance" checked style="width:18px; height:18px; accent-color: var(--accent);"> 外观与主题</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="general" checked style="width:18px; height:18px; accent-color: var(--accent);"> 通用设置</label>
                     <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="presets" checked style="width:18px; height:18px; accent-color: var(--accent);"> 高级预设库</label>
                     <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="regex" checked style="width:18px; height:18px; accent-color: var(--accent);"> 正则过滤规则</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="other" checked style="width:18px; height:18px; accent-color: var(--accent);"> 其他扩展数据</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="forum" checked style="width:18px; height:18px; accent-color: var(--accent);"> 论坛数据</label>
                 </div>
 
                 <div style="padding: 10px 20px 34px;">
@@ -18863,13 +18906,14 @@ AI 自己永远是“我”；
                 </div>
                 
                 <div class="sheet-body" id="import-options-list" style="padding: 20px; display: flex; flex-direction: column; gap: 16px; font-size: 16px;">
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="chat" checked style="width:18px; height:18px; accent-color: var(--accent);"> 聊天、角色与互动视图</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="chat" checked style="width:18px; height:18px; accent-color: var(--accent);"> 聊天记录</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="interaction" checked style="width:18px; height:18px; accent-color: var(--accent);"> 互动视图</label>
                     <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="api" checked style="width:18px; height:18px; accent-color: var(--accent);"> API与模型配置</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="ui" checked style="width:18px; height:18px; accent-color: var(--accent);"> 外观与主题设置</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="general" checked style="width:18px; height:18px; accent-color: var(--accent);"> 通用偏好与系统状态</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="appearance" checked style="width:18px; height:18px; accent-color: var(--accent);"> 外观与主题</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="general" checked style="width:18px; height:18px; accent-color: var(--accent);"> 通用设置</label>
                     <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="presets" checked style="width:18px; height:18px; accent-color: var(--accent);"> 高级预设库</label>
                     <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="regex" checked style="width:18px; height:18px; accent-color: var(--accent);"> 正则过滤规则</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="other" checked style="width:18px; height:18px; accent-color: var(--accent);"> 其他扩展数据</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="forum" checked style="width:18px; height:18px; accent-color: var(--accent);"> 论坛数据</label>
                 </div>
 
                 <div style="padding: 10px 20px 34px;">
