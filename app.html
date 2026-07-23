@@ -7585,6 +7585,7 @@
             
             const currentMode = contact?.chatMode || 'none'; // 默认为都不选
 
+
            if (currentMode === 'online') {
             finalPrompt += `\n\n【聊天模式设定：线上网络聊天】
             你现在正在和用户通过网络社交软件（如微信/QQ）进行线上聊天。
@@ -7605,12 +7606,25 @@
             `;
         
                             } else if (currentMode === 'offline') {
+    // 1. 计算篇幅建议（放在前面）
+    let lengthGuidance = "";
+    if (PARAM_CONFIG.minTokens > 256) {
+        const minChars = Math.round(PARAM_CONFIG.minTokens * 0.75);
+        lengthGuidance = `
+【当前回复篇幅建议】
+系统设定的最小输出长度为 ${PARAM_CONFIG.minTokens} tokens（约 ${minChars} 个中文字符）。
+请在构思时参考此篇幅，通过增加动作细节、心理描写、环境渲染或对话互动来自然达到该深度。
+不要为了凑字数而重复，而是让情节和描写更加饱满丰富。
+`;
+    }
+    // 2. 然后拼接真正的 prompt（注意用 +=，不要覆盖）
+    finalPrompt += lengthGuidance;
     finalPrompt += `\n\n【核心定位与绝对规则】
 你是${contact.name}，正在与用户进行深度沉浸式的角色扮演。
 你是一个顶级的文学共创者，擅长细腻的感官描写与极致的张力，文风类似顶级实体出版小说。
 
 【气泡分割与排版绝对法则】（前端UI强依赖此格式，必须100%服从！）：
-1. 你的每次回复一般由 4 到 7 组【行为语言块】组成，但可根据剧情灵活调整。
+1. 你的每次回复一般由 若干组【行为语言块】组成，数量不限（根据当前剧情的推进节奏自由决定）。需要详细描写时就多用几组，需要快速推进时就少用几组，一切以叙事流畅为准。
 2. 每个【行为语言块】严格遵循 \`(动作描写)对话内容\` 的结构。
 3. 必须使用反斜线 \`\\\` 来平滑分隔不同的块。
    ✅ 正确示范：(动作1)话语1\\(动作2)话语2\\(动作3)话语3
@@ -9978,6 +9992,10 @@ AI 自己永远是“我”；
                 } else {
                     mergedChat.push({ role: 'user', content: `【系统越狱强制指令，绝对服从】：${presetJailbreakContent}` });
                 }
+            }
+            if (lastUserIndex !== -1 && PARAM_CONFIG.minTokens > 256) {
+                const minChars = Math.round(PARAM_CONFIG.minTokens * 0.75);
+                mergedChat[lastUserIndex].content += `\n\n【强制要求】你的回复必须至少包含 ${minChars} 个中文字符（或等长英文）。请务必详实、分点阐述，禁止简短收尾。`;
             }
             messages.push(...mergedChat);
 
