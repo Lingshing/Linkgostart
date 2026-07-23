@@ -3543,6 +3543,21 @@
                     </div>
                 </div>
                 
+                <!-- 最小长度滑块 -->
+                <div class="api-input-item" style="flex-direction: column; align-items: stretch; padding: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div class="api-input-label" style="width: auto;">最小长度</div>
+                        <div style="font-size: 16px; font-weight: 600; color: var(--text-sub);" id="min-tokens-display">256</div>
+                    </div>
+                    <div class="api-slider-track" id="min-tokens-track">
+                        <div class="api-slider-thumb" id="min-tokens-thumb"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--text-sub);">
+                        <span>256</span>
+                        <span>4096</span>
+                    </div>
+                </div>
+
                 <!-- Max Tokens 滑块 -->
                 <div class="api-input-item" style="flex-direction: column; align-items: stretch; padding: 16px; border-bottom: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -5102,6 +5117,7 @@
                         stream: PARAM_CONFIG.stream,
                         temperature: PARAM_CONFIG.temperature,
                         max_tokens: PARAM_CONFIG.maxTokens,
+                        min_tokens: PARAM_CONFIG.minTokens,
                         frequency_penalty: PARAM_CONFIG.frequencyPenalty,
                         presence_penalty: PARAM_CONFIG.presencePenalty
                     })
@@ -10000,6 +10016,7 @@ AI 自己永远是“我”；
                             stream: PARAM_CONFIG.stream,
                             temperature: adjustedTemp,
                             max_tokens: PARAM_CONFIG.maxTokens,
+                            min_tokens: PARAM_CONFIG.minTokens,
                             frequency_penalty: PARAM_CONFIG.frequencyPenalty,
                             presence_penalty: PARAM_CONFIG.presencePenalty,
                             tool_choice: "none"
@@ -10017,6 +10034,7 @@ AI 自己永远是“我”；
                                 stream: PARAM_CONFIG.stream,
                                 temperature: adjustedTemp,
                                 max_tokens: PARAM_CONFIG.maxTokens,
+                                min_tokens: PARAM_CONFIG.minTokens,
                                 frequency_penalty: PARAM_CONFIG.frequencyPenalty,
                                 presence_penalty: PARAM_CONFIG.presencePenalty,
                                 tool_choice: "none"
@@ -10055,6 +10073,7 @@ AI 自己永远是“我”；
                                 stream: PARAM_CONFIG.stream,
                                 temperature: adjustedTemp,
                                 max_tokens: PARAM_CONFIG.maxTokens,
+                                min_tokens: PARAM_CONFIG.minTokens,
                                 frequency_penalty: PARAM_CONFIG.frequencyPenalty,
                                 presence_penalty: PARAM_CONFIG.presencePenalty,
                                 tool_choice: "none"
@@ -10885,6 +10904,7 @@ AI 自己永远是“我”；
         const PARAM_CONFIG = {
             stream: true, // 流式输出
             temperature: 0.7, // 温度 (0.1 - 2.0)
+            minTokens: 256,
             maxTokens: 2048, // 最大长度 (256 - 4096)
             frequencyPenalty: 0.0, // 频率惩罚
             presencePenalty: 0.0 // 存在惩罚
@@ -10897,6 +10917,7 @@ AI 自己永远是“我”；
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     Object.assign(PARAM_CONFIG, parsed);
+                    if (PARAM_CONFIG.minTokens === undefined) PARAM_CONFIG.minTokens = 256;
                 }
                 
                 // 更新UI显示
@@ -10972,6 +10993,20 @@ AI 自己永远是“我”；
                 const min = 256;
                 const max = 4096;
                 const percent = ((PARAM_CONFIG.maxTokens - min) / (max - min)) * 100;
+                thumb.style.left = percent + '%';
+            }
+        }
+
+        // --- 更新最小长度显示 ---
+        function updateMinTokensUI() {
+            const display = document.getElementById('min-tokens-display');
+            const thumb = document.getElementById('min-tokens-thumb');
+            
+            if (display) display.textContent = PARAM_CONFIG.minTokens;
+            if (thumb) {
+                const min = 256;
+                const max = 4096;
+                const percent = ((PARAM_CONFIG.minTokens - min) / (max - min)) * 100;
                 thumb.style.left = percent + '%';
             }
         }
@@ -11157,10 +11192,44 @@ AI 自己永远是“我”；
             });
         }
         
+        // --- 初始化最小长度滑块 ---
+        function initMinTokensSlider() {
+            const track = document.getElementById('min-tokens-track');
+            const thumb = document.getElementById('min-tokens-thumb');
+            
+            if (!track || !thumb) return;
+            
+            let isDragging = false;
+            const min = 256;
+            const max = 4096;
+            
+            const updateValue = (clientX) => {
+                const rect = track.getBoundingClientRect();
+                let percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+                let value = min + (percent / 100) * (max - min);
+                value = Math.round(value / 128) * 128;
+                value = Math.max(min, Math.min(max, value));
+                
+                PARAM_CONFIG.minTokens = value;
+                thumb.style.left = ((value - min) / (max - min)) * 100 + '%';
+                document.getElementById('min-tokens-display').textContent = value;
+                saveParamConfig();
+            };
+            
+            track.addEventListener('mousedown', (e) => { isDragging = true; updateValue(e.clientX); });
+            document.addEventListener('mousemove', (e) => { if (isDragging) updateValue(e.clientX); });
+            document.addEventListener('mouseup', () => { isDragging = false; });
+            
+            thumb.addEventListener('touchstart', (e) => { isDragging = true; e.preventDefault(); });
+            document.addEventListener('touchmove', (e) => { if (isDragging && e.touches[0]) updateValue(e.touches[0].clientX); });
+            document.addEventListener('touchend', () => { isDragging = false; });
+        }
+
         // --- 初始化参数配置系统 ---
         function initParamConfigSystem() {
             loadParamConfig();
             initTemperatureSlider();
+            initMinTokensSlider();
             initMaxTokensSlider();
             initFrequencySlider();
             initPresenceSlider();
