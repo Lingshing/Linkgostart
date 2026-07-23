@@ -9983,15 +9983,22 @@ AI 自己永远是“我”；
 
             // ========== 🚀 强制最小长度补丁（因为 OpenAI 不支持 min_tokens） ==========
             if (PARAM_CONFIG.minTokens > 256) {
-                // 将 token 数换算成大致的中文字符数（1 token ≈ 0.75 个中文）
                 const minChars = Math.round(PARAM_CONFIG.minTokens * 0.75);
-                
-                // 生成强制指令
-                const enforceMsg = `\n\n【系统强制指令 - 输出长度约束】你本次的回复必须至少包含 ${minChars} 个中文字符（或英文单词同等长度）。请确保回复足够详细、充实，绝对禁止只回复几个字或简短的句子。当前已设定的最小长度为 ${PARAM_CONFIG.minTokens} tokens。`;
-                
-                // 如果第一条是系统消息，直接追加；否则新建一条系统消息
+                const enforceMsg = `
+            【绝对强制 - 输出长度红线】
+            你本次的完整回复**必须**至少包含 ${minChars} 个中文字符（或等长英文）。
+            低于此数，视为严重违规，对话将终止并计入失败记录。
+
+            为了达到长度，请务必：
+            - 使用更加具体的语言进行细节、感受、逻辑推演、心理描写、动作描写
+            - 适当续写或推进故事
+
+            若你觉得自己可能不够，请主动补充背景、举例、假设情境来延长。
+                `.trim();
+
+                // 追加到系统消息
                 if (messages.length > 0 && messages[0].role === 'system') {
-                    messages[0].content += enforceMsg;
+                    messages[0].content += '\n\n' + enforceMsg;
                 } else {
                     messages.unshift({ role: 'system', content: enforceMsg });
                 }
