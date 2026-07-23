@@ -9725,7 +9725,7 @@ AI 自己永远是“我”；
                     finalFullMessage += '\n\n（刚刚好像没说完，请继续补充，让回复更加完整、详细，至少达到目标长度。）';
                 }
             }
-            
+
             // 交给后台队列逐条显示
             startGlobalBubbleQueue(contactId, finalFullMessage);
             
@@ -10948,6 +10948,7 @@ AI 自己永远是“我”；
                 // 更新UI显示
                 updateStreamSwitchUI();
                 updateTemperatureUI();
+                updateMinTokensUI();
                 updateMaxTokensUI();
                 updateFrequencyUI();
                 updatePresenceUI();
