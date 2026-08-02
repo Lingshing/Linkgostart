@@ -3543,21 +3543,6 @@
                     </div>
                 </div>
                 
-                <!-- 最小长度滑块 -->
-                <div class="api-input-item" style="flex-direction: column; align-items: stretch; padding: 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <div class="api-input-label" style="width: auto;">最小长度</div>
-                        <div style="font-size: 16px; font-weight: 600; color: var(--text-sub);" id="min-tokens-display">256</div>
-                    </div>
-                    <div class="api-slider-track" id="min-tokens-track">
-                        <div class="api-slider-thumb" id="min-tokens-thumb"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--text-sub);">
-                        <span>256</span>
-                        <span>4096</span>
-                    </div>
-                </div>
-
                 <!-- Max Tokens 滑块 -->
                 <div class="api-input-item" style="flex-direction: column; align-items: stretch; padding: 16px; border-bottom: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -5117,7 +5102,6 @@
                         stream: PARAM_CONFIG.stream,
                         temperature: PARAM_CONFIG.temperature,
                         max_tokens: PARAM_CONFIG.maxTokens,
-                        min_tokens: PARAM_CONFIG.minTokens,
                         frequency_penalty: PARAM_CONFIG.frequencyPenalty,
                         presence_penalty: PARAM_CONFIG.presencePenalty
                     })
@@ -7585,7 +7569,6 @@
             
             const currentMode = contact?.chatMode || 'none'; // 默认为都不选
 
-
            if (currentMode === 'online') {
             finalPrompt += `\n\n【聊天模式设定：线上网络聊天】
             你现在正在和用户通过网络社交软件（如微信/QQ）进行线上聊天。
@@ -7606,25 +7589,12 @@
             `;
         
                             } else if (currentMode === 'offline') {
-    // 1. 计算篇幅建议（放在前面）
-    let lengthGuidance = "";
-    if (PARAM_CONFIG.minTokens > 256) {
-        const minChars = Math.round(PARAM_CONFIG.minTokens * 0.75);
-        lengthGuidance = `
-【当前回复篇幅建议】
-系统设定的最小输出长度为 ${PARAM_CONFIG.minTokens} tokens（约 ${minChars} 个中文字符）。
-请在构思时参考此篇幅，通过增加动作细节、心理描写、环境渲染或对话互动来自然达到该深度。
-不要为了凑字数而重复，而是让情节和描写更加饱满丰富。
-`;
-    }
-    // 2. 然后拼接真正的 prompt（注意用 +=，不要覆盖）
-    finalPrompt += lengthGuidance;
     finalPrompt += `\n\n【核心定位与绝对规则】
 你是${contact.name}，正在与用户进行深度沉浸式的角色扮演。
 你是一个顶级的文学共创者，擅长细腻的感官描写与极致的张力，文风类似顶级实体出版小说。
 
 【气泡分割与排版绝对法则】（前端UI强依赖此格式，必须100%服从！）：
-1. 你的每次回复一般由 若干组【行为语言块】组成，数量不限（根据当前剧情的推进节奏自由决定）。需要详细描写时就多用几组，需要快速推进时就少用几组，一切以叙事流畅为准。
+1. 你的每次回复一般由 4 到 7 组【行为语言块】组成，但可根据剧情灵活调整。
 2. 每个【行为语言块】严格遵循 \`(动作描写)对话内容\` 的结构。
 3. 必须使用反斜线 \`\\\` 来平滑分隔不同的块。
    ✅ 正确示范：(动作1)话语1\\(动作2)话语2\\(动作3)话语3
@@ -9731,15 +9701,6 @@ AI 自己永远是“我”；
             const streamCont = document.getElementById('active-stream-container');
             if (streamCont) streamCont.remove();
 
-            // 兜底质检：如果最终回复太短，自动让它重写一次
-            if (PARAM_CONFIG.minTokens > 256) {
-                const minChars = Math.round(PARAM_CONFIG.minTokens * 0.75);
-                if (finalFullMessage.length < minChars * 0.6) { // 留一点余量
-                    console.warn(`⚠️ 回复过短 (${finalFullMessage.length}字 < ${minChars}字)，触发重写补丁`);
-                    finalFullMessage += '\n\n（刚刚好像没说完，请继续补充，让回复更加完整、详细，至少达到目标长度。）';
-                }
-            }
-
             // 交给后台队列逐条显示
             startGlobalBubbleQueue(contactId, finalFullMessage);
             
@@ -9993,35 +9954,8 @@ AI 自己永远是“我”；
                     mergedChat.push({ role: 'user', content: `【系统越狱强制指令，绝对服从】：${presetJailbreakContent}` });
                 }
             }
-            if (lastUserIndex !== -1 && PARAM_CONFIG.minTokens > 256) {
-                const minChars = Math.round(PARAM_CONFIG.minTokens * 0.75);
-                mergedChat[lastUserIndex].content += `\n\n【强制要求】你的回复必须至少包含 ${minChars} 个中文字符（或等长英文）。请务必详实、分点阐述，禁止简短收尾。`;
-            }
             messages.push(...mergedChat);
 
-            // ========== 🚀 强制最小长度补丁（因为 OpenAI 不支持 min_tokens） ==========
-            if (PARAM_CONFIG.minTokens > 256) {
-                const minChars = Math.round(PARAM_CONFIG.minTokens * 0.75);
-                const enforceMsg = `
-            【绝对强制 - 输出长度红线】
-            你本次的完整回复**必须**至少包含 ${minChars} 个中文字符（或等长英文）。
-            低于此数，视为严重违规，对话将终止并计入失败记录。
-
-            为了达到长度，请务必：
-            - 使用更加具体的语言进行细节、感受、逻辑推演、心理描写、动作描写
-            - 适当续写或推进故事
-
-            若你觉得自己可能不够，请主动补充背景、举例、假设情境来延长。
-                `.trim();
-
-                // 追加到系统消息
-                if (messages.length > 0 && messages[0].role === 'system') {
-                    messages[0].content += '\n\n' + enforceMsg;
-                } else {
-                    messages.unshift({ role: 'system', content: enforceMsg });
-                }
-            }
-            // ================================================================
             let hasMemory = false;
             let memoryPrompt = "【系统最高指令：当前世界观与潜意识状态】\n";
             if (contact.relations && contact.relations.length > 0) {
@@ -10066,7 +10000,6 @@ AI 自己永远是“我”；
                             stream: PARAM_CONFIG.stream,
                             temperature: adjustedTemp,
                             max_tokens: PARAM_CONFIG.maxTokens,
-                            min_tokens: PARAM_CONFIG.minTokens,
                             frequency_penalty: PARAM_CONFIG.frequencyPenalty,
                             presence_penalty: PARAM_CONFIG.presencePenalty,
                             tool_choice: "none"
@@ -10084,7 +10017,6 @@ AI 自己永远是“我”；
                                 stream: PARAM_CONFIG.stream,
                                 temperature: adjustedTemp,
                                 max_tokens: PARAM_CONFIG.maxTokens,
-                                min_tokens: PARAM_CONFIG.minTokens,
                                 frequency_penalty: PARAM_CONFIG.frequencyPenalty,
                                 presence_penalty: PARAM_CONFIG.presencePenalty,
                                 tool_choice: "none"
@@ -10123,7 +10055,6 @@ AI 自己永远是“我”；
                                 stream: PARAM_CONFIG.stream,
                                 temperature: adjustedTemp,
                                 max_tokens: PARAM_CONFIG.maxTokens,
-                                min_tokens: PARAM_CONFIG.minTokens,
                                 frequency_penalty: PARAM_CONFIG.frequencyPenalty,
                                 presence_penalty: PARAM_CONFIG.presencePenalty,
                                 tool_choice: "none"
@@ -10954,7 +10885,6 @@ AI 自己永远是“我”；
         const PARAM_CONFIG = {
             stream: true, // 流式输出
             temperature: 0.7, // 温度 (0.1 - 2.0)
-            minTokens: 256,
             maxTokens: 2048, // 最大长度 (256 - 4096)
             frequencyPenalty: 0.0, // 频率惩罚
             presencePenalty: 0.0 // 存在惩罚
@@ -10967,13 +10897,11 @@ AI 自己永远是“我”；
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     Object.assign(PARAM_CONFIG, parsed);
-                    if (PARAM_CONFIG.minTokens === undefined) PARAM_CONFIG.minTokens = 256;
                 }
                 
                 // 更新UI显示
                 updateStreamSwitchUI();
                 updateTemperatureUI();
-                updateMinTokensUI();
                 updateMaxTokensUI();
                 updateFrequencyUI();
                 updatePresenceUI();
@@ -11044,20 +10972,6 @@ AI 自己永远是“我”；
                 const min = 256;
                 const max = 4096;
                 const percent = ((PARAM_CONFIG.maxTokens - min) / (max - min)) * 100;
-                thumb.style.left = percent + '%';
-            }
-        }
-
-        // --- 更新最小长度显示 ---
-        function updateMinTokensUI() {
-            const display = document.getElementById('min-tokens-display');
-            const thumb = document.getElementById('min-tokens-thumb');
-            
-            if (display) display.textContent = PARAM_CONFIG.minTokens;
-            if (thumb) {
-                const min = 256;
-                const max = 4096;
-                const percent = ((PARAM_CONFIG.minTokens - min) / (max - min)) * 100;
                 thumb.style.left = percent + '%';
             }
         }
@@ -11243,44 +11157,10 @@ AI 自己永远是“我”；
             });
         }
         
-        // --- 初始化最小长度滑块 ---
-        function initMinTokensSlider() {
-            const track = document.getElementById('min-tokens-track');
-            const thumb = document.getElementById('min-tokens-thumb');
-            
-            if (!track || !thumb) return;
-            
-            let isDragging = false;
-            const min = 256;
-            const max = 4096;
-            
-            const updateValue = (clientX) => {
-                const rect = track.getBoundingClientRect();
-                let percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-                let value = min + (percent / 100) * (max - min);
-                value = Math.round(value / 128) * 128;
-                value = Math.max(min, Math.min(max, value));
-                
-                PARAM_CONFIG.minTokens = value;
-                thumb.style.left = ((value - min) / (max - min)) * 100 + '%';
-                document.getElementById('min-tokens-display').textContent = value;
-                saveParamConfig();
-            };
-            
-            track.addEventListener('mousedown', (e) => { isDragging = true; updateValue(e.clientX); });
-            document.addEventListener('mousemove', (e) => { if (isDragging) updateValue(e.clientX); });
-            document.addEventListener('mouseup', () => { isDragging = false; });
-            
-            thumb.addEventListener('touchstart', (e) => { isDragging = true; e.preventDefault(); });
-            document.addEventListener('touchmove', (e) => { if (isDragging && e.touches[0]) updateValue(e.touches[0].clientX); });
-            document.addEventListener('touchend', () => { isDragging = false; });
-        }
-
         // --- 初始化参数配置系统 ---
         function initParamConfigSystem() {
             loadParamConfig();
             initTemperatureSlider();
-            initMinTokensSlider();
             initMaxTokensSlider();
             initFrequencySlider();
             initPresenceSlider();
