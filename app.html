@@ -1328,6 +1328,80 @@
             </div>
         </div>
     </div>
+
+     <div class="bottom-sheet-overlay" id="role-filter-sheet" onclick="if(event.target===this) closeForumRoleFilter()">
+        <div class="bottom-sheet-content">
+            <div class="sheet-header">
+                允许上论坛的角色
+                <i class="fas fa-times sheet-close" onclick="closeForumRoleFilter()"></i>
+            </div>
+            <div class="sheet-body" id="role-filter-list">
+                </div>
+        </div>
+    </div>
+
+    <div class="bottom-sheet-overlay" id="forward-sheet" onclick="if(event.target===this) closeForwardSelector()">
+        <div class="bottom-sheet-content">
+            <div class="sheet-header">
+                转发给...
+                <i class="fas fa-times sheet-close" onclick="closeForwardSelector()"></i>
+            </div>
+            <div class="sheet-body" id="forward-role-list">
+                </div>
+        </div>
+    </div>
+
+    <div class="bottom-sheet-overlay" id="export-sheet" onclick="if(event.target===this) closeExportSheet()">
+            <div class="bottom-sheet-content" style="background: var(--card-bg); border-radius: 20px 20px 0 0; color: var(--text-main);">
+                <div class="sheet-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 0.5px solid var(--border);">
+                    <span class="nav-title" style="font-size: 18px; font-weight: bold;">选择导出内容</span>
+                    <label style="font-size: 15px; font-weight: normal; color: var(--accent); display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="checkbox" id="export-select-all" checked onchange="toggleAllExportCheckboxes(this)" style="width: 18px; height: 18px; accent-color: var(--accent);"> 全选
+                    </label>
+                </div>
+                
+                <div class="sheet-body" id="export-options-list" style="padding: 20px; display: flex; flex-direction: column; gap: 16px; font-size: 16px;">
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="chat" checked style="width:18px; height:18px; accent-color: var(--accent);"> 聊天记录</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="interaction" checked style="width:18px; height:18px; accent-color: var(--accent);"> 互动视图</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="api" checked style="width:18px; height:18px; accent-color: var(--accent);"> API与模型配置</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="appearance" checked style="width:18px; height:18px; accent-color: var(--accent);"> 外观与主题</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="general" checked style="width:18px; height:18px; accent-color: var(--accent);"> 通用设置</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="presets" checked style="width:18px; height:18px; accent-color: var(--accent);"> 高级预设库</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="regex" checked style="width:18px; height:18px; accent-color: var(--accent);"> 正则过滤规则</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="forum" checked style="width:18px; height:18px; accent-color: var(--accent);"> 论坛数据</label>
+                </div>
+
+                <div style="padding: 10px 20px 34px;">
+                    <button onclick="executeCategorizedExport()" style="width: 100%; padding: 14px; background: var(--accent); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer;">立即导出</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-sheet-overlay" id="import-sheet" onclick="if(event.target===this) closeImportSheet()">
+            <div class="bottom-sheet-content" style="background: var(--card-bg); border-radius: 20px 20px 0 0; color: var(--text-main);">
+                <div class="sheet-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 0.5px solid var(--border);">
+                    <span class="nav-title" style="font-size: 18px; font-weight: bold;">选择要恢复的数据</span>
+                    <label style="font-size: 15px; font-weight: normal; color: var(--accent); display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="checkbox" id="import-select-all" checked onchange="toggleAllImportCheckboxes(this)" style="width: 18px; height: 18px; accent-color: var(--accent);"> 全选
+                    </label>
+                </div>
+                
+                <div class="sheet-body" id="import-options-list" style="padding: 20px; display: flex; flex-direction: column; gap: 16px; font-size: 16px;">
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="chat" checked style="width:18px; height:18px; accent-color: var(--accent);"> 聊天记录</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="interaction" checked style="width:18px; height:18px; accent-color: var(--accent);"> 互动视图</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="api" checked style="width:18px; height:18px; accent-color: var(--accent);"> API与模型配置</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="appearance" checked style="width:18px; height:18px; accent-color: var(--accent);"> 外观与主题</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="general" checked style="width:18px; height:18px; accent-color: var(--accent);"> 通用设置</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="presets" checked style="width:18px; height:18px; accent-color: var(--accent);"> 高级预设库</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="regex" checked style="width:18px; height:18px; accent-color: var(--accent);"> 正则过滤规则</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="forum" checked style="width:18px; height:18px; accent-color: var(--accent);"> 论坛数据</label>
+                </div>
+
+                <div style="padding: 10px 20px 34px;">
+                    <button onclick="executeCategorizedImport()" style="width: 100%; padding: 14px; background: var(--danger); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer;">确认覆盖并重启</button>
+                </div>
+            </div>
+        </div>
     <script src="./js/app.js"></script>
 
 </body>
