@@ -1361,14 +1361,19 @@
                 </div>
                 
                 <div class="sheet-body" id="export-options-list" style="padding: 20px; display: flex; flex-direction: column; gap: 16px; font-size: 16px;">
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="chat" checked style="width:18px; height:18px; accent-color: var(--accent);"> 聊天记录</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="interaction" checked style="width:18px; height:18px; accent-color: var(--accent);"> 互动视图</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="api" checked style="width:18px; height:18px; accent-color: var(--accent);"> API与模型配置</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="appearance" checked style="width:18px; height:18px; accent-color: var(--accent);"> 外观与主题</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="general" checked style="width:18px; height:18px; accent-color: var(--accent);"> 通用设置</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="chat" checked style="width:18px; height:18px; accent-color: var(--accent);"> 聊天与角色联系人</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="interaction" checked style="width:18px; height:18px; accent-color: var(--accent);"> 互动视图与热力图</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="api" checked style="width:18px; height:18px; accent-color: var(--accent);"> 接口与模型配置</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="appearance" checked style="width:18px; height:18px; accent-color: var(--accent);"> 外观与头像</label>
+                    
+                    <!-- 重要数据结束，下面是其他配置 -->
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="todo" checked style="width:18px; height:18px; accent-color: var(--accent);"> 任务站数据</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="general" checked style="width:18px; height:18px; accent-color: var(--accent);"> 通用设置与通知</label>
                     <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="presets" checked style="width:18px; height:18px; accent-color: var(--accent);"> 高级预设库</label>
                     <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="regex" checked style="width:18px; height:18px; accent-color: var(--accent);"> 正则过滤规则</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="forum" checked style="width:18px; height:18px; accent-color: var(--accent);"> 论坛数据</label>
+                    
+                    <!-- 最不重要的放在最后 -->
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="export-item-cb" value="forum" checked style="width:18px; height:18px; accent-color: var(--accent);"> 论坛八卦数据</label>
                 </div>
 
                 <div style="padding: 10px 20px 34px;">
@@ -1387,14 +1392,19 @@
                 </div>
                 
                 <div class="sheet-body" id="import-options-list" style="padding: 20px; display: flex; flex-direction: column; gap: 16px; font-size: 16px;">
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="chat" checked style="width:18px; height:18px; accent-color: var(--accent);"> 聊天记录</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="interaction" checked style="width:18px; height:18px; accent-color: var(--accent);"> 互动视图</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="api" checked style="width:18px; height:18px; accent-color: var(--accent);"> API与模型配置</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="appearance" checked style="width:18px; height:18px; accent-color: var(--accent);"> 外观与主题</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="general" checked style="width:18px; height:18px; accent-color: var(--accent);"> 通用设置</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="chat" checked style="width:18px; height:18px; accent-color: var(--accent);"> 聊天与角色联系人</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="interaction" checked style="width:18px; height:18px; accent-color: var(--accent);"> 互动视图与热力图</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="api" checked style="width:18px; height:18px; accent-color: var(--accent);"> 接口与模型配置</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="appearance" checked style="width:18px; height:18px; accent-color: var(--accent);"> 外观与头像</label>
+                    
+                    <!-- 重要数据结束，下面是其他配置 -->
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="todo" checked style="width:18px; height:18px; accent-color: var(--accent);"> 任务站数据</label>
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="general" checked style="width:18px; height:18px; accent-color: var(--accent);"> 通用设置与通知</label>
                     <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="presets" checked style="width:18px; height:18px; accent-color: var(--accent);"> 高级预设库</label>
                     <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="regex" checked style="width:18px; height:18px; accent-color: var(--accent);"> 正则过滤规则</label>
-                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="forum" checked style="width:18px; height:18px; accent-color: var(--accent);"> 论坛数据</label>
+                    
+                    <!-- 最不重要的放在最后 -->
+                    <label style="display: flex; align-items: center; gap: 12px;"><input type="checkbox" class="import-item-cb" value="forum" checked style="width:18px; height:18px; accent-color: var(--accent);"> 论坛八卦数据</label>
                 </div>
 
                 <div style="padding: 10px 20px 34px;">
