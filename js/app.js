@@ -3380,7 +3380,8 @@ AI 自己永远是“我”；
             // 🔥 关键修复：使用现代剪贴板API
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(() => {
-                    showCopySuccess();
+                    const btn = document.querySelector('.prompt-copy-btn'); // 🌟 先获取按钮
+                    if (btn) showCopySuccess(btn); // 🌟 把按钮传进去
                 }).catch(err => {
                     console.error('复制失败:', err);
                     // 降级方案：使用传统方法
@@ -3452,7 +3453,8 @@ AI 自己永远是“我”；
             try {
                 const successful = document.execCommand('copy');
                 if (successful) {
-                    showCopySuccess();
+                    const btn = document.querySelector('.prompt-copy-btn'); // 🌟 先获取按钮
+                    if (btn) showCopySuccess(btn); // 🌟 把按钮传进去
                 } else {
                     alert('复制失败，请手动选择文本复制');
                 }
@@ -14590,7 +14592,15 @@ AI 自己永远是“我”；
     };
 
     function showCopySuccess(btn) {
+        // 🌟 护甲 1：如果没传 btn 进来，就自己去页面上找那个复制按钮
+        if (!btn) btn = document.querySelector('.prompt-copy-btn');
+        
+        // 🌟 护甲 2：如果还是找不到，就安静退出，绝对不报错
+        if (!btn) return; 
+
         const icon = btn.querySelector('i');
+        if (!icon) return;
+
         icon.className = 'fa-solid fa-check';
         icon.style.color = '#34C759';
         setTimeout(() => {
