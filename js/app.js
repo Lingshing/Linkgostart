@@ -7697,7 +7697,8 @@ AI 自己永远是“我”；
             general: ['GENERAL_CONFIG', 'PUSH_ENABLED', 'PUSH_SHOW_CONTENT', 'KEEP_ALIVE_ENABLED', 'RELOAD_TARGET_PAGE'],
             presets: ['PRESETS', 'ADVANCED_PRESET_FILES'],
             regex: ['REGEX_RULES', 'ADVANCED_REGEX_FILES'],
-            forum: ['FORUM_POSTS']
+            forum: ['FORUM_POSTS'],
+            todo: ['LINKGO_TODO_DATA', 'LINKGO_TODO_TAGS'] // 🌟 新增：把你忘掉的任务站加进来
         };
 
         // 1. 打开导出弹窗 (修复透明度Bug版)
@@ -14595,7 +14596,7 @@ AI 自己永远是“我”；
             }, 100);
         }, 200);
     }
-    
+
     function fallbackCopyText(text, btn) {
         // 创建临时 textarea 使用 execCommand
         const textarea = document.createElement('textarea');
