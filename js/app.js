@@ -14563,8 +14563,7 @@ AI 自己永远是“我”；
                 }
             }
         }
-    </script>
-<script>
+   
     // 内存存储逻辑，防止 SyntaxError
     const LOG_STORAGE = new Map();
     const devConsoleLogs = document.getElementById('dev-console-logs');
