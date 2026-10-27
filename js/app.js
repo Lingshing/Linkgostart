@@ -3393,53 +3393,7 @@ AI 自己永远是“我”；
             }
         }
         
-        // --- 显示复制成功动效 ---
-        function showCopySuccess() {
-            const btn = document.querySelector('.prompt-copy-btn');
-            if (!btn) return;
-            
-            // 保存原始内容
-            const originalHTML = btn.innerHTML;
-            const originalBg = btn.style.background;
-            
-            // 第1步：淡出原图标
-            btn.style.transition = 'all 0.2s cubic-bezier(0.25, 1, 0.5, 1)';
-            btn.style.opacity = '0';
-            btn.style.transform = 'scale(0.8)';
-            
-            setTimeout(() => {
-                // 第2步：切换为打勾图标 + 绿色背景
-                btn.innerHTML = '<i class="fas fa-check"></i>';
-                btn.style.background = '#34C759';
-                btn.style.boxShadow = '0 2px 12px rgba(52, 199, 89, 0.4)';
-                
-                // 第3步：弹入打勾图标
-                btn.style.opacity = '1';
-                btn.style.transform = 'scale(1.1)';
-                
-                setTimeout(() => {
-                    // 第4步：稳定显示
-                    btn.style.transform = 'scale(1)';
-                    
-                    setTimeout(() => {
-                        // 第5步：淡出打勾
-                        btn.style.opacity = '0';
-                        btn.style.transform = 'scale(0.8)';
-                        
-                        setTimeout(() => {
-                            // 第6步：恢复原样
-                            btn.innerHTML = originalHTML;
-                            btn.style.background = originalBg;
-                            btn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-                            
-                            // 第7步：弹入原图标
-                            btn.style.opacity = '1';
-                            btn.style.transform = 'scale(1)';
-                        }, 200);
-                    }, 1200); // 打勾显示1.2秒
-                }, 100);
-            }, 200);
-        }
+        
         
         // --- 降级方案：传统复制方法 ---
         function fallbackCopy(text) {
@@ -14592,23 +14546,56 @@ AI 自己永远是“我”；
     };
 
     function showCopySuccess(btn) {
-        // 🌟 护甲 1：如果没传 btn 进来，就自己去页面上找那个复制按钮
+        // 🌟 护甲 1：如果没传按钮，自己去找
         if (!btn) btn = document.querySelector('.prompt-copy-btn');
+        if (!btn) return; // 找不到就退出
         
-        // 🌟 护甲 2：如果还是找不到，就安静退出，绝对不报错
-        if (!btn) return; 
-
         const icon = btn.querySelector('i');
         if (!icon) return;
 
-        icon.className = 'fa-solid fa-check';
-        icon.style.color = '#34C759';
+        // 保存原始内容（为了后面恢复）
+        const originalHTML = btn.innerHTML;
+        const originalBg = btn.style.background;
+        
+        // 第1步：淡出原图标
+        btn.style.transition = 'all 0.2s cubic-bezier(0.25, 1, 0.5, 1)';
+        btn.style.opacity = '0';
+        btn.style.transform = 'scale(0.8)';
+        
         setTimeout(() => {
-            icon.className = 'fa-regular fa-copy';
-            icon.style.color = '';
-        }, 2000);
+            // 第2步：切换为打勾图标 + 深绿色背景！
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            btn.style.background = '#34C759'; 
+            btn.style.boxShadow = '0 2px 12px rgba(52, 199, 89, 0.4)';
+            
+            // 第3步：弹入打勾图标
+            btn.style.opacity = '1';
+            btn.style.transform = 'scale(1.1)';
+            
+            setTimeout(() => {
+                // 第4步：稳定显示
+                btn.style.transform = 'scale(1)';
+                
+                setTimeout(() => {
+                    // 第5步：淡出打勾
+                    btn.style.opacity = '0';
+                    btn.style.transform = 'scale(0.8)';
+                    
+                    setTimeout(() => {
+                        // 第6步：恢复原样
+                        btn.innerHTML = originalHTML;
+                        btn.style.background = originalBg;
+                        btn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+                        
+                        // 第7步：弹入原图标
+                        btn.style.opacity = '1';
+                        btn.style.transform = 'scale(1)';
+                    }, 200);
+                }, 1200); // 打勾显示1.2秒
+            }, 100);
+        }, 200);
     }
-
+    
     function fallbackCopyText(text, btn) {
         // 创建临时 textarea 使用 execCommand
         const textarea = document.createElement('textarea');
