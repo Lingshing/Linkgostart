@@ -1,7 +1,70 @@
-        // ==========================================
-        // 🌟 终极使命：全知史官与动态图谱更新引擎
-        // ==========================================
-        const SYSTEM_ARCHIVE_PROMPT = `【终极使命：群像世界观记录者与绝对客观事实提取器】
+// ==========================================
+// 第4批移植：记忆系统
+// ==========================================
+
+// --- 记忆配置 ---
+const MEMORY_CONFIG = {
+    maxTokens: 4000,
+    reserveTokens: 1000,
+    enableMemory: true
+};
+
+function compressConversation(messages, maxTokens) {
+    let totalTokens = countTokens(messages);
+    if (totalTokens <= maxTokens) return messages;
+    const compressed = [...messages];
+    while (totalTokens > maxTokens && compressed.length > 2) {
+        if (compressed[0].role === 'system') {
+            compressed.splice(1, 1);
+        } else {
+            compressed.shift();
+        }
+        totalTokens = countTokens(compressed);
+    }
+    return compressed;
+}
+
+function manageMemory(contactId, systemPrompt) {
+    if (!MEMORY_CONFIG.enableMemory) return [];
+    const conversation = getConversation(contactId);
+    const messages = [];
+    if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+    messages.push(...conversation);
+    const availableTokens = MEMORY_CONFIG.maxTokens - MEMORY_CONFIG.reserveTokens;
+    return compressConversation(messages, availableTokens);
+}
+
+function getConversationStats(contactId) {
+    const conversation = getConversation(contactId);
+    const tokens = countTokens(conversation);
+    return {
+        messageCount: conversation.length,
+        totalTokens: tokens,
+        maxTokens: MEMORY_CONFIG.maxTokens,
+        usage: (tokens / MEMORY_CONFIG.maxTokens * 100).toFixed(1) + '%'
+    };
+}
+
+function updateMemoryConfig(config) {
+    Object.assign(MEMORY_CONFIG, config);
+    saveToLocal();
+}
+
+function autoCleanConversation(contactId, keepCount = 20) {
+    const conversation = getConversation(contactId);
+    if (conversation.length > keepCount) {
+        const kept = conversation.slice(-keepCount);
+        APP_DATA.conversations[contactId] = kept;
+        saveToLocal();
+        return conversation.length - kept.length;
+    }
+    return 0;
+}
+
+// ==========================================
+// 🌟 终极使命：全知史官与动态图谱更新引擎
+// ==========================================
+const SYSTEM_ARCHIVE_PROMPT = `【终极使命：群像世界观记录者与绝对客观事实提取器】
         当前分析对话中，AI 扮演角色：【{{AI_NAME}}】。
         角色初始设定：【{{AI_PERSONA}}】。
 
@@ -148,2472 +211,1072 @@
        → 这是严重错误！两者事件几乎相同，不得重复输出。只有当关系标签变化（例如从“初识”变为“恋人”）或出现全新重大事件时才能输出新的 relation。
         `;
 
-
-        
-        // --- 自动生成长期记忆（日常后台静默触发版）---
-        async function simulateMemorySummary(contact) {
-            console.log("🧠 尝试触发长期记忆生成逻辑...");
-            const interval = GENERAL_CONFIG.memory.diaryInterval || 10;
-            const conversation = getConversation(contact.id);
-            const userMessagesCount = conversation.filter(m => m.role === 'user').length;
-            
-            let lastSummarizedRound = 0;
-            if (contact.longMemories && contact.longMemories.length > 0) {
-                contact.longMemories.forEach(m => {
-                    if (m.roundRange) {
-                        const match = String(m.roundRange).match(/第?(\d+)-(\d+)轮?/);
-                        if (match && match[2]) {
-                            const endNum = parseInt(match[2]);
-                            if (endNum > lastSummarizedRound) lastSummarizedRound = endNum;
-                        }
-                    }
-                });
-            }
-            
-            const nextTriggerRound = lastSummarizedRound + interval;
-            if (userMessagesCount === 0 || userMessagesCount < nextTriggerRound) return;
-            
-            const startRound = lastSummarizedRound + 1;
-            const endRound = nextTriggerRound;
-            
-            const blockMessages = [];
-            let userCount = 0;
-            let isInBlock = false;
-            for (const msg of conversation) {
-                if (msg.role === 'user') {
-                    userCount++;
-                    if (userCount === startRound) isInBlock = true;
-                }
-                if (isInBlock) blockMessages.push(msg);
-                if (userCount > endRound) {
-                    blockMessages.pop();
-                    break;
-                }
-            }
-            
-            // ✨ 给发给史官的每一句话都打上绝对的物理轮数印记
-            let roundCount = startRound;
-            const recentChat = blockMessages.map((m) => {
-                if (m.role === 'user') {
-                    const line = `[第${roundCount}轮] 用户：${m.content}`;
-                    roundCount++;
-                    return line;
-                } else {
-                    return `AI：${m.content}`;
-                }
-            }).join('\n');
-            const allExistingMemories = contact.longMemories ? contact.longMemories.map(m => m.content).join('\n') : "暂无记忆";
-            
-            const memoryConfig = OTHER_API_CONFIGS.memory;
-            let apiConfig = null;
-            if (memoryConfig && memoryConfig.configId) apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === memoryConfig.configId);
-            if (!apiConfig) apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
-            if (!apiConfig) return;
-            const modelToUse = (memoryConfig && memoryConfig.model) ? memoryConfig.model : apiConfig.model;
-
-            // 动态替换 AI 当前的身份和设定
-            const dynamicPrompt = SYSTEM_ARCHIVE_PROMPT
-                .replace(/\{\{AI_NAME\}\}/g, contact.name || '未命名角色')
-                .replace(/\{\{AI_PERSONA\}\}/g, contact.prompt || '暂无设定');
-
-            const summaryMessages = [
-                { role: "system", content: dynamicPrompt },
-                { 
-                    role: "user", 
-                    content: `【已有记忆库】(若有完全相同的事件请勿重复记录；若是新细节请补充)\n${allExistingMemories}\n\n【需要提取的对话区块：第${startRound}-${endRound}轮】\n${recentChat}\n\n请严格以大纲作者的视角，按要求返回 JSON。` 
-                }
-            ];
-
-            try {
-                let apiUrl = getStandardApiUrl(apiConfig.url, '/chat/completions');
-                const response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: modelToUse,
-                        messages: summaryMessages,
-                        temperature: 0.1,
-                        max_tokens: 2000
-                    })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    let jsonStr = data.choices && data.choices[0] ? data.choices[0].message.content : data.result;
-                    jsonStr = jsonStr.replace(/```json/gi, '').replace(/```/g, '').trim();
-                    const result = JSON.parse(jsonStr);
-
-                    let addedCount = 0;
-                    const isRealityMode = document.getElementById('reality-mode-switch')?.classList.contains('active');
-                    let realDateStr = null;
-                    if (isRealityMode) {
-                        const now = new Date();
-                        realDateStr = `${now.getMonth()+1}月${now.getDate()}日`;
-                    }
-
-                    if (result.memories) {
-                        result.memories.forEach(m => {
-                            m.id = 'mem_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-                            if (!m.roundRange) m.roundRange = `${startRound}-${endRound}`;
-                            if (isRealityMode && !m.worldTime) m.date = realDateStr;
-                            
-                            // 🌟 实体合并引擎：真名覆盖旧代号
-                            if (m.previousName && m.keywords && m.keywords.length > 0) {
-                                let oldAlias = m.previousName;
-                                let realName = m.keywords[0];
-                                addLogToConsole('info', 'ARCHIVE', `触发实体合并：[${oldAlias}] 真名揭晓为 [${realName}]`);
-                                if (contact.longMemories) {
-                                    contact.longMemories.forEach(oldMem => {
-                                        if (oldMem.keywords && oldMem.keywords.includes(oldAlias)) {
-                                            oldMem.keywords = oldMem.keywords.map(k => k === oldAlias ? realName : k);
-                                            oldMem.content = oldMem.content.replace(new RegExp(oldAlias, 'g'), realName);
-                                        }
-                                    });
-                                }
-                                if (contact.relations) {
-                                    contact.relations.forEach(r => {
-                                        if (r.source === oldAlias) r.source = realName;
-                                        if (r.target === oldAlias) r.target = realName;
-                                    });
-                                }
-                            }
-                            
-                            contact.longMemories.push(m);
-                            addedCount++;
-                        });
-                    }
-
-                    // 存储羁绊关系！
-                    if (result.relations) {
-                        if (!contact.relations) contact.relations = [];
-                        result.relations.forEach(r => {
-                            const existingRelIndex = contact.relations.findIndex(ex => 
-                                (ex.source === r.source && ex.target === r.target) || 
-                                (ex.source === r.target && ex.target === r.source)
-                            );
-                            
-                            const timeMark = r.updatedAt || (isRealityMode ? realDateStr : `第 ${startRound}-${endRound} 轮`);
-                            
-                            if (existingRelIndex !== -1) {
-                                const existingRel = contact.relations[existingRelIndex];
-                                if (!existingRel.history) existingRel.history = [{ label: existingRel.label, time: '往昔', detail: existingRel.detail || '初始状态' }];
-                                existingRel.label = r.label;
-                                existingRel.detail = r.detail || '关系产生了新的转变。';
-                                existingRel.updatedAt = timeMark;
-                                existingRel.history.push({ label: r.label, time: timeMark, detail: existingRel.detail });
-                            } else {
-                                r.history = [{ label: r.label, time: timeMark, detail: r.detail || '建立了初始羁绊。' }];
-                                r.updatedAt = timeMark;
-                                contact.relations.push(r);
-                            }
-                        });
-                    }
-                    if (addedCount > 0) saveToLocal();
-                }
-            } catch (e) {
-                let rawError = e.stack || e.toString();
-                addLogToConsole('error', '生成长期记忆失败', rawError);
-                console.error("生成长期记忆失败:", e);
-            }
-        }
-
-        // ==========================================
-        // 🌟 长期记忆修史功能 (多选勾选补全版)
-        // ==========================================
-
-        // --- 点击魔法棒：呼出自由修史面板 ---
-        function backfillAllMemories() {
-            if (!currentChatContactId) {
-                alert('⚠️ 请先打开一个聊天窗口');
-                return;
-            }
-            const contact = mockContacts.find(c => c.id === currentChatContactId);
-            if (!contact) return;
-            
-            const interval = GENERAL_CONFIG.memory.diaryInterval || 10;
-            const conversation = getConversation(contact.id);
-            const userMessagesCount = conversation.filter(m => m.role === 'user').length;
-            
-            if (userMessagesCount === 0) {
-                alert("暂无用户对话记录，无法修史！");
-                return;
-            }
-
-            // 1. 扫描旧记忆，精确提取出已经生成过的所有独立区间
-            const existingRangesMap = new Map();
-            if (contact.longMemories) {
-                contact.longMemories.forEach(m => {
-                    if (m.roundRange) {
-                        const match = String(m.roundRange).match(/第?(\d+)-(\d+)轮?/);
-                        if (match) {
-                            const s = parseInt(match[1]);
-                            const e = parseInt(match[2]);
-                            existingRangesMap.set(`${s}-${e}`, { start: s, end: e });
-                        }
-                    }
-                });
-            }
-            const existingRanges = Array.from(existingRangesMap.values()).sort((a, b) => a.start - b.start);
-
-            // 2. 构建混合区块队列 (已生成的旧档案绝对保持原状)
-            const chunks = [];
-            existingRanges.forEach(r => {
-                chunks.push({ start: r.start, end: r.end, isCovered: true });
-            });
-
-            // 计算剩下的缺失部分，按新步长排列
-            let lastEnd = existingRanges.length > 0 ? Math.max(...existingRanges.map(r => r.end)) : 0;
-            let currentStart = lastEnd + 1;
-            while (currentStart <= userMessagesCount) {
-                let currentEnd = currentStart + interval - 1;
-                if (currentEnd > userMessagesCount) currentEnd = userMessagesCount; // 保证不超出总轮数
-                chunks.push({ start: currentStart, end: currentEnd, isCovered: false });
-                currentStart = currentEnd + 1;
-            }
-            chunks.sort((a, b) => a.start - b.start);
-        
-            let modal = document.getElementById('round-selector-modal');
-            if (modal) modal.remove();
-
-            // 🌟 终极护眼玻璃版：超强模糊 + 88% 不透明底色，防透字无死角
-            let html = `
-            <div class="config-modal-overlay" id="round-selector-modal" style="z-index: 5000; background: rgba(0,0,0,0.25);" onclick="closeRoundSelectorModalByOverlay(event)">
-                
-                <div class="config-modal-content" style="max-height: 70vh; display:flex; flex-direction:column; width: 90%; max-width: 360px; padding: 0; 
-                    background: color-mix(in srgb, var(--card-bg) 88%, transparent); 
-                    backdrop-filter: blur(40px) saturate(180%); 
-                    -webkit-backdrop-filter: blur(40px) saturate(180%);
-                    border: 0.5px solid color-mix(in srgb, var(--text-main) 12%, transparent); 
-                    box-shadow: 0 20px 40px rgba(0,0,0,0.2), inset 0 1px 1px color-mix(in srgb, var(--text-main) 6%, transparent); 
-                    border-radius: 20px; overflow: hidden; color-scheme: light dark;" 
-                    onclick="event.stopPropagation()">
-                    
-                    <div class="config-modal-header" style="padding: 16px 20px 10px; display: flex; justify-content: space-between; align-items: center; background: transparent;">
-                        <h3 style="font-size: 17px; font-weight: 700; margin: 0; color: var(--text-main); letter-spacing: -0.5px; text-shadow: 0 1px 4px color-mix(in srgb, var(--bg-color) 50%, transparent);">自由修史</h3>
-                        <div onclick="closeRoundSelectorModal()" style="width: 28px; height: 28px; border-radius: 50%; background: color-mix(in srgb, var(--text-main) 8%, transparent); display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(10px);">
-                            <i class="fas fa-times" style="color: var(--text-sub); font-size: 13px;"></i>
-                        </div>
-                    </div>
-
-                    <div class="config-modal-body" style="padding: 0 20px 16px; overflow-y: auto; flex: 1; background: transparent;">
-                        
-                        <div style="background: color-mix(in srgb, var(--text-main) 5%, transparent); border: 0.5px solid color-mix(in srgb, var(--text-main) 5%, transparent); border-radius: 14px; padding: 12px; margin-bottom: 16px;">
-                            <div style="font-size: 11px; font-weight: 700; color: #D47A43; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 6px;">
-                                <i class="fas fa-magic" style="font-size: 10px;"></i> 手动补录
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div style="flex: 1; display: flex; align-items: center; background: color-mix(in srgb, var(--bg-color) 40%, transparent); border: 0.5px solid color-mix(in srgb, var(--text-main) 8%, transparent); border-radius: 10px; padding: 0 8px; height: 38px;">
-                                    <input type="number" id="custom-round-start" placeholder="起始" style="width: 100%; border: none; background: transparent; color: var(--text-main); font-size: 13px; outline: none; text-align: center;">
-                                    <span style="color: var(--text-sub); margin: 0 2px;">|</span>
-                                    <input type="number" id="custom-round-end" placeholder="结束" style="width: 100%; border: none; background: transparent; color: var(--text-main); font-size: 13px; outline: none; text-align: center;">
-                                </div>
-                                <button onclick="addCustomRoundBlock()" style="height: 38px; padding: 0 14px; background: rgba(212,122,67, 0.9); backdrop-filter: blur(10px); color: white; border-radius: 10px; border: 0.5px solid rgba(255,255,255,0.2); font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 12px rgba(212,122,67,0.2);">添加</button>
-                            </div>
-                        </div>
-
-                        <div style="padding-left: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-                            <p style="font-size: 12px; font-weight: 500; color: var(--text-sub); margin: 0;">
-                                <input type="checkbox" id="select-all-rounds" style="margin-right: 8px; transform: translateY(1px); accent-color: #D47A43;"> 选择提取区间 
-                                <span style="opacity: 0.5; font-weight: 400;">(共 ${userMessagesCount} 轮)</span>
-                            </p>
-                        </div>
-
-                        <div style="display:flex; flex-direction:column;">
-            `;
-
-            chunks.forEach((c) => {
-                const statusTag = c.isCovered 
-                    ? `<div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="font-size: 10px; color: var(--text-sub); background: color-mix(in srgb, var(--text-main) 6%, transparent); border: 0.5px solid color-mix(in srgb, var(--text-main) 8%, transparent); padding: 2px 6px; border-radius: 4px;">已存</span>
-                        <i class="fa-solid fa-trash-can" onclick="event.stopPropagation(); deleteArchiveBlock(${c.start}, ${c.end})" style="color: #ff5e5e; font-size: 12px; cursor: pointer; opacity: 0.7;"></i>
-                    </div>` 
-                    : `<span style="font-size: 11px; color: #D47A43; font-weight: 700;">待提取</span>`;
-                
-                html += `
-                    <label style="display:flex; align-items:center; justify-content:space-between; padding: 10px 4px; cursor: pointer; border-bottom: 0.5px solid color-mix(in srgb, var(--text-main) 8%, transparent);">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div style="position: relative; width: 18px; height: 18px;">
-                                <input type="checkbox" class="round-chunk-cb" value="${c.start}-${c.end}" ${c.isCovered ? '' : 'checked'} 
-                                    style="cursor: pointer; width: 18px; height: 18px; accent-color: #D47A43; margin: 0;">
-                            </div>
-                            <span style="font-size: 14px; font-weight: 500; color: var(--text-main);">第 ${c.start} - ${c.end} 轮</span>
-                        </div>
-                        ${statusTag}
-                    </label>
-                `;
-            });
-
-            html += `
-                        </div>
-                    </div>
-                    
-                    <div style="padding: 16px 20px; background: transparent; display: flex; gap: 12px;">
-                        <button onclick="executeBackfillSelected()" style="flex: 1; background: color-mix(in srgb, var(--text-main) 90%, transparent); color: var(--card-bg); height: 44px; border-radius: 12px; border: 0.5px solid color-mix(in srgb, var(--card-bg) 20%, transparent); font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.3s; box-shadow: 0 6px 16px rgba(0,0,0,0.15);" 
-                                onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform='scale(1)'">
-                            开始提取档案
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <style>
-                #round-selector-modal .config-modal-content {
-                    transform: translateY(20px) scale(0.95);
-                    opacity: 0;
-                    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-                }
-                #round-selector-modal.show .config-modal-content {
-                    transform: translateY(0) scale(1);
-                    opacity: 1;
-                }
-                .config-modal-body::-webkit-scrollbar { width: 4px; }
-                .config-modal-body::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-main) 15%, transparent); border-radius: 10px; }
-            </style>
-            `;
-            document.body.insertAdjacentHTML('beforeend', html);
-
-            const newModal = document.getElementById('round-selector-modal');
-            if (newModal) {
-                newModal.classList.add('show');
-
-                // 全选复选框绑定
-                const selectAllCheckbox = newModal.querySelector('#select-all-rounds');
-                if (selectAllCheckbox) {
-                    selectAllCheckbox.addEventListener('change', (e) => {
-                        const isChecked = e.target.checked;
-                        const allCbs = newModal.querySelectorAll('.round-chunk-cb');
-                        allCbs.forEach(cb => {
-                            cb.checked = isChecked;
-                            // 触发 change 事件，以便其他逻辑（如已有监听器）同步
-                            cb.dispatchEvent(new Event('change', { bubbles: true }));
-                        });
-                    });
-                }
-                const scrollContainer = newModal.querySelector('.config-modal-body');
-                if (!scrollContainer) return;
-
-                let startY = 0;
-                let startValid = false;
-                let isSelecting = false;
-                let autoScrollRaf = null;
-                let lastClientX = 0, lastClientY = 0;
-                let lastZoneId = null;
-                let lastToggleTime = 0;
-
-                const ENTER_THRESHOLD = 4;           // 移动4px进入选择模式
-                const SCROLL_ZONE = 45;
-                const SCROLL_SPEED = 8;
-                const DEBOUNCE_MS = 30;              // 极短防抖，保证灵敏
-
-                function getZoneElement(x, y) {
-                    const elem = document.elementsFromPoint(x, y);
-                    for (let el of elem) {
-                        const zone = el.closest('label, .config-list-item');
-                        if (zone && zone.querySelector('.round-chunk-cb')) return zone;
-                    }
-                    return null;
-                }
-
-                function isValidStart(x, y) {
-                    const zone = getZoneElement(x, y);
-                    if (!zone) return false;
-                    const cb = zone.querySelector('.round-chunk-cb');
-                    if (!cb) return false;
-                    const zoneRect = zone.getBoundingClientRect();
-                    const cbRect = cb.getBoundingClientRect();
-                    return x >= zoneRect.left && x <= cbRect.right;
-                }
-
-                function toggleZone(zone) {
-                    if (!zone) return false;
-                    const now = Date.now();
-                    if (now - lastToggleTime < DEBOUNCE_MS) return false;
-                    const zoneId = zone;
-                    if (zoneId === lastZoneId) return false;
-                    const cb = zone.querySelector('.round-chunk-cb');
-                    if (!cb) return false;
-                    cb.checked = !cb.checked;
-                    cb.dispatchEvent(new Event('change', { bubbles: true }));
-                    lastZoneId = zoneId;
-                    lastToggleTime = now;
-                    return true;
-                }
-
-                // 获取所有可见区间（在视口内）
-                function getVisibleZones() {
-                    if (!scrollContainer) return [];
-                    const rect = scrollContainer.getBoundingClientRect();
-                    return Array.from(scrollContainer.querySelectorAll('label, .config-list-item'))
-                        .filter(z => z.querySelector('.round-chunk-cb'))
-                        .filter(z => {
-                            const zRect = z.getBoundingClientRect();
-                            return zRect.top < rect.bottom && zRect.bottom > rect.top;
-                        });
-                }
-
-                function getAdjacentZone(currentZone, direction) {
-                    const allZones = Array.from(scrollContainer.querySelectorAll('label, .config-list-item'))
-                        .filter(z => z.querySelector('.round-chunk-cb'));
-                    const index = allZones.indexOf(currentZone);
-                    if (direction === 'up' && index > 0) return allZones[index - 1];
-                    if (direction === 'down' && index < allZones.length - 1) return allZones[index + 1];
-                    return null;
-                }
-
-                function startAutoScroll(direction) {
-                    if (autoScrollRaf) cancelAnimationFrame(autoScrollRaf);
-                    let lastTimestamp = 0;
-                    let lastProcessedZone = null;
-
-                    function step(now) {
-                        if (!isSelecting) {
-                            cancelAnimationFrame(autoScrollRaf);
-                            autoScrollRaf = null;
-                            return;
-                        }
-                        if (!lastTimestamp) lastTimestamp = now;
-                        const delta = now - lastTimestamp;
-                        if (delta >= 16) {
-                            // 执行滚动
-                            if (direction === 'up') {
-                                scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - SCROLL_SPEED);
-                            } else {
-                                scrollContainer.scrollTop = Math.min(scrollContainer.scrollHeight - scrollContainer.clientHeight, scrollContainer.scrollTop + SCROLL_SPEED);
-                            }
-                            lastTimestamp = now;
-
-                            // 优先处理手指下方的区间
-                            const fingerZone = getZoneElement(lastClientX, lastClientY);
-                            if (fingerZone) {
-                                toggleZone(fingerZone);
-                                if (lastProcessedZone === fingerZone) {
-                                    const nextZone = getAdjacentZone(fingerZone, direction);
-                                    if (nextZone) toggleZone(nextZone);
-                                }
-                                lastProcessedZone = fingerZone;
-                            } else {
-                                // 如果手指下方没有区间（例如在边缘空白），则主动处理可见区间中滚动方向上的第一个
-                                const visibleZones = getVisibleZones();
-                                if (visibleZones.length) {
-                                    const targetZone = direction === 'up' ? visibleZones[0] : visibleZones[visibleZones.length - 1];
-                                    if (targetZone) toggleZone(targetZone);
-                                }
-                                lastProcessedZone = null;
-                            }
-
-                            // 额外处理：当滚动到边界时，如果还有未切换的边界区间，再尝试切换一次
-                            const isAtTop = scrollContainer.scrollTop === 0;
-                            const isAtBottom = scrollContainer.scrollTop >= scrollContainer.scrollHeight - scrollContainer.clientHeight;
-                            if (isAtTop || isAtBottom) {
-                                const boundaryZone = direction === 'up' ? getVisibleZones()[0] : getVisibleZones().slice(-1)[0];
-                                if (boundaryZone && boundaryZone !== lastZoneId) toggleZone(boundaryZone);
-                            }
-                        }
-                        autoScrollRaf = requestAnimationFrame(step);
-                    }
-                    autoScrollRaf = requestAnimationFrame(step);
-                }
-
-                function stopAutoScroll() {
-                    if (autoScrollRaf) {
-                        cancelAnimationFrame(autoScrollRaf);
-                        autoScrollRaf = null;
-                    }
-                }
-
-                function onTouchStart(e) {
-                    startY = e.touches[0].clientY;
-                    const touchX = e.touches[0].clientX;
-                    const touchY = e.touches[0].clientY;
-                    startValid = isValidStart(touchX, touchY);
-                    isSelecting = false;
-                    lastZoneId = null;
-                    lastToggleTime = 0;
-                    stopAutoScroll();
-                }
-
-                function onTouchMove(e) {
-                    if (!startValid) return;
-
-                    const currentY = e.touches[0].clientY;
-                    const deltaY = currentY - startY;
-
-                    if (!isSelecting && Math.abs(deltaY) > ENTER_THRESHOLD) {
-                        isSelecting = true;
-                        e.preventDefault();
-                        lastClientX = e.touches[0].clientX;
-                        lastClientY = currentY;
-                        const firstZone = getZoneElement(lastClientX, lastClientY);
-                        if (firstZone) toggleZone(firstZone);
-                        return;
-                    }
-
-                    if (!isSelecting) return;
-
-                    e.preventDefault();
-                    lastClientX = e.touches[0].clientX;
-                    lastClientY = currentY;
-
-                    const rect = scrollContainer.getBoundingClientRect();
-                    const relativeY = lastClientY - rect.top;
-                    const isTopZone = relativeY < SCROLL_ZONE && scrollContainer.scrollTop > 0;
-                    const isBottomZone = relativeY > rect.height - SCROLL_ZONE && scrollContainer.scrollTop < scrollContainer.scrollHeight - rect.height;
-
-                    if (isTopZone) {
-                        startAutoScroll('up');
-                    } else if (isBottomZone) {
-                        startAutoScroll('down');
-                    } else {
-                        stopAutoScroll();
-                    }
-
-                    const zone = getZoneElement(lastClientX, lastClientY);
-                    if (zone) toggleZone(zone);
-                }
-
-                function onTouchEnd(e) {
-                    if (isSelecting) e.preventDefault();
-                    // 结束时，确保最后手指下的区间被切换（如果之前漏掉）
-                    if (isSelecting) {
-                        const finalZone = getZoneElement(lastClientX, lastClientY);
-                        if (finalZone && finalZone !== lastZoneId) toggleZone(finalZone);
-                    }
-                    isSelecting = false;
-                    lastZoneId = null;
-                    stopAutoScroll();
-                }
-
-                scrollContainer.addEventListener('touchstart', onTouchStart, { passive: true });
-                scrollContainer.addEventListener('touchmove', onTouchMove, { passive: false });
-                scrollContainer.addEventListener('touchend', onTouchEnd);
-                scrollContainer.addEventListener('touchcancel', onTouchEnd);
-
-                const originalClose = window.closeRoundSelectorModal;
-                window.closeRoundSelectorModal = function() {
-                    if (originalClose) originalClose();
-                    scrollContainer.removeEventListener('touchstart', onTouchStart);
-                    scrollContainer.removeEventListener('touchmove', onTouchMove);
-                    scrollContainer.removeEventListener('touchend', onTouchEnd);
-                    scrollContainer.removeEventListener('touchcancel', onTouchEnd);
-                    stopAutoScroll();
-                };
-            }
-        }
-
-        // 🌟 全局关闭修史面板函数（带退出动画）
-        window.closeRoundSelectorModal = function() {
-            const modal = document.getElementById('round-selector-modal');
-            if (modal) {
-                modal.classList.remove('show');
-                setTimeout(() => modal.remove(), 300);
-            }
-        };
-
-        window.closeRoundSelectorModalByOverlay = function(event) {
-            if (event.target === event.currentTarget) {
-                closeRoundSelectorModal();
-            }
-        };
-
-        window.addCustomRoundBlock = function() {
-            const start = parseInt(document.getElementById('custom-round-start').value);
-            const end = parseInt(document.getElementById('custom-round-end').value);
-            if (isNaN(start) || isNaN(end) || start <= 0 || end < start) {
-                alert('请输入有效的轮数区间');
-                return;
-            }
-            // 检查是否已存在
-            const allCheckboxes = document.querySelectorAll('.round-chunk-cb');
-            for (const cb of allCheckboxes) {
-                    if (cb.value === `${start}-${end}`) {
-                    alert('该区间已存在');
-                    return;
-                }
-            }
-            const list = document.querySelector('#round-selector-modal .config-modal-body div[style*="flex-direction:column"]');
-            if (!list) return;
-            const label = document.createElement('label');
-            label.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding: 14px 16px; background: var(--card-bg); border-radius: 12px; border: 0.5px solid var(--border); cursor: pointer; transition: background 0.2s;';
-            label.innerHTML = '<span style="font-size:15px; font-weight:600; color: var(--text-main); display:flex; align-items:center;">第 ' + start + '-' + end + ' 轮 <span style="color:var(--accent); font-size:12px; margin-left:8px;">(手动补充)</span></span><input type="checkbox" class="round-chunk-cb" value="' + start + '-' + end + '" checked style="width:20px; height:20px; accent-color: var(--accent);">';
-            list.appendChild(label);
-            document.getElementById('custom-round-start').value = '';
-            document.getElementById('custom-round-end').value = '';
-        };     
-
-        // --- 自由修史：销毁特定区间的旧档案 ---
-        window.deleteArchiveBlock = function(start, end) {
-            if(!confirm(`确定要销毁 第 ${start}-${end} 轮 的历史档案吗？销毁后可作为【缺失】重新生成。`)) return;
-            const contact = mockContacts.find(c => c.id === currentChatContactId);
-            if (!contact || !contact.longMemories) return;
-            
-            // 找出范围内所有的档案并精准抹杀
-            contact.longMemories = contact.longMemories.filter(m => {
-                if (!m.roundRange) return true;
+async function simulateMemorySummary(contact) {
+    console.log("🧠 尝试触发长期记忆生成逻辑...");
+    const interval = GENERAL_CONFIG.memory.diaryInterval || 10;
+    const conversation = getConversation(contact.id);
+    const userMessagesCount = conversation.filter(m => m.role === 'user').length;
+    
+    let lastSummarizedRound = 0;
+    if (contact.longMemories && contact.longMemories.length > 0) {
+        contact.longMemories.forEach(m => {
+            if (m.roundRange) {
                 const match = String(m.roundRange).match(/第?(\d+)-(\d+)轮?/);
-                if (match && parseInt(match[1]) === start && parseInt(match[2]) === end) {
-                    return false; // 命中目标区间，删掉！
-                }
-                return true;
-            });
-            saveToLocal();
-            // 原地销毁弹窗并秒刷新
-            const modal = document.getElementById('round-selector-modal');
-            if(modal) modal.remove();
-            backfillAllMemories(); 
-        };
-        // --- 执行勾选片段的合并且发送 API ---
-        window.executeBackfillSelected = async function() {
-            // 找出所有被打钩的复选框
-            const checkboxes = document.querySelectorAll('.round-chunk-cb:checked');
-            const selectedBlocks = Array.from(checkboxes).map(cb => {
-                const [start, end] = cb.value.split('-').map(Number);
-                return { startRound: start, endRound: end };
-            });
-
-            if (selectedBlocks.length === 0) {
-                alert("请至少选择一个区间！");
-                return;
-            }
-
-            // 销毁弹窗
-            document.getElementById('round-selector-modal').remove();
-
-            const contact = mockContacts.find(c => c.id === currentChatContactId);
-            if (!contact) return;
-
-            // 清理即将重写的区块的旧记忆（防止数据重复）
-            if (contact.longMemories) {
-                selectedBlocks.forEach(b => {
-                    contact.longMemories = contact.longMemories.filter(m => {
-                        if (!m.roundRange) return true;
-                        const match = String(m.roundRange).match(/第?(\d+)-(\d+)轮?/);
-                        if (!match) return true;
-                        const mStart = parseInt(match[1]);
-                        const mEnd = parseInt(match[2]);
-                        const mid = (mStart + mEnd) / 2;
-                        // 如果旧记忆的中心点落在我们即将重写的区间内，直接删掉旧的
-                        if (mid >= b.startRound && mid <= b.endRound) {
-                            return false;
-                        }
-                        return true;
-                    });
-                });
-            } else {
-                contact.longMemories = [];
-            }
-
-            // 获取 API 权限
-            const memoryConfig = OTHER_API_CONFIGS.memory;
-            let apiConfig = null;
-            if (memoryConfig && memoryConfig.configId) {
-                apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === memoryConfig.configId);
-            }
-            if (!apiConfig) {
-                apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
-            }
-            if (!apiConfig) {
-                alert('⚠️ 没有可用的 API 配置');
-                return;
-            }
-
-            // 精准把勾选的区块抽离出来，合并在一起发给大模型
-            const conversation = getConversation(contact.id);
-            let allMissingChats = "";
-            
-            // 1. 先将整个对话分组为轮次（每次用户消息开启一轮，包含后续AI消息）
-            const rounds = [];
-            let currentRound = [];
-            conversation.forEach(msg => {
-                if (msg.role === 'user' && currentRound.length > 0) {
-                    rounds.push([...currentRound]);
-                    currentRound = [];
-                }
-                currentRound.push(msg);
-            });
-            if (currentRound.length > 0) rounds.push(currentRound);
-            // rounds 下标0对应第1轮
-
-            allMissingChats = "";
-            selectedBlocks.forEach(block => {
-                const startIdx = block.startRound - 1;
-                const endIdx = block.endRound - 1;
-                if (startIdx >= 0 && endIdx < rounds.length) {
-                    const blockMessages = rounds.slice(startIdx, endIdx + 1).flat();
-                    let roundLabel = block.startRound;
-                    const chatContent = blockMessages.map(m => {
-                        if (m.role === 'user') {
-                            const line = `[第${roundLabel}轮] 用户：${m.content}`;
-                            roundLabel++;
-                            return line;
-                        } else {
-                            return `AI：${m.content}`;
-                        }
-                    }).join('\n');
-                    allMissingChats += `\n\n【需要提取的对话区块：第${block.startRound}-${block.endRound}轮】\n${chatContent}`;
-                }
-            });
-
-            const allExistingMemories = contact.longMemories.length > 0 ? contact.longMemories.map(m => m.content).join('\n') : "暂无记忆";
-
-            // 动态替换 AI 当前的身份和设定
-            const dynamicPrompt = SYSTEM_ARCHIVE_PROMPT
-                .replace(/\{\{AI_NAME\}\}/g, contact.name || '未命名角色')
-                .replace(/\{\{AI_PERSONA\}\}/g, contact.prompt || '暂无设定');
-
-            const summaryMessages = [
-                { role: "system", content: dynamicPrompt }, 
-                { 
-                    role: "user", 
-                    content: `请根据以下对话区块提取档案和关系变化，不要参考其他记忆。请勿重复记录已有事件；若是新细节请补充。\n${allMissingChats}\n\n请严格以大纲作者的视角，按格式要求返回 JSON。` 
-                }
-            ];
-
-            try {
-                const modelToUse = (memoryConfig && memoryConfig.model) ? memoryConfig.model : apiConfig.model;
-                let apiUrl = getStandardApiUrl(apiConfig.url, '/chat/completions');
-                
-                addLogToConsole('info', 'ARCHIVE', `正在提取 ${selectedBlocks.length} 个区块的档案...`);
-                
-                // 呼出顶部进度条
-                const progressBar = document.getElementById('backfill-progress-bar');
-                if (progressBar) {
-                    progressBar.style.opacity = '1';
-                    progressBar.classList.add('active');
-                    progressBar.style.transition = 'transform 1.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease';
-                    progressBar.style.transform = 'scaleX(0.5)';
-                }
-
-                const response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'chat',
-                        customEndpoint: apiUrl,
-                        customApiKey: apiConfig.key,
-                        model: modelToUse,
-                        messages: summaryMessages,
-                        temperature: 0.1,
-                        max_tokens: 3000
-                    })
-                });
-
-                if (!response.ok) throw new Error(`API 报错: ${response.status}`);
-                const data = await response.json();
-                
-                // JSON 安全脱壳术
-                let jsonStr = data.choices && data.choices[0] ? data.choices[0].message.content : data.result;
-                jsonStr = jsonStr.replace(/```json/gi, '').replace(/```/g, '').trim();
-                const result = JSON.parse(jsonStr);
-
-                let addedCount = 0;
-                // 🌟 剥离现实时间！只有开启现实感知时，才调用当前现实时间
-                const isRealityMode = document.getElementById('reality-mode-switch')?.classList.contains('active');
-                let realDateStr = null;
-                if (isRealityMode) {
-                    const now = new Date();
-                    realDateStr = `${now.getMonth()+1}月${now.getDate()}日`;
-                }
-
-                // 注入新记忆
-                if (result.memories && Array.isArray(result.memories)) {
-                    result.memories.forEach(m => {
-                        m.id = 'mem_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-                        if (!m.roundRange) m.roundRange = `${startRound}-${endRound}`;
-                        if (isRealityMode && !m.worldTime) m.date = realDateStr;
-                        
-                        // 🌟 实体合并引擎：真名覆盖旧代号
-                        if (m.previousName && m.keywords && m.keywords.length > 0) {
-                            let oldAlias = m.previousName;
-                            let realName = m.keywords[0];
-                            addLogToConsole('info', 'ARCHIVE', `触发实体合并：[${oldAlias}] 真名揭晓为 [${realName}]`);
-                            if (contact.longMemories) {
-                                contact.longMemories.forEach(oldMem => {
-                                    if (oldMem.keywords && oldMem.keywords.includes(oldAlias)) {
-                                        oldMem.keywords = oldMem.keywords.map(k => k === oldAlias ? realName : k);
-                                        oldMem.content = oldMem.content.replace(new RegExp(oldAlias, 'g'), realName);
-                                    }
-                                });
-                            }
-                            if (contact.relations) {
-                                contact.relations.forEach(r => {
-                                    if (r.source === oldAlias) r.source = realName;
-                                    if (r.target === oldAlias) r.target = realName;
-                                });
-                            }
-                        }
-                        
-                        contact.longMemories.push(m);
-                        addedCount++;
-                    });
-                }
-
-                // 注入人物关系星图连线数据！
-                if (result.relations && Array.isArray(result.relations)) {
-                    if (!contact.relations) contact.relations = [];
-                    result.relations.forEach(r => {
-                        const existingRelIndex = contact.relations.findIndex(ex => 
-                            (ex.source === r.source && ex.target === r.target) || 
-                            (ex.source === r.target && ex.target === r.source)
-                        );
-                        
-                        // 羁绊的时间戳使用世界时间或轮数
-                        const timeMark = r.updatedAt || (isRealityMode ? realDateStr : `第 ${selectedBlocks[0].startRound}-${selectedBlocks[selectedBlocks.length-1].endRound} 轮`); 
-
-                        if (existingRelIndex !== -1) {
-                            const existingRel = contact.relations[existingRelIndex];
-                            if (!existingRel.history) existingRel.history = [{ label: existingRel.label, time: '往昔', detail: existingRel.detail || '初始状态' }];
-                            existingRel.label = r.label;
-                            existingRel.detail = r.detail || '关系产生了新的转变。';
-                            existingRel.updatedAt = timeMark;
-                            existingRel.history.push({ label: r.label, time: timeMark, detail: existingRel.detail });
-                        } else {
-                            r.history = [{ label: r.label, time: timeMark, detail: r.detail || '建立了初始羁绊。' }];
-                            r.updatedAt = timeMark;
-                            contact.relations.push(r);
-                        }
-                    });
-                }
-
-                // 时间轴重排
-                if (contact.longMemories && contact.longMemories.length > 0) {
-                    contact.longMemories.sort((a, b) => {
-                        const getStart = (range) => {
-                            if (!range) return 0;
-                            const match = String(range).match(/第?(\d+)-/);
-                            return match ? parseInt(match[1], 10) : 0;
-                        };
-                        return getStart(a.roundRange) - getStart(b.roundRange);
-                    });
-                }
-
-                saveToLocal();
-                
-                if (progressBar) progressBar.style.transform = `scaleX(1)`;
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                const searchInput = document.getElementById('archive-search-input');
-                renderArchiveContent(searchInput ? searchInput.value : '');
-                updateMemoryStats();
-                
-                alert(`✅ 记忆融合完成！\n\n成功萃取了 ${addedCount} 条设定档案，及 ${result.relations ? result.relations.length : 0} 组人物羁绊。`);
-
-            } catch (error) {
-                let rawError = error.stack || error.toString();
-                addLogToConsole('error', '修史提取出错', rawError);
-                console.error("提取出错:", error);
-                alert(`⚠️ 提取出错: ${error.message}\n请查看控制台获取原始错误信息。`);
-
-            } finally {
-                const progressBar = document.getElementById('backfill-progress-bar');
-                if (progressBar) {
-                    progressBar.style.transition = 'opacity 0.5s ease, transform 0.3s ease';
-                    progressBar.style.opacity = '0';
-                    setTimeout(() => {
-                        progressBar.classList.remove('active');
-                        progressBar.style.transform = 'scaleX(0)';
-                    }, 500);
-                }
-            }
-        }
-
-        function switchTab(tabName) {
-            // 切换页面时，强制隐藏论坛的加载圈，防止它跑到聊天界面去
-            if(document.getElementById('explore-refresh-indicator')) {
-                document.getElementById('explore-refresh-indicator').style.opacity = '0';
-            }
-            document.querySelectorAll('.tab-page').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab-' + tabName).classList.add('active');
-            const tabs = ['apps', 'explore', 'chat', 'me'];
-            const index = tabs.indexOf(tabName);
-            if(index >= 0) document.querySelectorAll('.tab-btn')[index].classList.add('active');
-            
-            // 🎯 新增：记录当前所在的 Tab，让下拉刷新后能回到这里
-            sessionStorage.setItem('CURRENT_MAIN_TAB', tabName);
-        }
-        function switchExplore(index) {
-            const glider = document.getElementById('seg-glider');
-            glider.style.transform = `translateX(${index * 100}%)`;
-            document.querySelectorAll('.seg-item').forEach((el, i) => { el.classList.toggle('active', i === index); });
-            document.querySelectorAll('.explore-section').forEach(el => el.classList.remove('active'));
-            document.getElementById('exp-sec-' + index).classList.add('active');
-        }
-
-        // ==========================================
-        // 🌟 世界档案馆核心引擎 (高定紧凑向心版 + 独立控制器)
-        // ==========================================
-        
-        let currentArchiveCategory = '全部';
-        let expandedArchiveCards = new Set(); 
-        let archiveSortDesc = true;           
-
-        function smoothScrollToElement(element, duration = 400, heightLoss = 0) {
-            if (!element) return;
-            const container = document.getElementById('archive-content');
-            if (!container) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                return;
-            }
-
-            const elementTop = element.getBoundingClientRect().top;
-            const containerTop = container.getBoundingClientRect().top;
-            let target = container.scrollTop + elementTop - containerTop;
-
-            // 🌟 核心魔法：预测未来的最大滚动极限，防止高度抽空后被浏览器强制回弹
-            if (heightLoss > 0) {
-                const currentMaxScroll = container.scrollHeight - container.clientHeight;
-                const futureMaxScroll = Math.max(0, currentMaxScroll - heightLoss);
-                target = Math.min(target, futureMaxScroll); // 将目标位置死死锁在安全范围内
-            }
-
-            const start = container.scrollTop;
-            const distance = target - start;
-
-            if (Math.abs(distance) < 5) return;
-            
-            let startTime = null;
-            function animation(currentTime) {
-                if (!startTime) startTime = currentTime;
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                
-                const ease = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-                container.scrollTop = start + distance * ease;
-                
-                if (elapsed < duration) {
-                    requestAnimationFrame(animation);
-                } else {
-                    container.scrollTop = target;
-                }
-            }
-            requestAnimationFrame(animation);
-        }
-
-        // 替换原有的 window.togglePrefReader 函数
-        window.togglePrefReader = function(chipId) {
-            const matrix = document.getElementById('pref-matrix');
-            const reader = document.getElementById('pref-detail-reader');
-            const chipEl = document.getElementById(chipId);
-            if (!matrix || !reader || !chipEl) return;
-
-            // 关闭逻辑
-            if (chipEl.classList.contains('active')) {
-                chipEl.classList.remove('active');
-                matrix.classList.remove('has-active');
-                
-                const styles = window.getComputedStyle(reader);
-                const heightLoss = reader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
-                reader.style.opacity = '0';
-                smoothScrollToElement(matrix, 400, heightLoss);
-                
-                setTimeout(() => {
-                    if (!matrix.classList.contains('has-active')) {
-                        reader.style.transition = 'none';
-                        reader.classList.remove('show');
-                        requestAnimationFrame(() => {
-                            reader.style.opacity = '';
-                            reader.style.transition = '';
-                        });
-                    }
-                }, 400);
-                return;
-            }
-
-            // 获取数据，增加防御
-            const data = window.currentPrefGroups[chipId];
-            if (!data) {
-                console.error('未找到偏好数据', chipId);
-                return;
-            }
-
-            // 确保关键词和内容可用
-            const keyword = data.keyword || '未命名偏好';
-            const detailsHtml = data.detailsHtml || '<div class="chip-detail-item">暂无详细记录</div>';
-            let readerClass = `pref-detail-reader ${data.themeClass || 'chip-theme-blue'} `;
-            readerClass += data.score >= 5 ? 'core' : (data.score === 4 ? 'major' : 'minor');
-
-            reader.className = readerClass;
-            reader.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding-bottom: 12px;">
-                    <div style="font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px;">
-                        ${data.iconHtml || '<i class="fas fa-tag"></i>'}
-                        <span>${escapeHtml(keyword)}</span>
-                    </div>
-                    <i class="fas fa-times" onclick="window.togglePrefReader('${chipId}')" style="opacity:0.6; font-size:18px; cursor:pointer;"></i>
-                </div>
-                <div>${detailsHtml}</div>
-            `;
-
-            // 高亮当前小球，并隐藏其他小球
-            matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
-            chipEl.classList.add('active');
-            matrix.classList.add('has-active');
-
-            reader.classList.add('show');
-            setTimeout(() => {
-                reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }, 300);
-        };
-
-        window.toggleBioReader = function(chipId) {
-            const matrix = document.getElementById('bio-board'); 
-            const reader = document.getElementById('bio-detail-reader');
-            const chipEl = document.getElementById(chipId);
-            if (!matrix || !reader || !chipEl) return;
-
-            // --- 关闭阅读器 ---
-            if (chipEl.classList.contains('active')) {
-                chipEl.classList.remove('active');
-                matrix.classList.remove('has-active');
-                dimRelationLines(false);
-                
-                // 清除打开时设置的动态负 margin，恢复到原始文档流位置
-                reader.style.marginTop = '';
-                
-                const styles = window.getComputedStyle(reader);
-                const heightLoss = reader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
-                
-                reader.style.opacity = '0';
-                smoothScrollToElement(matrix, 400, heightLoss);
-                
-                setTimeout(() => {
-                    if (!matrix.classList.contains('has-active')) {
-                        reader.style.transition = 'none';
-                        reader.classList.remove('show');
-                        requestAnimationFrame(() => {
-                            reader.style.opacity = '';
-                            reader.style.transition = '';
-                        });
-                    }
-                }, 400);
-                return;
-            }
-
-            // --- 打开阅读器 ---
-            // 1. 获取数据
-            const data = window.currentBioGroups[chipId];
-            if (!data) return;
-
-            // 2. 设置阅读器内容和样式
-            let readerClass = `pref-detail-reader ${data.themeClass} `;
-            readerClass += data.score >= 5 ? 'core' : (data.score === 4 ? 'major' : 'minor');
-            reader.className = readerClass;
-            reader.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding-bottom: 12px;">
-                    <div style="font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px;">
-                        ${data.iconHtml}
-                        <span>${escapeHtml(data.characterName)}</span>
-                        <i class="fas fa-pencil-alt" style="font-size:14px; opacity:0.6; cursor:pointer; margin-left:6px;" onclick="editBioCharacterName('${chipId}', '${escapeHtml(data.characterName)}')"></i>
-                    </div>
-                    <i class="fas fa-times" onclick="window.toggleBioReader('${chipId}')" style="opacity:0.6; font-size:18px; cursor:pointer;"></i>
-                </div>
-                <div>${data.detailsHtml}</div>
-            `;
-
-            // 3. 高亮小球，并标记星图为激活状态（让其他小球半透明）
-            matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
-            chipEl.classList.add('active');
-            matrix.classList.add('has-active');
-            dimRelationLines(true);  // ← 新增
-
-            // 4. 动态计算阅读器应该出现的理想位置（最下方小球的正下方 16px）
-            const board = document.getElementById('bio-board');
-            if (board) {
-                const boardRect = board.getBoundingClientRect();
-                const chips = board.querySelectorAll('.archive-glass-chip');
-                let maxBottom = 0;
-                chips.forEach(chip => {
-                    const rect = chip.getBoundingClientRect();
-                    const bottom = rect.bottom - boardRect.top;   // 相对于 board 顶部的距离
-                    if (bottom > maxBottom) maxBottom = bottom;
-                });
-                
-                const desiredTop = maxBottom + 16;                // 最底小球下方留 16px
-                const naturalTop = boardRect.height;              // 阅读器原本在 board 底部
-                const offset = naturalTop - desiredTop;           // 需要向上平移的距离
-                
-                // 5. 用负 margin-top 精确提升阅读器
-                reader.style.marginTop = `-${offset}px`;
-            }
-
-            // 6. 显示阅读器（CSS 过渡动画开始）
-            reader.classList.add('show');
-            
-            // 7. 打开后稍微延迟再滚动，让动画自然完成
-            setTimeout(() => {
-                reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }, 300);
-        };
-
-        window.editBioCharacterName = function(chipId, oldName) {
-            console.log("editBioCharacterName called", chipId, oldName);
-            if (!currentChatContactId) {
-                alert("请先打开一个聊天窗口再编辑");
-                return;
-            }
-            const contact = mockContacts.find(c => c.id === currentChatContactId);
-            if (!contact) return;
-
-            // 通过铅笔图标定位名称 span
-            const pencilIcon = document.querySelector('#bio-detail-reader .fa-pencil-alt');
-            if (!pencilIcon) {
-                alert("未找到编辑按钮，请刷新页面重试");
-                return;
-            }
-            const nameSpan = pencilIcon.parentElement.querySelector('span');
-            if (!nameSpan) {
-                alert("未找到名称元素，请刷新页面重试");
-                return;
-            }
-
-            // 创建输入框
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.value = oldName;
-            input.style.cssText = `
-                font-size: inherit;
-                font-weight: inherit;
-                font-family: inherit;
-                background: var(--input-bg);
-                border: 1px solid var(--border);
-                border-radius: 6px;
-                padding: 2px 8px;
-                margin: -2px 0;
-                color: var(--text-main);
-                outline: none;
-                box-sizing: content-box;
-            `;
-
-            // 动态调整宽度的函数
-            const adjustWidth = () => {
-                // 创建一个临时 span 测量文本实际宽度
-                const measureSpan = document.createElement('span');
-                measureSpan.style.visibility = 'hidden';
-                measureSpan.style.position = 'absolute';
-                measureSpan.style.whiteSpace = 'pre';
-                measureSpan.style.font = window.getComputedStyle(input).font;
-                measureSpan.style.padding = window.getComputedStyle(input).padding;
-                measureSpan.style.border = 'none';
-                measureSpan.textContent = input.value || oldName;
-                document.body.appendChild(measureSpan);
-                const textWidth = measureSpan.offsetWidth;
-                document.body.removeChild(measureSpan);
-                // 设置宽度 = 文本宽度 + 左右内边距(16px) + 边框(2px) + 一个额外余量(4px)
-                const newWidth = textWidth + 16 + 4;
-                input.style.width = Math.min(newWidth, 300) + 'px'; // 最大宽度限制为300px
-            };
-
-            // 先调整一次宽度
-            adjustWidth();
-
-            nameSpan.style.display = 'none';
-            nameSpan.parentNode.insertBefore(input, nameSpan.nextSibling);
-            input.focus();
-            input.select();
-
-            // 键盘弹起后延迟滚动
-            const onKeyboardShow = () => {
-                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                window.removeEventListener('keyboardWillShow', onKeyboardShow);
-            };
-            window.addEventListener('keyboardWillShow', onKeyboardShow);
-
-            // 输入时实时调整宽度
-            input.addEventListener('input', adjustWidth);
-
-            const saveEdit = () => {
-                const newName = input.value.trim();
-                if (newName && newName !== oldName) {
-                    let updatedCount = 0;
-                    contact.longMemories.forEach(mem => {
-                        if (mem.keywords && Array.isArray(mem.keywords)) {
-                            const index = mem.keywords.indexOf(oldName);
-                            if (index !== -1) {
-                                mem.keywords[index] = newName;
-                                updatedCount++;
-                            }
-                        }
-                        if (mem.content && mem.content.includes(oldName)) {
-                            mem.content = mem.content.replace(new RegExp(oldName, 'g'), newName);
-                        }
-                    });
-                    if (contact.relations) {
-                        // 1. 先把所有关系中出现的旧名字改为新名字
-                        contact.relations.forEach(rel => {
-                            if (rel.source === oldName) rel.source = newName;
-                            if (rel.target === oldName) rel.target = newName;
-                            if (rel.history) {
-                                rel.history.forEach(h => {
-                                    if (h.detail) h.detail = h.detail.replace(new RegExp(oldName, 'g'), newName);
-                                });
-                            }
-                        });
-
-                        // 2. 合并相同人物对的关系（保留所有历史记录）
-                        const mergedMap = new Map();
-                        for (const rel of contact.relations) {
-                            const key = `${rel.source}|${rel.target}`;
-                            if (mergedMap.has(key)) {
-                                const existing = mergedMap.get(key);
-                                // 如果当前关系有 history 数组，就把它的所有条目合并到 existing.history 中
-                                if (rel.history && rel.history.length) {
-                                    if (!existing.history) existing.history = [];
-                                    existing.history.push(...rel.history);
-                                }
-                                // 如果当前关系本身带有历史（直接存储在 label/detail/updatedAt 中），也当作一条历史记录合并
-                                if (rel.label && rel.detail && rel.updatedAt) {
-                                    if (!existing.history) existing.history = [];
-                                    // 避免重复添加完全相同的历史条目
-                                    const alreadyHas = existing.history.some(h => 
-                                        h.label === rel.label && h.detail === rel.detail && h.time === rel.updatedAt
-                                    );
-                                    if (!alreadyHas) {
-                                        existing.history.push({
-                                            label: rel.label,
-                                            detail: rel.detail,
-                                            time: rel.updatedAt
-                                        });
-                                    }
-                                }
-                                // 保留更新 label 和 detail（取最新的）
-                                existing.label = rel.label || existing.label;
-                                existing.detail = rel.detail || existing.detail;
-                                existing.updatedAt = rel.updatedAt || existing.updatedAt;
-                            } else {
-                                // 确保每条关系都有 history 数组（如果是老数据没有 history，则从自身构造）
-                                if (!rel.history && rel.label && rel.detail && rel.updatedAt) {
-                                    rel.history = [{
-                                        label: rel.label,
-                                        detail: rel.detail,
-                                        time: rel.updatedAt
-                                    }];
-                                }
-                                mergedMap.set(key, rel);
-                            }
-                        }
-                        contact.relations = Array.from(mergedMap.values());
-                    }
-                    if (updatedCount > 0) {
-                        saveToLocal();
-                        const searchInput = document.getElementById('archive-search-input');
-                        renderArchiveContent(searchInput ? searchInput.value : '');
-                        showToast(`已将「${oldName}」合并为「${newName}」`);
-                    } else {
-                        showToast('未找到需要修改的记忆条目');
-                    }
-                }
-                input.removeEventListener('input', adjustWidth);
-                input.remove();
-                nameSpan.style.display = '';
-                if (newName) nameSpan.textContent = newName;
-            };
-
-            const cancelEdit = () => {
-                input.removeEventListener('input', adjustWidth);
-                input.remove();
-                nameSpan.style.display = '';
-            };
-
-            input.addEventListener('blur', saveEdit);
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    saveEdit();
-                } else if (e.key === 'Escape') {
-                    cancelEdit();
-                }
-            });
-        };
-
-        // --- 控制器结束 ---
-
-        function openArchivePage() {
-            if (!currentChatContactId) return;
-            const searchInput = document.getElementById('archive-search-input');
-            if (searchInput) searchInput.value = '';
-            
-            currentArchiveCategory = '全部';
-            document.getElementById('current-cat-text').innerText = '全部';
-            document.querySelectorAll('.cat-menu-item').forEach((el, index) => {
-                el.classList.toggle('active', index === 0);
-            });
-
-            expandedArchiveCards.clear();
-            const btn = document.getElementById('bio-reset-btn');
-            if (btn) btn.style.display = 'none';
-            renderArchiveContent();
-            openSubPage('sub-archive');
-        }
-
-        // ✨ 悬浮菜单开关
-        function toggleCategoryMenu() {
-            document.getElementById('archive-cat-menu').classList.toggle('show');
-        }
-
-        // ✨ 切换分类
-        function switchArchiveCategory(categoryName, shortName) {
-            currentArchiveCategory = categoryName;
-            document.getElementById('current-cat-text').innerText = shortName;
-            
-            document.querySelectorAll('.cat-menu-item').forEach(tab => {
-                tab.classList.remove('active');
-                if (tab.textContent.includes(shortName)) tab.classList.add('active');
-            });
-            
-            document.getElementById('archive-cat-menu').classList.remove('show');
-            
-            // 提前获取搜索框
-            const searchInput = document.getElementById('archive-search-input');
-            const currentVal = searchInput ? searchInput.value : '';
-            const cursorPos = searchInput ? searchInput.selectionStart : 0;
-            
-            // 显示/隐藏人物重置按钮
-            const resetBtn = document.getElementById('bio-reset-btn');
-            if (resetBtn) {
-                resetBtn.style.display = (categoryName === '人物') ? 'flex' : 'none';
-            }
-            
-            // 渲染内容
-            renderArchiveContent(currentVal);
-            // 如果输入框内有内容，保持光标位置记忆（下次点击搜索框时自然出现）
-            if (searchInput && searchInput.value) {
-                // 可以不用任何操作，或仅记录光标位置，但无需 focus
-            }
-        }
-
-        function toggleArchiveSort() {
-            archiveSortDesc = !archiveSortDesc;
-            const icon = document.getElementById('archive-sort-icon');
-            if (icon) icon.className = archiveSortDesc ? 'fas fa-sort-amount-down' : 'fas fa-sort-amount-up';
-            const searchInput = document.getElementById('archive-search-input');
-            renderArchiveContent(searchInput ? searchInput.value : '');
-        }
-
-        function highlightSearchTerm(text, term) {
-            if (!term) return escapeHtml(text);
-            const escapedText = escapeHtml(text);
-            const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`(${escapedTerm})`, 'gi');
-            return escapedText.replace(regex, '<span class="search-highlight-text">$1</span>');
-        }
-
-        function filterArchive(val) {
-            const input = document.getElementById('archive-search-input');
-            if (!input) return;
-
-            // 保存当前内容区的滚动位置（避免渲染后跳动）
-            const archiveContent = document.getElementById('archive-content');
-            const scrollTop = archiveContent ? archiveContent.scrollTop : 0;
-
-            renderArchiveContent(val);
-
-            // 恢复内容区滚动位置
-            if (archiveContent) archiveContent.scrollTop = scrollTop;
-        }
-        function toggleArchiveCard(headerEl) {
-            const card = headerEl.parentElement;
-            const title = headerEl.querySelector('.archive-entity-title').textContent.trim();
-            card.classList.toggle('expanded');
-            if (card.classList.contains('expanded')) expandedArchiveCards.add(title);
-            else expandedArchiveCards.delete(title);
-        }
-
-        function deleteArchiveItem(memoryId) {
-            if (!currentChatContactId) return;
-            const contact = mockContacts.find(c => c.id === currentChatContactId);
-            if (!contact || !contact.longMemories) return;
-            if (!confirm('确定要彻底删除这条档案吗？')) return;
-
-            contact.longMemories = contact.longMemories.filter(m => String(m.id) !== String(memoryId));
-            saveToLocal();
-            const searchInput = document.getElementById('archive-search-input');
-            renderArchiveContent(searchInput ? searchInput.value : '');
-            if (searchInput) {
-                searchInput.focus();
-            }
-            updateMemoryStats();
-        }
-     
-        function inplaceEditArchiveItem(memoryId) {
-            if (!currentChatContactId) return;
-            const contact = mockContacts.find(c => c.id === currentChatContactId);
-            if (!contact || !contact.longMemories) return;
-
-            const memIndex = contact.longMemories.findIndex(m => String(m.id) === String(memoryId));
-            if (memIndex === -1) {
-                alert('未找到该记忆条目，可能已被删除');
-                return;
-            }
-
-            const textDiv = document.getElementById(`archive-text-${memoryId}`);
-            if (!textDiv) {
-                alert('未找到编辑按钮对应的文本区域，请刷新页面重试');
-                return;
-            }
-
-            const scrollContainer = document.getElementById('archive-content');
-            const originalContent = contact.longMemories[memIndex].content;
-            const originalScore = contact.longMemories[memIndex].score || 4;
-            const originalDisplay = textDiv.style.display || 'block';
-
-            const container = document.createElement('div');
-            container.id = `edit-container-${memoryId}`;
-            container.style.width = '100%';
-            container.style.backgroundColor = 'var(--bg-color)';
-            container.style.borderRadius = '8px';
-            container.style.padding = '4px 0';
-
-            const textarea = document.createElement('textarea');
-            textarea.value = originalContent;
-            textarea.style.cssText = `
-                width: 100% !important;
-                min-height: 60px;
-                font-family: inherit;
-                font-size: 14px;
-                line-height: 1.5;
-                color: var(--text-main);
-                background: var(--input-bg);
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                padding: 8px;
-                margin: 0;
-                resize: vertical;
-                box-sizing: border-box;
-            `;
-
-            const scoreSelect = document.createElement('select');
-            scoreSelect.style.cssText = `
-                display: block;
-                margin: 8px 0 0 0;
-                padding: 6px 10px;
-                border-radius: 6px;
-                border: 1px solid var(--border);
-                background: var(--hover-bg);
-                color: var(--text-main);
-                font-size: 12px;
-                outline: none;
-                cursor: pointer;
-                width: fit-content;
-            `;
-
-            const scoreOptions = [
-                { v: 5, t: "5 分 (核心)" },
-                { v: 4, t: "4 分 (重要)" },
-                { v: 3, t: "3 分 (普通)" },
-                { v: 2, t: "2 分 (琐碎)" },
-                { v: 1, t: "1 分 (碎片)" }
-            ];
-            scoreOptions.forEach(opt => {
-                const o = document.createElement('option');
-                o.value = opt.v;
-                o.textContent = opt.t;
-                if (opt.v === originalScore) o.selected = true;
-                scoreSelect.appendChild(o);
-            });
-
-            container.appendChild(textarea);
-            container.appendChild(scoreSelect);
-            textDiv.style.display = 'none';
-            textDiv.parentNode.insertBefore(container, textDiv.nextSibling);
-
-            // 自动调整高度
-            const autoSize = () => {
-                textarea.style.height = 'auto';
-                textarea.style.height = textarea.scrollHeight + 'px';
-            };
-            textarea.addEventListener('input', autoSize);
-            autoSize();
-
-            textarea.focus();
-            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-
-            // ========== 全局点击保存逻辑 ==========
-            let isEditing = true;
-            const finishEdit = () => {
-                if (!isEditing) return;
-                isEditing = false;
-
-                // 清理全局监听器
-                document.removeEventListener('mousedown', handleOutsideClick);
-                document.removeEventListener('touchstart', handleOutsideClick);
-
-                const newContent = textarea.value.trim();
-                const newScore = parseInt(scoreSelect.value);
-                if (newContent === "") {
-                    if (confirm('内容为空，要删除这条档案吗？')) {
-                        contact.longMemories.splice(memIndex, 1);
-                        saveToLocal();
-                        const searchInput = document.getElementById('archive-search-input');
-                        renderArchiveContent(searchInput ? searchInput.value : '');
-                    } else {
-                        container.remove();
-                        textDiv.style.display = originalDisplay;
-                    }
-                } else {
-                    contact.longMemories[memIndex].content = newContent;
-                    contact.longMemories[memIndex].score = newScore;
-                    saveToLocal();
-                    textDiv.innerText = newContent;
-                    container.remove();
-                    textDiv.style.display = originalDisplay;
-                    if (typeof addLogToConsole === 'function') {
-                        addLogToConsole('success', 'EDIT', '档案已更新');
-                    }
-                }
-            };
-
-            const handleOutsideClick = (e) => {
-                // 如果点击的目标在编辑容器内部，不处理
-                if (container.contains(e.target)) return;
-                // 否则保存退出
-                finishEdit();
-            };
-
-            // 延迟添加监听器，避免当前点击触发
-            setTimeout(() => {
-                document.addEventListener('mousedown', handleOutsideClick);
-                document.addEventListener('touchstart', handleOutsideClick, { passive: true });
-            }, 100);
-
-            // 保留原来的 blur 作为后备（但用户点击 select 时不会 blur，所以全局监听是主要的）
-            textarea.addEventListener('blur', () => {
-                // 延迟检查，确保 select 的点击不会立即触发
-                setTimeout(() => {
-                    if (isEditing && document.activeElement !== scoreSelect && !container.contains(document.activeElement)) {
-                        finishEdit();
-                    }
-                }, 150);
-            });
-
-            // 按 Esc 取消编辑（恢复到原始内容）
-            const cancelEdit = () => {
-                if (!isEditing) return;
-                isEditing = false;
-                document.removeEventListener('mousedown', handleOutsideClick);
-                document.removeEventListener('touchstart', handleOutsideClick);
-                container.remove();
-                textDiv.style.display = originalDisplay;
-            };
-
-            textarea.addEventListener('keydown', (e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    e.preventDefault();
-                    finishEdit();
-                }
-                if (e.key === 'Escape') {
-                    e.preventDefault();
-                    cancelEdit();
-                }
-            });
-        }
-        
-        function enableDragOnChips(nodesData, linksData, boardWidth, boardHeight) {
-            const chips = document.querySelectorAll('#bio-board .archive-glass-chip');
-            const svg = document.getElementById('links-layer');
-            const labels = document.querySelectorAll('#bio-board .relation-label');
-
-            chips.forEach(chip => {
-                chip.addEventListener('touchstart', onDragStart, { passive: true });
-                chip.addEventListener('mousedown', onDragStart);
-            });
-
-            function onDragStart(e) {
-                const chipEl = e.currentTarget;
-                const chipId = chipEl.id;
-                const node = nodesData.find(n => n.chipId === chipId);
-                if (!node) return;
-
-                const startX = e.touches ? e.touches[0].clientX : e.clientX;
-                const startY = e.touches ? e.touches[0].clientY : e.clientY;
-                const startLeft = node.x;
-                const startTop = node.y;
-                let hasMoved = false;
-
-                function onMove(e) {
-                    const currentX = e.touches ? e.touches[0].clientX : e.clientX;
-                    const currentY = e.touches ? e.touches[0].clientY : e.clientY;
-                    const dx = Math.abs(currentX - startX);
-                    const dy = Math.abs(currentY - startY);
-
-                    if (!hasMoved && (dx > 5 || dy > 5)) {
-                        hasMoved = true;
-                        // 确认是拖拽，才进入拖拽模式
-                        e.preventDefault();
-                        chipEl.style.transition = 'none';
-                        chipEl.style.zIndex = '20';
-                    }
-
-                    if (hasMoved) {
-                        e.preventDefault();
-                        let newX = startLeft + (currentX - startX);
-                        let newY = startTop + (currentY - startY);
-                        newX = Math.max(20, Math.min(boardWidth - 20, newX));
-                        newY = Math.max(20, Math.min(boardHeight - 20, newY));
-                        node.x = newX;
-                        node.y = newY;
-                        chipEl.style.left = newX + 'px';
-                        chipEl.style.top = newY + 'px';
-                        updateLinksAndLabels();
-                    }
-                }
-
-                function onUp() {
-                    document.removeEventListener('touchmove', onMove);
-                    document.removeEventListener('mousemove', onMove);
-                    document.removeEventListener('touchend', onUp);
-                    document.removeEventListener('mouseup', onUp);
-
-                    if (hasMoved) {
-                        chipEl.style.transition = '';
-                        chipEl.style.zIndex = '';
-                        if (currentChatContactId) saveNodePositions(currentChatContactId, nodesData);
-                    }
-                    // 如果没有移动过，说明是点击，让浏览器正常触发 click
-                }
-
-                document.addEventListener('touchmove', onMove, { passive: false });
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('touchend', onUp);
-                document.addEventListener('mouseup', onUp);
-            }
-
-            function updateLinksAndLabels() {
-                const lines = svg.querySelectorAll('.link');
-                lines.forEach((line, i) => {
-                    const link = linksData[i];
-                    if (link) {
-                        line.setAttribute('x1', link.source.x);
-                        line.setAttribute('y1', link.source.y);
-                        line.setAttribute('x2', link.target.x);
-                        line.setAttribute('y2', link.target.y);
-                    }
-                });
-                labels.forEach((label, i) => {
-                    const link = linksData[i];
-                    if (link) {
-                        label.style.left = ((link.source.x + link.target.x) / 2) + 'px';
-                        label.style.top = ((link.source.y + link.target.y) / 2) + 'px';
-                    }
-                });
-            }
-        }
-
-        function generateInnerTimelineItemHtml(item, searchText) {
-            let displayContent = escapeHtml(item.content);
-            if (searchText) {
-                const regex = new RegExp(`(${searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-                displayContent = displayContent.replace(regex, '<span style="background-color: rgba(255, 214, 10, 0.4); color: inherit; border-radius: 2px;">$1</span>');
-            }
-            return `
-                <div class="timeline-item">
-                    <div class="timeline-dot"></div>
-                    <div class="timeline-text" id="archive-text-${item.id}">${displayContent}</div>
-                    <div class="timeline-actions">
-                        <i class="fas fa-pencil-alt" onclick="event.stopPropagation(); inplaceEditArchiveItem('${item.id}')"></i>
-                        <i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteArchiveItem('${item.id}')"></i>
-                    </div>
-                </div>
-            `;
-        }
-
-        function getSavedNodePositions(contactId) {
-            try {
-                const saved = localStorage.getItem(`bio_nodes_${contactId}`);
-                return saved ? JSON.parse(saved) : null;
-            } catch(e) { return null; }
-        }
-
-        function saveNodePositions(contactId, nodesData) {
-            const pos = {};
-            nodesData.forEach(n => {
-                if (n.x != null && n.y != null) pos[n.id] = { x: n.x, y: n.y };
-            });
-            localStorage.setItem(`bio_nodes_${contactId}`, JSON.stringify(pos));
-        }
-
-        function resetBioLayout() {
-            if (!currentChatContactId) return;
-            localStorage.removeItem(`bio_nodes_${currentChatContactId}`);
-            const searchInput = document.getElementById('archive-search-input');
-            renderArchiveContent(searchInput ? searchInput.value : '');
-        }
-
-        function renderNodesAndLinks(nodesData, linksData, width, height, runSimulation) {
-            if (runSimulation) {
-                // 1. 设置暗箱力学模型
-                const simulation = d3.forceSimulation(nodesData)
-                    .force("link", d3.forceLink(linksData).id(d => d.id).distance(100))
-                    .force("charge", d3.forceManyBody().strength(-300))
-                    .force("center", d3.forceCenter(width / 2, height / 2))
-                    .force("collide", d3.forceCollide().radius(d => 25 + d.id.length * 8).iterations(3))
-                    .force("x", d3.forceX(width / 2).strength(0.05))
-                    .force("y", d3.forceY(height / 2).strength(0.05))
-                    .stop();
-
-                for (let i = 0; i < 120; i++) {
-                    simulation.tick();
-                    nodesData.forEach(d => {
-                        const estWidth = 40 + (d.id.length * 15);
-                        const padX = estWidth / 2 + 10;
-                        d.x = Math.max(padX, Math.min(width - padX, d.x));
-                        d.y = Math.max(35, Math.min(height - 35, d.y));
-                    });
-                }
-            }
-
-            // 保存位置
-            if (currentChatContactId) saveNodePositions(currentChatContactId, nodesData);
-
-            // 2. 渲染静态 HTML 节点
-            const htmlLayer = d3.select("#html-layer");
-            let nodes = htmlLayer.selectAll(".archive-glass-chip")
-                .data(nodesData).enter().append("div")
-                .attr("class", d => d.className)
-                .attr("id", d => d.chipId)
-                .html(d => d.html)
-                .on("click", (event, d) => window.toggleBioReader(d.chipId));
-
-            if (runSimulation) {
-                nodes.style("left", `${width / 2}px`).style("top", `${height / 2}px`)
-                    .transition().duration(800).ease(d3.easeCubicOut)
-                    .style("left", d => `${d.x}px`)
-                    .style("top", d => `${d.y}px`);
-            } else {
-                nodes.style("left", d => `${d.x}px`).style("top", d => `${d.y}px`);
-            }
-
-            // 3. 渲染 SVG 连线 —— 直接显示，不加动画延迟
-            const svg = d3.select("#links-layer");
-            svg.selectAll(".link").data(linksData).enter().append("line")
-                .attr("class", "link")
-                .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
-                .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
-                .style("stroke", "rgba(255,255,255,0.2)").style("stroke-width", "1.5px")
-                .style("opacity", 1);   // 去掉 transition 和 delay
-
-            // 4. 渲染悬浮标签 —— 直接显示
-            htmlLayer.selectAll(".relation-label").data(linksData).enter().append("div")
-                .attr("class", "relation-label")
-                .text(d => d.label)
-                .style("left", d => `${(d.source.x + d.target.x) / 2}px`)
-                .style("top", d => `${(d.source.y + d.target.y) / 2}px`)
-                .on("click", (event, d) => {
-                    event.stopPropagation();
-                    showRelationHistory(d);
-                })
-                .style("opacity", 1);   // 去掉 transition 和 delay
-            
-            // 5. 启用拖拽
-            enableDragOnChips(nodesData, linksData, width, height);
-        }
-
-        // 更新人物星图中的搜索高亮（现在会检查记忆内容）
-        function updateBioSearchHighlight(searchText) {
-            const board = document.getElementById('bio-board');
-            if (!board) return;
-            const chips = board.querySelectorAll('.archive-glass-chip');
-            chips.forEach(chip => {
-                const chipId = chip.id;
-                const data = window.currentBioGroups[chipId];
-                if (!data) return;
-                const characterName = data.characterName;
-                // 匹配人名，或者任意记忆的内容
-                let isMatch = !searchText ||
-                            characterName.toLowerCase().includes(searchText) ||
-                            (data.items && data.items.some(item => item.content.toLowerCase().includes(searchText)))
-                chip.classList.remove('search-highlight', 'search-dim');
-                if (searchText) {
-                    chip.classList.add(isMatch ? 'search-highlight' : 'search-dim');
-                }
-            });
-            board.classList.toggle('archive-search-mode', !!searchText);
-             dimRelationLines(!!searchText);
-        }
-
-        // 更新偏好矩阵中的搜索高亮（现在会检查记忆内容）
-        function updatePrefSearchHighlight(searchText) {
-            const matrix = document.getElementById('pref-matrix');
-            if (!matrix) return;
-            const chips = matrix.querySelectorAll('.archive-glass-chip');
-            chips.forEach(chip => {
-                const chipId = chip.id;
-                const data = window.currentPrefGroups[chipId];
-                if (!data) return;
-                const keyword = data.keyword;
-                // 匹配偏好名，或者任意记忆的内容
-                let isMatch = !searchText ||
-                            keyword.toLowerCase().includes(searchText) ||
-                            (data.items && data.items.some(item => item.content.toLowerCase().includes(searchText)))
-                chip.classList.remove('search-highlight', 'search-dim');
-                if (searchText) {
-                    chip.classList.add(isMatch ? 'search-highlight' : 'search-dim');
-                }
-            });
-            matrix.classList.toggle('archive-search-mode', !!searchText);
-        }
-
-        function renderArchiveContent(searchText = '') {
-            function formatRoundRange(rawRange) {
-                if (!rawRange) return '初期设定';
-                let cleaned = String(rawRange).replace(/第|轮/g, '').trim();
-                if (cleaned === '初期设定' || cleaned === '') return '初期设定';
-                if (cleaned.includes('-')) {
-                    const parts = cleaned.split('-');
-                    if (parts.length === 2 && parts[0].trim() === parts[1].trim()) {
-                        cleaned = parts[0].trim();
-                    }
-                }
-                return `第 ${cleaned} 轮`;
-            }
-            
-            const container = document.getElementById('archive-content');
-
-            const lastCategory = container.dataset.lastCategory || '';
-            const lastSearch = container.dataset.lastSearch || '';
-
-               // 偏好：只做局部高亮刷新
-                if (currentArchiveCategory === '偏好' && lastCategory === currentArchiveCategory && lastSearch !== searchText && searchText !== '') {
-                    container.dataset.lastSearch = searchText;
-                    updatePrefSearchHighlight(searchText);
-                    // 重新生成偏好小球的详情 HTML，让文字也高亮
-                    for (const [chipId, group] of Object.entries(window.currentPrefGroups)) {
-                        group.detailsHtml = '';
-                        group.items.forEach(item => {
-                            if (!item.id) {
-                                item.id = 'tmp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-                            }
-                            const highlightedContent = highlightSearchTerm(item.content, searchText);
-                            group.detailsHtml += `...`; // 使用与下面相同的 HTML 结构
-                        });
-                    }
-                    return;
-                }
-
-                // 人物：只做局部高亮刷新
-                if (currentArchiveCategory === '人物' && lastCategory === currentArchiveCategory && lastSearch !== searchText && searchText !== '') {
-                    container.dataset.lastSearch = searchText;
-                    updateBioSearchHighlight(searchText);
-                    // 重新生成人物小球的详情 HTML
-                    for (const [chipId, group] of Object.entries(window.currentBioGroups)) {
-                        const groupedByTime = new Map();
-                        group.items.forEach(item => {
-                            let timeSource = item.worldTime || item.date || '日常纪元';
-                            if (!groupedByTime.has(timeSource)) groupedByTime.set(timeSource, []);
-                            groupedByTime.get(timeSource).push(item);
-                        });
-                        group.detailsHtml = '';
-                        for (const [timeSource, items] of groupedByTime.entries()) {
-                            group.detailsHtml += `<div style="display: flex; align-items: stretch; padding-top: 14px; border-top: 0.5px dashed color-mix(in srgb, currentColor 15%, transparent); margin-top: 10px;">
-                                        <div class="timeline-left" style="width:65px; padding-right: 14px; color: currentColor; font-weight:700; opacity:0.8; font-size:12px; word-wrap: break-word;">${escapeHtml(timeSource)}</div>
-                                        <div class="timeline-right-container" style="flex:1; border-left:1px solid color-mix(in srgb, currentColor 10%, transparent); padding-left: 12px;">`;
-                            items.forEach(item => {
-                                const highlightedContent = highlightSearchTerm(item.content, searchText);
-                                group.detailsHtml += `<div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom: 8px;">
-                                            <div class="archive-item-text" style="flex:1;">${highlightedContent}</div>
-                                            <div class="chip-actions">
-                                                <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
-                                                <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
-                                            </div>
-                                        </div>
-                                        <div style="font-size:11px; color:var(--text-sub); text-align:right; margin-bottom:8px;">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>`;
-                            });
-                            group.detailsHtml += `</div></div>`;
-                        }
-                    }
-                    return;
-                }
-            // 否则：记录这次渲染的分类和搜索词，继续完整重绘
-            container.dataset.lastCategory = currentArchiveCategory;
-            container.dataset.lastSearch = searchText;
-
-            if (!container || !currentChatContactId) return;
-            
-            const contact = mockContacts.find(c => c.id === currentChatContactId);
-            if (!contact || !contact.longMemories || contact.longMemories.length === 0) {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 80px 20px; color: var(--text-sub);">
-                        <i class="fas fa-book-journal-whills" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
-                        <p style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 8px;">档案馆空空如也</p>
-                        <p style="font-size: 13px; opacity: 0.7;">AI 正在默默记录你们的世界线...</p>
-                    </div>`;
-                return;
-            }
-
-            searchText = searchText.trim().toLowerCase();
-            const catMap = {
-                '全部': ['全部'],
-                '人物': ['人物', '情报', '核心', '角色'],
-                '世界': ['世界观', '设定', '法则', '背景', '世界'],
-                '事件': ['事件', '剧情', '编年史'],
-                '偏好': ['偏好', '习惯', '性格', '禁忌', '喜好', '爱好', '厌恶', '雷区'],
-                '异闻': ['异闻', '物品', '地点', '道具']
-            };
-
-            let validMemories = contact.longMemories.filter(m => {
-                let matchCat = true;
-                if (currentArchiveCategory !== '全部') {
-                    const allowedKeywords = catMap[currentArchiveCategory] || [];
-                    matchCat = allowedKeywords.some(kw => (m.category || '').includes(kw));
-                    if(!matchCat && currentArchiveCategory === '人物' && m.category === '核心') matchCat = true;
-                }
-                if (currentArchiveCategory === '事件') {
-                    // 直接读取 AI 提供的 isMilestone 字段，不再依赖复杂规则
-                    const isMilestone = m.isMilestone === true || m.isMilestone === 'true';
-                    if (isMilestone) matchCat = true;
-                }
-                let matchText = true;
-                if (searchText) {
-                    matchText = m.content.toLowerCase().includes(searchText) || 
-                                (m.keywords && m.keywords.join(',').toLowerCase().includes(searchText)) ||
-                                (m.category || '').toLowerCase().includes(searchText);
-                }
-                return matchCat && matchText;
-            });
-
-            if (validMemories.length === 0) {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 80px 20px; color: var(--text-sub);">
-                        <i class="fas fa-ghost" style="font-size: 40px; opacity: 0.2; margin-bottom: 16px;"></i>
-                        <p style="font-size: 15px;">该分类下未找到档案</p>
-                    </div>`;
-                return;
-            }
-
-            container.innerHTML = '';
-
-            const sortByTime = (a, b) => {
-                const parseRange = (rangeStr) => {
-                    if (!rangeStr) return [0, 0];
-                    // 去掉 "第" 和 "轮" 等字样，拆分 "-"
-                    const clean = rangeStr.replace(/第|轮/g, '').trim().split('-');
-                    const start = parseInt(clean[0]) || 0;
-                    const end = clean[1] ? parseInt(clean[1]) : start; // 单轮数如 "5" 视为 "5-5"
-                    return [start, end];
-                };
-                const [startA, endA] = parseRange(a.roundRange);
-                const [startB, endB] = parseRange(b.roundRange);
-                
-                // 先按起始数字排序，起始相同时按结束数字排序，再按 id 排序保稳定
-                if (startA !== startB) return archiveSortDesc ? startB - startA : startA - startB;
-                if (endA !== endB) return archiveSortDesc ? endB - endA : endA - endB;
-                return archiveSortDesc ? (b.id || 0) - (a.id || 0) : (a.id || 0) - (b.id || 0);
-            };
-
-            // 偏好矩阵渲染
-            if (currentArchiveCategory === '偏好') {
-                window.currentPrefGroups = {}; 
-                // 如果存在搜索词，给矩阵添加搜索模式类
-                let contentHtml = `<div class="archive-chip-matrix${searchText ? ' archive-search-mode' : ''}" id="pref-matrix">`;
-                
-                const prefGroups = {};
-                contact.longMemories.forEach(m => {
-                    // 只保留偏好分类
-                    const allowedKeywords = catMap['偏好'] || [];
-                    const matchCat = allowedKeywords.some(kw => (m.category || '').includes(kw));
-                    if (!matchCat) return;
-                    
-                    let keyword = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '日常偏好';
-                    if (!prefGroups[keyword]) prefGroups[keyword] = { items: [], maxScore: 0 };
-                    prefGroups[keyword].items.push(m);
-                    if ((m.score || 0) > prefGroups[keyword].maxScore) prefGroups[keyword].maxScore = m.score || 0;
-                });
-                
-                const sortedGroups = Object.entries(prefGroups).sort((a, b) => b[1].maxScore - a[1].maxScore);
-                const themeClasses = ['chip-theme-blue', 'chip-theme-green', 'chip-theme-sand', 'chip-theme-mauve', 'chip-theme-rose'];
-
-                sortedGroups.forEach(([keyword, group], index) => {
-                    let hash = 0; for(let i = 0; i < keyword.length; i++) hash += keyword.charCodeAt(i);
-                    const themeClass = themeClasses[hash % themeClasses.length];
-
-                    // 判断当前分组是否匹配搜索词
-                    let isMatch = !searchText || 
-                                keyword.toLowerCase().includes(searchText) ||
-                                group.items.some(item => item.content.toLowerCase().includes(searchText));
-
-                    let chipClass = `archive-glass-chip ${themeClass} `;
-                    let iconHtml = '';
-                    if (group.maxScore >= 5) { 
-                        chipClass += 'archive-chip-core'; 
-                        iconHtml = '<i class="fas fa-layer-group" style="margin-right:6px; opacity: 0.9;"></i>';
-                    } else if (group.maxScore === 4) { 
-                        chipClass += 'archive-chip-major'; 
-                        iconHtml = '<i class="fas fa-id-card" style="margin-right:6px; opacity: 0.8;"></i>';
-                    } else { 
-                        chipClass += 'archive-chip-minor'; 
-                        iconHtml = '<i class="fas fa-signature" style="margin-right:6px; opacity: 0.6;"></i>';
-                    }
-
-                    // 搜索高亮/变暗类
-                    if (searchText) {
-                        chipClass += isMatch ? ' search-highlight' : ' search-dim';
-                    }
-
-                    const sortedItems = group.items.sort((a, b) => {
-                        const getStart = (r) => { if(!r) return 0; const match = r.match(/第?(\d+)-/); return match ? parseInt(match[1]) : 0; };
-                        return archiveSortDesc ? getStart(b.roundRange) - getStart(a.roundRange) : getStart(a.roundRange) - getStart(b.roundRange);
-                    });
-
-                    // 生成详情 HTML，对每个 item 的 content 进行搜索高亮
-                    let detailsHtml = '';
-                    sortedItems.forEach(item => {
-                        if (!item.id) {
-                            item.id = 'tmp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-                        }
-                        const highlightedContent = highlightSearchTerm(item.content, searchText);
-                        detailsHtml += `
-                            <div class="chip-detail-item">
-                                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                    <div class="archive-item-text" style="flex:1;" id="archive-text-${item.id}">${highlightedContent}</div>
-                                    <div class="chip-actions">
-                                        <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
-                                        <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
-                                    </div>
-                                </div>
-                                <div class="chip-detail-time">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>
-                            </div>
-                        `;
-                    });
-
-                    const chipId = `pref-chip-${index}`;
-                    window.currentPrefGroups[chipId] = { 
-                        keyword: keyword, 
-                        detailsHtml: detailsHtml, 
-                        themeClass: themeClass, 
-                        score: group.maxScore, 
-                        iconHtml: iconHtml,
-                        items: group.items   // ← 新增：把该偏好的所有记忆列表存起来
-                    };
-
-                    let countHtml = group.items.length > 1 ? `<span class="chip-count">${group.items.length}</span>` : '';
-
-                    contentHtml += `<div class="${chipClass}" id="${chipId}" onclick="window.togglePrefReader('${chipId}')">
-                        <div class="chip-short"><span>${escapeHtml(keyword)}</span> ${countHtml}</div>
-                    </div>`;
-                });
-                
-                contentHtml += `</div><div id="pref-detail-reader" class="pref-detail-reader"></div>`;
-                container.innerHTML = contentHtml;
-                if (searchText) updatePrefSearchHighlight(searchText);
-                // 防止页面意外滚动
-                window.scrollTo(0, 0);
-                return;
-            }
-
-            // 全部/编年史渲染
-            if (currentArchiveCategory === '全部' || currentArchiveCategory === '事件') {
-                validMemories.sort(sortByTime);
-                const groupedByTime = new Map();
-                validMemories.forEach(item => {
-                    let sourceText = item.roundRange || item.date || '初始设定';
-                    // 1. 先统一清理“第”和“轮”字眼
-                    sourceText = sourceText.replace('第', '').replace('轮', '').trim();
-
-                    // 2. 智能合并显示：如果起始和结束是同一个数字（如“12-12”），只显示单个数字（如“12”）
-                    if (sourceText.includes('-')) {
-                        const parts = sourceText.split('-');
-                        if (parts.length === 2 && parts[0].trim() === parts[1].trim()) {
-                            sourceText = parts[0].trim(); // 只保留一个数字
-                        }
-                    }
-                    if (!groupedByTime.has(sourceText)) groupedByTime.set(sourceText, []);
-                    groupedByTime.get(sourceText).push(item);
-                });
-
-                let html = '';
-                for (const [timeSource, items] of groupedByTime.entries()) {
-                    let innerItemsHtml = items.map(item => generateInnerTimelineItemHtml(item, searchText)).join('');
-                    html += `
-                        <div class="archive-timeline-block archive-glass-panel">
-                            <div class="timeline-left"><i class="fa-regular fa-clock" style="margin-bottom: 4px; opacity: 0.5;"></i>${escapeHtml(timeSource)}</div>
-                            <div class="timeline-right-container">${innerItemsHtml}</div>
-                        </div>`;
-                }
-                container.innerHTML = html;
-                return;
-            }
-
-            // ==========================================
-            // 🌟 核心修改：如果是“人物”，直接渲染 D3 高定星图 (支持羁绊演化史)
-            // ==========================================
-            if (currentArchiveCategory === '人物') {
-                window.currentBioGroups = {}; 
-                
-                let contentHtml = `
-                    <div class="archive-network-board${searchText ? ' archive-search-mode' : ''}" id="bio-board">
-                        <svg id="links-layer"></svg>
-                        <div id="html-layer"></div>
-                    </div>
-                    <div id="bio-detail-reader" class="pref-detail-reader"></div>
-                    
-                    <div class="modal-overlay" id="relation-modal-overlay" onclick="closeRelationModal()"></div>
-                    <div class="relation-history-modal" id="relation-history-modal">
-                        <div class="relation-modal-header" id="relation-modal-title">人物A ↔ 人物B</div>
-                        <div class="relation-history-list" id="relation-history-list"></div>
-                    </div>
-                `;
-
-                // 只用分类过滤，不过滤搜索词
-                const bioGroups = {};
-                contact.longMemories.forEach(m => {
-                    // 分类匹配（只处理当前分类下的记忆）
-                    const allowedKeywords = catMap[currentArchiveCategory] || [];
-                    const matchCat = allowedKeywords.some(kw => (m.category || '').includes(kw));
-                    // 事件分类特殊处理（保持不变）
-                    if (!matchCat && currentArchiveCategory === '事件') {
-                        const isMilestone = m.isMilestone === true || m.isMilestone === 'true';
-                        if (!isMilestone) return; // 不显示
-                    } else if (!matchCat) return;
-                    
-                    let characterName = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '佚名';
-                    if (!bioGroups[characterName]) bioGroups[characterName] = { items: [], maxScore: 0 };
-                    bioGroups[characterName].items.push(m);
-                    if ((m.score || 0) > bioGroups[characterName].maxScore) bioGroups[characterName].maxScore = m.score || 0;
-                });
-
-                const themeClasses = ['chip-theme-mauve', 'chip-theme-blue', 'chip-theme-green', 'chip-theme-sand', 'chip-theme-rose'];
-                const nodesData = [];
-
-                let renderedCount = 0;
-                for (const [characterName, group] of Object.entries(bioGroups)) {
-                    let hash = 0; for(let i = 0; i < characterName.length; i++) hash += characterName.charCodeAt(i);
-                    const themeClass = themeClasses[hash % themeClasses.length];
-
-                    let isMatch = !searchText || 
-                                characterName.toLowerCase().includes(searchText) ||
-                                group.items.some(item => item.content.toLowerCase().includes(searchText));
-
-                    let chipClass = `archive-glass-chip ${themeClass} `;
-                    let iconHtml = '';
-                    if (group.maxScore >= 5) { chipClass += 'archive-chip-core'; iconHtml = '<i class="fas fa-layer-group" style="margin-right:6px; opacity: 0.9;"></i>'; } 
-                    else if (group.maxScore === 4) { chipClass += 'archive-chip-major'; iconHtml = '<i class="fas fa-id-card" style="margin-right:6px; opacity: 0.8;"></i>'; } 
-                    else { chipClass += 'archive-chip-minor'; iconHtml = '<i class="fas fa-signature" style="margin-right:6px; opacity: 0.6;"></i>'; }
-                    
-                    if (searchText) {
-                        chipClass += isMatch ? ' search-highlight' : ' search-dim';
-                    }
-
-                    const groupedByTime = new Map();
-                    group.items.forEach(item => {
-                        let sourceText = item.worldTime || item.date || '日常纪元';
-                        if (!groupedByTime.has(sourceText)) groupedByTime.set(sourceText, []);
-                        groupedByTime.get(sourceText).push(item);
-                    });
-
-                    let detailsHtml = '';
-                    for (const [timeSource, items] of groupedByTime.entries()) {
-                        let innerItemsHtml = items.map(item => {
-                            const highlightedContent = highlightSearchTerm(item.content, searchText);
-                            return `
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom: 8px;">
-                                <div class="archive-item-text" id="archive-text-${item.id}" style="flex:1;">${highlightedContent}</div>
-                                <div class="chip-actions">
-                                    <i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i>
-                                    <i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i>
-                                </div>
-                            </div>
-                            <div style="font-size:11px; color:var(--text-sub); text-align:right; margin-bottom:8px;">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>
-                        `}).join('');
-                        
-                        detailsHtml += `
-                            <div style="display: flex; align-items: stretch; padding-top: 14px; border-top: 0.5px dashed color-mix(in srgb, currentColor 15%, transparent); margin-top: 10px;">
-                                <div class="timeline-left" style="width:65px; padding-right: 14px; color: currentColor; font-weight:700; opacity:0.8; font-size:12px; word-wrap: break-word;">${escapeHtml(timeSource)}</div>
-                                <div class="timeline-right-container" style="flex:1; border-left:1px solid color-mix(in srgb, currentColor 10%, transparent); padding-left: 12px;">${innerItemsHtml}</div>
-                            </div>
-                        `;
-                    }
-
-                    const chipId = `bio-chip-${renderedCount}`;
-                    window.currentBioGroups[chipId] = { 
-                        characterName: characterName, 
-                        detailsHtml: detailsHtml, 
-                        themeClass: themeClass, 
-                        score: group.maxScore, 
-                        iconHtml: iconHtml,
-                        items: group.items   // ← 新增：把该人物的所有记忆列表存起来
-                    };
-                    let countHtml = group.items.length > 1 ? `<span class="chip-count">${group.items.length}</span>` : '';
-
-                    nodesData.push({ id: characterName, chipId: chipId, html: `<div class="chip-short"><span>${escapeHtml(characterName)}</span> ${countHtml}</div>`, className: chipClass });
-                    renderedCount++;
-                }
-
-                container.innerHTML = contentHtml;
-                // ==========================================
-                // 🚀 D3.js 暗箱预演算引力场 (绝不抖动，绝不出界)
-                // ==========================================
-                setTimeout(() => {
-                    const board = document.getElementById('bio-board');
-                    if (!board) return;
-                    const width = board.clientWidth;
-                    const height = board.clientHeight;
-
-                    // 读取真实的连线数据
-                    let linksData = [];
-                    if (contact.relations && contact.relations.length > 0) {
-                        linksData = contact.relations.map(r => {
-                            const sourceNode = nodesData.find(n => n.id === r.source);
-                            const targetNode = nodesData.find(n => n.id === r.target);
-                            if (sourceNode && targetNode) {
-                                return { source: sourceNode, target: targetNode, label: r.label, history: r.history || [] };
-                            }
-                            return null;
-                        }).filter(l => l !== null);
-                    }
-
-                    const savedPos = getSavedNodePositions(contact.id);
-                    let runSim = savedPos === null;  // 原本是否有模拟的标志
-                    if (savedPos) {
-                        nodesData.forEach(n => {
-                            if (savedPos[n.id]) {
-                                n.x = savedPos[n.id].x;
-                                n.y = savedPos[n.id].y;
-                            } else {
-                                // 没有保存位置的节点，给一个临时默认位置（画布中心随机散布）
-                                n.x = width / 2 + (Math.random() - 0.5) * 100;
-                                n.y = height / 2 + (Math.random() - 0.5) * 100;
-                                runSim = true;   // 标记需要运行模拟，以便重新计算稳定布局
-                            }
-                        });
-                    }
-                    // 只要 runSim 被设为 true，就会运行力导向模拟并保存新布局
-                    renderNodesAndLinks(nodesData, linksData, width, height, runSim);
-                    if (searchText) updateBioSearchHighlight(searchText);
-                }, 50);
-                
-                return;
-            }
-
-            // 其他实体卡片...
-            const entityGroups = {};
-            validMemories.forEach(m => {
-                let entityName = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '综合备忘录';
-                if (!entityGroups[entityName]) entityGroups[entityName] = { items: [] };
-                entityGroups[entityName].items.push(m);
-            });
-
-            const sortedEntities = Object.entries(entityGroups).sort((a, b) => {
-                const maxIdA = Math.max(...a[1].items.map(i => i.id || 0));
-                const maxIdB = Math.max(...b[1].items.map(i => i.id || 0));
-                return archiveSortDesc ? maxIdB - maxIdA : maxIdA - maxIdB; 
-            });
-
-            for (const [entityName, group] of sortedEntities) {
-                group.items.sort(sortByTime);
-                const groupedByTime = new Map();
-                group.items.forEach(item => {
-                    let sourceText = item.roundRange || item.date || '设定';
-                    // 1. 先统一清理“第”和“轮”字眼
-                    sourceText = sourceText.replace('第', '').replace('轮', '').trim();
-
-                    // 2. 智能合并显示：如果起始和结束是同一个数字（如“12-12”），只显示单个数字（如“12”）
-                    if (sourceText.includes('-')) {
-                        const parts = sourceText.split('-');
-                        if (parts.length === 2 && parts[0].trim() === parts[1].trim()) {
-                            sourceText = parts[0].trim(); // 只保留一个数字
-                        }
-                    }
-                    if (!groupedByTime.has(sourceText)) groupedByTime.set(sourceText, []);
-                    groupedByTime.get(sourceText).push(item);
-                });
-
-                let itemsHtml = '';
-                for (const [timeSource, items] of groupedByTime.entries()) {
-                    let innerItemsHtml = items.map(item => generateInnerTimelineItemHtml(item, searchText)).join('');
-                    itemsHtml += `<div class="archive-timeline-row"><div class="timeline-left" style="padding-right: 20px; font-size: 11px;">${escapeHtml(timeSource)}</div><div class="timeline-right-container" style="padding-left: 12px;">${innerItemsHtml}</div></div>`;
-                }
-
-                const latestItem = group.items.reduce((prev, current) => (prev.id > current.id) ? prev : current);
-                const previewText = escapeHtml(latestItem.content);
-                const recordCount = group.items.length;
-                const isExpanded = searchText !== '' || expandedArchiveCards.has(entityName) || sortedEntities.length <= 2;
-                
-                const cardHtml = `
-                    <div class="archive-entity-card archive-glass-panel ${isExpanded ? 'expanded' : ''}">
-                        <div class="archive-entity-header" onclick="toggleArchiveCard(this)">
-                            <div class="archive-header-top"><div class="archive-entity-title">${escapeHtml(entityName)}</div><div class="archive-count-badge"><i class="fas fa-layer-group"></i> ${recordCount} 条</div></div>
-                            <div class="archive-preview-text">${previewText}</div>
-                        </div>
-                        <div class="archive-entity-body-wrapper"><div class="archive-entity-body"><div class="archive-entity-body-inner">${itemsHtml}</div></div></div>
-                    </div>`;
-                container.insertAdjacentHTML('beforeend', cardHtml);
-            }
-        }
-
-        // --- 羁绊演化史弹窗控制器 ---
-        window.showRelationHistory = function(data) {
-            const sourceName = data.source?.id || data.source;
-            const targetName = data.target?.id || data.target;
-            
-            document.getElementById('relation-modal-title').innerHTML = 
-                `${escapeHtml(sourceName)} <span style="color:#D47A43;">↔</span> ${escapeHtml(targetName)}`;
-            
-            let listHtml = '';
-            if (data.history && data.history.length > 0) {
-                // 倒序排列，最新的在最上面
-                const reversedHistory = [...data.history].reverse();
-                reversedHistory.forEach((h, index) => {
-                    listHtml += `
-                    <div class="history-node">
-                        <div class="history-node-top" style="justify-content: flex-start;">
-                            <span class="history-label">${escapeHtml(h.label)}</span>
-                            <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
-                                <i class="fas fa-pencil-alt" onclick="editRelationHistory('${data.source.id}', '${data.target.id}', ${index})" style="cursor: pointer; opacity: 0.6; font-size: 12px;"></i>
-                                <i class="fas fa-trash-alt" onclick="deleteRelationHistory('${data.source.id}', '${data.target.id}', ${index})" style="cursor: pointer; opacity: 0.6; font-size: 12px; color: var(--danger);"></i>
-                            </div>
-                        </div>
-                        <div style="font-size:13px; color:var(--text-sub); line-height:1.5;">${escapeHtml(h.detail || '未记录详细事件')}</div>
-                        <div style="text-align: right; font-size: 11px; color: var(--text-sub); margin-top: 4px;">${escapeHtml(h.time)}</div>
-                    </div>
-                `;
-                });
-            } else {
-                listHtml = `<div style="text-align:center; padding:20px; color:var(--text-sub); font-size:13px;">暂无历史变迁记录，当前为初始状态。</div>`;
-            }
-
-            document.getElementById('relation-history-list').innerHTML = listHtml;
-            document.getElementById('relation-modal-overlay').classList.add('show');
-            document.getElementById('relation-history-modal').classList.add('show');
-        };
-
-        window.closeRelationModal = function() {
-            document.getElementById('relation-modal-overlay').classList.remove('show');
-            document.getElementById('relation-history-modal').classList.remove('show');
-        };
-
-        // ==========================================
-        // 🌟 全局触控雷达：实现“点击空白处自动收起”
-        // ==========================================
-        document.addEventListener('click', (event) => {
-            // -----------------------------------------
-            // 1. 处理【悬浮分类菜单】的自动收起
-            // -----------------------------------------
-            const catMenu = document.getElementById('archive-cat-menu');
-            // 智能识别触发下拉的那个胶囊按钮
-            const catTrigger = event.target.closest('[onclick="toggleCategoryMenu()"]'); 
-            
-            if (catMenu && catMenu.classList.contains('show')) {
-                // 如果点击的区域不在菜单内部，也不在触发按钮上，就果断收起菜单！
-                if (!catMenu.contains(event.target) && !catTrigger) {
-                    catMenu.classList.remove('show');
-                }
-            }
-
-            // -----------------------------------------
-            // 2. 处理【偏好小球】与【人物星图】的自动收起
-            // -----------------------------------------
-            // 判断点击是不是发生在“阅读面板”内部或者“琉璃小球”身上
-            const isClickInsideReader = event.target.closest('.pref-detail-reader');
-            const isClickOnChip = event.target.closest('.archive-glass-chip');
-            
-            // 如果点的既不是阅读面板，也不是任何小球（也就是点在了虚空背景上）
-            if (!isClickInsideReader && !isClickOnChip) {
-                // 偏好矩阵
-                const prefReader = document.getElementById('pref-detail-reader');
-                const prefMatrix = document.getElementById('pref-matrix');
-
-                if (prefReader && prefReader.classList.contains('show')) {
-                    prefMatrix.classList.remove('has-active');
-                    prefMatrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
-                    
-                    const styles = window.getComputedStyle(prefReader);
-                    const heightLoss = prefReader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
-                    
-                    prefReader.style.opacity = '0';
-                    smoothScrollToElement(prefMatrix, 400, heightLoss); 
-                    
-                    setTimeout(() => {
-                        if (!prefMatrix.classList.contains('has-active')) {
-                            prefReader.style.transition = 'none';
-                            prefReader.classList.remove('show');
-                            requestAnimationFrame(() => {
-                                prefReader.style.opacity = '';
-                                prefReader.style.transition = '';
-                            });
-                        }
-                    }, 400);
-                }
-
-                // 人物星图
-                const bioReader = document.getElementById('bio-detail-reader');
-                const bioBoard = document.getElementById('bio-board');
-
-                if (bioReader && bioReader.classList.contains('show')) {
-                    bioBoard.classList.remove('has-active');
-                    bioBoard.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
-                    
-                    const styles = window.getComputedStyle(bioReader);
-                    const heightLoss = bioReader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
-                    
-                    bioReader.style.opacity = '0';
-                    smoothScrollToElement(bioBoard, 400, heightLoss);
-                    
-                    setTimeout(() => {
-                        if (!bioBoard.classList.contains('has-active')) {
-                            bioReader.style.transition = 'none';
-                            bioReader.classList.remove('show');
-                            requestAnimationFrame(() => {
-                                bioReader.style.opacity = '';
-                                bioReader.style.transition = '';
-                                dimRelationLines(false);
-                            });
-                        }
-                    });
+                if (match && match[2]) {
+                    const endNum = parseInt(match[2]);
+                    if (endNum > lastSummarizedRound) lastSummarizedRound = endNum;
                 }
             }
         });
+    }
+    
+    const nextTriggerRound = lastSummarizedRound + interval;
+    if (userMessagesCount === 0 || userMessagesCount < nextTriggerRound) return;
+    
+    const startRound = lastSummarizedRound + 1;
+    const endRound = nextTriggerRound;
+    
+    const blockMessages = [];
+    let userCount = 0;
+    let isInBlock = false;
+    for (const msg of conversation) {
+        if (msg.role === 'user') {
+            userCount++;
+            if (userCount === startRound) isInBlock = true;
+        }
+        if (isInBlock) blockMessages.push(msg);
+        if (userCount > endRound) {
+            blockMessages.pop();
+            break;
+        }
+    }
+    
+    let roundCount = startRound;
+    const recentChat = blockMessages.map((m) => {
+        if (m.role === 'user') {
+            const line = `[第${roundCount}轮] 用户：${m.content}`;
+            roundCount++;
+            return line;
+        } else {
+            return `AI：${m.content}`;
+        }
+    }).join('\n');
+    const allExistingMemories = contact.longMemories ? contact.longMemories.map(m => m.content).join('\n') : "暂无记忆";
+    
+    const memoryConfig = OTHER_API_CONFIGS.memory;
+    let apiConfig = null;
+    if (memoryConfig && memoryConfig.configId) apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === memoryConfig.configId);
+    if (!apiConfig) apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
+    if (!apiConfig) return;
+    const modelToUse = (memoryConfig && memoryConfig.model) ? memoryConfig.model : apiConfig.model;
 
-        // ==========================================
-        // 🌍 Chronos 世界时间系统 (UI 交互层)
-        // ==========================================
+    const dynamicPrompt = SYSTEM_ARCHIVE_PROMPT
+        .replace(/\{\{AI_NAME\}\}/g, contact.name || '未命名角色')
+        .replace(/\{\{AI_PERSONA\}\}/g, contact.prompt || '暂无设定');
 
-        // 初始化拨盘选项 (仅执行一次)
-        let chronosDialsInitialized = false;
-        function initChronosDials() {
-            if (chronosDialsInitialized) return;
-            const monthSelect = document.getElementById('chronos-input-month');
-            const daySelect = document.getElementById('chronos-input-day');
-            
-            if(monthSelect) {
-                for(let i=1; i<=12; i++) {
-                    monthSelect.add(new Option(i + '月', i));
+    const summaryMessages = [
+        { role: "system", content: dynamicPrompt },
+        { role: "user", content: `【已有记忆库】(若有完全相同的事件请勿重复记录；若是新细节请补充)\n${allExistingMemories}\n\n【需要提取的对话区块：第${startRound}-${endRound}轮】\n${recentChat}\n\n请严格以大纲作者的视角，按要求返回 JSON。` }
+    ];
+
+    try {
+        let apiUrl = getStandardApiUrl(apiConfig.url, '/chat/completions');
+        const response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: modelToUse, messages: summaryMessages, temperature: 0.1, max_tokens: 2000 })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            let jsonStr = data.choices && data.choices[0] ? data.choices[0].message.content : data.result;
+            jsonStr = jsonStr.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const result = JSON.parse(jsonStr);
+
+            let addedCount = 0;
+            const isRealityMode = document.getElementById('reality-mode-switch')?.classList.contains('active');
+            let realDateStr = null;
+            if (isRealityMode) { const now = new Date(); realDateStr = `${now.getMonth()+1}月${now.getDate()}日`; }
+
+            if (result.memories) {
+                result.memories.forEach(m => {
+                    m.id = 'mem_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                    if (!m.roundRange) m.roundRange = `${startRound}-${endRound}`;
+                    if (isRealityMode && !m.worldTime) m.date = realDateStr;
+                    
+                    if (m.previousName && m.keywords && m.keywords.length > 0) {
+                        let oldAlias = m.previousName;
+                        let realName = m.keywords[0];
+                        addLogToConsole('info', 'ARCHIVE', `触发实体合并：[${oldAlias}] 真名揭晓为 [${realName}]`);
+                        if (contact.longMemories) {
+                            contact.longMemories.forEach(oldMem => {
+                                if (oldMem.keywords && oldMem.keywords.includes(oldAlias)) {
+                                    oldMem.keywords = oldMem.keywords.map(k => k === oldAlias ? realName : k);
+                                    oldMem.content = oldMem.content.replace(new RegExp(oldAlias, 'g'), realName);
+                                }
+                            });
+                        }
+                        if (contact.relations) {
+                            contact.relations.forEach(r => {
+                                if (r.source === oldAlias) r.source = realName;
+                                if (r.target === oldAlias) r.target = realName;
+                            });
+                        }
+                    }
+                    contact.longMemories.push(m);
+                    addedCount++;
+                });
+            }
+
+            if (result.relations) {
+                if (!contact.relations) contact.relations = [];
+                result.relations.forEach(r => {
+                    const existingRelIndex = contact.relations.findIndex(ex => (ex.source === r.source && ex.target === r.target) || (ex.source === r.target && ex.target === r.source));
+                    const timeMark = r.updatedAt || (isRealityMode ? realDateStr : `第 ${startRound}-${endRound} 轮`);
+                    if (existingRelIndex !== -1) {
+                        const existingRel = contact.relations[existingRelIndex];
+                        if (!existingRel.history) existingRel.history = [{ label: existingRel.label, time: '往昔', detail: existingRel.detail || '初始状态' }];
+                        existingRel.label = r.label;
+                        existingRel.detail = r.detail || '关系产生了新的转变。';
+                        existingRel.updatedAt = timeMark;
+                        existingRel.history.push({ label: r.label, time: timeMark, detail: existingRel.detail });
+                    } else {
+                        r.history = [{ label: r.label, time: timeMark, detail: r.detail || '建立了初始羁绊。' }];
+                        r.updatedAt = timeMark;
+                        contact.relations.push(r);
+                    }
+                });
+            }
+            if (addedCount > 0) saveToLocal();
+        }
+    } catch (e) {
+        let rawError = e.stack || e.toString();
+        addLogToConsole('error', '生成长期记忆失败', rawError);
+    }
+}
+
+// ==========================================
+// 🌟 长期记忆修史功能 (多选勾选补全版)
+// ==========================================
+function backfillAllMemories() {
+    if (!currentChatContactId) { alert('⚠️ 请先打开一个聊天窗口'); return; }
+    const contact = mockContacts.find(c => c.id === currentChatContactId);
+    if (!contact) return;
+    
+    const interval = GENERAL_CONFIG.memory.diaryInterval || 10;
+    const conversation = getConversation(contact.id);
+    const userMessagesCount = conversation.filter(m => m.role === 'user').length;
+    
+    if (userMessagesCount === 0) { alert("暂无用户对话记录，无法修史！"); return; }
+
+    const existingRangesMap = new Map();
+    if (contact.longMemories) {
+        contact.longMemories.forEach(m => {
+            if (m.roundRange) {
+                const match = String(m.roundRange).match(/第?(\d+)-(\d+)轮?/);
+                if (match) {
+                    const s = parseInt(match[1]);
+                    const e = parseInt(match[2]);
+                    existingRangesMap.set(`${s}-${e}`, { start: s, end: e });
                 }
             }
-            if(daySelect) {
-                for(let i=1; i<=31; i++) {
-                    daySelect.add(new Option(i + '日', i));
-                }
+        });
+    }
+    const existingRanges = Array.from(existingRangesMap.values()).sort((a, b) => a.start - b.start);
+
+    const chunks = [];
+    existingRanges.forEach(r => { chunks.push({ start: r.start, end: r.end, isCovered: true }); });
+
+    let lastEnd = existingRanges.length > 0 ? Math.max(...existingRanges.map(r => r.end)) : 0;
+    let currentStart = lastEnd + 1;
+    while (currentStart <= userMessagesCount) {
+        let currentEnd = currentStart + interval - 1;
+        if (currentEnd > userMessagesCount) currentEnd = userMessagesCount;
+        chunks.push({ start: currentStart, end: currentEnd, isCovered: false });
+        currentStart = currentEnd + 1;
+    }
+    chunks.sort((a, b) => a.start - b.start);
+
+    let modal = document.getElementById('round-selector-modal');
+    if (modal) modal.remove();
+
+    let html = `
+    <div class="config-modal-overlay" id="round-selector-modal" style="z-index: 5000; background: rgba(0,0,0,0.25);" onclick="closeRoundSelectorModalByOverlay(event)">
+        <div class="config-modal-content" style="max-height: 70vh; display:flex; flex-direction:column; width: 90%; max-width: 360px; padding: 0; background: color-mix(in srgb, var(--card-bg) 88%, transparent); backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%); border: 0.5px solid color-mix(in srgb, var(--text-main) 12%, transparent); box-shadow: 0 20px 40px rgba(0,0,0,0.2), inset 0 1px 1px color-mix(in srgb, var(--text-main) 6%, transparent); border-radius: 20px; overflow: hidden; color-scheme: light dark;" onclick="event.stopPropagation()">
+            <div class="config-modal-header" style="padding: 16px 20px 10px; display: flex; justify-content: space-between; align-items: center; background: transparent;">
+                <h3 style="font-size: 17px; font-weight: 700; margin: 0; color: var(--text-main); letter-spacing: -0.5px; text-shadow: 0 1px 4px color-mix(in srgb, var(--bg-color) 50%, transparent);">自由修史</h3>
+                <div onclick="closeRoundSelectorModal()" style="width: 28px; height: 28px; border-radius: 50%; background: color-mix(in srgb, var(--text-main) 8%, transparent); display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(10px);"><i class="fas fa-times" style="color: var(--text-sub); font-size: 13px;"></i></div>
+            </div>
+            <div class="config-modal-body" style="padding: 0 20px 16px; overflow-y: auto; flex: 1; background: transparent;">
+                <div style="background: color-mix(in srgb, var(--text-main) 5%, transparent); border: 0.5px solid color-mix(in srgb, var(--text-main) 5%, transparent); border-radius: 14px; padding: 12px; margin-bottom: 16px;">
+                    <div style="font-size: 11px; font-weight: 700; color: #D47A43; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 6px;"><i class="fas fa-magic" style="font-size: 10px;"></i> 手动补录</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="flex: 1; display: flex; align-items: center; background: color-mix(in srgb, var(--bg-color) 40%, transparent); border: 0.5px solid color-mix(in srgb, var(--text-main) 8%, transparent); border-radius: 10px; padding: 0 8px; height: 38px;">
+                            <input type="number" id="custom-round-start" placeholder="起始" style="width: 100%; border: none; background: transparent; color: var(--text-main); font-size: 13px; outline: none; text-align: center;">
+                            <span style="color: var(--text-sub); margin: 0 2px;">|</span>
+                            <input type="number" id="custom-round-end" placeholder="结束" style="width: 100%; border: none; background: transparent; color: var(--text-main); font-size: 13px; outline: none; text-align: center;">
+                        </div>
+                        <button onclick="addCustomRoundBlock()" style="height: 38px; padding: 0 14px; background: rgba(212,122,67, 0.9); backdrop-filter: blur(10px); color: white; border-radius: 10px; border: 0.5px solid rgba(255,255,255,0.2); font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 12px rgba(212,122,67,0.2);">添加</button>
+                    </div>
+                </div>
+                <div style="padding-left: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                    <p style="font-size: 12px; font-weight: 500; color: var(--text-sub); margin: 0;"><input type="checkbox" id="select-all-rounds" style="margin-right: 8px; transform: translateY(1px); accent-color: #D47A43;"> 选择提取区间 <span style="opacity: 0.5; font-weight: 400;">(共 ${userMessagesCount} 轮)</span></p>
+                </div>
+                <div style="display:flex; flex-direction:column;">`;
+
+    chunks.forEach((c) => {
+        const statusTag = c.isCovered ? `<div style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 10px; color: var(--text-sub); background: color-mix(in srgb, var(--text-main) 6%, transparent); border: 0.5px solid color-mix(in srgb, var(--text-main) 8%, transparent); padding: 2px 6px; border-radius: 4px;">已存</span><i class="fa-solid fa-trash-can" onclick="event.stopPropagation(); deleteArchiveBlock(${c.start}, ${c.end})" style="color: #ff5e5e; font-size: 12px; cursor: pointer; opacity: 0.7;"></i></div>` : `<span style="font-size: 11px; color: #D47A43; font-weight: 700;">待提取</span>`;
+        html += `
+            <label style="display:flex; align-items:center; justify-content:space-between; padding: 10px 4px; cursor: pointer; border-bottom: 0.5px solid color-mix(in srgb, var(--text-main) 8%, transparent);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="position: relative; width: 18px; height: 18px;">
+                        <input type="checkbox" class="round-chunk-cb" value="${c.start}-${c.end}" ${c.isCovered ? '' : 'checked'} style="cursor: pointer; width: 18px; height: 18px; accent-color: #D47A43; margin: 0;">
+                    </div>
+                    <span style="font-size: 14px; font-weight: 500; color: var(--text-main);">第 ${c.start} - ${c.end} 轮</span>
+                </div>
+                ${statusTag}
+            </label>`;
+    });
+
+    html += `</div></div>
+            <div style="padding: 16px 20px; background: transparent; display: flex; gap: 12px;">
+                <button onclick="executeBackfillSelected()" style="flex: 1; background: color-mix(in srgb, var(--text-main) 90%, transparent); color: var(--card-bg); height: 44px; border-radius: 12px; border: 0.5px solid color-mix(in srgb, var(--card-bg) 20%, transparent); font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.3s; box-shadow: 0 6px 16px rgba(0,0,0,0.15);" onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform='scale(1)'">开始提取档案</button>
+            </div>
+        </div>
+    </div>
+    <style>
+        #round-selector-modal .config-modal-content { transform: translateY(20px) scale(0.95); opacity: 0; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        #round-selector-modal.show .config-modal-content { transform: translateY(0) scale(1); opacity: 1; }
+        .config-modal-body::-webkit-scrollbar { width: 4px; }
+        .config-modal-body::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-main) 15%, transparent); border-radius: 10px; }
+    </style>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    const newModal = document.getElementById('round-selector-modal');
+    if (newModal) {
+        newModal.classList.add('show');
+        const selectAllCheckbox = newModal.querySelector('#select-all-rounds');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                newModal.querySelectorAll('.round-chunk-cb').forEach(cb => {
+                    cb.checked = isChecked;
+                    cb.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+            });
+        }
+        const scrollContainer = newModal.querySelector('.config-modal-body');
+        if (!scrollContainer) return;
+
+        let startY = 0, startValid = false, isSelecting = false, autoScrollRaf = null;
+        let lastClientX = 0, lastClientY = 0, lastZoneId = null, lastToggleTime = 0;
+        const ENTER_THRESHOLD = 4, SCROLL_ZONE = 45, SCROLL_SPEED = 8, DEBOUNCE_MS = 30;
+
+        function getZoneElement(x, y) {
+            const elem = document.elementsFromPoint(x, y);
+            for (let el of elem) {
+                const zone = el.closest('label, .config-list-item');
+                if (zone && zone.querySelector('.round-chunk-cb')) return zone;
             }
-            chronosDialsInitialized = true;
+            return null;
+        }
+        function isValidStart(x, y) {
+            const zone = getZoneElement(x, y); if (!zone) return false;
+            const cb = zone.querySelector('.round-chunk-cb'); if (!cb) return false;
+            const zoneRect = zone.getBoundingClientRect(), cbRect = cb.getBoundingClientRect();
+            return x >= zoneRect.left && x <= cbRect.right;
+        }
+        function toggleZone(zone) {
+            if (!zone) return false;
+            const now = Date.now();
+            if (now - lastToggleTime < DEBOUNCE_MS) return false;
+            if (zone === lastZoneId) return false;
+            const cb = zone.querySelector('.round-chunk-cb'); if (!cb) return false;
+            cb.checked = !cb.checked;
+            cb.dispatchEvent(new Event('change', { bubbles: true }));
+            lastZoneId = zone; lastToggleTime = now;
+            return true;
+        }
+        function getVisibleZones() {
+            if (!scrollContainer) return [];
+            const rect = scrollContainer.getBoundingClientRect();
+            return Array.from(scrollContainer.querySelectorAll('label, .config-list-item'))
+                .filter(z => z.querySelector('.round-chunk-cb'))
+                .filter(z => { const zRect = z.getBoundingClientRect(); return zRect.top < rect.bottom && zRect.bottom > rect.top; });
+        }
+        function getAdjacentZone(currentZone, direction) {
+            const allZones = Array.from(scrollContainer.querySelectorAll('label, .config-list-item')).filter(z => z.querySelector('.round-chunk-cb'));
+            const index = allZones.indexOf(currentZone);
+            if (direction === 'up' && index > 0) return allZones[index - 1];
+            if (direction === 'down' && index < allZones.length - 1) return allZones[index + 1];
+            return null;
+        }
+        function startAutoScroll(direction) {
+            if (autoScrollRaf) cancelAnimationFrame(autoScrollRaf);
+            let lastTimestamp = 0, lastProcessedZone = null;
+            function step(now) {
+                if (!isSelecting) { cancelAnimationFrame(autoScrollRaf); autoScrollRaf = null; return; }
+                if (!lastTimestamp) lastTimestamp = now;
+                const delta = now - lastTimestamp;
+                if (delta >= 16) {
+                    if (direction === 'up') scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - SCROLL_SPEED);
+                    else scrollContainer.scrollTop = Math.min(scrollContainer.scrollHeight - scrollContainer.clientHeight, scrollContainer.scrollTop + SCROLL_SPEED);
+                    lastTimestamp = now;
+                    const fingerZone = getZoneElement(lastClientX, lastClientY);
+                    if (fingerZone) {
+                        toggleZone(fingerZone);
+                        if (lastProcessedZone === fingerZone) {
+                            const nextZone = getAdjacentZone(fingerZone, direction);
+                            if (nextZone) toggleZone(nextZone);
+                        }
+                        lastProcessedZone = fingerZone;
+                    } else {
+                        const visibleZones = getVisibleZones();
+                        if (visibleZones.length) toggleZone(direction === 'up' ? visibleZones[0] : visibleZones[visibleZones.length - 1]);
+                        lastProcessedZone = null;
+                    }
+                    const isAtTop = scrollContainer.scrollTop === 0, isAtBottom = scrollContainer.scrollTop >= scrollContainer.scrollHeight - scrollContainer.clientHeight;
+                    if (isAtTop || isAtBottom) {
+                        const boundaryZone = direction === 'up' ? getVisibleZones()[0] : getVisibleZones().slice(-1)[0];
+                        if (boundaryZone && boundaryZone !== lastZoneId) toggleZone(boundaryZone);
+                    }
+                }
+                autoScrollRaf = requestAnimationFrame(step);
+            }
+            autoScrollRaf = requestAnimationFrame(step);
+        }
+        function stopAutoScroll() { if (autoScrollRaf) { cancelAnimationFrame(autoScrollRaf); autoScrollRaf = null; } }
+        function onTouchStart(e) {
+            startY = e.touches[0].clientY; const x = e.touches[0].clientX, y = e.touches[0].clientY;
+            startValid = isValidStart(x, y); isSelecting = false; lastZoneId = null; lastToggleTime = 0; stopAutoScroll();
+        }
+        function onTouchMove(e) {
+            if (!startValid) return;
+            const currentY = e.touches[0].clientY, deltaY = currentY - startY;
+            if (!isSelecting && Math.abs(deltaY) > ENTER_THRESHOLD) {
+                isSelecting = true; e.preventDefault();
+                lastClientX = e.touches[0].clientX; lastClientY = currentY;
+                const firstZone = getZoneElement(lastClientX, lastClientY); if (firstZone) toggleZone(firstZone);
+                return;
+            }
+            if (!isSelecting) return;
+            e.preventDefault(); lastClientX = e.touches[0].clientX; lastClientY = currentY;
+            const rect = scrollContainer.getBoundingClientRect(), relativeY = lastClientY - rect.top;
+            const isTopZone = relativeY < SCROLL_ZONE && scrollContainer.scrollTop > 0;
+            const isBottomZone = relativeY > rect.height - SCROLL_ZONE && scrollContainer.scrollTop < scrollContainer.scrollHeight - rect.height;
+            if (isTopZone) startAutoScroll('up'); else if (isBottomZone) startAutoScroll('down'); else stopAutoScroll();
+            const zone = getZoneElement(lastClientX, lastClientY); if (zone) toggleZone(zone);
+        }
+        function onTouchEnd(e) {
+            if (isSelecting) e.preventDefault();
+            if (isSelecting) { const finalZone = getZoneElement(lastClientX, lastClientY); if (finalZone && finalZone !== lastZoneId) toggleZone(finalZone); }
+            isSelecting = false; lastZoneId = null; stopAutoScroll();
+        }
+        scrollContainer.addEventListener('touchstart', onTouchStart, { passive: true });
+        scrollContainer.addEventListener('touchmove', onTouchMove, { passive: false });
+        scrollContainer.addEventListener('touchend', onTouchEnd);
+        scrollContainer.addEventListener('touchcancel', onTouchEnd);
+    }
+}
+
+window.closeRoundSelectorModal = function() { const modal = document.getElementById('round-selector-modal'); if (modal) { modal.classList.remove('show'); setTimeout(() => modal.remove(), 300); } };
+window.closeRoundSelectorModalByOverlay = function(event) { if (event.target === event.currentTarget) closeRoundSelectorModal(); };
+window.addCustomRoundBlock = function() {
+    const start = parseInt(document.getElementById('custom-round-start').value), end = parseInt(document.getElementById('custom-round-end').value);
+    if (isNaN(start) || isNaN(end) || start <= 0 || end < start) { alert('请输入有效的轮数区间'); return; }
+    const allCheckboxes = document.querySelectorAll('.round-chunk-cb');
+    for (const cb of allCheckboxes) { if (cb.value === `${start}-${end}`) { alert('该区间已存在'); return; } }
+    const list = document.querySelector('#round-selector-modal .config-modal-body div[style*="flex-direction:column"]'); if (!list) return;
+    const label = document.createElement('label');
+    label.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding: 14px 16px; background: var(--card-bg); border-radius: 12px; border: 0.5px solid var(--border); cursor: pointer; transition: background 0.2s;';
+    label.innerHTML = '<span style="font-size:15px; font-weight:600; color: var(--text-main); display:flex; align-items:center;">第 ' + start + '-' + end + ' 轮 <span style="color:var(--accent); font-size:12px; margin-left:8px;">(手动补充)</span></span><input type="checkbox" class="round-chunk-cb" value="' + start + '-' + end + '" checked style="width:20px; height:20px; accent-color: var(--accent);">';
+    list.appendChild(label); document.getElementById('custom-round-start').value = ''; document.getElementById('custom-round-end').value = '';
+};
+window.deleteArchiveBlock = function(start, end) {
+    if(!confirm(`确定要销毁 第 ${start}-${end} 轮 的历史档案吗？`)) return;
+    const contact = mockContacts.find(c => c.id === currentChatContactId); if (!contact || !contact.longMemories) return;
+    contact.longMemories = contact.longMemories.filter(m => {
+        if (!m.roundRange) return true;
+        const match = String(m.roundRange).match(/第?(\d+)-(\d+)轮?/);
+        return !(match && parseInt(match[1]) === start && parseInt(match[2]) === end);
+    });
+    saveToLocal(); const modal = document.getElementById('round-selector-modal'); if(modal) modal.remove(); backfillAllMemories(); 
+};
+window.executeBackfillSelected = async function() {
+    const checkboxes = document.querySelectorAll('.round-chunk-cb:checked');
+    const selectedBlocks = Array.from(checkboxes).map(cb => { const [start, end] = cb.value.split('-').map(Number); return { startRound: start, endRound: end }; });
+    if (selectedBlocks.length === 0) { alert("请至少选择一个区间！"); return; }
+    document.getElementById('round-selector-modal').remove();
+    const contact = mockContacts.find(c => c.id === currentChatContactId); if (!contact) return;
+
+    if (contact.longMemories) {
+        selectedBlocks.forEach(b => {
+            contact.longMemories = contact.longMemories.filter(m => {
+                if (!m.roundRange) return true;
+                const match = String(m.roundRange).match(/第?(\d+)-(\d+)轮?/);
+                if (!match) return true;
+                const mStart = parseInt(match[1]), mEnd = parseInt(match[2]), mid = (mStart + mEnd) / 2;
+                return !(mid >= b.startRound && mid <= b.endRound);
+            });
+        });
+    } else contact.longMemories = [];
+
+    const memoryConfig = OTHER_API_CONFIGS.memory;
+    let apiConfig = null;
+    if (memoryConfig && memoryConfig.configId) apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === memoryConfig.configId);
+    if (!apiConfig) apiConfig = CHAT_API_CONFIGS.list.find(c => c.id === CHAT_API_CONFIGS.currentId);
+    if (!apiConfig) { alert('⚠️ 没有可用的 API 配置'); return; }
+
+    const conversation = getConversation(contact.id); let allMissingChats = "";
+    const rounds = []; let currentRound = [];
+    conversation.forEach(msg => { if (msg.role === 'user' && currentRound.length > 0) { rounds.push([...currentRound]); currentRound = []; } currentRound.push(msg); });
+    if (currentRound.length > 0) rounds.push(currentRound);
+
+    selectedBlocks.forEach(block => {
+        const startIdx = block.startRound - 1, endIdx = block.endRound - 1;
+        if (startIdx >= 0 && endIdx < rounds.length) {
+            const blockMessages = rounds.slice(startIdx, endIdx + 1).flat(); let roundLabel = block.startRound;
+            const chatContent = blockMessages.map(m => { if (m.role === 'user') { const line = `[第${roundLabel}轮] 用户：${m.content}`; roundLabel++; return line; } else return `AI：${m.content}`; }).join('\n');
+            allMissingChats += `\n\n【需要提取的对话区块：第${block.startRound}-${block.endRound}轮】\n${chatContent}`;
+        }
+    });
+
+    const allExistingMemories = contact.longMemories.length > 0 ? contact.longMemories.map(m => m.content).join('\n') : "暂无记忆";
+    const dynamicPrompt = SYSTEM_ARCHIVE_PROMPT.replace(/\{\{AI_NAME\}\}/g, contact.name || '未命名角色').replace(/\{\{AI_PERSONA\}\}/g, contact.prompt || '暂无设定');
+
+    const summaryMessages = [
+        { role: "system", content: dynamicPrompt }, 
+        { role: "user", content: `请根据以下对话区块提取档案和关系变化，不要参考其他记忆。请勿重复记录已有事件；若是新细节请补充。\n${allMissingChats}\n\n请严格以大纲作者的视角，按格式要求返回 JSON。` }
+    ];
+
+    try {
+        const modelToUse = (memoryConfig && memoryConfig.model) ? memoryConfig.model : apiConfig.model;
+        let apiUrl = getStandardApiUrl(apiConfig.url, '/chat/completions');
+        addLogToConsole('info', 'ARCHIVE', `正在提取 ${selectedBlocks.length} 个区块的档案...`);
+        const progressBar = document.getElementById('backfill-progress-bar');
+        if (progressBar) { progressBar.style.opacity = '1'; progressBar.classList.add('active'); progressBar.style.transition = 'transform 1.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease'; progressBar.style.transform = 'scaleX(0.5)'; }
+
+        const response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'chat', customEndpoint: apiUrl, customApiKey: apiConfig.key, model: modelToUse, messages: summaryMessages, temperature: 0.1, max_tokens: 3000 })
+        });
+        if (!response.ok) throw new Error(`API 报错: ${response.status}`);
+        const data = await response.json();
+        let jsonStr = data.choices && data.choices[0] ? data.choices[0].message.content : data.result;
+        jsonStr = jsonStr.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const result = JSON.parse(jsonStr);
+
+        let addedCount = 0;
+        const isRealityMode = document.getElementById('reality-mode-switch')?.classList.contains('active');
+        let realDateStr = null;
+        if (isRealityMode) { const now = new Date(); realDateStr = `${now.getMonth()+1}月${now.getDate()}日`; }
+
+        if (result.memories && Array.isArray(result.memories)) {
+            result.memories.forEach(m => {
+                m.id = 'mem_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                if (!m.roundRange) m.roundRange = `${startRound}-${endRound}`;
+                if (isRealityMode && !m.worldTime) m.date = realDateStr;
+                
+                if (m.previousName && m.keywords && m.keywords.length > 0) {
+                    let oldAlias = m.previousName, realName = m.keywords[0];
+                    addLogToConsole('info', 'ARCHIVE', `触发实体合并：[${oldAlias}] 真名揭晓为 [${realName}]`);
+                    if (contact.longMemories) contact.longMemories.forEach(oldMem => { if (oldMem.keywords && oldMem.keywords.includes(oldAlias)) { oldMem.keywords = oldMem.keywords.map(k => k === oldAlias ? realName : k); oldMem.content = oldMem.content.replace(new RegExp(oldAlias, 'g'), realName); } });
+                    if (contact.relations) contact.relations.forEach(r => { if (r.source === oldAlias) r.source = realName; if (r.target === oldAlias) r.target = realName; });
+                }
+                contact.longMemories.push(m); addedCount++;
+            });
         }
 
-        // 切换面板展开/收起
-        function toggleChronosPanel() {
-            initChronosDials(); 
-            const panel = document.getElementById('chronos-dial-panel');
-            panel.classList.toggle('show');
+        if (result.relations && Array.isArray(result.relations)) {
+            if (!contact.relations) contact.relations = [];
+            result.relations.forEach(r => {
+                const existingRelIndex = contact.relations.findIndex(ex => (ex.source === r.source && ex.target === r.target) || (ex.source === r.target && ex.target === r.source));
+                const timeMark = r.updatedAt || (isRealityMode ? realDateStr : `第 ${selectedBlocks[0].startRound}-${selectedBlocks[selectedBlocks.length-1].endRound} 轮`); 
+                if (existingRelIndex !== -1) {
+                    const existingRel = contact.relations[existingRelIndex];
+                    if (!existingRel.history) existingRel.history = [{ label: existingRel.label, time: '往昔', detail: existingRel.detail || '初始状态' }];
+                    existingRel.label = r.label; existingRel.detail = r.detail || '关系产生了新的转变。'; existingRel.updatedAt = timeMark;
+                    existingRel.history.push({ label: r.label, time: timeMark, detail: existingRel.detail });
+                } else {
+                    r.history = [{ label: r.label, time: timeMark, detail: r.detail || '建立了初始羁绊。' }];
+                    r.updatedAt = timeMark; contact.relations.push(r);
+                }
+            });
         }
 
-        // 同步面板输入框的内容到顶部胶囊显示
-        function syncChronosToDisplay() {
-            const era = document.getElementById('chronos-input-era').value.trim();
-            const month = document.getElementById('chronos-input-month').value;
-            const day = document.getElementById('chronos-input-day').value;
-            const time = document.getElementById('chronos-input-time').value;
-            
-            // 拼接格式，例如：星历1年 · 5月8日 14:30
-            const textStr = `${era} · ${month}月${day}日 ${time}`;
-            document.getElementById('chronos-display-text').textContent = textStr || '...';
+        if (contact.longMemories && contact.longMemories.length > 0) {
+            contact.longMemories.sort((a, b) => {
+                const getStart = (range) => { if (!range) return 0; const match = String(range).match(/第?(\d+)-/); return match ? parseInt(match[1], 10) : 0; };
+                return getStart(a.roundRange) - getStart(b.roundRange);
+            });
         }
+        saveToLocal();
+        if (progressBar) progressBar.style.transform = `scaleX(1)`;
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const searchInput = document.getElementById('archive-search-input'); renderArchiveContent(searchInput ? searchInput.value : ''); updateMemoryStats();
+        alert(`✅ 记忆融合完成！\n\n成功萃取了 ${addedCount} 条设定档案，及 ${result.relations ? result.relations.length : 0} 组人物羁绊。`);
+    } catch (error) {
+        let rawError = error.stack || error.toString(); addLogToConsole('error', '修史提取出错', rawError);
+        alert(`⚠️ 提取出错: ${error.message}\n请查看控制台获取原始错误信息。`);
+    } finally {
+        const progressBar = document.getElementById('backfill-progress-bar');
+        if (progressBar) { progressBar.style.transition = 'opacity 0.5s ease, transform 0.3s ease'; progressBar.style.opacity = '0'; setTimeout(() => { progressBar.classList.remove('active'); progressBar.style.transform = 'scaleX(0)'; }, 500); }
+    }
+};
 
-        function resetChronos() {
-            document.getElementById('chronos-input-era').value = '';
-            document.getElementById('chronos-input-month').value = '1';   // 或者默认值
-            document.getElementById('chronos-input-day').value = '1';
-            document.getElementById('chronos-input-time').value = '08:00';
-            syncChronosToDisplay();
-            document.getElementById('chronos-display-text').textContent = '...';
-            // 如果需要关闭面板，再加： document.getElementById('chronos-dial-panel').classList.remove('show');
+// ==========================================
+// 🌟 世界档案馆核心引擎 (完整版)
+// ==========================================
+let currentArchiveCategory = '全部';
+let expandedArchiveCards = new Set(); 
+let archiveSortDesc = true;           
+
+function smoothScrollToElement(element, duration = 400, heightLoss = 0) {
+    if (!element) return;
+    const container = document.getElementById('archive-content');
+    if (!container) { element.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); return; }
+    const elementTop = element.getBoundingClientRect().top, containerTop = container.getBoundingClientRect().top;
+    let target = container.scrollTop + elementTop - containerTop;
+    if (heightLoss > 0) { const currentMaxScroll = container.scrollHeight - container.clientHeight; const futureMaxScroll = Math.max(0, currentMaxScroll - heightLoss); target = Math.min(target, futureMaxScroll); }
+    const start = container.scrollTop, distance = target - start;
+    if (Math.abs(distance) < 5) return;
+    let startTime = null;
+    function animation(currentTime) {
+        if (!startTime) startTime = currentTime;
+        const elapsed = currentTime - startTime, progress = Math.min(elapsed / duration, 1);
+        const ease = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+        container.scrollTop = start + distance * ease;
+        if (elapsed < duration) requestAnimationFrame(animation); else container.scrollTop = target;
+    }
+    requestAnimationFrame(animation);
+}
+
+window.togglePrefReader = function(chipId) {
+    const matrix = document.getElementById('pref-matrix'), reader = document.getElementById('pref-detail-reader'), chipEl = document.getElementById(chipId);
+    if (!matrix || !reader || !chipEl) return;
+    if (chipEl.classList.contains('active')) {
+        chipEl.classList.remove('active'); matrix.classList.remove('has-active');
+        const styles = window.getComputedStyle(reader), heightLoss = reader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
+        reader.style.opacity = '0'; smoothScrollToElement(matrix, 400, heightLoss);
+        setTimeout(() => { if (!matrix.classList.contains('has-active')) { reader.style.transition = 'none'; reader.classList.remove('show'); requestAnimationFrame(() => { reader.style.opacity = ''; reader.style.transition = ''; }); } }, 400);
+        return;
+    }
+    const data = window.currentPrefGroups[chipId]; if (!data) return;
+    const keyword = data.keyword || '未命名偏好', detailsHtml = data.detailsHtml || '<div class="chip-detail-item">暂无详细记录</div>';
+    let readerClass = `pref-detail-reader ${data.themeClass || 'chip-theme-blue'} ` + (data.score >= 5 ? 'core' : (data.score === 4 ? 'major' : 'minor'));
+    reader.className = readerClass;
+    reader.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding-bottom: 12px;"><div style="font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px;">${data.iconHtml || '<i class="fas fa-tag"></i>'}<span>${escapeHtml(keyword)}</span></div><i class="fas fa-times" onclick="window.togglePrefReader('${chipId}')" style="opacity:0.6; font-size:18px; cursor:pointer;"></i></div><div>${detailsHtml}</div>`;
+    matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+    chipEl.classList.add('active'); matrix.classList.add('has-active'); reader.classList.add('show');
+    setTimeout(() => reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 300);
+};
+
+window.toggleBioReader = function(chipId) {
+    const matrix = document.getElementById('bio-board'), reader = document.getElementById('bio-detail-reader'), chipEl = document.getElementById(chipId);
+    if (!matrix || !reader || !chipEl) return;
+    if (chipEl.classList.contains('active')) {
+        chipEl.classList.remove('active'); matrix.classList.remove('has-active'); dimRelationLines(false); reader.style.marginTop = '';
+        const styles = window.getComputedStyle(reader), heightLoss = reader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
+        reader.style.opacity = '0'; smoothScrollToElement(matrix, 400, heightLoss);
+        setTimeout(() => { if (!matrix.classList.contains('has-active')) { reader.style.transition = 'none'; reader.classList.remove('show'); requestAnimationFrame(() => { reader.style.opacity = ''; reader.style.transition = ''; }); } }, 400);
+        return;
+    }
+    const data = window.currentBioGroups[chipId]; if (!data) return;
+    let readerClass = `pref-detail-reader ${data.themeClass} ` + (data.score >= 5 ? 'core' : (data.score === 4 ? 'major' : 'minor'));
+    reader.className = readerClass;
+    reader.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding-bottom: 12px;"><div style="font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px;">${data.iconHtml}<span>${escapeHtml(data.characterName)}</span><i class="fas fa-pencil-alt" style="font-size:14px; opacity:0.6; cursor:pointer; margin-left:6px;" onclick="editBioCharacterName('${chipId}', '${escapeHtml(data.characterName)}')"></i></div><i class="fas fa-times" onclick="window.toggleBioReader('${chipId}')" style="opacity:0.6; font-size:18px; cursor:pointer;"></i></div><div>${data.detailsHtml}</div>`;
+    matrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+    chipEl.classList.add('active'); matrix.classList.add('has-active'); dimRelationLines(true);
+    const board = document.getElementById('bio-board');
+    if (board) {
+        const boardRect = board.getBoundingClientRect(), chips = board.querySelectorAll('.archive-glass-chip'); let maxBottom = 0;
+        chips.forEach(chip => { const rect = chip.getBoundingClientRect(), bottom = rect.bottom - boardRect.top; if (bottom > maxBottom) maxBottom = bottom; });
+        const desiredTop = maxBottom + 16, naturalTop = boardRect.height, offset = naturalTop - desiredTop;
+        reader.style.marginTop = `-${offset}px`;
+    }
+    reader.classList.add('show');
+    setTimeout(() => reader.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 300);
+};
+
+window.editBioCharacterName = function(chipId, oldName) {
+    if (!currentChatContactId) { alert("请先打开一个聊天窗口再编辑"); return; }
+    const contact = mockContacts.find(c => c.id === currentChatContactId); if (!contact) return;
+    const pencilIcon = document.querySelector('#bio-detail-reader .fa-pencil-alt'); if (!pencilIcon) { alert("未找到编辑按钮，请刷新页面重试"); return; }
+    const nameSpan = pencilIcon.parentElement.querySelector('span'); if (!nameSpan) return;
+    const input = document.createElement('input');
+    input.type = 'text'; input.value = oldName;
+    input.style.cssText = `font-size: inherit; font-weight: inherit; font-family: inherit; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; margin: -2px 0; color: var(--text-main); outline: none; box-sizing: content-box;`;
+    const adjustWidth = () => {
+        const measureSpan = document.createElement('span'); measureSpan.style.visibility = 'hidden'; measureSpan.style.position = 'absolute'; measureSpan.style.whiteSpace = 'pre'; measureSpan.style.font = window.getComputedStyle(input).font; measureSpan.style.padding = window.getComputedStyle(input).padding; measureSpan.style.border = 'none'; measureSpan.textContent = input.value || oldName; document.body.appendChild(measureSpan);
+        const textWidth = measureSpan.offsetWidth; document.body.removeChild(measureSpan);
+        input.style.width = Math.min(textWidth + 16 + 4, 300) + 'px';
+    };
+    adjustWidth(); nameSpan.style.display = 'none'; nameSpan.parentNode.insertBefore(input, nameSpan.nextSibling); input.focus(); input.select();
+    const onKeyboardShow = () => { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); window.removeEventListener('keyboardWillShow', onKeyboardShow); };
+    window.addEventListener('keyboardWillShow', onKeyboardShow);
+    input.addEventListener('input', adjustWidth);
+    const saveEdit = () => {
+        const newName = input.value.trim();
+        if (newName && newName !== oldName) {
+            let updatedCount = 0;
+            contact.longMemories.forEach(mem => {
+                if (mem.keywords && Array.isArray(mem.keywords)) { const index = mem.keywords.indexOf(oldName); if (index !== -1) { mem.keywords[index] = newName; updatedCount++; } }
+                if (mem.content && mem.content.includes(oldName)) mem.content = mem.content.replace(new RegExp(oldName, 'g'), newName);
+            });
+            if (contact.relations) {
+                contact.relations.forEach(rel => {
+                    if (rel.source === oldName) rel.source = newName; if (rel.target === oldName) rel.target = newName;
+                    if (rel.history) rel.history.forEach(h => { if (h.detail) h.detail = h.detail.replace(new RegExp(oldName, 'g'), newName); });
+                });
+                const mergedMap = new Map();
+                for (const rel of contact.relations) {
+                    const key = `${rel.source}|${rel.target}`;
+                    if (mergedMap.has(key)) {
+                        const existing = mergedMap.get(key);
+                        if (rel.history && rel.history.length) { if (!existing.history) existing.history = []; existing.history.push(...rel.history); }
+                        if (rel.label && rel.detail && rel.updatedAt) { if (!existing.history) existing.history = []; const alreadyHas = existing.history.some(h => h.label === rel.label && h.detail === rel.detail && h.time === rel.updatedAt); if (!alreadyHas) existing.history.push({ label: rel.label, detail: rel.detail, time: rel.updatedAt }); }
+                        existing.label = rel.label || existing.label; existing.detail = rel.detail || existing.detail; existing.updatedAt = rel.updatedAt || existing.updatedAt;
+                    } else {
+                        if (!rel.history && rel.label && rel.detail && rel.updatedAt) rel.history = [{ label: rel.label, detail: rel.detail, time: rel.updatedAt }];
+                        mergedMap.set(key, rel);
+                    }
+                }
+                contact.relations = Array.from(mergedMap.values());
+            }
+            if (updatedCount > 0) { saveToLocal(); const searchInput = document.getElementById('archive-search-input'); renderArchiveContent(searchInput ? searchInput.value : ''); showToast(`已将「${oldName}」合并为「${newName}」`); } 
+            else showToast('未找到需要修改的记忆条目');
         }
+        input.removeEventListener('input', adjustWidth); input.remove(); nameSpan.style.display = ''; if (newName) nameSpan.textContent = newName;
+    };
+    const cancelEdit = () => { input.removeEventListener('input', adjustWidth); input.remove(); nameSpan.style.display = ''; };
+    input.addEventListener('blur', saveEdit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveEdit(); } else if (e.key === 'Escape') cancelEdit(); });
+};
+
+function openArchivePage() {
+    if (!currentChatContactId) return;
+    const searchInput = document.getElementById('archive-search-input'); if (searchInput) searchInput.value = '';
+    currentArchiveCategory = '全部'; document.getElementById('current-cat-text').innerText = '全部';
+    document.querySelectorAll('.cat-menu-item').forEach((el, index) => el.classList.toggle('active', index === 0));
+    expandedArchiveCards.clear(); const btn = document.getElementById('bio-reset-btn'); if (btn) btn.style.display = 'none';
+    renderArchiveContent(); openSubPage('sub-archive');
+}
+
+function toggleCategoryMenu() { document.getElementById('archive-cat-menu').classList.toggle('show'); }
+
+function switchArchiveCategory(categoryName, shortName) {
+    currentArchiveCategory = categoryName; document.getElementById('current-cat-text').innerText = shortName;
+    document.querySelectorAll('.cat-menu-item').forEach(tab => { tab.classList.remove('active'); if (tab.textContent.includes(shortName)) tab.classList.add('active'); });
+    document.getElementById('archive-cat-menu').classList.remove('show');
+    const searchInput = document.getElementById('archive-search-input'); const currentVal = searchInput ? searchInput.value : '';
+    const resetBtn = document.getElementById('bio-reset-btn'); if (resetBtn) resetBtn.style.display = (categoryName === '人物') ? 'flex' : 'none';
+    renderArchiveContent(currentVal);
+}
+
+function toggleArchiveSort() {
+    archiveSortDesc = !archiveSortDesc; const icon = document.getElementById('archive-sort-icon');
+    if (icon) icon.className = archiveSortDesc ? 'fas fa-sort-amount-down' : 'fas fa-sort-amount-up';
+    const searchInput = document.getElementById('archive-search-input'); renderArchiveContent(searchInput ? searchInput.value : '');
+}
+
+function highlightSearchTerm(text, term) {
+    if (!term) return escapeHtml(text);
+    const escapedText = escapeHtml(text), escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), regex = new RegExp(`(${escapedTerm})`, 'gi');
+    return escapedText.replace(regex, '<span class="search-highlight-text">$1</span>');
+}
+
+function filterArchive(val) {
+    const input = document.getElementById('archive-search-input'); if (!input) return;
+    const archiveContent = document.getElementById('archive-content'), scrollTop = archiveContent ? archiveContent.scrollTop : 0;
+    renderArchiveContent(val); if (archiveContent) archiveContent.scrollTop = scrollTop;
+}
+
+function toggleArchiveCard(headerEl) {
+    const card = headerEl.parentElement, title = headerEl.querySelector('.archive-entity-title').textContent.trim();
+    card.classList.toggle('expanded'); if (card.classList.contains('expanded')) expandedArchiveCards.add(title); else expandedArchiveCards.delete(title);
+}
+
+function deleteArchiveItem(memoryId) {
+    if (!currentChatContactId) return;
+    const contact = mockContacts.find(c => c.id === currentChatContactId); if (!contact || !contact.longMemories) return;
+    if (!confirm('确定要彻底删除这条档案吗？')) return;
+    contact.longMemories = contact.longMemories.filter(m => String(m.id) !== String(memoryId));
+    saveToLocal(); const searchInput = document.getElementById('archive-search-input'); renderArchiveContent(searchInput ? searchInput.value : ''); if (searchInput) searchInput.focus(); updateMemoryStats();
+}
+ 
+function inplaceEditArchiveItem(memoryId) {
+    if (!currentChatContactId) return;
+    const contact = mockContacts.find(c => c.id === currentChatContactId); if (!contact || !contact.longMemories) return;
+    const memIndex = contact.longMemories.findIndex(m => String(m.id) === String(memoryId));
+    if (memIndex === -1) { alert('未找到该记忆条目'); return; }
+    const textDiv = document.getElementById(`archive-text-${memoryId}`); if (!textDiv) { alert('未找到编辑按钮对应的文本区域'); return; }
+    const originalContent = contact.longMemories[memIndex].content, originalScore = contact.longMemories[memIndex].score || 4, originalDisplay = textDiv.style.display || 'block';
+    const container = document.createElement('div'); container.id = `edit-container-${memoryId}`; container.style.cssText = 'width: 100%; background-color: var(--bg-color); border-radius: 8px; padding: 4px 0;';
+    const textarea = document.createElement('textarea'); textarea.value = originalContent; textarea.style.cssText = 'width: 100% !important; min-height: 60px; font-family: inherit; font-size: 14px; line-height: 1.5; color: var(--text-main); background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin: 0; resize: vertical; box-sizing: border-box;';
+    const scoreSelect = document.createElement('select'); scoreSelect.style.cssText = 'display: block; margin: 8px 0 0 0; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--hover-bg); color: var(--text-main); font-size: 12px; outline: none; cursor: pointer; width: fit-content;';
+    [{ v: 5, t: "5 分 (核心)" }, { v: 4, t: "4 分 (重要)" }, { v: 3, t: "3 分 (普通)" }, { v: 2, t: "2 分 (琐碎)" }, { v: 1, t: "1 分 (碎片)" }].forEach(opt => {
+        const o = document.createElement('option'); o.value = opt.v; o.textContent = opt.t; if (opt.v === originalScore) o.selected = true; scoreSelect.appendChild(o);
+    });
+    container.appendChild(textarea); container.appendChild(scoreSelect); textDiv.style.display = 'none'; textDiv.parentNode.insertBefore(container, textDiv.nextSibling);
+    const autoSize = () => { textarea.style.height = 'auto'; textarea.style.height = textarea.scrollHeight + 'px'; };
+    textarea.addEventListener('input', autoSize); autoSize(); textarea.focus(); textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    let isEditing = true;
+    const finishEdit = () => {
+        if (!isEditing) return; isEditing = false;
+        document.removeEventListener('mousedown', handleOutsideClick); document.removeEventListener('touchstart', handleOutsideClick);
+        const newContent = textarea.value.trim(), newScore = parseInt(scoreSelect.value);
+        if (newContent === "") {
+            if (confirm('内容为空，要删除这条档案吗？')) { contact.longMemories.splice(memIndex, 1); saveToLocal(); const searchInput = document.getElementById('archive-search-input'); renderArchiveContent(searchInput ? searchInput.value : ''); } 
+            else { container.remove(); textDiv.style.display = originalDisplay; }
+        } else {
+            contact.longMemories[memIndex].content = newContent; contact.longMemories[memIndex].score = newScore;
+            saveToLocal(); textDiv.innerText = newContent; container.remove(); textDiv.style.display = originalDisplay;
+        }
+    };
+    const handleOutsideClick = (e) => { if (container.contains(e.target)) return; finishEdit(); };
+    setTimeout(() => { document.addEventListener('mousedown', handleOutsideClick); document.addEventListener('touchstart', handleOutsideClick, { passive: true }); }, 100);
+    textarea.addEventListener('blur', () => { setTimeout(() => { if (isEditing && document.activeElement !== scoreSelect && !container.contains(document.activeElement)) finishEdit(); }, 150); });
+    const cancelEdit = () => { if (!isEditing) return; isEditing = false; document.removeEventListener('mousedown', handleOutsideClick); document.removeEventListener('touchstart', handleOutsideClick); container.remove(); textDiv.style.display = originalDisplay; };
+    textarea.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); finishEdit(); } if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); } });
+}
+
+// --- 星图与关系 ---
+function enableDragOnChips(nodesData, linksData, boardWidth, boardHeight) {
+    const chips = document.querySelectorAll('#bio-board .archive-glass-chip'), svg = document.getElementById('links-layer'), labels = document.querySelectorAll('#bio-board .relation-label');
+    chips.forEach(chip => { chip.addEventListener('touchstart', onDragStart, { passive: true }); chip.addEventListener('mousedown', onDragStart); });
+    function onDragStart(e) {
+        const chipEl = e.currentTarget, chipId = chipEl.id, node = nodesData.find(n => n.chipId === chipId); if (!node) return;
+        const startX = e.touches ? e.touches[0].clientX : e.clientX, startY = e.touches ? e.touches[0].clientY : e.clientY, startLeft = node.x, startTop = node.y;
+        let hasMoved = false;
+        function onMove(e) {
+            const currentX = e.touches ? e.touches[0].clientX : e.clientX, currentY = e.touches ? e.touches[0].clientY : e.clientY;
+            if (!hasMoved && (Math.abs(currentX - startX) > 5 || Math.abs(currentY - startY) > 5)) { hasMoved = true; e.preventDefault(); chipEl.style.transition = 'none'; chipEl.style.zIndex = '20'; }
+            if (hasMoved) { e.preventDefault(); let newX = startLeft + (currentX - startX), newY = startTop + (currentY - startY); newX = Math.max(20, Math.min(boardWidth - 20, newX)); newY = Math.max(20, Math.min(boardHeight - 20, newY)); node.x = newX; node.y = newY; chipEl.style.left = newX + 'px'; chipEl.style.top = newY + 'px'; updateLinksAndLabels(); }
+        }
+        function onUp() {
+            document.removeEventListener('touchmove', onMove); document.removeEventListener('mousemove', onMove); document.removeEventListener('touchend', onUp); document.removeEventListener('mouseup', onUp);
+            if (hasMoved) { chipEl.style.transition = ''; chipEl.style.zIndex = ''; if (currentChatContactId) saveNodePositions(currentChatContactId, nodesData); }
+        }
+        document.addEventListener('touchmove', onMove, { passive: false }); document.addEventListener('mousemove', onMove); document.addEventListener('touchend', onUp); document.addEventListener('mouseup', onUp);
+    }
+    function updateLinksAndLabels() {
+        svg.querySelectorAll('.link').forEach((line, i) => { const link = linksData[i]; if (link) { line.setAttribute('x1', link.source.x); line.setAttribute('y1', link.source.y); line.setAttribute('x2', link.target.x); line.setAttribute('y2', link.target.y); } });
+        labels.forEach((label, i) => { const link = linksData[i]; if (link) { label.style.left = ((link.source.x + link.target.x) / 2) + 'px'; label.style.top = ((link.source.y + link.target.y) / 2) + 'px'; } });
+    }
+}
+function generateInnerTimelineItemHtml(item, searchText) {
+    let displayContent = escapeHtml(item.content);
+    if (searchText) { const regex = new RegExp(`(${searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'); displayContent = displayContent.replace(regex, '<span style="background-color: rgba(255, 214, 10, 0.4); color: inherit; border-radius: 2px;">$1</span>'); }
+    return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-text" id="archive-text-${item.id}">${displayContent}</div><div class="timeline-actions"><i class="fas fa-pencil-alt" onclick="event.stopPropagation(); inplaceEditArchiveItem('${item.id}')"></i><i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteArchiveItem('${item.id}')"></i></div></div>`;
+}
+function getSavedNodePositions(contactId) { try { const saved = localStorage.getItem(`bio_nodes_${contactId}`); return saved ? JSON.parse(saved) : null; } catch(e) { return null; } }
+function saveNodePositions(contactId, nodesData) { const pos = {}; nodesData.forEach(n => { if (n.x != null && n.y != null) pos[n.id] = { x: n.x, y: n.y }; }); localStorage.setItem(`bio_nodes_${contactId}`, JSON.stringify(pos)); }
+function resetBioLayout() { if (!currentChatContactId) return; localStorage.removeItem(`bio_nodes_${currentChatContactId}`); const searchInput = document.getElementById('archive-search-input'); renderArchiveContent(searchInput ? searchInput.value : ''); }
+
+function renderNodesAndLinks(nodesData, linksData, width, height, runSimulation) {
+    if (runSimulation) {
+        const simulation = d3.forceSimulation(nodesData).force("link", d3.forceLink(linksData).id(d => d.id).distance(100)).force("charge", d3.forceManyBody().strength(-300)).force("center", d3.forceCenter(width / 2, height / 2)).force("collide", d3.forceCollide().radius(d => 25 + d.id.length * 8).iterations(3)).force("x", d3.forceX(width / 2).strength(0.05)).force("y", d3.forceY(height / 2).strength(0.05)).stop();
+        for (let i = 0; i < 120; i++) { simulation.tick(); nodesData.forEach(d => { const estWidth = 40 + (d.id.length * 15), padX = estWidth / 2 + 10; d.x = Math.max(padX, Math.min(width - padX, d.x)); d.y = Math.max(35, Math.min(height - 35, d.y)); }); }
+    }
+    if (currentChatContactId) saveNodePositions(currentChatContactId, nodesData);
+    const htmlLayer = d3.select("#html-layer");
+    let nodes = htmlLayer.selectAll(".archive-glass-chip").data(nodesData).enter().append("div").attr("class", d => d.className).attr("id", d => d.chipId).html(d => d.html).on("click", (event, d) => window.toggleBioReader(d.chipId));
+    if (runSimulation) { nodes.style("left", `${width / 2}px`).style("top", `${height / 2}px`).transition().duration(800).ease(d3.easeCubicOut).style("left", d => `${d.x}px`).style("top", d => `${d.y}px`); } else { nodes.style("left", d => `${d.x}px`).style("top", d => `${d.y}px`); }
+    const svg = d3.select("#links-layer");
+    svg.selectAll(".link").data(linksData).enter().append("line").attr("class", "link").attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y).style("stroke", "rgba(255,255,255,0.2)").style("stroke-width", "1.5px").style("opacity", 1);
+    htmlLayer.selectAll(".relation-label").data(linksData).enter().append("div").attr("class", "relation-label").text(d => d.label).style("left", d => `${(d.source.x + d.target.x) / 2}px`).style("top", d => `${(d.source.y + d.target.y) / 2}px`).on("click", (event, d) => { event.stopPropagation(); showRelationHistory(d); }).style("opacity", 1);
+    enableDragOnChips(nodesData, linksData, width, height);
+}
+
+function updateBioSearchHighlight(searchText) {
+    const board = document.getElementById('bio-board'); if (!board) return;
+    board.querySelectorAll('.archive-glass-chip').forEach(chip => {
+        const data = window.currentBioGroups[chip.id]; if (!data) return;
+        let isMatch = !searchText || data.characterName.toLowerCase().includes(searchText) || (data.items && data.items.some(item => item.content.toLowerCase().includes(searchText)));
+        chip.classList.remove('search-highlight', 'search-dim'); if (searchText) chip.classList.add(isMatch ? 'search-highlight' : 'search-dim');
+    });
+    board.classList.toggle('archive-search-mode', !!searchText); dimRelationLines(!!searchText);
+}
+
+function updatePrefSearchHighlight(searchText) {
+    const matrix = document.getElementById('pref-matrix'); if (!matrix) return;
+    matrix.querySelectorAll('.archive-glass-chip').forEach(chip => {
+        const data = window.currentPrefGroups[chip.id]; if (!data) return;
+        let isMatch = !searchText || data.keyword.toLowerCase().includes(searchText) || (data.items && data.items.some(item => item.content.toLowerCase().includes(searchText)));
+        chip.classList.remove('search-highlight', 'search-dim'); if (searchText) chip.classList.add(isMatch ? 'search-highlight' : 'search-dim');
+    });
+    matrix.classList.toggle('archive-search-mode', !!searchText);
+}
+
+function renderArchiveContent(searchText = '') {
+    function formatRoundRange(rawRange) {
+        if (!rawRange) return '初期设定'; let cleaned = String(rawRange).replace(/第|轮/g, '').trim();
+        if (cleaned === '初期设定' || cleaned === '') return '初期设定';
+        if (cleaned.includes('-')) { const parts = cleaned.split('-'); if (parts.length === 2 && parts[0].trim() === parts[1].trim()) cleaned = parts[0].trim(); }
+        return `第 ${cleaned} 轮`;
+    }
+    const container = document.getElementById('archive-content');
+    const lastCategory = container.dataset.lastCategory || '', lastSearch = container.dataset.lastSearch || '';
+
+    if (currentArchiveCategory === '偏好' && lastCategory === currentArchiveCategory && lastSearch !== searchText && searchText !== '') {
+        container.dataset.lastSearch = searchText; updatePrefSearchHighlight(searchText);
+        for (const [chipId, group] of Object.entries(window.currentPrefGroups)) {
+            group.detailsHtml = '';
+            group.items.forEach(item => {
+                if (!item.id) item.id = 'tmp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                const highlightedContent = highlightSearchTerm(item.content, searchText);
+                group.detailsHtml += `<div class="chip-detail-item"><div style="display:flex; justify-content:space-between; align-items:flex-start;"><div class="archive-item-text" style="flex:1;" id="archive-text-${item.id}">${highlightedContent}</div><div class="chip-actions"><i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i><i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i></div></div><div class="chip-detail-time">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div></div>`;
+            });
+        }
+        return;
+    }
+
+    if (currentArchiveCategory === '人物' && lastCategory === currentArchiveCategory && lastSearch !== searchText && searchText !== '') {
+        container.dataset.lastSearch = searchText; updateBioSearchHighlight(searchText);
+        for (const [chipId, group] of Object.entries(window.currentBioGroups)) {
+            const groupedByTime = new Map(); group.items.forEach(item => { let timeSource = item.worldTime || item.date || '日常纪元'; if (!groupedByTime.has(timeSource)) groupedByTime.set(timeSource, []); groupedByTime.get(timeSource).push(item); });
+            group.detailsHtml = '';
+            for (const [timeSource, items] of groupedByTime.entries()) {
+                group.detailsHtml += `<div style="display: flex; align-items: stretch; padding-top: 14px; border-top: 0.5px dashed color-mix(in srgb, currentColor 15%, transparent); margin-top: 10px;"><div class="timeline-left" style="width:65px; padding-right: 14px; color: currentColor; font-weight:700; opacity:0.8; font-size:12px; word-wrap: break-word;">${escapeHtml(timeSource)}</div><div class="timeline-right-container" style="flex:1; border-left:1px solid color-mix(in srgb, currentColor 10%, transparent); padding-left: 12px;">`;
+                items.forEach(item => {
+                    const highlightedContent = highlightSearchTerm(item.content, searchText);
+                    group.detailsHtml += `<div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom: 8px;"><div class="archive-item-text" style="flex:1;">${highlightedContent}</div><div class="chip-actions"><i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i><i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i></div></div><div style="font-size:11px; color:var(--text-sub); text-align:right; margin-bottom:8px;">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>`;
+                });
+                group.detailsHtml += `</div></div>`;
+            }
+        }
+        return;
+    }
+
+    container.dataset.lastCategory = currentArchiveCategory; container.dataset.lastSearch = searchText;
+    if (!container || !currentChatContactId) return;
+    const contact = mockContacts.find(c => c.id === currentChatContactId);
+    if (!contact || !contact.longMemories || contact.longMemories.length === 0) {
+        container.innerHTML = `<div style="text-align: center; padding: 80px 20px; color: var(--text-sub);"><i class="fas fa-book-journal-whills" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i><p style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 8px;">档案馆空空如也</p><p style="font-size: 13px; opacity: 0.7;">AI 正在默默记录你们的世界线...</p></div>`; return;
+    }
+
+    searchText = searchText.trim().toLowerCase();
+    const catMap = { '全部': ['全部'], '人物': ['人物', '情报', '核心', '角色'], '世界': ['世界观', '设定', '法则', '背景', '世界'], '事件': ['事件', '剧情', '编年史'], '偏好': ['偏好', '习惯', '性格', '禁忌', '喜好', '爱好', '厌恶', '雷区'], '异闻': ['异闻', '物品', '地点', '道具'] };
+
+    let validMemories = contact.longMemories.filter(m => {
+        let matchCat = true;
+        if (currentArchiveCategory !== '全部') { const allowedKeywords = catMap[currentArchiveCategory] || []; matchCat = allowedKeywords.some(kw => (m.category || '').includes(kw)); if(!matchCat && currentArchiveCategory === '人物' && m.category === '核心') matchCat = true; }
+        if (currentArchiveCategory === '事件') { if (m.isMilestone === true || m.isMilestone === 'true') matchCat = true; }
+        let matchText = true;
+        if (searchText) matchText = m.content.toLowerCase().includes(searchText) || (m.keywords && m.keywords.join(',').toLowerCase().includes(searchText)) || (m.category || '').toLowerCase().includes(searchText);
+        return matchCat && matchText;
+    });
+
+    if (validMemories.length === 0) { container.innerHTML = `<div style="text-align: center; padding: 80px 20px; color: var(--text-sub);"><i class="fas fa-ghost" style="font-size: 40px; opacity: 0.2; margin-bottom: 16px;"></i><p style="font-size: 15px;">该分类下未找到档案</p></div>`; return; }
+    container.innerHTML = '';
+
+    const sortByTime = (a, b) => {
+        const parseRange = (rangeStr) => { if (!rangeStr) return [0, 0]; const clean = rangeStr.replace(/第|轮/g, '').trim().split('-'); const start = parseInt(clean[0]) || 0, end = clean[1] ? parseInt(clean[1]) : start; return [start, end]; };
+        const [startA, endA] = parseRange(a.roundRange), [startB, endB] = parseRange(b.roundRange);
+        if (startA !== startB) return archiveSortDesc ? startB - startA : startA - startB;
+        if (endA !== endB) return archiveSortDesc ? endB - endA : endA - endB;
+        return archiveSortDesc ? (b.id || 0) - (a.id || 0) : (a.id || 0) - (b.id || 0);
+    };
+
+    if (currentArchiveCategory === '偏好') {
+        window.currentPrefGroups = {}; let contentHtml = `<div class="archive-chip-matrix${searchText ? ' archive-search-mode' : ''}" id="pref-matrix">`;
+        const prefGroups = {};
+        contact.longMemories.forEach(m => {
+            const allowedKeywords = catMap['偏好'] || []; if (!allowedKeywords.some(kw => (m.category || '').includes(kw))) return;
+            let keyword = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '日常偏好';
+            if (!prefGroups[keyword]) prefGroups[keyword] = { items: [], maxScore: 0 }; prefGroups[keyword].items.push(m); if ((m.score || 0) > prefGroups[keyword].maxScore) prefGroups[keyword].maxScore = m.score || 0;
+        });
+        const sortedGroups = Object.entries(prefGroups).sort((a, b) => b[1].maxScore - a[1].maxScore), themeClasses = ['chip-theme-blue', 'chip-theme-green', 'chip-theme-sand', 'chip-theme-mauve', 'chip-theme-rose'];
+        sortedGroups.forEach(([keyword, group], index) => {
+            let hash = 0; for(let i = 0; i < keyword.length; i++) hash += keyword.charCodeAt(i); const themeClass = themeClasses[hash % themeClasses.length];
+            let isMatch = !searchText || keyword.toLowerCase().includes(searchText) || group.items.some(item => item.content.toLowerCase().includes(searchText));
+            let chipClass = `archive-glass-chip ${themeClass} `, iconHtml = '';
+            if (group.maxScore >= 5) { chipClass += 'archive-chip-core'; iconHtml = '<i class="fas fa-layer-group" style="margin-right:6px; opacity: 0.9;"></i>'; } else if (group.maxScore === 4) { chipClass += 'archive-chip-major'; iconHtml = '<i class="fas fa-id-card" style="margin-right:6px; opacity: 0.8;"></i>'; } else { chipClass += 'archive-chip-minor'; iconHtml = '<i class="fas fa-signature" style="margin-right:6px; opacity: 0.6;"></i>'; }
+            if (searchText) chipClass += isMatch ? ' search-highlight' : ' search-dim';
+            const sortedItems = group.items.sort((a, b) => { const getStart = (r) => { if(!r) return 0; const match = r.match(/第?(\d+)-/); return match ? parseInt(match[1]) : 0; }; return archiveSortDesc ? getStart(b.roundRange) - getStart(a.roundRange) : getStart(a.roundRange) - getStart(b.roundRange); });
+            let detailsHtml = '';
+            sortedItems.forEach(item => {
+                if (!item.id) item.id = 'tmp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                const highlightedContent = highlightSearchTerm(item.content, searchText);
+                detailsHtml += `<div class="chip-detail-item"><div style="display:flex; justify-content:space-between; align-items:flex-start;"><div class="archive-item-text" style="flex:1;" id="archive-text-${item.id}">${highlightedContent}</div><div class="chip-actions"><i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i><i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i></div></div><div class="chip-detail-time">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div></div>`;
+            });
+            const chipId = `pref-chip-${index}`; window.currentPrefGroups[chipId] = { keyword, detailsHtml, themeClass, score: group.maxScore, iconHtml, items: group.items };
+            let countHtml = group.items.length > 1 ? `<span class="chip-count">${group.items.length}</span>` : '';
+            contentHtml += `<div class="${chipClass}" id="${chipId}" onclick="window.togglePrefReader('${chipId}')"><div class="chip-short"><span>${escapeHtml(keyword)}</span> ${countHtml}</div></div>`;
+        });
+        contentHtml += `</div><div id="pref-detail-reader" class="pref-detail-reader"></div>`; container.innerHTML = contentHtml; if (searchText) updatePrefSearchHighlight(searchText); window.scrollTo(0, 0); return;
+    }
+
+    if (currentArchiveCategory === '全部' || currentArchiveCategory === '事件') {
+        validMemories.sort(sortByTime); const groupedByTime = new Map();
+        validMemories.forEach(item => {
+            let sourceText = item.roundRange || item.date || '初始设定'; sourceText = sourceText.replace('第', '').replace('轮', '').trim();
+            if (sourceText.includes('-')) { const parts = sourceText.split('-'); if (parts.length === 2 && parts[0].trim() === parts[1].trim()) sourceText = parts[0].trim(); }
+            if (!groupedByTime.has(sourceText)) groupedByTime.set(sourceText, []); groupedByTime.get(sourceText).push(item);
+        });
+        let html = '';
+        for (const [timeSource, items] of groupedByTime.entries()) {
+            let innerItemsHtml = items.map(item => generateInnerTimelineItemHtml(item, searchText)).join('');
+            html += `<div class="archive-timeline-block archive-glass-panel"><div class="timeline-left"><i class="fa-regular fa-clock" style="margin-bottom: 4px; opacity: 0.5;"></i>${escapeHtml(timeSource)}</div><div class="timeline-right-container">${innerItemsHtml}</div></div>`;
+        }
+        container.innerHTML = html; return;
+    }
+
+    if (currentArchiveCategory === '人物') {
+        window.currentBioGroups = {}; 
+        let contentHtml = `<div class="archive-network-board${searchText ? ' archive-search-mode' : ''}" id="bio-board"><svg id="links-layer"></svg><div id="html-layer"></div></div><div id="bio-detail-reader" class="pref-detail-reader"></div><div class="modal-overlay" id="relation-modal-overlay" onclick="closeRelationModal()"></div><div class="relation-history-modal" id="relation-history-modal"><div class="relation-modal-header" id="relation-modal-title">人物A ↔ 人物B</div><div class="relation-history-list" id="relation-history-list"></div></div>`;
+        const bioGroups = {};
+        contact.longMemories.forEach(m => {
+            const allowedKeywords = catMap[currentArchiveCategory] || []; const matchCat = allowedKeywords.some(kw => (m.category || '').includes(kw));
+            if (!matchCat && currentArchiveCategory === '事件') { if (!(m.isMilestone === true || m.isMilestone === 'true')) return; } else if (!matchCat) return;
+            let characterName = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '佚名';
+            if (!bioGroups[characterName]) bioGroups[characterName] = { items: [], maxScore: 0 }; bioGroups[characterName].items.push(m); if ((m.score || 0) > bioGroups[characterName].maxScore) bioGroups[characterName].maxScore = m.score || 0;
+        });
+        const themeClasses = ['chip-theme-mauve', 'chip-theme-blue', 'chip-theme-green', 'chip-theme-sand', 'chip-theme-rose'], nodesData = []; let renderedCount = 0;
+        for (const [characterName, group] of Object.entries(bioGroups)) {
+            let hash = 0; for(let i = 0; i < characterName.length; i++) hash += characterName.charCodeAt(i); const themeClass = themeClasses[hash % themeClasses.length];
+            let isMatch = !searchText || characterName.toLowerCase().includes(searchText) || group.items.some(item => item.content.toLowerCase().includes(searchText));
+            let chipClass = `archive-glass-chip ${themeClass} `, iconHtml = '';
+            if (group.maxScore >= 5) { chipClass += 'archive-chip-core'; iconHtml = '<i class="fas fa-layer-group" style="margin-right:6px; opacity: 0.9;"></i>'; } else if (group.maxScore === 4) { chipClass += 'archive-chip-major'; iconHtml = '<i class="fas fa-id-card" style="margin-right:6px; opacity: 0.8;"></i>'; } else { chipClass += 'archive-chip-minor'; iconHtml = '<i class="fas fa-signature" style="margin-right:6px; opacity: 0.6;"></i>'; }
+            if (searchText) chipClass += isMatch ? ' search-highlight' : ' search-dim';
+            const groupedByTime = new Map(); group.items.forEach(item => { let sourceText = item.worldTime || item.date || '日常纪元'; if (!groupedByTime.has(sourceText)) groupedByTime.set(sourceText, []); groupedByTime.get(sourceText).push(item); });
+            let detailsHtml = '';
+            for (const [timeSource, items] of groupedByTime.entries()) {
+                let innerItemsHtml = items.map(item => { const highlightedContent = highlightSearchTerm(item.content, searchText); return `<div style="display:flex; justify-content:space-between; align-items:flex-start; padding-bottom: 8px;"><div class="archive-item-text" id="archive-text-${item.id}" style="flex:1;">${highlightedContent}</div><div class="chip-actions"><i class="fas fa-pencil-alt" onclick="inplaceEditArchiveItem('${item.id}')"></i><i class="fas fa-trash-alt" onclick="deleteArchiveItem('${item.id}')"></i></div></div><div style="font-size:11px; color:var(--text-sub); text-align:right; margin-bottom:8px;">记录于 ${escapeHtml(formatRoundRange(item.roundRange))}</div>`}).join('');
+                detailsHtml += `<div style="display: flex; align-items: stretch; padding-top: 14px; border-top: 0.5px dashed color-mix(in srgb, currentColor 15%, transparent); margin-top: 10px;"><div class="timeline-left" style="width:65px; padding-right: 14px; color: currentColor; font-weight:700; opacity:0.8; font-size:12px; word-wrap: break-word;">${escapeHtml(timeSource)}</div><div class="timeline-right-container" style="flex:1; border-left:1px solid color-mix(in srgb, currentColor 10%, transparent); padding-left: 12px;">${innerItemsHtml}</div></div>`;
+            }
+            const chipId = `bio-chip-${renderedCount}`; window.currentBioGroups[chipId] = { characterName, detailsHtml, themeClass, score: group.maxScore, iconHtml, items: group.items };
+            let countHtml = group.items.length > 1 ? `<span class="chip-count">${group.items.length}</span>` : '';
+            nodesData.push({ id: characterName, chipId, html: `<div class="chip-short"><span>${escapeHtml(characterName)}</span> ${countHtml}</div>`, className: chipClass }); renderedCount++;
+        }
+        container.innerHTML = contentHtml;
+        setTimeout(() => {
+            const board = document.getElementById('bio-board'); if (!board) return;
+            const width = board.clientWidth, height = board.clientHeight; let linksData = [];
+            if (contact.relations && contact.relations.length > 0) {
+                linksData = contact.relations.map(r => { const sourceNode = nodesData.find(n => n.id === r.source), targetNode = nodesData.find(n => n.id === r.target); if (sourceNode && targetNode) return { source: sourceNode, target: targetNode, label: r.label, history: r.history || [] }; return null; }).filter(l => l !== null);
+            }
+            const savedPos = getSavedNodePositions(contact.id); let runSim = savedPos === null;
+            if (savedPos) { nodesData.forEach(n => { if (savedPos[n.id]) { n.x = savedPos[n.id].x; n.y = savedPos[n.id].y; } else { n.x = width / 2 + (Math.random() - 0.5) * 100; n.y = height / 2 + (Math.random() - 0.5) * 100; runSim = true; } }); }
+            renderNodesAndLinks(nodesData, linksData, width, height, runSim); if (searchText) updateBioSearchHighlight(searchText);
+        }, 50); return;
+    }
+
+    const entityGroups = {};
+    validMemories.forEach(m => { let entityName = (m.keywords && m.keywords.length > 0) ? m.keywords[0] : '综合备忘录'; if (!entityGroups[entityName]) entityGroups[entityName] = { items: [] }; entityGroups[entityName].items.push(m); });
+    const sortedEntities = Object.entries(entityGroups).sort((a, b) => { const maxIdA = Math.max(...a[1].items.map(i => i.id || 0)), maxIdB = Math.max(...b[1].items.map(i => i.id || 0)); return archiveSortDesc ? maxIdB - maxIdA : maxIdA - maxIdB; });
+    for (const [entityName, group] of sortedEntities) {
+        group.items.sort(sortByTime); const groupedByTime = new Map();
+        group.items.forEach(item => {
+            let sourceText = item.roundRange || item.date || '设定'; sourceText = sourceText.replace('第', '').replace('轮', '').trim();
+            if (sourceText.includes('-')) { const parts = sourceText.split('-'); if (parts.length === 2 && parts[0].trim() === parts[1].trim()) sourceText = parts[0].trim(); }
+            if (!groupedByTime.has(sourceText)) groupedByTime.set(sourceText, []); groupedByTime.get(sourceText).push(item);
+        });
+        let itemsHtml = '';
+        for (const [timeSource, items] of groupedByTime.entries()) {
+            let innerItemsHtml = items.map(item => generateInnerTimelineItemHtml(item, searchText)).join('');
+            itemsHtml += `<div class="archive-timeline-row"><div class="timeline-left" style="padding-right: 20px; font-size: 11px;">${escapeHtml(timeSource)}</div><div class="timeline-right-container" style="padding-left: 12px;">${innerItemsHtml}</div></div>`;
+        }
+        const latestItem = group.items.reduce((prev, current) => (prev.id > current.id) ? prev : current), previewText = escapeHtml(latestItem.content), recordCount = group.items.length;
+        const isExpanded = searchText !== '' || expandedArchiveCards.has(entityName) || sortedEntities.length <= 2;
+        const cardHtml = `<div class="archive-entity-card archive-glass-panel ${isExpanded ? 'expanded' : ''}"><div class="archive-entity-header" onclick="toggleArchiveCard(this)"><div class="archive-header-top"><div class="archive-entity-title">${escapeHtml(entityName)}</div><div class="archive-count-badge"><i class="fas fa-layer-group"></i> ${recordCount} 条</div></div><div class="archive-preview-text">${previewText}</div></div><div class="archive-entity-body-wrapper"><div class="archive-entity-body"><div class="archive-entity-body-inner">${itemsHtml}</div></div></div></div>`;
+        container.insertAdjacentHTML('beforeend', cardHtml);
+    }
+}
+
+window.showRelationHistory = function(data) {
+    const sourceName = data.source?.id || data.source, targetName = data.target?.id || data.target;
+    document.getElementById('relation-modal-title').innerHTML = `${escapeHtml(sourceName)} <span style="color:#D47A43;">↔</span> ${escapeHtml(targetName)}`;
+    let listHtml = '';
+    if (data.history && data.history.length > 0) {
+        [...data.history].reverse().forEach((h, index) => {
+            listHtml += `<div class="history-node"><div class="history-node-top" style="justify-content: flex-start;"><span class="history-label">${escapeHtml(h.label)}</span><div style="margin-left: auto; display: flex; gap: 8px; align-items: center;"><i class="fas fa-pencil-alt" onclick="editRelationHistory('${data.source.id}', '${data.target.id}', ${index})" style="cursor: pointer; opacity: 0.6; font-size: 12px;"></i><i class="fas fa-trash-alt" onclick="deleteRelationHistory('${data.source.id}', '${data.target.id}', ${index})" style="cursor: pointer; opacity: 0.6; font-size: 12px; color: var(--danger);"></i></div></div><div style="font-size:13px; color:var(--text-sub); line-height:1.5;">${escapeHtml(h.detail || '未记录详细事件')}</div><div style="text-align: right; font-size: 11px; color: var(--text-sub); margin-top: 4px;">${escapeHtml(h.time)}</div></div>`;
+        });
+    } else listHtml = `<div style="text-align:center; padding:20px; color:var(--text-sub); font-size:13px;">暂无历史变迁记录，当前为初始状态。</div>`;
+    document.getElementById('relation-history-list').innerHTML = listHtml; document.getElementById('relation-modal-overlay').classList.add('show'); document.getElementById('relation-history-modal').classList.add('show');
+};
+
+window.closeRelationModal = function() { document.getElementById('relation-modal-overlay').classList.remove('show'); document.getElementById('relation-history-modal').classList.remove('show'); };
+
+document.addEventListener('click', (event) => {
+    const catMenu = document.getElementById('archive-cat-menu'), catTrigger = event.target.closest('[onclick="toggleCategoryMenu()"]'); 
+    if (catMenu && catMenu.classList.contains('show') && !catMenu.contains(event.target) && !catTrigger) catMenu.classList.remove('show');
+    const isClickInsideReader = event.target.closest('.pref-detail-reader'), isClickOnChip = event.target.closest('.archive-glass-chip');
+    if (!isClickInsideReader && !isClickOnChip) {
+        const prefReader = document.getElementById('pref-detail-reader'), prefMatrix = document.getElementById('pref-matrix');
+        if (prefReader && prefReader.classList.contains('show')) {
+            prefMatrix.classList.remove('has-active'); prefMatrix.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+            const styles = window.getComputedStyle(prefReader), heightLoss = prefReader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
+            prefReader.style.opacity = '0'; smoothScrollToElement(prefMatrix, 400, heightLoss);
+            setTimeout(() => { if (!prefMatrix.classList.contains('has-active')) { prefReader.style.transition = 'none'; prefReader.classList.remove('show'); requestAnimationFrame(() => { prefReader.style.opacity = ''; prefReader.style.transition = ''; }); } }, 400);
+        }
+        const bioReader = document.getElementById('bio-detail-reader'), bioBoard = document.getElementById('bio-board');
+        if (bioReader && bioReader.classList.contains('show')) {
+            bioBoard.classList.remove('has-active'); bioBoard.querySelectorAll('.archive-glass-chip').forEach(c => c.classList.remove('active'));
+            const styles = window.getComputedStyle(bioReader), heightLoss = bioReader.offsetHeight + (parseFloat(styles.marginTop) || 0) + (parseFloat(styles.marginBottom) || 0);
+            bioReader.style.opacity = '0'; smoothScrollToElement(bioBoard, 400, heightLoss);
+            setTimeout(() => { if (!bioBoard.classList.contains('has-active')) { bioReader.style.transition = 'none'; bioReader.classList.remove('show'); requestAnimationFrame(() => { bioReader.style.opacity = ''; bioReader.style.transition = ''; dimRelationLines(false); }); } });
+        }
+    }
+});
+
+window.syncMemoriesToCloud = async function() {
+    const contact = mockContacts.find(c => c.id === currentChatContactId); 
+    if (!contact || !contact.longMemories || contact.longMemories.length === 0) { addLogToConsole('error', 'SYNC', '当前角色没有可同步的记忆档案！'); return; }
+    addLogToConsole('info', 'SYNC', `开始为 ${contact.name} 执行高维洗礼，共 ${contact.longMemories.length} 条记忆...`);
+    let successCount = 0, failCount = 0;
+    for (let i = 0; i < contact.longMemories.length; i++) {
+        const mem = contact.longMemories[i];
+        try {
+            const memId = mem.id || `${contact.id}_mem_${Date.now()}_${i}`; mem.id = memId; 
+            addLogToConsole('info', 'SYNC', `正在上传 (${i+1}/${contact.longMemories.length}): ${mem.content.substring(0, 15)}...`);
+            const response = await fetch('https://linkgo-api.ginkgo-yinxing.workers.dev/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'insert_memory', id: memId, text: mem.content, metadata: { contactId: contact.id, score: mem.score || 0, worldTime: mem.worldTime || '' } }) });
+            const result = await response.json();
+            if (result.success) successCount++; else { failCount++; addLogToConsole('error', 'SYNC', `第 ${i+1} 条上传失败`); }
+        } catch (e) { failCount++; addLogToConsole('error', 'SYNC', `第 ${i+1} 条发生异常: ${e.message}`); }
+    }
+    saveToLocal(); addLogToConsole('success', 'SYNC', `🎉 高维洗礼完成！成功: ${successCount}, 失败: ${failCount}`); alert(`洗礼完成！成功将 ${successCount} 条记忆上传至云端潜意识海！`);
+};
+
+function dimRelationLines(dim) {
+    const targetOpacity = dim ? '0.3' : '1', board = document.getElementById('bio-board'); if (!board) return;
+    board.querySelectorAll('.link').forEach(l => l.style.opacity = targetOpacity);
+    board.querySelectorAll('.relation-label').forEach(r => r.style.opacity = targetOpacity);
+}
+
+function editRelationHistory(source, target, historyIndex) {
+    const contact = mockContacts.find(c => c.id === currentChatContactId); if (!contact || !contact.relations) return;
+    const rel = contact.relations.find(r => (r.source === source && r.target === target) || (r.source === target && r.target === source));
+    if (!rel || !rel.history || !rel.history[historyIndex]) return;
+    const h = rel.history[historyIndex], targetNode = document.querySelectorAll('#relation-history-list .history-node')[historyIndex]; if (!targetNode) return;
+    const labelSpan = targetNode.querySelector('.history-label'), detailDiv = targetNode.querySelector('div[style*="font-size:13px"]');
+    if (labelSpan) { labelSpan.contentEditable = 'true'; labelSpan.focus(); const range = document.createRange(); range.selectNodeContents(labelSpan); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }
+    if (detailDiv) detailDiv.contentEditable = 'true';
+    const finishEdit = () => {
+        const newLabel = labelSpan ? labelSpan.textContent.trim() : h.label, newDetail = detailDiv ? detailDiv.textContent.trim() : (h.detail || '');
+        if (newLabel) h.label = newLabel; h.detail = newDetail; saveToLocal();
+        if (labelSpan) labelSpan.contentEditable = 'false'; if (detailDiv) detailDiv.contentEditable = 'false';
+        document.removeEventListener('mousedown', handleClickOutside); document.removeEventListener('touchstart', handleClickOutside);
+    };
+    const handleClickOutside = (e) => { if (!targetNode.contains(e.target)) finishEdit(); };
+    setTimeout(() => { document.addEventListener('mousedown', handleClickOutside); document.addEventListener('touchstart', handleClickOutside, {passive: true}); }, 100);
+    const handleEsc = (e) => {
+        if (e.key === 'Escape') {
+            e.preventDefault(); if (labelSpan) labelSpan.textContent = h.label; if (detailDiv) detailDiv.textContent = h.detail || '未记录详细事件';
+            if (labelSpan) labelSpan.contentEditable = 'false'; if (detailDiv) detailDiv.contentEditable = 'false';
+            document.removeEventListener('keydown', handleEsc); document.removeEventListener('mousedown', handleClickOutside); document.removeEventListener('touchstart', handleClickOutside);
+        }
+    };
+    document.addEventListener('keydown', handleEsc);
+}
+
+function deleteRelationHistory(source, target, historyIndex) {
+    const contact = mockContacts.find(c => c.id === currentChatContactId); if (!contact || !contact.relations) return;
+    const rel = contact.relations.find(r => (r.source === source && r.target === target) || (r.source === target && r.target === source));
+    if (!rel || !rel.history || !rel.history[historyIndex]) return;
+    if (confirm('确定要删除这段羁绊历史吗？')) {
+        rel.history.splice(historyIndex, 1);
+        if (rel.history.length === 0) { contact.relations = contact.relations.filter(r => r !== rel); saveToLocal(); closeRelationModal(); } 
+        else { rel.label = rel.history[rel.history.length - 1].label; saveToLocal(); showRelationHistory(rel); }
+    }
+}
