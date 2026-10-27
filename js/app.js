@@ -8134,8 +8134,12 @@ AI 自己永远是“我”；
             GENERAL_CONFIG.regexCount = REGEX_RULES.list.length;
             GENERAL_CONFIG.presetCount = PRESETS.list.length;
             
-            document.getElementById('general-regex-count').textContent = GENERAL_CONFIG.regexCount + ' 条';
-            document.getElementById('general-preset-count').textContent = GENERAL_CONFIG.presetCount + ' 个';
+            // 🌟 护甲：先找找页面有没有这两个元素，有才填，没有就不管，绝不报错！
+            const regexCountEl = document.getElementById('general-regex-count');
+            if (regexCountEl) regexCountEl.textContent = GENERAL_CONFIG.regexCount + ' 条';
+            
+            const presetCountEl = document.getElementById('general-preset-count');
+            if (presetCountEl) presetCountEl.textContent = GENERAL_CONFIG.presetCount + ' 个';
         }
         
         // 页面加载时初始化通用页面
@@ -14554,45 +14558,50 @@ AI 自己永远是“我”；
         const icon = btn.querySelector('i');
         if (!icon) return;
 
-        // 保存原始内容（为了后面恢复）
+        // 🌟 核心分流：如果它不是 Prompt 那个带底色的按钮（说明是控制台的纯图标）
+        if (!btn.classList.contains('prompt-copy-btn')) {
+            const originalClass = icon.className;
+            icon.className = 'fa-solid fa-check';
+            icon.style.color = '#34C759'; // 只把图标变绿
+            setTimeout(() => {
+                icon.className = originalClass;
+                icon.style.color = '';
+            }, 2000);
+            return; // 直接结束，不走下面那些加背景色的逻辑
+        }
+
+        // 下面是原本 Prompt 按钮的高级动画（加上深绿色背景）
         const originalHTML = btn.innerHTML;
         const originalBg = btn.style.background;
         
-        // 第1步：淡出原图标
         btn.style.transition = 'all 0.2s cubic-bezier(0.25, 1, 0.5, 1)';
         btn.style.opacity = '0';
         btn.style.transform = 'scale(0.8)';
         
         setTimeout(() => {
-            // 第2步：切换为打勾图标 + 深绿色背景！
             btn.innerHTML = '<i class="fas fa-check"></i>';
             btn.style.background = '#34C759'; 
             btn.style.boxShadow = '0 2px 12px rgba(52, 199, 89, 0.4)';
             
-            // 第3步：弹入打勾图标
             btn.style.opacity = '1';
             btn.style.transform = 'scale(1.1)';
             
             setTimeout(() => {
-                // 第4步：稳定显示
                 btn.style.transform = 'scale(1)';
                 
                 setTimeout(() => {
-                    // 第5步：淡出打勾
                     btn.style.opacity = '0';
                     btn.style.transform = 'scale(0.8)';
                     
                     setTimeout(() => {
-                        // 第6步：恢复原样
                         btn.innerHTML = originalHTML;
                         btn.style.background = originalBg;
                         btn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
                         
-                        // 第7步：弹入原图标
                         btn.style.opacity = '1';
                         btn.style.transform = 'scale(1)';
                     }, 200);
-                }, 1200); // 打勾显示1.2秒
+                }, 1200);
             }, 100);
         }, 200);
     }
