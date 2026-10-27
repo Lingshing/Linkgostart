@@ -12215,22 +12215,56 @@ AI 自己永远是“我”；
                     }
                 });
 
-                // 2. 特殊处理：如果勾选了 chat 分类，则把所有 CONV_* 对话记录打包
+                                // 2. 特殊处理：chat 分类需要从 DB 导出 CHAT_CONTACTS、APP_SETTINGS 和所有 CONV_*
                 if (checkedCategories.includes('chat')) {
-                    const forageKeys = await localforage.keys();
-                    for (const key of forageKeys) {
-                        if (key.startsWith('CONV_')) {
-                            const val = await DB.getItem(key);
-                            if (val) snapshot[key] = val;
+                    // 导出角色列表
+                    let chatContacts = await DB.getItem('CHAT_CONTACTS');
+                    if (!chatContacts) {
+                        chatContacts = localStorage.getItem('CHAT_CONTACTS');
+                    }
+                    if (chatContacts) {
+                        snapshot['CHAT_CONTACTS'] = chatContacts;
+                    }
+                    // 导出 APP_SETTINGS（包含 currentChatId 等）
+                    let appSettings = await DB.getItem('APP_SETTINGS');
+                    if (appSettings) {
+                        snapshot['APP_SETTINGS'] = appSettings;
+                    }
+                    // 解析角色 ID 列表
+                    let contactIds = [];
+                    if (chatContacts) {
+                        try {
+                            const contacts = JSON.parse(chatContacts);
+                            contactIds = contacts.map(c => c.id);
+                        } catch(e) {}
+                    }
+                    if (contactIds.length === 0 && typeof mockContacts !== 'undefined') {
+                        contactIds = mockContacts.map(c => c.id);
+                    }
+                    for (const id of contactIds) {
+                        const key = `CONV_${id}`;
+                        const val = await DB.getItem(key);
+                        if (val) {
+                            snapshot[key] = val;
                         }
                     }
                 }
 
-                // 3. 特殊处理：互动视图数据 (ACTIVITY_STATS) — 如果尚未迁移，则从 APP_DATA 里提取
+                // 3. 特殊处理：forum 分类从 DB 导出 FORUM_POSTS
+                if (checkedCategories.includes('forum')) {
+                    let forumPosts = await DB.getItem('FORUM_POSTS');
+                    if (!forumPosts) {
+                        forumPosts = localStorage.getItem('FORUM_POSTS');
+                    }
+                    if (forumPosts) {
+                        snapshot['FORUM_POSTS'] = forumPosts;
+                    }
+                }
+
+                // 4. 特殊处理：互动视图数据 (ACTIVITY_STATS) — 如果尚未迁移，则从 APP_DATA 里提取
                 if (checkedCategories.includes('interaction')) {
                     let activityStats = await DB.getItem('ACTIVITY_STATS');
                     if (!activityStats) {
-                        // 兼容旧数据：从 APP_DATA 里提取
                         const appDataStr = await DB.getItem('APP_DATA');
                         if (appDataStr) {
                             try {
@@ -12321,6 +12355,11 @@ AI 自己永远是“我”；
                                     if (!presentCategories.includes(cat)) presentCategories.push(cat);
                                     isKnown = true;
                                 }
+                            }
+                            // 新增：识别 CONV_* 为 chat 分类
+                            if (key.startsWith('CONV_')) {
+                                if (!presentCategories.includes('chat')) presentCategories.push('chat');
+                                isKnown = true;
                             }
                             if (!isKnown) hasOther = true;
                         });
@@ -12454,24 +12493,31 @@ AI 自己永远是“我”；
                     shouldImport = false; // 不直接导入 APP_DATA 整体
                 }
 
-                // 兼容新格式备份：从 APP_SETTINGS 中提取 activityStats
-                if (key === 'APP_SETTINGS' && (checkedCategories.includes('interaction') || checkedCategories.includes('chat'))) {
-                    try {
-                        const settings = JSON.parse(valStr);
-                        // 恢复互动视图数据
-                        if (settings.activityStats && checkedCategories.includes('interaction')) {
-                            await DB.setItem('ACTIVITY_STATS', JSON.stringify(settings.activityStats));
-                            console.log('✅ 已从 APP_SETTINGS 恢复 ACTIVITY_STATS');
+                // 特殊处理 APP_SETTINGS：提取 activityStats，并根据勾选分类决定是否导入整体
+                if (key === 'APP_SETTINGS') {
+                    // 如果勾选了 interaction，提取 activityStats 到独立键
+                    if (checkedCategories.includes('interaction')) {
+                        try {
+                            const settings = JSON.parse(valStr);
+                            if (settings.activityStats) {
+                                await DB.setItem('ACTIVITY_STATS', JSON.stringify(settings.activityStats));
+                                console.log('✅ 已从 APP_SETTINGS 恢复 ACTIVITY_STATS');
+                            }
+                        } catch(e) {
+                            console.error('拆分 APP_SETTINGS 失败', e);
                         }
-                        // 注意：聊天记录已经在 CONV_* 中单独处理，这里不再重复
-                    } catch(e) {
-                        console.error('拆分 APP_SETTINGS 失败', e);
                     }
-                    shouldImport = false; // 不直接导入 APP_SETTINGS 整体（避免覆盖当前配置）
+                    // 仅当勾选 chat 或 general 时，才导入 APP_SETTINGS 整体到 DB
+                    if (checkedCategories.includes('chat') || checkedCategories.includes('general')) {
+                        shouldImport = true;
+                    } else {
+                        shouldImport = false;
+                    }
                 }
 
                 if (shouldImport) {
-                    if (key.startsWith('CONV_') || key === 'ACTIVITY_STATS') {
+                    const dbKeys = ['CHAT_CONTACTS', 'APP_SETTINGS', 'FORUM_POSTS', 'ACTIVITY_STATS'];
+                    if (key.startsWith('CONV_') || dbKeys.includes(key)) {
                         await DB.setItem(key, valStr);
                     } else {
                         localStorage.setItem(key, valStr);
