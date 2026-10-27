@@ -1267,6 +1267,67 @@
         </div>
     </div>
 
+        <div id="scene-todo" class="sub-page-scene" style="z-index: 3000;">
+        <div class="nav-header" style="background: var(--bg-color); padding-bottom: 4px; border-bottom: none !important;">
+            <i class="fa-solid fa-chevron-left clickable" style="font-size:18px; color:var(--text-main);" onclick="closeSubPage('scene-todo')"></i>
+            <span class="nav-title" style="font-weight: 600;">任务站</span>
+            <i class="fa-solid fa-plus clickable" style="font-size:18px; color:var(--text-main);" onclick="openTodoSheet()"></i>
+        </div>
+        
+        <div style="padding: 8px 16px 8px; background: var(--bg-color);">
+            <div class="todo-tabs" id="todo-tabs-container">
+                <div class="todo-tab" onclick="switchTodoTab(0)">待办</div>
+                <div class="todo-tab active" onclick="switchTodoTab(1)">今天</div>
+                <div class="todo-tab" onclick="switchTodoTab(2)">已完成</div>
+            </div>
+        </div>
+
+        <div id="todo-filter-bar" class="todo-filter-bar"></div>
+
+        <div class="todo-swiper-viewport">
+            <div class="todo-swiper-track" id="todo-main-track">
+                <div class="todo-page" id="todo-page-0"></div>
+                <div class="todo-page" id="todo-page-1"></div>
+                <div class="todo-page" id="todo-page-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="todo-sheet-overlay" class="todo-sheet-overlay" onclick="cancelTodoSheet()"></div>
+    <div id="todo-bottom-sheet" class="todo-bottom-sheet" style="padding: 16px 20px 80px; gap: 8px;">
+        <div class="todo-sheet-handle"></div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 4px;">
+            <div id="todo-sheet-top-delete" onclick="if(document.getElementById('todo-bottom-sheet').dataset.editingId){ activeTodoId = parseInt(document.getElementById('todo-bottom-sheet').dataset.editingId); deleteCurrentTodo(); } else { cancelTodoSheet(); }" style="color: var(--text-sub); font-size: 16px; cursor: pointer; padding: 8px 0; font-weight: 400; transition: opacity 0.2s;">删除</div>
+            
+            <button onclick="submitNewTodo()" style="background: none; border: none; padding: 8px 0; color: var(--text-sub); font-size: 16px; font-weight: 500; cursor: pointer; display: flex; align-items: center; transition: opacity 0.2s;">
+                保存
+            </button>
+        </div>
+        
+        <textarea id="todo-input-title" class="todo-input-large" placeholder="准备做什么？" rows="1" style="min-height:24px; max-height:100px; padding:0; overflow-y:auto;" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px';"></textarea>
+        
+        <div id="todo-subtasks-container" style="display: flex; flex-direction: column;"></div>
+        <div class="todo-add-subtask-btn" onclick="addTodoSubtaskRow()"><i class="fa-solid fa-plus" style="font-size:10px;"></i> 添加子任务</div>
+        
+        <div class="todo-tools-row" style="margin-top: 8px;">
+            <label class="todo-tool-btn" style="position: relative; overflow: hidden; padding: 6px 10px;">
+                <i class="fa-regular fa-calendar"></i> <span id="todo-ddl-date-text">日期</span>
+                <input type="date" id="todo-date-picker" style="position: absolute; opacity: 0; left: 0; top: 0; width: 100%; height: 100%; cursor: pointer;" onchange="updateTodoDDL()">
+            </label>
+            <label class="todo-tool-btn" style="position: relative; overflow: hidden; padding: 6px 10px;">
+                <i class="fa-regular fa-clock"></i> <span id="todo-ddl-time-text">时间</span>
+                <input type="time" id="todo-time-picker" style="position: absolute; opacity: 0; left: 0; top: 0; width: 100%; height: 100%; cursor: pointer;" onchange="updateTodoDDL()">
+            </label>
+        </div>
+
+        <div class="todo-dynamic-tags" id="todo-tags-container" style="margin-top: 4px;">
+            <div class="todo-tag-input-wrapper">
+                <i class="fa-solid fa-plus" style="color: var(--text-sub); font-size: 12px;"></i>
+                <input type="text" id="todo-new-tag-input" class="todo-tag-input" placeholder="新标签" onkeydown="handleNewTagKeyPress(event)" onblur="handleNewTagBlur()">
+            </div>
+        </div>
+    </div>
     <script src="./js/app.js"></script>
 
 </body>
